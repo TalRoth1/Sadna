@@ -1,4 +1,4 @@
 package org.example.DomainLayer;
 
-public class IUserRepository {
+public interface IUserRepository {
 }

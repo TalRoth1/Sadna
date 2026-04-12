@@ -1,4 +1,4 @@
 package org.example.DomainLayer.CompanyAggregate;
 
-public class IPurchaseRule {
+public interface IPurchaseRule {
 }

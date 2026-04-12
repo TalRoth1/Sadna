@@ -1,4 +1,4 @@
 package org.example.DomainLayer.EventAggregate;
 
-public class IDiscountRule {
+public interface IDiscountRule {
 }

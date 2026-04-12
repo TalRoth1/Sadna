@@ -1,4 +1,4 @@
 package org.example.DomainLayer;
 
-public class IHistoryRepository {
+public interface IHistoryRepository {
 }

@@ -1,4 +1,4 @@
 package org.example.DomainLayer;
 
-public class IEventRepository {
+public interface IEventRepository {
 }

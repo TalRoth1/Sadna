@@ -1,4 +1,4 @@
 package org.example.DomainLayer.CompanyAggregate;
 
-public interface ICompanyMember {
+public interface IDiscountRule {
 }

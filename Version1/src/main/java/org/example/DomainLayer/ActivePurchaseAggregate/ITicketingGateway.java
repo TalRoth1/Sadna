@@ -1,4 +1,4 @@
 package org.example.DomainLayer.ActivePurchaseAggregate;
 
-public class ITicketingGateway {
+public interface ITicketingGateway {
 }
