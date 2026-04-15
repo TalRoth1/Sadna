@@ -1,4 +1,4 @@
-package org.example.DomainLayer.CompanyAggregate;
+package org.example.DomainLayer.PolicyAggregate;
 
 public class PurchasePolicy {
 }
