@@ -1,8 +1,8 @@
 package org.example.DomainLayer.CompanyAggregate;
 
 import java.util.List;
+import java.util.Map;
 
-import org.example.DomainLayer.EventAggregate.Event;
 import org.example.DomainLayer.PolicyAggregate.DiscountPolicy;
 import org.example.DomainLayer.PolicyAggregate.PurchasePolicy;
 
@@ -10,19 +10,19 @@ public class Company {
     private int id;
     static private int idCounter = 0;
     private CompanyFounder founder; 
-    private List<ICompanyMember> members;
+    private Map<String, ICompanyMember> members;
     private DiscountPolicy discountPolicy;
     private PurchasePolicy purchasePolicy;
     private int rating;
     private int amountRated;
-    private List<Event> events;
+    private List<Integer> eventIds;
 
     public Company(String founderUsername)
     {
         this.id = Company.idCounter;
         Company.idCounter++;
         this.founder = new CompanyFounder(founderUsername);
-        members.add(founder);
+        members.put(founderUsername, founder);
         this.discountPolicy = new DiscountPolicy();
         this.purchasePolicy = new PurchasePolicy();
     }
@@ -37,20 +37,9 @@ public class Company {
         return this.founder;
     }
 
-    public void addEvent(Event newEvent)
+    public void addEvent(Integer newEventId)
     {
-        events.add(newEvent);
-    }
-
-    public Event getEvent(int EventId)
-    {
-        for (Event event : events) {
-            if(event.getId() == EventId)
-                {
-                    return event;
-                }
-        }
-        return null;
+        eventIds.add(newEventId);
     }
 
     public DiscountPolicy getDiscountPolicy()
