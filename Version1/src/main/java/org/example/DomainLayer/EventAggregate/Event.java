@@ -1,5 +1,7 @@
 package org.example.DomainLayer.EventAggregate;
 
+import org.example.DomainLayer.DomainException;
+
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -197,5 +199,76 @@ public class Event {
             throw new IllegalArgumentException("ticketId must not be null");
         }
         return ticketsById.get(ticketId);
+    }
+
+    public void checkAvailabilityOfSittingTickets(List<String> ticketIDs) {
+        if (ticketIDs == null || ticketIDs.isEmpty()) {
+            throw new DomainException("רשימת הכרטיסים שהוזנה ריקה");
+        }
+
+        for (String tid : ticketIDs) {
+            Ticket t = ticketsById.get(tid);
+
+            // בדיקה 1: האם הכרטיס בכלל קיים באירוע הזה?
+            if (t == null) {
+                throw new DomainException("הכרטיס " + tid + "לא קיים באירוע");
+
+            }
+
+            // בדיקה 2: האם הוא בסטטוס פנוי?
+            if (t.getStatus() != TicketStatus.AVAILABLE) {
+                throw new DomainException("הכרטיס " + tid + "לא פנוי");
+
+            }
+        }
+    }
+
+
+    public void checkAvailabilityOfStandingTickets(int amount, String areaID)
+    {
+        Area area = layout.requireArea(areaID);
+
+        // 2. שולף את כל ה-IDs של הכרטיסים ששייכים לאזור הזה
+        List<String> areaTicketIds = area.getTicketIdsView();
+
+        // 3. סופר כמה מהם בסטטוס AVAILABLE בתוך ה-Map של האירוע
+        long availableCount = areaTicketIds.stream()
+                .map(ticketsById::get) // שואב את אובייקט ה-Ticket לפי ה-ID
+                .filter(t -> t != null && t.getStatus() == TicketStatus.AVAILABLE)
+                .count();
+
+        // 4. בודק אם יש מספיק כרטיסים פנויים לפי הכמות המבוקשת
+        if (availableCount < amount) {
+            // ה-Event זורק את השגיאה כי הוא זה שגילה שהמלאי חסר
+            throw new DomainException("אין מספיק כרטיסים פנויים באזור המבוקש");
+        }
+    }
+
+    public void reserveSittingTickets(List<String> ticketIDs) {
+    }
+
+    public List<String> reserveStandingTickets(int amount, String areaId) {
+        Area area = layout.requireArea(areaId);
+        List<String> areaTicketIds = area.getTicketIdsView();
+
+        // מוצאים כרטיסים פנויים מתוך הרשימה של האזור
+        List<String> selectedTickets = areaTicketIds.stream()
+                .map(ticketsById::get)
+                .filter(t -> t != null && t.getStatus() == TicketStatus.AVAILABLE)
+                .limit(amount) // לוקחים רק את הכמות המבוקשת
+                .map(Ticket::getTicketId)
+                .toList();
+
+        // בדיקה: האם הצלחנו למצוא מספיק כרטיסים?
+        if (selectedTickets.size() < amount) {
+            throw new DomainException("אין מספיק כרטיסים פנויים באזור המבוקש");
+        }
+
+        // מבצעים את השריון בפועל לכל אחד מהנבחרים
+        for (String tid : selectedTickets) {
+            ticketsById.get(tid).reserve();
+        }
+
+        return selectedTickets; // מחזירים את ה-IDs ל-Service
     }
 }
