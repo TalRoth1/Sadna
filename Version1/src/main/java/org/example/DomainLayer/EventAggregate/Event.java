@@ -244,7 +244,30 @@ public class Event {
         }
     }
 
-    public void reserveSittingTickets(List<String> ticketIDs) {
+    public void reserveSittingTickets(List<String> ticketIDs)
+    {
+        List<Ticket> ticketsToReserve = new ArrayList<>();
+
+        for (String id : ticketIDs) {
+            Ticket ticket = ticketsById.get(id);
+
+            // הגנה: האם הכרטיס בכלל קיים באירוע הזה?
+            if (ticket == null) {
+                throw new DomainException("כרטיס שמזההו " + id + " אינו קיים באירוע זה.");
+            }
+
+            // הגנה: האם הכרטיס פנוי?
+            if (ticket.getStatus() != TicketStatus.AVAILABLE) {
+                throw new DomainException("הכיסא שנבחר כבר אינו פנוי.");
+            }
+
+            ticketsToReserve.add(ticket);
+        }
+
+        // 2. שלב הביצוע - רק אם כל הכרטיסים עברו את הבדיקה, נשריין אותם
+        for (Ticket ticket : ticketsToReserve) {
+            ticket.reserve(); // המתודה הפנימית ב-Ticket שמשנה ל-RESERVED
+        }
     }
 
     public List<String> reserveStandingTickets(int amount, String areaId) {

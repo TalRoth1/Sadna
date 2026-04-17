@@ -19,4 +19,9 @@ public class PurchasePolicy {
     public void addRule(IPurchaseRule rule) {
         rules.add(Objects.requireNonNull(rule));
     }
+
+    public void validate()
+    {
+        //TODO
+    }
 }
