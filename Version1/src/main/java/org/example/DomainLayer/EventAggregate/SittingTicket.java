@@ -7,7 +7,7 @@ public class SittingTicket extends Ticket {
 
     private final String seatNumber;
 
-    public SittingTicket(String ticketId, String eventId, String areaId, double price, String seatNumber) {
+    public SittingTicket(int ticketId, int eventId, int areaId, double price, String seatNumber) {
         super(ticketId, eventId, areaId, price, TicketStatus.AVAILABLE);
         if (seatNumber == null || seatNumber.isBlank()) {
             throw new IllegalArgumentException("seatNumber required");

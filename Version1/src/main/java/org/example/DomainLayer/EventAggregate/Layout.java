@@ -31,10 +31,10 @@ public class Layout {
         areas.add(area);
     }
 
-    public Area requireArea(String areaId) {
-        if (areaId == null) throw new IllegalArgumentException("areaId must not be null");
+    public Area requireArea(int areaId) 
+    {
         for (Area a : areas) {
-            if (areaId.equals(a.getAreaId())) {
+            if (areaId == a.getAreaId()) {
                 return a;
             }
         }

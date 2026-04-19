@@ -2,7 +2,6 @@ package org.example.DomainLayer.CompanyAggregate;
 
 import org.example.DomainLayer.EventAggregate.PurchasePolicy;
 
-import java.util.concurrent.locks.StampedLock;
 
 public class Company
 {

@@ -14,8 +14,8 @@ import java.util.Map;
  */
 public class Event {
 
-    private final String eventId;
-    private final String companyId;
+    private final int eventId;
+    private final int companyId;
     private LocalDateTime date;
     private String location;
     private final List<String> tags = new ArrayList<>();
@@ -27,16 +27,10 @@ public class Event {
     private final DiscountPolicy discountPolicy;
     private double rating;
     private String lotteryId;
-    private final Map<String, Ticket> ticketsById = new LinkedHashMap<>();
+    private final Map<Integer, Ticket> ticketsById = new LinkedHashMap<>();
 
-    public Event(String eventId, String companyId, LocalDateTime date, String location,
+    public Event(int eventId, int companyId, LocalDateTime date, String location,
                    String artist, String type, EventStatus status, double rating) {
-        if (eventId == null) {
-            throw new IllegalArgumentException("eventId must not be null");
-        }
-        if (companyId == null) {
-            throw new IllegalArgumentException("companyId must not be null");
-        }
         this.eventId = eventId;
         this.companyId = companyId;
         setDate(date);
@@ -56,11 +50,11 @@ public class Event {
         this.discountPolicy = new DiscountPolicy();
     }
 
-    public String getEventId() {
+    public int getEventId() {
         return eventId;
     }
 
-    public String getCompanyId() {
+    public int getCompanyId() {
         return companyId;
     }
 
@@ -172,7 +166,7 @@ public class Event {
         this.lotteryId = lotteryId;
     }
 
-    public Map<String, Ticket> getTicketsView() {
+    public Map<Integer, Ticket> getTicketsView() {
         return Map.copyOf(ticketsById);
     }
 
@@ -183,10 +177,10 @@ public class Event {
         if (ticket == null) {
             throw new IllegalArgumentException("ticket must not be null");
         }
-        if (!eventId.equals(ticket.getEventId())) {
+        if (!(eventId == ticket.getEventId())) {
             throw new IllegalArgumentException("ticket event mismatch");
         }
-        String tid = ticket.getTicketId();
+        int tid = ticket.getTicketId();
         if (ticketsById.containsKey(tid)) {
             throw new IllegalStateException("duplicate ticket id: " + tid);
         }
@@ -201,12 +195,12 @@ public class Event {
         return ticketsById.get(ticketId);
     }
 
-    public void checkAvailabilityOfSittingTickets(List<String> ticketIDs) {
+    public void checkAvailabilityOfSittingTickets(List<Integer> ticketIDs) {
         if (ticketIDs == null || ticketIDs.isEmpty()) {
             throw new DomainException("רשימת הכרטיסים שהוזנה ריקה");
         }
 
-        for (String tid : ticketIDs) {
+        for (int tid : ticketIDs) {
             Ticket t = ticketsById.get(tid);
 
             // בדיקה 1: האם הכרטיס בכלל קיים באירוע הזה?
@@ -224,12 +218,12 @@ public class Event {
     }
 
 
-    public void checkAvailabilityOfStandingTickets(int amount, String areaID)
+    public void checkAvailabilityOfStandingTickets(int amount, int areaID)
     {
         Area area = layout.requireArea(areaID);
 
         // 2. שולף את כל ה-IDs של הכרטיסים ששייכים לאזור הזה
-        List<String> areaTicketIds = area.getTicketIdsView();
+        List<Integer> areaTicketIds = area.getTicketIdsView();
 
         // 3. סופר כמה מהם בסטטוס AVAILABLE בתוך ה-Map של האירוע
         long availableCount = areaTicketIds.stream()
@@ -244,11 +238,11 @@ public class Event {
         }
     }
 
-    public void reserveSittingTickets(List<String> ticketIDs)
+    public void reserveSittingTickets(List<Integer> ticketIDs)
     {
         List<Ticket> ticketsToReserve = new ArrayList<>();
 
-        for (String id : ticketIDs) {
+        for (int id : ticketIDs) {
             Ticket ticket = ticketsById.get(id);
 
             // הגנה: האם הכרטיס בכלל קיים באירוע הזה?
@@ -270,12 +264,12 @@ public class Event {
         }
     }
 
-    public List<String> reserveStandingTickets(int amount, String areaId) {
+    public List<Integer> reserveStandingTickets(int amount, int areaId) {
         Area area = layout.requireArea(areaId);
-        List<String> areaTicketIds = area.getTicketIdsView();
+        List<Integer> areaTicketIds = area.getTicketIdsView();
 
         // מוצאים כרטיסים פנויים מתוך הרשימה של האזור
-        List<String> selectedTickets = areaTicketIds.stream()
+        List<Integer> selectedTickets = areaTicketIds.stream()
                 .map(ticketsById::get)
                 .filter(t -> t != null && t.getStatus() == TicketStatus.AVAILABLE)
                 .limit(amount) // לוקחים רק את הכמות המבוקשת
@@ -288,7 +282,7 @@ public class Event {
         }
 
         // מבצעים את השריון בפועל לכל אחד מהנבחרים
-        for (String tid : selectedTickets) {
+        for (int tid : selectedTickets) {
             ticketsById.get(tid).reserve();
         }
 

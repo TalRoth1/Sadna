@@ -5,7 +5,7 @@ package org.example.DomainLayer.EventAggregate;
  */
 public class StandingTicket extends Ticket {
 
-    public StandingTicket(String ticketId, String eventId, String areaId, double price) {
+    public StandingTicket(int ticketId, int eventId, int areaId, double price) {
         super(ticketId, eventId, areaId, price, TicketStatus.AVAILABLE);
     }
 }

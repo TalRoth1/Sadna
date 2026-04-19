@@ -10,11 +10,11 @@ import java.util.Objects;
  */
 public abstract class Area {
 
-    private final String areaId;
+    private final int areaId;
     private double price;
-    private final List<String> ticketIds = new ArrayList<>();
+    private final List<Integer> ticketIds = new ArrayList<>();
 
-    protected Area(String areaId, double price) {
+    protected Area(int areaId, double price) {
         this.areaId = Objects.requireNonNull(areaId);
         if (price < 0) {
             throw new IllegalArgumentException("price must be non-negative");
@@ -22,7 +22,7 @@ public abstract class Area {
         this.price = price;
     }
 
-    public String getAreaId() {
+    public int getAreaId() {
         return areaId;
     }
 
@@ -37,14 +37,14 @@ public abstract class Area {
         this.price = price;
     }
 
-    public List<String> getTicketIdsView() {
+    public List<Integer> getTicketIdsView() {
         return Collections.unmodifiableList(ticketIds);
     }
 
     /**
      * Registers a ticket id issued for this area (ticket object lives on {@link Event}).
      */
-    public void linkTicketId(String ticketId) {
+    public void linkTicketId(int ticketId) {
         if (ticketIds.contains(Objects.requireNonNull(ticketId))) {
             throw new IllegalStateException("ticket already linked to area: " + ticketId);
         }

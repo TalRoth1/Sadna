@@ -5,7 +5,7 @@ package org.example.DomainLayer.EventAggregate;
  */
 public class StandingArea extends Area {
 
-    public StandingArea(String areaId, double price) {
+    public StandingArea(int areaId, double price) {
         super(areaId, price);
     }
 }

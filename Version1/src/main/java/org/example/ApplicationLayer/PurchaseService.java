@@ -14,11 +14,8 @@ public class PurchaseService
         this.purchaseDomainService = purchaseDomainService;
     }
 
-    public void SelectSittingTickets(String eventID, List<String> ticketIDs, String userID)
+    public void SelectSittingTickets(int eventID, List<Integer> ticketIDs, String userID)
     {
-        if (eventID == null || eventID.isEmpty()) {
-            throw new IllegalArgumentException("Event ID is required");
-        }
         if (ticketIDs == null || ticketIDs.isEmpty()) {
             throw new IllegalArgumentException("Amount must be greater than zero");
         }
@@ -36,11 +33,8 @@ public class PurchaseService
     private void handleDomainError(DomainException e) {
     }
 
-    public void SelectStandingTickets(String eventID, int amount, String areaID, String userID)
+    public void SelectStandingTickets(int eventID, int amount, int areaID, String userID)
     {
-        if (eventID == null || eventID.isEmpty()) {
-            throw new IllegalArgumentException("Event ID is required");
-        }
         if (amount <= 0) {
             throw new IllegalArgumentException("Amount must be greater than zero");
         }

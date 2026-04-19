@@ -1,7 +1,6 @@
 package org.example.DomainLayer;
 
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
-import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.DomainLayer.EventAggregate.Event;
 
 import java.time.LocalTime;
@@ -15,7 +14,7 @@ public class PurchaseDomainService
 
 
 
-    public void selectSittingTickets(String eventID, List<String> ticketIDs, String userID)
+    public void selectSittingTickets(int eventID, List<Integer> ticketIDs, String userID)
     {
         ensureUserHasNoOtherActivePurchases(userID);
         Event event = eventRepository.findByID(eventID);
@@ -36,7 +35,7 @@ public class PurchaseDomainService
         purchaseRepository.save(ap);
     }
 
-    public void selectStandingTickets(String eventID, int amount, String userID, String areaID)
+    public void selectStandingTickets(int eventID, int amount, String userID, int areaID)
     {
         ensureUserHasNoOtherActivePurchases(userID);
         Event event = eventRepository.findByID(eventID);
@@ -46,7 +45,7 @@ public class PurchaseDomainService
         //TODO: בדיקת מדיניות רכישה
         //TODO: מהדרישות הבדיקה הזאת קורת רק בהשלמת הרכישה
 
-        List<String> reservedTicketIDs = event.reserveStandingTickets(amount, areaID);
+        List<Integer> reservedTicketIDs = event.reserveStandingTickets(amount, areaID);
 
         ActivePurchase ap = new ActivePurchase(userID, eventID, reservedTicketIDs, LocalTime.now().plusMinutes(10));
         purchaseRepository.save(ap);

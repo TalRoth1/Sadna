@@ -6,13 +6,13 @@ package org.example.DomainLayer.EventAggregate;
  */
 public abstract class Ticket {
 
-    private final String ticketId;
-    private final String eventId;
-    private final String areaId;
+    private final int ticketId;
+    private final int eventId;
+    private final int areaId;
     private TicketStatus status;
     private final double price;
 
-    protected Ticket(String ticketId, String eventId, String areaId, double price, TicketStatus initialStatus) {
+    protected Ticket(int ticketId, int eventId, int areaId, double price, TicketStatus initialStatus) {
         this.ticketId = ticketId;
         this.eventId = eventId;
         this.areaId = areaId;
@@ -20,15 +20,15 @@ public abstract class Ticket {
         this.status = initialStatus;
     }
 
-    public String getTicketId() {
+    public int getTicketId() {
         return ticketId;
     }
 
-    public String getEventId() {
+    public int getEventId() {
         return eventId;
     }
 
-    public String getAreaId() {
+    public int getAreaId() {
         return areaId;
     }
 
