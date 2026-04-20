@@ -158,7 +158,7 @@ public class PuchaseLottery {
             throw new DomainException("Access code cannot be empty");
         }
         if (now == null) {
-            throw new DomainException("Current time cannot be null");
+            throw new DomainException("Current time can not be null");
         }
 
         String validCode = winnerAccessCodes.get(memberId);
@@ -166,8 +166,4 @@ public class PuchaseLottery {
 
         return accessCode.equals(validCode) && now.isBefore(expiry);
     }
-
-
-
-
 }
