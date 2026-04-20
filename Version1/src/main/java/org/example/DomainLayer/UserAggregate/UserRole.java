@@ -1,4 +1,6 @@
 package org.example.DomainLayer.UserAggregate;
 
-public class Guest {
+public enum UserRole {
+    GUEST,
+    MEMBER
 }
