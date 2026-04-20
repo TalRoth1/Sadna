@@ -9,6 +9,7 @@ import org.example.DomainLayer.PolicyAggregate.PurchasePolicy;
 public class Company {
     private int id;
     static private int idCounter = 0;
+    private String name;
     private CompanyFounder founder; 
     private Map<String, ICompanyMember> members;
     private DiscountPolicy discountPolicy;
@@ -17,10 +18,11 @@ public class Company {
     private int amountRated;
     private List<Integer> eventIds;
 
-    public Company(String founderUsername)
+    public Company(String founderUsername, String companyName)
     {
         this.id = Company.idCounter;
         Company.idCounter++;
+        this.name = companyName;
         this.founder = new CompanyFounder(founderUsername);
         members.put(founderUsername, founder);
         this.discountPolicy = new DiscountPolicy();
@@ -30,6 +32,16 @@ public class Company {
     public int getId()
     {
         return this.id;
+    }
+
+    public String getName()
+    {
+        return this.name;
+    }
+
+    public void setName(String newName)
+    {
+        this.name = newName;
     }
 
     public CompanyFounder getFounder()
