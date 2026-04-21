@@ -28,6 +28,7 @@ public class Event {
     private double rating;
     private String lotteryId;
     private final Map<Integer, Ticket> ticketsById = new LinkedHashMap<>();
+    private int nextTicketIdSequential = 1;
 
     public Event(int eventId, int companyId, LocalDateTime date, String location,
                    String artist, String type, EventStatus status, double rating) {
@@ -166,6 +167,17 @@ public class Event {
         this.lotteryId = lotteryId;
     }
 
+    /**
+     * Allocates a unique ticket id for new inventory added to this aggregate.
+     */
+    public synchronized int allocateTicketId() {
+        int maxExisting = ticketsById.keySet().stream().mapToInt(Integer::intValue).max().orElse(0);
+        if (nextTicketIdSequential <= maxExisting) {
+            nextTicketIdSequential = maxExisting + 1;
+        }
+        return nextTicketIdSequential++;
+    }
+
     public Map<Integer, Ticket> getTicketsView() {
         return Map.copyOf(ticketsById);
     }
@@ -188,10 +200,7 @@ public class Event {
         ticketsById.put(tid, ticket);
     }
 
-    public Ticket getTicket(String ticketId) {
-        if (ticketId == null) {
-            throw new IllegalArgumentException("ticketId must not be null");
-        }
+    public Ticket getTicket(int ticketId) {
         return ticketsById.get(ticketId);
     }
 

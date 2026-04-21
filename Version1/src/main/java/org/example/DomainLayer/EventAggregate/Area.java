@@ -3,10 +3,8 @@ package org.example.DomainLayer.EventAggregate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
-
 /**
- * Priced zone in a venue layout. References ticket ids owned by the {@link Event} aggregate (1:* tickets).
+ * Priced zone in a venue layout (diagram: Price + ticket ids list).
  */
 public abstract class Area {
 
@@ -15,7 +13,7 @@ public abstract class Area {
     private final List<Integer> ticketIds = new ArrayList<>();
 
     protected Area(int areaId, double price) {
-        this.areaId = Objects.requireNonNull(areaId);
+        this.areaId = areaId;
         if (price < 0) {
             throw new IllegalArgumentException("price must be non-negative");
         }
@@ -45,7 +43,7 @@ public abstract class Area {
      * Registers a ticket id issued for this area (ticket object lives on {@link Event}).
      */
     public void linkTicketId(int ticketId) {
-        if (ticketIds.contains(Objects.requireNonNull(ticketId))) {
+        if (ticketIds.contains(ticketId)) {
             throw new IllegalStateException("ticket already linked to area: " + ticketId);
         }
         ticketIds.add(ticketId);
