@@ -63,17 +63,22 @@ public class Company {
         this.amountRated ++; 
     }
 
+    private boolean isCompanyMember(String username)
+    {
+        return members.containsKey(username);
+    }
+
     // Appointing a new owner to the company.
     public boolean appointNewOwner(String appointeeUsername, String appointerUsername)
     {
         // check if appointer is a in the company and is an owner
-        if (!members.containsKey(appointerUsername) || !(members.get(appointerUsername) instanceof CompanyOwner))
+        if (!isCompanyMember(appointerUsername) || !(members.get(appointerUsername) instanceof CompanyOwner))
         {
             return false;
         }
         CompanyOwner appointer = (CompanyOwner) members.get(appointerUsername);
         // check if appointee is already a member of the company, if so we have to check that he under the appointer and that he's a manager, otherwise we can appoint him as an owner without any problem
-        if (members.containsKey(appointeeUsername))
+        if (isCompanyMember(appointeeUsername))
         {
             if (!members.get(appointeeUsername).isSubordinateOf(appointerUsername))
             {
