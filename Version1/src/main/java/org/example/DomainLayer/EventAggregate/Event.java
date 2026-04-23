@@ -192,11 +192,14 @@ public class Event {
         ticketsById.put(tid, ticket);
     }
 
-    public Ticket getTicket(String ticketId) {
-        if (ticketId == null) {
-            throw new IllegalArgumentException("ticketId must not be null");
+    public Ticket getTicket(int ticketId)
+    {
+        Ticket ticket = ticketsById.get(ticketId);
+        if (ticket == null)
+        {
+            throw new DomainException("ticket not found");
         }
-        return ticketsById.get(ticketId);
+        return ticket;
     }
 
     public void checkAvailabilityOfSittingTickets(List<Integer> ticketIDs) {
@@ -242,7 +245,7 @@ public class Event {
         }
     }
 
-    public void reserveSittingTickets(List<Integer> ticketIDs)
+    public synchronized void reserveSittingTickets(List<Integer> ticketIDs)
     {
         List<Ticket> ticketsToReserve = new ArrayList<>();
 
@@ -268,7 +271,7 @@ public class Event {
         }
     }
 
-    public List<Integer> reserveStandingTickets(int amount, int areaId) {
+    public synchronized List<Integer> reserveStandingTickets(int amount, int areaId) {
         Area area = layout.requireArea(areaId);
         List<Integer> areaTicketIds = area.getTicketIdsView();
 
@@ -293,11 +296,19 @@ public class Event {
         return selectedTickets; // מחזירים את ה-IDs ל-Service
     }
 
-    public void releaseTickets(List<Integer> ticketIDs) {
+    public synchronized void releaseTickets(List<Integer> ticketIDs) {
+        for (int tid : ticketIDs) {
+            Ticket ticket = ticketsById.get(tid);
+            if (ticket != null && ticket.getStatus() == TicketStatus.RESERVED) {
+                ticket.releaseReservation();
+            }
+        }
+    }
+    public synchronized void sellTickets(List<Integer> ticketIDs) {
         for (int tid : ticketIDs) {
             Ticket ticket = ticketsById.get(tid);
             if (ticket != null) {
-                ticket.releaseReservation();
+                ticket.markSold();
             }
         }
     }
