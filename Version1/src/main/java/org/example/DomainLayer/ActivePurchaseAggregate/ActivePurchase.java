@@ -9,6 +9,7 @@ public class ActivePurchase
     private List<Integer> ticketIDs;
     private int eventID;
     private LocalTime endTime;
+    private boolean isGuestConfirmedAge = false;
 
 
     public ActivePurchase(String userID, int eventID, List<Integer> ticketIDs, LocalTime endTime)
@@ -17,6 +18,10 @@ public class ActivePurchase
         this.ticketIDs = ticketIDs;
         this.eventID = eventID;
         this.endTime = endTime;
+    }
+    public void SetGuestAgeConfirmed(boolean isGuestConfirmedAge)
+    {
+        this.isGuestConfirmedAge = isGuestConfirmedAge;
     }
 
     public String getUserID()
@@ -37,5 +42,9 @@ public class ActivePurchase
     public LocalTime getEndTime()
     {
         return this.endTime;
+    }
+    public boolean getGuestAgeConfirmed()
+    {
+        return this.isGuestConfirmedAge;
     }
 } 

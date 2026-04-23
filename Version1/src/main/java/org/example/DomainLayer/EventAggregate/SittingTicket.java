@@ -5,17 +5,26 @@ package org.example.DomainLayer.EventAggregate;
  */
 public class SittingTicket extends Ticket {
 
-    private final String seatNumber;
+    private final int seatNumber;
+    private final int seatRow;
 
-    public SittingTicket(int ticketId, int eventId, int areaId, double price, String seatNumber) {
+    public SittingTicket(int ticketId, int eventId, int areaId, double price, int seatNumber, int seatRow) {
         super(ticketId, eventId, areaId, price, TicketStatus.AVAILABLE);
-        if (seatNumber == null || seatNumber.isBlank()) {
+
+        /*
+            if (seatNumber == null || seatNumber.isBlank()) {
             throw new IllegalArgumentException("seatNumber required");
         }
         this.seatNumber = seatNumber.trim();
+         */
+        this.seatNumber = seatNumber;
+        this.seatRow = seatRow;
     }
 
-    public String getSeatNumber() {
+    public int getSeatNumber() {
         return seatNumber;
+    }
+    public int getSeatRow() {
+        return seatRow;
     }
 }

@@ -1,6 +1,10 @@
 package org.example.DomainLayer.EventAggregate;
 
+import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 import org.example.DomainLayer.DomainException;
+import org.example.DomainLayer.PolicyAggregate.DiscountPolicy;
+import org.example.DomainLayer.PolicyAggregate.PurchasePolicy;
+import org.example.DomainLayer.UserAggregate.User;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -287,5 +291,14 @@ public class Event {
         }
 
         return selectedTickets; // מחזירים את ה-IDs ל-Service
+    }
+
+    public void releaseTickets(List<Integer> ticketIDs) {
+        for (int tid : ticketIDs) {
+            Ticket ticket = ticketsById.get(tid);
+            if (ticket != null) {
+                ticket.releaseReservation();
+            }
+        }
     }
 }

@@ -3,8 +3,10 @@ package org.example.DomainLayer.CompanyAggregate;
 import java.util.List;
 import java.util.Map;
 
+import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 import org.example.DomainLayer.PolicyAggregate.DiscountPolicy;
 import org.example.DomainLayer.PolicyAggregate.PurchasePolicy;
+import org.example.DomainLayer.UserAggregate.User;
 
 public class Company {
     private int id;

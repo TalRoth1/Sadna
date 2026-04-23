@@ -1,7 +1,9 @@
 package org.example.DomainLayer;
 
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
+import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.DomainLayer.EventAggregate.Event;
+import org.example.DomainLayer.UserAggregate.User;
 
 import java.time.LocalTime;
 import java.util.List;
@@ -11,15 +13,37 @@ public class PurchaseDomainService
     IEventRepository eventRepository;
     IPurchaseRepository purchaseRepository;
     ICompanyRepository companyRepository;
+    IUserRepository userRepository;
 
-
-
-    public void selectSittingTickets(int eventID, List<Integer> ticketIDs, String userID)
+    public void selectSittingTickets(int eventID, List<Integer> ticketIDs, String userID, boolean guestAgeConfirmed)
     {
         ensureUserHasNoOtherActivePurchases(userID);
         Event event = eventRepository.findByID(eventID);
 
-        event.checkAvailabilityOfSittingTickets(ticketIDs);
+        ActivePurchase ap = new ActivePurchase(userID, eventID, ticketIDs, LocalTime.now().plusMinutes(10));
+        ap.SetGuestAgeConfirmed(guestAgeConfirmed);
+
+        User user = userRepository.findByID(userID);
+
+        try
+        {
+            //אם לאירוע יש מדיניות
+            if (event.getPurchasePolicy() != null) {
+                event.getPurchasePolicy().validate(ap, user, event);
+            }
+            else
+            {
+                Company eventCompany = companyRepository.findByID(event.getCompanyId());
+                eventCompany.getPurchasePolicy().validate(ap, user, event);
+            }
+        }
+        catch (DomainException e)
+        {
+            event.releaseTickets(ticketIDs);
+            throw e;
+        }
+
+
 
         //TODO: בדיקת מדיניות רכישה
         //TODO: מהדרישות הבדיקה הזאת קורת רק בהשלמת הרכישה
@@ -31,23 +55,41 @@ public class PurchaseDomainService
 
         event.reserveSittingTickets(ticketIDs);
 
-        ActivePurchase ap = new ActivePurchase(userID, eventID, ticketIDs, LocalTime.now().plusMinutes(10));
         purchaseRepository.save(ap);
     }
 
-    public void selectStandingTickets(int eventID, int amount, String userID, int areaID)
+    public void selectStandingTickets(int eventID, int amount, String userID, int areaID, boolean guestAgeConfirmed)
     {
         ensureUserHasNoOtherActivePurchases(userID);
         Event event = eventRepository.findByID(eventID);
 
         event.checkAvailabilityOfStandingTickets(amount, areaID);
 
-        //TODO: בדיקת מדיניות רכישה
-        //TODO: מהדרישות הבדיקה הזאת קורת רק בהשלמת הרכישה
-
         List<Integer> reservedTicketIDs = event.reserveStandingTickets(amount, areaID);
 
         ActivePurchase ap = new ActivePurchase(userID, eventID, reservedTicketIDs, LocalTime.now().plusMinutes(10));
+        ap.SetGuestAgeConfirmed(guestAgeConfirmed);
+
+        User user = userRepository.findByID(userID);
+
+        try //אם כל הולדיציה, יעני הבדיקה של הבחירה של ה-user נכשלה, נחזיר את הכרטיסים
+        {
+            if (event.getPurchasePolicy() != null) {
+                event.getPurchasePolicy().validate(ap, user, event);
+            }
+            else
+            {
+                Company eventCompany = companyRepository.findByID(event.getCompanyId());
+                eventCompany.getPurchasePolicy().validate(ap, user, event);
+            }
+        }
+        catch (DomainException e)
+        {
+            event.releaseTickets(reservedTicketIDs);
+            throw e;
+        }
+
+
         purchaseRepository.save(ap);
     }
 
