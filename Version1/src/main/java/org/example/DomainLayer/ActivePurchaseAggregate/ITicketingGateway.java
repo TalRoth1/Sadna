@@ -1,4 +1,8 @@
 package org.example.DomainLayer.ActivePurchaseAggregate;
 
-public interface ITicketingGateway {
+import java.util.List;
+
+public interface ITicketingGateway
+{
+    void issueTickets(String userId, int eventId, List<Integer> ticketIds);
 }

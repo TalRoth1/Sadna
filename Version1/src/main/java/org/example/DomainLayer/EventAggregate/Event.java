@@ -1,10 +1,8 @@
 package org.example.DomainLayer.EventAggregate;
 
-import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 import org.example.DomainLayer.DomainException;
 import org.example.DomainLayer.PolicyAggregate.DiscountPolicy;
 import org.example.DomainLayer.PolicyAggregate.PurchasePolicy;
-import org.example.DomainLayer.UserAggregate.User;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -311,5 +309,22 @@ public class Event {
                 ticket.markSold();
             }
         }
+    }
+    public double calculateTotalPrice(List<Integer> ticketIDs)
+    {
+        double totalPrice = 0;
+
+        for (int tid : ticketIDs) {
+            Ticket ticket = ticketsById.get(tid);
+            if (ticket == null) {
+                throw new DomainException("הכרטיס " + tid + " לא קיים באירוע");
+            }
+            totalPrice += ticket.getPrice();
+        }
+
+        return totalPrice;
+    }
+
+    public PurchasePrice createPurchasePrice(List<Integer> ticketIDs) {
     }
 }

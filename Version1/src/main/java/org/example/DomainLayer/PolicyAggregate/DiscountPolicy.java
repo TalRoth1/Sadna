@@ -1,6 +1,8 @@
 package org.example.DomainLayer.PolicyAggregate;
 
+import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 import org.example.DomainLayer.EventAggregate.Event;
+import org.example.DomainLayer.UserAggregate.User;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -12,13 +14,27 @@ import java.util.Objects;
  */
 public class DiscountPolicy {
 
-    private final List<IDiscountRule> rules = new ArrayList<>();
+    private final FreeTicketsRule freeTicketsRule;
+    private final List<VisibleSaleRule> visibleSaleRules;
+    private final List<CouponRule> couponRules;
 
-    public List<IDiscountRule> getRulesView() {
-        return Collections.unmodifiableList(rules);
+    public DiscountPolicy(FreeTicketsRule freeTicketsRule, List<VisibleSaleRule> visibleSaleRules, List<CouponRule> couponRules) {
+        this.freeTicketsRule = freeTicketsRule;
+        this.visibleSaleRules = visibleSaleRules;
+        this.couponRules = couponRules;
     }
 
-    public void addRule(IDiscountRule rule) {
-        rules.add(Objects.requireNonNull(rule));
+    public void apply(ActivePurchase ap, Event event)
+    {
+        if (freeTicketsRule != null) {
+            freeTicketsRule.apply(ap, event);
+        }
+
+        for (VisibleSaleRule rule : visibleSaleRules) {
+            rule.apply(ap, event);
+        }
+        for (CouponRule rule : couponRules) {
+            rule.apply(ap, event);
+        }
     }
 }

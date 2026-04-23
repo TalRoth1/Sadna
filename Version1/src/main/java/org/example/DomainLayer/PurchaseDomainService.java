@@ -1,12 +1,14 @@
 package org.example.DomainLayer;
 
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
+import org.example.DomainLayer.ActivePurchaseAggregate.IPaymentGateway;
+import org.example.DomainLayer.ActivePurchaseAggregate.ITicketingGateway;
 import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.DomainLayer.EventAggregate.Event;
+import org.example.DomainLayer.PolicyAggregate.DiscountPolicy;
 import org.example.DomainLayer.UserAggregate.User;
 
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.List;
 
 public class PurchaseDomainService
@@ -15,6 +17,9 @@ public class PurchaseDomainService
     IPurchaseRepository purchaseRepository;
     ICompanyRepository companyRepository;
     IUserRepository userRepository;
+
+    IPaymentGateway paymentGateway;
+    ITicketingGateway ticketingGateway;
 
     public void selectSittingTickets(int eventID, List<Integer> ticketIDs, String userID, boolean guestAgeConfirmed)
     {
@@ -89,6 +94,41 @@ public class PurchaseDomainService
             purchaseRepository.save(ap);
         }
 
+
+    }
+
+    public void completePurchase(String activePurchaseID)
+    {
+        ActivePurchase activePurchase = purchaseRepository.findByID(activePurchaseID);
+        if (activePurchase == null)
+            throw new DomainException("לא נמצאה הזמנה פעילה להשלמת רכישה");
+        else if (activePurchase.isExpired(LocalDateTime.now()))
+            throw new DomainException("ההזמנה שרצינו להשלים פגת תוקף");
+
+        Event event = eventRepository.findByID(activePurchase.getEventID());
+
+        synchronized (event)
+        {
+            DiscountPolicy relevantDiscountPolicy;
+            if (event.getDiscountPolicy() != null)
+                relevantDiscountPolicy = event.getDiscountPolicy();
+            else relevantDiscountPolicy = companyRepository.findByID(event.getCompanyId()).getDiscountPolicy();
+
+            relevantDiscountPolicy.apply(activePurchase, event);
+
+            double finalPrice = activePurchase.calculateCurrentTotalPrice();
+
+            boolean paymentSucceeded = paymentGateway.pay(activePurchase.getUserID(), finalPrice);
+
+            if (!paymentSucceeded)
+                throw new DomainException("התשלום נכשל");
+
+            ticketingGateway.issueTickets(activePurchase.getUserID(), activePurchase.getEventID(), activePurchase.getTicketIDs());
+
+            event.sellTickets(activePurchase.getTicketIDs());
+            purchaseRepository.deleteByID(activePurchaseID);
+
+        }
 
     }
 
