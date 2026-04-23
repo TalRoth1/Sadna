@@ -1,57 +1,26 @@
 package org.example.DomainLayer.PolicyAggregate;
 
-public class PurchasePolicy implements IPurchaseRule{
-    private double minAge = 18;
-    private int minTicket = 1;
-    private int maxTicket = Integer.MAX_VALUE;
-    private boolean allowLoneSeat = true;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
 
-    public PurchasePolicy(){}
-    public PurchasePolicy(double minAge, int minTicket, int maxTicket, boolean allowLoneSeat)
-    {
-        this.minAge = minAge;
-        this.minTicket = minTicket;
-        this.maxTicket = maxTicket;
-        this.allowLoneSeat = allowLoneSeat;
+import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
+
+public class PurchasePolicy {
+
+    private final List<IPurchaseRule> rules = new ArrayList<>();
+
+    public List<IPurchaseRule> getRulesView() {
+        return Collections.unmodifiableList(rules);
     }
 
-    public double getMinAge()
-    {
-        return this.minAge;
+    public void addRule(IPurchaseRule rule) {
+        rules.add(Objects.requireNonNull(rule));
     }
 
-    public int getMinTicket()
+    public void validate(ActivePurchase purchase)
     {
-        return this.minTicket;
-    }
-
-    public int getMaxTicket()
-    {
-        return this.maxTicket;
-    }
-
-    public boolean getAllowLoneSeat()
-    {
-        return this.allowLoneSeat;
-    }
-
-    public void setMinAge(double minAge)
-    {
-        this.minAge = minAge;
-    }
-
-    public void setMinTicket(int minTicket)
-    {
-        this.minTicket = minTicket;
-    }
-
-    public void setMaxTicket(int maxTicket)
-    {
-        this.maxTicket = maxTicket;
-    }
-
-    public void ChangeLoneSeat()
-    {
-        this.allowLoneSeat = !allowLoneSeat;
+        //TODO
     }
 }
