@@ -52,7 +52,8 @@ public class PurchaseDomainService
 
         synchronized (event)
         {
-            event.checkAvailabilityOfStandingTickets(amount, areaID);
+            //event.checkAvailabilityOfStandingTickets(amount, areaID);
+            //הפונקציה reserve כבר בודקת זמינות כרטיסים
 
             List<Integer> reservedTicketIDs = event.reserveStandingTickets(amount, areaID);
 
