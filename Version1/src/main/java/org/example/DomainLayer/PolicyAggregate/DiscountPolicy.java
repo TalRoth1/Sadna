@@ -16,15 +16,15 @@ public class DiscountPolicy {
 
     private final FreeTicketsRule freeTicketsRule;
     private final List<VisibleSaleRule> visibleSaleRules;
-    private final List<CouponRule> couponRules;
+    private final CouponRule couponRule;
 
-    public DiscountPolicy(FreeTicketsRule freeTicketsRule, List<VisibleSaleRule> visibleSaleRules, List<CouponRule> couponRules) {
+    public DiscountPolicy(FreeTicketsRule freeTicketsRule, List<VisibleSaleRule> visibleSaleRules, CouponRule couponRule) {
         this.freeTicketsRule = freeTicketsRule;
         this.visibleSaleRules = visibleSaleRules;
-        this.couponRules = couponRules;
+        this.couponRule = couponRule;
     }
 
-    public void apply(ActivePurchase ap, Event event)
+    public void apply(ActivePurchase ap, Event event, String couponCode)
     {
         if (freeTicketsRule != null) {
             freeTicketsRule.apply(ap, event);
@@ -33,8 +33,7 @@ public class DiscountPolicy {
         for (VisibleSaleRule rule : visibleSaleRules) {
             rule.apply(ap, event);
         }
-        for (CouponRule rule : couponRules) {
-            rule.apply(ap, event);
-        }
+        couponRule.setEnteredCode(couponCode);
+        couponRule.apply(ap, event);
     }
 }

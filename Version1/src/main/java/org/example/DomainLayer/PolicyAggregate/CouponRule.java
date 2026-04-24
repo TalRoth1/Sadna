@@ -7,20 +7,20 @@ public class CouponRule implements IDiscountRule //TODO:
 {
     private final String couponCode;
     private final double discountPercentage;
+    private String enteredCode = "";
 
     public CouponRule(String couponCode, double discountPercentage) {
         this.couponCode = couponCode;
         this.discountPercentage = discountPercentage;
     }
 
-    public boolean matches(String enteredCode) {
-        return couponCode.equals(enteredCode);
+    public void setEnteredCode(String enteredCode) {
+        this.enteredCode = enteredCode;
     }
 
-    @Override
     public void apply(ActivePurchase ap, Event event)
     {
-        if (matches(couponCode))
+        if (couponCode.equals(enteredCode))
         {
             for (int i = 0; i < ap.getTicketIDs().size(); i++)
             {

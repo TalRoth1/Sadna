@@ -29,14 +29,18 @@ public class PurchaseService
             handleDomainError(e);
         }
     }
-    public void completePurchase(String activePurchaseID)
+    public void completePurchase(String activePurchaseID, PaymentDetails paymentDetails, String couponCode)
     {
         if (activePurchaseID == null || activePurchaseID.isEmpty()) {
             throw new IllegalArgumentException("Active Purchase ID is required");
         }
+        else if (paymentDetails == null) {
+            throw new IllegalArgumentException("Payment details are required");
+        }
+
         try
         {
-            purchaseDomainService.completePurchase(activePurchaseID);
+            purchaseDomainService.completePurchase(activePurchaseID, paymentDetails, couponCode);
         }
         catch (DomainException e) {
             handleDomainError(e);

@@ -1,5 +1,6 @@
 package org.example.DomainLayer;
 
+import org.example.ApplicationLayer.PaymentDetails;
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 import org.example.DomainLayer.ActivePurchaseAggregate.IPaymentGateway;
 import org.example.DomainLayer.ActivePurchaseAggregate.ITicketingGateway;
@@ -9,6 +10,7 @@ import org.example.DomainLayer.PolicyAggregate.DiscountPolicy;
 import org.example.DomainLayer.UserAggregate.User;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 public class PurchaseDomainService
@@ -29,30 +31,14 @@ public class PurchaseDomainService
         synchronized (event)
         {
             event.reserveSittingTickets(ticketIDs);
-            ActivePurchase activePurchase = new ActivePurchase(userID, eventID, ticketIDs, LocalDateTime.now().plusMinutes(10));
+
+            LinkedHashMap<Integer, Double> ticketBasePrices = new LinkedHashMap<>();
+            for (int ticketId : ticketIDs) {
+                ticketBasePrices.put(ticketId, event.getTicket(ticketId).getPrice());
+            }
+
+            ActivePurchase activePurchase = new ActivePurchase(userID, eventID, ticketBasePrices, LocalDateTime.now().plusMinutes(10));
             activePurchase.SetGuestAgeConfirmed(guestAgeConfirmed);
-
-            User user = userRepository.findByID(userID);
-
-            try
-            {
-                //אם לאירוע יש מדיניות
-                if (event.getPurchasePolicy() != null) {
-                    event.getPurchasePolicy().validate(activePurchase, user, event);
-                }
-                else
-                {
-                    Company eventCompany = companyRepository.findByID(event.getCompanyId());
-                    eventCompany.getPurchasePolicy().validate(activePurchase, user, event);
-                }
-            }
-            catch (DomainException e)
-            {
-                event.releaseTickets(ticketIDs);
-                throw e;
-            }
-            //נצטרך אולי לעשות את זה מ-user repo, כלומר צריך שה-purchasedomainservice יכיל אותה
-            //צריך ליצור חוט חיצוני שיעבור וישחרר כרטיסים
 
             purchaseRepository.save(activePurchase);
         }
@@ -70,34 +56,22 @@ public class PurchaseDomainService
 
             List<Integer> reservedTicketIDs = event.reserveStandingTickets(amount, areaID);
 
-            ActivePurchase ap = new ActivePurchase(userID, eventID, reservedTicketIDs, LocalDateTime.now().plusMinutes(10));
+            LinkedHashMap<Integer, Double> ticketBasePrices = new LinkedHashMap<>();
+
+            for (int ticketId : reservedTicketIDs) {
+                ticketBasePrices.put(ticketId, event.getTicket(ticketId).getPrice());
+            }
+
+            ActivePurchase ap = new ActivePurchase(userID, eventID, ticketBasePrices, LocalDateTime.now().plusMinutes(10));
             ap.SetGuestAgeConfirmed(guestAgeConfirmed);
 
-            User user = userRepository.findByID(userID);
-
-            try //אם כל הולדיציה, יעני הבדיקה של הבחירה של ה-user נכשלה, נחזיר את הכרטיסים
-            {
-                if (event.getPurchasePolicy() != null) {
-                    event.getPurchasePolicy().validate(ap, user, event);
-                }
-                else
-                {
-                    Company eventCompany = companyRepository.findByID(event.getCompanyId());
-                    eventCompany.getPurchasePolicy().validate(ap, user, event);
-                }
-            }
-            catch (DomainException e)
-            {
-                event.releaseTickets(reservedTicketIDs);
-                throw e;
-            }
             purchaseRepository.save(ap);
         }
 
 
     }
 
-    public void completePurchase(String activePurchaseID)
+    public void completePurchase(String activePurchaseID, PaymentDetails paymentDetails, String couponCode)
     {
         ActivePurchase activePurchase = purchaseRepository.findByID(activePurchaseID);
         if (activePurchase == null)
@@ -109,21 +83,52 @@ public class PurchaseDomainService
 
         synchronized (event)
         {
+            User user = userRepository.findByID(activePurchase.getUserID());
+
+            try
+            {
+                //אם לאירוע יש מדיניות
+                if (event.getPurchasePolicy() != null) {
+                    event.getPurchasePolicy().validate(activePurchase, user, event);
+                }
+                else
+                {
+                    Company eventCompany = companyRepository.findByID(event.getCompanyId());
+                    eventCompany.getPurchasePolicy().validate(activePurchase, user, event);
+                }
+            }
+            catch (DomainException e)
+            {
+                event.releaseTickets(activePurchase.getTicketIDs());
+                throw e;
+            }
+            //נצטרך אולי לעשות את זה מ-user repo, כלומר צריך שה-purchasedomainservice יכיל אותה
+            //צריך ליצור חוט חיצוני שיעבור וישחרר כרטיסים
+
             DiscountPolicy relevantDiscountPolicy;
             if (event.getDiscountPolicy() != null)
                 relevantDiscountPolicy = event.getDiscountPolicy();
             else relevantDiscountPolicy = companyRepository.findByID(event.getCompanyId()).getDiscountPolicy();
 
-            relevantDiscountPolicy.apply(activePurchase, event);
+            relevantDiscountPolicy.apply(activePurchase, event, couponCode);
 
             double finalPrice = activePurchase.calculateCurrentTotalPrice();
 
-            boolean paymentSucceeded = paymentGateway.pay(activePurchase.getUserID(), finalPrice);
+            boolean paymentSucceeded = paymentGateway.pay(activePurchase.getUserID(), finalPrice, paymentDetails);
 
             if (!paymentSucceeded)
                 throw new DomainException("התשלום נכשל");
 
-            ticketingGateway.issueTickets(activePurchase.getUserID(), activePurchase.getEventID(), activePurchase.getTicketIDs());
+            try {
+                ticketingGateway.issueTickets(activePurchase.getUserID(), activePurchase.getEventID(), activePurchase.getTicketIDs());
+            }
+            catch (DomainException e)
+            {
+                //TODO: צריך להחזיר את הכסף במידה והתשלום עבד אבל ההנפקה לא עבדה
+                event.releaseTickets(activePurchase.getTicketIDs());
+                throw e;
+            }
+
 
             event.sellTickets(activePurchase.getTicketIDs());
             purchaseRepository.deleteByID(activePurchaseID);
