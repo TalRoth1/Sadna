@@ -49,11 +49,12 @@ public class PurchaseService {
         }
         try
         {
-            purchaseDomainService.viewActivePurchase(activePurchaseId);
+            return purchaseDomainService.viewActivePurchase(activePurchaseId);
         }
         catch (DomainException e)
         {
             handleDomainError(e);
+            return null;
         }
     }
     public void cancelActivePurchase(String activePurchaseId)
@@ -88,21 +89,18 @@ public class PurchaseService {
         }
     }
 
-    public void updateActivePurchaseStandingTickets(String activePurchaseId, int newAmount, int areaId)
-    {
+    public void updateActivePurchaseStandingTickets(String activePurchaseId, int newAmount, int areaId) {
         if (activePurchaseId == null || activePurchaseId.isEmpty()) {
             throw new IllegalArgumentException("Active purchase ID is required");
         }
         if (newAmount <= 0) {
             throw new IllegalArgumentException("New amount must be non-negative");
         }
-        try
-        {
+        try {
             purchaseDomainService.updateActivePurchaseStandingTickets(activePurchaseId, newAmount, areaId);
-        }
-        catch (DomainException e)
-        {
+        } catch (DomainException e) {
             handleDomainError(e);
         }
+    }
 
 }
