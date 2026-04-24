@@ -70,7 +70,7 @@ public class PurchaseService {
             handleDomainError(e);
         }
     }
-    public void updateActivePurchaseTickets(String activePurchaseId, List<Integer> newTicketIds)
+    public void updateActivePurchaseSittingTickets(String activePurchaseId, List<Integer> newTicketIds)
     {
         if (activePurchaseId == null || activePurchaseId.isEmpty()) {
             throw new IllegalArgumentException("Active purchase ID is required");
@@ -80,7 +80,7 @@ public class PurchaseService {
         }
         try
         {
-            purchaseDomainService.updateActivePurchaseTickets(activePurchaseId, newTicketIds);
+            purchaseDomainService.updateActivePurchaseSittingTickets(activePurchaseId, newTicketIds);
         }
         catch (DomainException e)
         {
@@ -88,20 +88,21 @@ public class PurchaseService {
         }
     }
 
-    public void selectStandingTickets(int eventID, int amount, int areaID, String userID, boolean isConfirmedAge)
+    public void updateActivePurchaseStandingTickets(String activePurchaseId, int newAmount, int areaId)
     {
-        if (amount <= 0) {
-            throw new IllegalArgumentException("Amount must be greater than zero");
+        if (activePurchaseId == null || activePurchaseId.isEmpty()) {
+            throw new IllegalArgumentException("Active purchase ID is required");
         }
-        if (userID == null || userID.isEmpty()) {
-            throw new IllegalArgumentException("User ID is required");
+        if (newAmount <= 0) {
+            throw new IllegalArgumentException("New amount must be non-negative");
         }
-
-        try {
-            purchaseDomainService.selectStandingTickets(eventID, amount, userID, areaID, isConfirmedAge);
-        } catch (DomainException e) {
+        try
+        {
+            purchaseDomainService.updateActivePurchaseStandingTickets(activePurchaseId, newAmount, areaId);
+        }
+        catch (DomainException e)
+        {
             handleDomainError(e);
         }
-    }
 
 }

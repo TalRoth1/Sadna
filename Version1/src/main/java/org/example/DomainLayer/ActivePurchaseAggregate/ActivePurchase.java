@@ -78,4 +78,9 @@ public class ActivePurchase
         }
         return total;
     }
+    public void replaceTickets(LinkedHashMap<Integer, Double> newTicketPrices)
+    {
+        this.ticketsCurrentPrices.clear();
+        this.ticketsCurrentPrices.putAll(newTicketPrices);
+    }
 }
