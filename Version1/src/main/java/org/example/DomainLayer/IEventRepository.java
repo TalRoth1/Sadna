@@ -6,4 +6,6 @@ import java.util.List;
 public interface IEventRepository {
     Event getById(int eventId);
     List<Event> getAll();
+
+    Event findByID(int eventID);
 }

@@ -1,10 +1,13 @@
 package org.example.DomainLayer;
 
+import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 import org.example.DomainLayer.EventAggregate.Event;
 import org.example.DomainLayer.PurchaseHistoryAggregate.Payment;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 public class PurchaseDomainService {
@@ -60,4 +63,48 @@ public class PurchaseDomainService {
     }
 
 
+    public void updateActivePurchaseTickets(String activePurchaseId, List<Integer> newTicketIds)
+    {
+        ActivePurchase activePurchase = purchaseRepository.findByID(activePurchaseID);
+        if (activePurchase == null) {
+            throw new DomainException("לא נמצאה הזמנה פעילה");
+        }
+
+        Event event = eventRepository.findByID(activePurchase.getEventID());
+
+        synchronized (event)
+        {
+
+            if (activePurchase.isExpired(LocalDateTime.now())) {
+                event.releaseTickets(activePurchase.getTicketIDs());
+                purchaseRepository.deleteByID(activePurchaseID);
+                throw new DomainException("פג תוקף ההזמנה הפעילה");
+            }
+
+            List<Integer> oldTicketIDs = activePurchase.getTicketIDs();
+
+            try {
+                event.releaseTickets(oldTicketIDs);
+                event.reserveSittingTickets(newTicketIDs);
+
+                LinkedHashMap<Integer, Double> newTicketPrices = new LinkedHashMap<>();
+                for (int ticketId : newTicketIDs) {
+                    newTicketPrices.put(ticketId, event.getTicket(ticketId).getPrice());
+                }
+
+                activePurchase.replaceTickets(newTicketPrices);
+                purchaseRepository.save(activePurchase);
+            }
+            catch (DomainException | IllegalStateException e) {
+                event.reserveSittingTickets(oldTicketIDs);
+                throw e;
+            }
+        }
+    }
+
+    public void cancelActivePurchase(String activePurchaseId) {
+    }
+
+    public void viewActivePurchase(String activePurchaseId) {
+    }
 }

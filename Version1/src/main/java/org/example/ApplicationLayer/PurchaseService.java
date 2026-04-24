@@ -1,5 +1,7 @@
 package org.example.ApplicationLayer;
 
+import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
+import org.example.DomainLayer.DomainException;
 import org.example.DomainLayer.PurchaseDomainService;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 
@@ -40,17 +42,66 @@ public class PurchaseService {
     }
 
     //Active purchase management methods
-    public void viewActivePurchase(String activePurchaseId)
+    public ActivePurchase viewActivePurchase(String activePurchaseId)
     {
-
+        if (activePurchaseId == null || activePurchaseId.isEmpty()) {
+            throw new IllegalArgumentException("Active purchase ID is required");
+        }
+        try
+        {
+            purchaseDomainService.viewActivePurchase(activePurchaseId);
+        }
+        catch (DomainException e)
+        {
+            handleDomainError(e);
+        }
     }
     public void cancelActivePurchase(String activePurchaseId)
     {
-
+        if (activePurchaseId == null || activePurchaseId.isEmpty()) {
+            throw new IllegalArgumentException("Active purchase ID is required");
+        }
+        try
+        {
+            purchaseDomainService.cancelActivePurchase(activePurchaseId);
+        }
+        catch (DomainException e)
+        {
+            handleDomainError(e);
+        }
     }
-    public void updatingActivePurchaseTickets(String activePurchaseId, List<Integer> newTicketIds)
+    public void updateActivePurchaseTickets(String activePurchaseId, List<Integer> newTicketIds)
     {
+        if (activePurchaseId == null || activePurchaseId.isEmpty()) {
+            throw new IllegalArgumentException("Active purchase ID is required");
+        }
+        if (newTicketIds == null || newTicketIds.isEmpty()) {
+            throw new IllegalArgumentException("New ticket IDs are required");
+        }
+        try
+        {
+            purchaseDomainService.updateActivePurchaseTickets(activePurchaseId, newTicketIds);
+        }
+        catch (DomainException e)
+        {
+            handleDomainError(e);
+        }
+    }
 
+    public void selectStandingTickets(int eventID, int amount, int areaID, String userID, boolean isConfirmedAge)
+    {
+        if (amount <= 0) {
+            throw new IllegalArgumentException("Amount must be greater than zero");
+        }
+        if (userID == null || userID.isEmpty()) {
+            throw new IllegalArgumentException("User ID is required");
+        }
+
+        try {
+            purchaseDomainService.selectStandingTickets(eventID, amount, userID, areaID, isConfirmedAge);
+        } catch (DomainException e) {
+            handleDomainError(e);
+        }
     }
 
 }
