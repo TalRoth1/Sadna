@@ -39,16 +39,18 @@ public class PurchaseService {
         return purchaseDomainService.getHistoryByCompany(companyId);
     }
 
+    //Active purchase management methods
     public void viewActivePurchase(String activePurchaseId)
     {
 
     }
-    public void changeAmountActivePurchase(String activePurchaseId, int amount)
+    public void cancelActivePurchase(String activePurchaseId)
     {
 
     }
-    public void removeTicketActivePurchase(String activePurchaseId, int ticketID)
+    public void updatingActivePurchaseTickets(String activePurchaseId, List<Integer> ticketIds)
     {
 
     }
+
 }
