@@ -1,4 +1,6 @@
 package org.example.DomainLayer.UserAggregate;
 
-public class User {
+public class User
+{
+
 }

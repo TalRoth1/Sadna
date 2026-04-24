@@ -1,6 +1,7 @@
 package org.example.DomainLayer.EventAggregate;
 
 import org.example.DomainLayer.DomainException;
+import org.example.DomainLayer.Rating;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -28,6 +29,8 @@ public class Event {
     private double rating;
     private String lotteryId;
     private final Map<Integer, Ticket> ticketsById = new LinkedHashMap<>();
+
+    private Map<Integer, Rating> ratingsByUsers = new LinkedHashMap<>();
 
     public Event(int eventId, int companyId, LocalDateTime date, String location,
                    String artist, String type, EventStatus status, double rating) {
