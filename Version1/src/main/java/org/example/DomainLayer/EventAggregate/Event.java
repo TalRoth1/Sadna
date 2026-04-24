@@ -158,7 +158,8 @@ public class Event {
         this.rating = rating;
     }
 
-    public String getLotteryId() {
+    public String getLotteryId()
+    {
         return lotteryId;
     }
 

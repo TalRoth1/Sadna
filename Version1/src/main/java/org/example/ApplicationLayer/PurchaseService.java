@@ -1,51 +1,41 @@
 package org.example.ApplicationLayer;
 
-import org.example.DomainLayer.DomainException;
 import org.example.DomainLayer.PurchaseDomainService;
+import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 
 import java.util.List;
 
-public class PurchaseService
-{
-    PurchaseDomainService purchaseDomainService;
+public class PurchaseService {
+    private final PurchaseDomainService purchaseDomainService;
 
-    public PurchaseService(PurchaseDomainService purchaseDomainService)
-    {
+    public PurchaseService(PurchaseDomainService purchaseDomainService) {
         this.purchaseDomainService = purchaseDomainService;
     }
 
-    public void SelectSittingTickets(int eventID, List<Integer> ticketIDs, String userID)
-    {
-        if (ticketIDs == null || ticketIDs.isEmpty()) {
-            throw new IllegalArgumentException("Amount must be greater than zero");
-        }
-        if (userID == null || userID.isEmpty()) {
-            throw new IllegalArgumentException("User ID is required");
-        }
-
-        try {
-            purchaseDomainService.selectSittingTickets(eventID, ticketIDs, userID);
-        } catch (DomainException e) {
-            handleDomainError(e);
+    private void validateAdmin(int adminId) {
+        // TODO: replace with real admin validation
+        if (adminId <= 0) {
+            throw new IllegalArgumentException("Invalid admin id");
         }
     }
 
-    private void handleDomainError(DomainException e) {
+    public List<PurchaseHistory> getAllHistory(int adminId) {
+        validateAdmin(adminId);
+        return purchaseDomainService.getAllHistory();
     }
 
-    public void SelectStandingTickets(int eventID, int amount, int areaID, String userID)
-    {
-        if (amount <= 0) {
-            throw new IllegalArgumentException("Amount must be greater than zero");
-        }
-        if (userID == null || userID.isEmpty()) {
-            throw new IllegalArgumentException("User ID is required");
-        }
+    public List<PurchaseHistory> getHistoryByUser(int adminId, int userId) {
+        validateAdmin(adminId);
+        return purchaseDomainService.getHistoryByUser(userId);
+    }
 
-        try {
-            purchaseDomainService.selectStandingTickets(eventID, amount, userID, areaID);
-        } catch (DomainException e) {
-            handleDomainError(e);
-        }
+    public List<PurchaseHistory> getHistoryByEvent(int adminId, int eventId) {
+        validateAdmin(adminId);
+        return purchaseDomainService.getHistoryByEvent(eventId);
+    }
+
+    public List<PurchaseHistory> getHistoryByCompany(int adminId, int companyId) {
+        validateAdmin(adminId);
+        return purchaseDomainService.getHistoryByCompany(companyId);
     }
 }

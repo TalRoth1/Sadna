@@ -1,7 +1,9 @@
 package org.example.DomainLayer;
 
 import org.example.DomainLayer.EventAggregate.Event;
+import java.util.List;
 
 public interface IEventRepository {
-    Event findByID(int eventID);
+    Event getById(int eventId);
+    List<Event> getAll();
 }
