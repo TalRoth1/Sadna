@@ -4,8 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Venue layout for one event (1:1 with {@link Event}). Owns {@link Area}s (1:*).
- * {@code mapImage} is the venue / hall graphic (diagram: Map Image).
+ * Venue layout for one event
  */
 public class Layout {
 

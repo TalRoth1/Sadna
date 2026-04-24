@@ -26,7 +26,7 @@ public class EventManagementDomainService {
     public Event loadEvent(int eventId) {
         Event e = eventRepository.findByID(eventId);
         if (e == null) {
-            throw new DomainException("אירוע לא נמצא");
+            throw new DomainException("Event not found");
         }
         return e;
     }
@@ -53,12 +53,12 @@ public class EventManagementDomainService {
 
     public void deleteEvent(int eventId) {
         if (eventRepository.findByID(eventId) == null) {
-            throw new DomainException("אירוע לא נמצא");
+            throw new DomainException("Event not found");
         }
         eventRepository.delete(eventId);
     }
 
-    /** Sets the venue graphic for the event (hall / map image URI or path). */
+    /** Sets the venue graphic for the event (map image URI or path). */
     public void setVenueMapImage(int eventId, String mapImageUri) {
         Event e = loadEvent(eventId);
         if (mapImageUri == null || mapImageUri.isBlank()) {
@@ -90,7 +90,7 @@ public class EventManagementDomainService {
         Event e = loadEvent(eventId);
         Area area = e.getLayout().requireArea(areaId);
         if (!(area instanceof SittingArea)) {
-            throw new DomainException("אזור הישיבה לא קיים או שאינו אזור ישיבה");
+            throw new DomainException("Area not found");
         }
         for (SeatRowSpec row : rows) {
             for (int n = 1; n <= row.getSeatCount(); n++) {
@@ -102,7 +102,7 @@ public class EventManagementDomainService {
         eventRepository.save(e);
     }
 
-    /** Adds {@code quantity} standing tickets to a standing area (ticket price is the area's {@link Area#getPrice()}). */
+    /** Adds quantity standing tickets to a standing area (ticket price is the area's {@link Area#getPrice()}). */
     public void addStandingTicketQuantity(int eventId, int areaId, int quantity) {
         if (quantity <= 0) {
             throw new IllegalArgumentException("quantity must be positive");

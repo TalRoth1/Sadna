@@ -15,6 +15,11 @@ import org.example.DomainLayer.EventAggregate.StandingArea;
 import org.example.DomainLayer.EventAggregate.Ticket;
 import org.example.DomainLayer.EventAggregate.TicketStatus;
 
+import org.example.ApplicationLayer.EventDtos.EventInventoryView;
+import org.example.ApplicationLayer.EventDtos.SittingSeatInventoryView;
+import org.example.ApplicationLayer.EventDtos.SittingZoneInventoryView;
+import org.example.ApplicationLayer.EventDtos.StandingZoneInventoryView;
+
 /**
  * Application façade for event use cases (diagram: {@code EventService} → {@link EventManagementDomainService}).
  */
@@ -27,7 +32,7 @@ public class EventService {
     }
 
     /** View venue map reference + current inventory (standing totals, sitting per seat). */
-    public EventDtos.EventInventoryView getEventInventoryAndMap(int eventId) {
+    public EventInventoryView getEventInventoryAndMap(int eventId) {
         return buildInventoryView(eventManagement.loadEvent(eventId));
     }
 
@@ -65,9 +70,9 @@ public class EventService {
         eventManagement.addStandingTicketQuantity(eventId, areaId, quantity);
     }
 
-    private static EventDtos.EventInventoryView buildInventoryView(Event event) {
-        List<EventDtos.StandingZoneInventoryView> standing = new ArrayList<>();
-        List<EventDtos.SittingZoneInventoryView> sitting = new ArrayList<>();
+    private static EventInventoryView buildInventoryView(Event event) {
+        List<StandingZoneInventoryView> standing = new ArrayList<>();
+        List<SittingZoneInventoryView> sitting = new ArrayList<>();
         for (Area area : event.getLayout().getAreasView()) {
             if (area instanceof StandingArea) {
                 standing.add(buildStandingZone(event, area));
@@ -75,14 +80,14 @@ public class EventService {
                 sitting.add(buildSittingZone(event, area));
             }
         }
-        return new EventDtos.EventInventoryView(
+        return new EventInventoryView(
                 event.getEventId(),
                 event.getLayout().getMapImage(),
                 List.copyOf(standing),
                 List.copyOf(sitting));
     }
 
-    private static EventDtos.StandingZoneInventoryView buildStandingZone(Event event, Area area) {
+    private static StandingZoneInventoryView buildStandingZone(Event event, Area area) {
         int total = 0;
         int available = 0;
         for (int tid : area.getTicketIdsView()) {
@@ -94,17 +99,17 @@ public class EventService {
                 }
             }
         }
-        return new EventDtos.StandingZoneInventoryView(area.getAreaId(), area.getPrice(), available, total);
+        return new StandingZoneInventoryView(area.getAreaId(), area.getPrice(), available, total);
     }
 
-    private static EventDtos.SittingZoneInventoryView buildSittingZone(Event event, Area area) {
-        List<EventDtos.SittingSeatInventoryView> seats = new ArrayList<>();
+    private static SittingZoneInventoryView buildSittingZone(Event event, Area area) {
+        List<SittingSeatInventoryView> seats = new ArrayList<>();
         for (int tid : area.getTicketIdsView()) {
             Ticket t = event.getTicketsView().get(tid);
             if (t instanceof SittingTicket st) {
-                seats.add(new EventDtos.SittingSeatInventoryView(tid, st.getSeatNumber(), st.getStatus()));
+                seats.add(new SittingSeatInventoryView(tid, st.getSeatNumber(), st.getStatus()));
             }
         }
-        return new EventDtos.SittingZoneInventoryView(area.getAreaId(), area.getPrice(), List.copyOf(seats));
+        return new SittingZoneInventoryView(area.getAreaId(), area.getPrice(), List.copyOf(seats));
     }
 }

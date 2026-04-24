@@ -206,22 +206,18 @@ public class Event {
 
     public void checkAvailabilityOfSittingTickets(List<Integer> ticketIDs) {
         if (ticketIDs == null || ticketIDs.isEmpty()) {
-            throw new DomainException("רשימת הכרטיסים שהוזנה ריקה");
+            throw new DomainException("Ticket id list is empty");
         }
 
         for (int tid : ticketIDs) {
             Ticket t = ticketsById.get(tid);
 
-            // בדיקה 1: האם הכרטיס בכלל קיים באירוע הזה?
             if (t == null) {
-                throw new DomainException("הכרטיס " + tid + "לא קיים באירוע");
-
+                throw new DomainException("Ticket " + tid + " does not exist for this event");
             }
 
-            // בדיקה 2: האם הוא בסטטוס פנוי?
             if (t.getStatus() != TicketStatus.AVAILABLE) {
-                throw new DomainException("הכרטיס " + tid + "לא פנוי");
-
+                throw new DomainException("Ticket " + tid + " is not available");
             }
         }
     }
@@ -231,19 +227,15 @@ public class Event {
     {
         Area area = layout.requireArea(areaID);
 
-        // 2. שולף את כל ה-IDs של הכרטיסים ששייכים לאזור הזה
         List<Integer> areaTicketIds = area.getTicketIdsView();
 
-        // 3. סופר כמה מהם בסטטוס AVAILABLE בתוך ה-Map של האירוע
         long availableCount = areaTicketIds.stream()
-                .map(ticketsById::get) // שואב את אובייקט ה-Ticket לפי ה-ID
+                .map(ticketsById::get) 
                 .filter(t -> t != null && t.getStatus() == TicketStatus.AVAILABLE)
                 .count();
 
-        // 4. בודק אם יש מספיק כרטיסים פנויים לפי הכמות המבוקשת
         if (availableCount < amount) {
-            // ה-Event זורק את השגיאה כי הוא זה שגילה שהמלאי חסר
-            throw new DomainException("אין מספיק כרטיסים פנויים באזור המבוקש");
+            throw new DomainException("Not enough available tickets in the requested area");
         }
     }
 
@@ -254,22 +246,19 @@ public class Event {
         for (int id : ticketIDs) {
             Ticket ticket = ticketsById.get(id);
 
-            // הגנה: האם הכרטיס בכלל קיים באירוע הזה?
             if (ticket == null) {
-                throw new DomainException("כרטיס שמזההו " + id + " אינו קיים באירוע זה.");
+                throw new DomainException("Ticket id " + id + " does not exist for this event");
             }
 
-            // הגנה: האם הכרטיס פנוי?
             if (ticket.getStatus() != TicketStatus.AVAILABLE) {
-                throw new DomainException("הכיסא שנבחר כבר אינו פנוי.");
+                throw new DomainException("The selected seat is no longer available");
             }
 
             ticketsToReserve.add(ticket);
         }
 
-        // 2. שלב הביצוע - רק אם כל הכרטיסים עברו את הבדיקה, נשריין אותם
         for (Ticket ticket : ticketsToReserve) {
-            ticket.reserve(); // המתודה הפנימית ב-Ticket שמשנה ל-RESERVED
+            ticket.reserve();
         }
     }
 
@@ -277,24 +266,21 @@ public class Event {
         Area area = layout.requireArea(areaId);
         List<Integer> areaTicketIds = area.getTicketIdsView();
 
-        // מוצאים כרטיסים פנויים מתוך הרשימה של האזור
         List<Integer> selectedTickets = areaTicketIds.stream()
                 .map(ticketsById::get)
                 .filter(t -> t != null && t.getStatus() == TicketStatus.AVAILABLE)
-                .limit(amount) // לוקחים רק את הכמות המבוקשת
+                .limit(amount)
                 .map(Ticket::getTicketId)
                 .toList();
 
-        // בדיקה: האם הצלחנו למצוא מספיק כרטיסים?
         if (selectedTickets.size() < amount) {
-            throw new DomainException("אין מספיק כרטיסים פנויים באזור המבוקש");
+            throw new DomainException("Not enough available tickets in the requested area");
         }
 
-        // מבצעים את השריון בפועל לכל אחד מהנבחרים
         for (int tid : selectedTickets) {
             ticketsById.get(tid).reserve();
         }
 
-        return selectedTickets; // מחזירים את ה-IDs ל-Service
+        return selectedTickets;
     }
 }

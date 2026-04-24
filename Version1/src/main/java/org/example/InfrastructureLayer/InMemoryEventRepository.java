@@ -7,7 +7,7 @@ import org.example.DomainLayer.IEventRepository;
 import org.example.DomainLayer.EventAggregate.Event;
 
 /**
- * In-memory implementation of {@link IEventRepository} for development and tests.
+ * In-memory implementation of IEventRepository for development and tests.
  */
 public class InMemoryEventRepository implements IEventRepository {
     private final Map<Integer, Event> eventsById = new HashMap<>();
