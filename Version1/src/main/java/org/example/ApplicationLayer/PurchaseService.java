@@ -48,7 +48,7 @@ public class PurchaseService {
     {
 
     }
-    public void updatingActivePurchaseTickets(String activePurchaseId, List<Integer> ticketIds)
+    public void updatingActivePurchaseTickets(String activePurchaseId, List<Integer> newTicketIds)
     {
 
     }
