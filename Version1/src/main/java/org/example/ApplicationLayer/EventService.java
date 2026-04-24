@@ -7,7 +7,7 @@ public class EventService
 {
     EventManagementDomainService eventManagementDomainService;
 
-    public void rateEvent(int userID, int eventID, int rating)
+    public void rateEvent(String userID, int eventID, int rating)
     {
         if (rating < 0 || rating > 5)
             throw new IllegalArgumentException("Rating must be between 0 and 5");

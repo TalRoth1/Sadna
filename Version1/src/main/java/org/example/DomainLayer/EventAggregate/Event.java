@@ -30,7 +30,7 @@ public class Event {
     private String lotteryId;
     private final Map<Integer, Ticket> ticketsById = new LinkedHashMap<>();
 
-    private Map<Integer, Rating> ratingsByUsers = new LinkedHashMap<>();
+    private Map<String, Rating> ratingsByUsers = new LinkedHashMap<>();
 
     public Event(int eventId, int companyId, LocalDateTime date, String location,
                    String artist, String type, EventStatus status, double rating) {
@@ -291,5 +291,22 @@ public class Event {
         }
 
         return selectedTickets; // מחזירים את ה-IDs ל-Service
+    }
+
+    public synchronized void addRating(String userID, int rating) {
+        if (ratingsByUsers.containsKey(userID))
+            throw new DomainException("User already reviewed this event");
+        else {
+            Rating r = new Rating(rating, userID);
+            ratingsByUsers.put(userID, r);
+
+            double sum = 0;
+
+            for (Rating existingRating : ratingsByUsers.values()) {
+                sum += existingRating.getRating();
+            }
+
+            this.rating = sum / ratingsByUsers.size();
+        }
     }
 }

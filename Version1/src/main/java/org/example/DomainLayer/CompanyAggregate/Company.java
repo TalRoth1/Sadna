@@ -3,8 +3,10 @@ package org.example.DomainLayer.CompanyAggregate;
 import java.util.List;
 import java.util.Map;
 
+import org.example.DomainLayer.DomainException;
 import org.example.DomainLayer.PolicyAggregate.DiscountPolicy;
 import org.example.DomainLayer.PolicyAggregate.PurchasePolicy;
+import org.example.DomainLayer.Rating;
 
 public class Company {
     private int id;
@@ -13,9 +15,11 @@ public class Company {
     private Map<String, ICompanyMember> members;
     private DiscountPolicy discountPolicy;
     private PurchasePolicy purchasePolicy;
-    private int rating;
+    private double rating;
     private int amountRated;
     private List<Integer> eventIds;
+
+    Map<String, Rating> ratingsByUsers = new java.util.LinkedHashMap<>();
 
     public Company(String founderUsername)
     {
@@ -52,7 +56,7 @@ public class Company {
         return this.purchasePolicy;
     }
 
-    public int getRating()
+    public double getRating()
     {
         return this.rating;
     }
@@ -61,5 +65,22 @@ public class Company {
     {
         this.rating = ((this.rating * this.amountRated) + rating)/ (amountRated + 1);
         this.amountRated ++; 
+    }
+
+    public synchronized void addRating(String userID, int rating) {
+        if (ratingsByUsers.containsKey(userID))
+            throw new DomainException("User already reviewed this company");
+        else {
+            Rating r = new Rating(rating, userID);
+            ratingsByUsers.put(userID, r);
+
+            double sum = 0;
+
+            for (Rating existingRating : ratingsByUsers.values()) {
+                sum += existingRating.getRating();
+            }
+
+            this.rating = sum / ratingsByUsers.size();
+        }
     }
 }
