@@ -38,4 +38,17 @@ public class PurchaseService {
         validateAdmin(adminId);
         return purchaseDomainService.getHistoryByCompany(companyId);
     }
+
+    public void viewActivePurchase(String activePurchaseId)
+    {
+
+    }
+    public void changeAmountActivePurchase(String activePurchaseId, int amount)
+    {
+
+    }
+    public void removeTicketActivePurchase(String activePurchaseId, int ticketID)
+    {
+
+    }
 }
