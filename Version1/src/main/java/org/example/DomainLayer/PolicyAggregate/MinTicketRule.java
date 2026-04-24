@@ -2,7 +2,7 @@ package org.example.DomainLayer.PolicyAggregate;
 
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 
-public class MinTicketRule {
+public class MinTicketRule implements IPurchaseRule {
     private int minTicket;
 
     public MinTicketRule(int amount)

@@ -2,7 +2,7 @@ package org.example.DomainLayer.PolicyAggregate;
 
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 
-public class MaxTicketRule {
+public class MaxTicketRule implements IPurchaseRule {
         private int maxTicket;
 
     public MaxTicketRule(int amount)
