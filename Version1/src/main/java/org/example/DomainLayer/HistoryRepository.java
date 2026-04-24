@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class HistoryRepository {
+public class HistoryRepository implements IHistoryRepository{
     private final List<PurchaseHistory> historyList = new ArrayList<>();
 
     public void add(PurchaseHistory purchaseHistory) {

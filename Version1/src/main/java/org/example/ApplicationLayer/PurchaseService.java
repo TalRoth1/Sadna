@@ -38,4 +38,8 @@ public class PurchaseService {
         validateAdmin(adminId);
         return purchaseDomainService.getHistoryByCompany(companyId);
     }
+
+    public List<PurchaseHistory> getPurchaseHistoryForMember(int userId) {
+        return purchaseDomainService.getPurchaseHistoryForMember(userId);
+    }
 }
