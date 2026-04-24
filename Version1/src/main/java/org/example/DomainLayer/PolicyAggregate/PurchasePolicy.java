@@ -19,8 +19,12 @@ public class PurchasePolicy {
         rules.add(Objects.requireNonNull(rule));
     }
 
-    public void validate(ActivePurchase purchase)
+    public boolean validate(ActivePurchase purchase)
     {
-        //TODO
+        for (IPurchaseRule iPurchaseRule : rules) {
+            if(!iPurchaseRule.doesHold(purchase))
+                return false;
+        }
+        return true;
     }
 }
