@@ -62,4 +62,15 @@ public class Company {
         this.rating = ((this.rating * this.amountRated) + rating)/ (amountRated + 1);
         this.amountRated ++; 
     }
+
+    public boolean isOwner(String username) {
+        if (username == null || username.isBlank()) {
+            return false;
+        }
+
+        ICompanyMember member = members.get(username);
+
+        return member instanceof CompanyOwner
+                || member instanceof CompanyFounder;
+    }
 }
