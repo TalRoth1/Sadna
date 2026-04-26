@@ -5,14 +5,14 @@ import org.example.DomainLayer.EventAggregate.PurchasePolicy;
 
 public class Company
 {
-    private String companyID;
+    private int companyID;
     private PurchasePolicy purchasePolicy;
 
-    public Company(String companyID)
+    public Company(int companyID)
     {
         this.companyID = companyID;
     }
-    public String getCompanyID() {
+    public int getCompanyID() {
         return companyID;
     }
 
