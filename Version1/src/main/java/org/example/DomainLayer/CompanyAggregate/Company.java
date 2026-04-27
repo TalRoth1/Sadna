@@ -145,4 +145,15 @@ public Company(String founderUsername) {
         members.put(appointeeUsername, newOwner);
         return true;
     }
+
+    public boolean isOwner(String username) {
+    if (username == null || username.isBlank()) {
+        return false;
+    }
+
+    ICompanyMember member = members.get(username);
+
+    return member instanceof CompanyOwner
+            || member instanceof CompanyFounder;
+    }
 }

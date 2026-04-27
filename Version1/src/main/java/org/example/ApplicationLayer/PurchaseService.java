@@ -41,4 +41,5 @@ public class PurchaseService {
     public List<PurchaseHistory> getPurchaseHistoryForMember(UUID userId) {
         return purchaseDomainService.getPurchaseHistoryForMember(userId);
     }
+
 }
