@@ -1,22 +1,29 @@
 package org.example.DomainLayer.ActivePurchaseAggregate;
 
 import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 
 public class ActivePurchase
 {
     private String userID;
-    private List<Integer> ticketIDs;
+    private Map<Integer, Float> ticketIDPrices;
     private int eventID;
     private LocalTime endTime;
+    private String coupon;
+    private float price;
 
 
-    public ActivePurchase(String userID, int eventID, List<Integer> ticketIDs, LocalTime endTime)
+    public ActivePurchase(String userID, int eventID, Map<Integer, Float> ticketIDPrices, LocalTime endTime)
     {
         this.userID = userID;
-        this.ticketIDs = ticketIDs;
+        this.ticketIDPrices = ticketIDPrices;
         this.eventID = eventID;
         this.endTime = endTime;
+        this.coupon = "";
+        this.price = ticketIDPrices.values().stream().reduce(0.0f, Float::sum);
     }
 
     public String getUserID()
@@ -24,9 +31,9 @@ public class ActivePurchase
         return this.userID;
     }
 
-    public List<Integer> getTicketIDs()
+    public Map<Integer, Float> getTicketIDs()
     {
-        return this.ticketIDs;
+        return this.ticketIDPrices;
     }
 
     public int getEventID()
@@ -37,5 +44,24 @@ public class ActivePurchase
     public LocalTime getEndTime()
     {
         return this.endTime;
+    }
+
+    public float getPrice()
+    {
+        return price;
+    }
+
+    public void setPrice(float price)
+    {
+        this.price = price;
+    }
+
+    public String getCoupon() {
+        return coupon;
+    }
+
+    public void setCoupon(String couponCode)
+    {
+        this.coupon = couponCode;
     }
 } 

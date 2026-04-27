@@ -4,5 +4,5 @@ import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 
 public interface IDiscountRule
 {
-    public boolean apply(ActivePurchase purchase);    
+    public float apply(ActivePurchase purchase);    
 }

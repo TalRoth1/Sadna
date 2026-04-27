@@ -19,14 +19,12 @@ public class DiscountPolicy {
         discounts.add(Objects.requireNonNull(rule));
     }
 
-    public boolean applyDiscount(ActivePurchase purchase)
+    public float applyDiscount(ActivePurchase purchase)
     {
+        float price = purchase.getPrice();
         for (IDiscountRule iDiscountRule : discounts) {
-            if(!iDiscountRule.apply(purchase))
-                {
-                    return false;
-                }
+            price = iDiscountRule.apply(purchase);
         }
-        return true;
+        return price;
     }
 }

@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Objects;
 
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
+import org.example.DomainLayer.UserAggregate.User;
 
 public class PurchasePolicy {
 
@@ -19,10 +20,10 @@ public class PurchasePolicy {
         rules.add(Objects.requireNonNull(rule));
     }
 
-    public boolean validate(ActivePurchase purchase)
+    public boolean validate(ActivePurchase purchase, User user)
     {
         for (IPurchaseRule iPurchaseRule : rules) {
-            if(!iPurchaseRule.doesHold(purchase))
+            if(!iPurchaseRule.doesHold(purchase, user))
                 return false;
         }
         return true;

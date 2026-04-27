@@ -1,6 +1,7 @@
 package org.example.DomainLayer.EventAggregate;
 
 import org.example.DomainLayer.DomainException;
+import org.example.DomainLayer.PolicyAggregate.DiscountPolicy;
 import org.example.DomainLayer.PolicyAggregate.PurchasePolicy;
 
 import java.time.LocalDateTime;
@@ -190,10 +191,7 @@ public class Event {
         ticketsById.put(tid, ticket);
     }
 
-    public Ticket getTicket(String ticketId) {
-        if (ticketId == null) {
-            throw new IllegalArgumentException("ticketId must not be null");
-        }
+    public Ticket getTicket(int ticketId) {
         return ticketsById.get(ticketId);
     }
 
