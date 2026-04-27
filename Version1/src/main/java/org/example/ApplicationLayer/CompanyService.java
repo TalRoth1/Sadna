@@ -16,4 +16,12 @@ public class CompanyService {
 
         rolesDomainService.closeCompany(adminUsername, companyId);
     }
+
+    public void removeCompanyMember(String adminUsername, int companyId, String usernameToRemove) {
+        if (adminUsername == null || adminUsername.isBlank()) {
+            throw new IllegalArgumentException("Admin username is required");
+        }
+
+        rolesDomainService.removeCompanyMember(adminUsername, companyId, usernameToRemove);
+    }
 }

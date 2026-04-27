@@ -2,6 +2,8 @@ package org.example.DomainLayer;
 
 import org.example.DomainLayer.CompanyAggregate.Company;
 
+import java.util.List;
+
 public class RolesDomainService {
 
     private final ICompanyRepository companyRepository;
@@ -38,5 +40,32 @@ public class RolesDomainService {
 
         // TODO next step
         // notificationService.notifyCompanyClosed(...)
+    }
+
+    public void removeCompanyMember(String adminUsername, int companyId, String usernameToRemove) {
+        if (adminUsername == null || adminUsername.isBlank()) {
+            throw new IllegalArgumentException("Admin username is required");
+        }
+
+        if (usernameToRemove == null || usernameToRemove.isBlank()) {
+            throw new IllegalArgumentException("Username to remove is required");
+        }
+
+        if (!userRepository.isSystemAdmin(adminUsername)) {
+            throw new IllegalArgumentException("User is not system admin");
+        }
+
+        List<Company> companies = companyRepository.getCompaniesByMember(usernameToRemove);
+
+        if (companies.isEmpty()) {
+            throw new IllegalArgumentException("User is not assigned to any company");
+        }
+
+        for (Company company : companies) {
+            company.removeMember(usernameToRemove);
+            companyRepository.save(company);
+        }
+
+        // TODO: notify user after notification mechanism is implemented
     }
 }
