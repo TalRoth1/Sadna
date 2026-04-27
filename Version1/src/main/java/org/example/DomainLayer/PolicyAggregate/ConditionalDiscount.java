@@ -6,6 +6,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
+import java.util.UUID;
 
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 
@@ -31,14 +32,14 @@ public class ConditionalDiscount implements IDiscountRule
         float price = purchase.getPrice();
         if(purchase.getTicketIDs().size() < requiredTickets || LocalDate.now().isAfter(toDate) || LocalDate.now().isBefore(fromDate))
             return price;
-        Map<Integer, Float> ticketIdPrice = purchase.getTicketIDs();
-        PriorityQueue<Map.Entry<Integer, Float>> pq = new PriorityQueue<>(Comparator.comparing(Map.Entry::getValue));
+        Map<UUID, Float> ticketIdPrice = purchase.getTicketIDs();
+        PriorityQueue<Map.Entry<UUID, Float>> pq = new PriorityQueue<>(Comparator.comparing(Map.Entry::getValue));
         pq.addAll(ticketIdPrice.entrySet());
-        List<Map.Entry<Integer, Float>> lowestPriceTickets = new ArrayList<>();
+        List<Map.Entry<UUID, Float>> lowestPriceTickets = new ArrayList<>();
         for (int i = 0; i < appliedTickets && !pq.isEmpty(); i++) {
             lowestPriceTickets.add(pq.poll());
         }
-        for (Map.Entry<Integer,Float> entry : lowestPriceTickets)
+        for (Map.Entry<UUID,Float> entry : lowestPriceTickets)
         {
             price -= entry.getValue();
             price += entry.getValue() * ((100 - discoutPrecent) / 100.0f);

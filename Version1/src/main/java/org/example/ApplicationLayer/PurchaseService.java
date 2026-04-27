@@ -4,6 +4,7 @@ import org.example.DomainLayer.PurchaseDomainService;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 
 import java.util.List;
+import java.util.UUID;
 
 public class PurchaseService {
     private final PurchaseDomainService purchaseDomainService;
@@ -12,29 +13,27 @@ public class PurchaseService {
         this.purchaseDomainService = purchaseDomainService;
     }
 
-    private void validateAdmin(int adminId) {
+    private void validateAdmin(UUID adminId) {
         // TODO: replace with real admin validation
-        if (adminId <= 0) {
-            throw new IllegalArgumentException("Invalid admin id");
-        }
+        throw new IllegalArgumentException("Not yet Implemented");
     }
 
-    public List<PurchaseHistory> getAllHistory(int adminId) {
+    public List<PurchaseHistory> getAllHistory(UUID adminId) {
         validateAdmin(adminId);
         return purchaseDomainService.getAllHistory();
     }
 
-    public List<PurchaseHistory> getHistoryByUser(int adminId, int userId) {
+    public List<PurchaseHistory> getHistoryByUser(UUID adminId, UUID userId) {
         validateAdmin(adminId);
         return purchaseDomainService.getHistoryByUser(userId);
     }
 
-    public List<PurchaseHistory> getHistoryByEvent(int adminId, int eventId) {
+    public List<PurchaseHistory> getHistoryByEvent(UUID adminId, UUID eventId) {
         validateAdmin(adminId);
         return purchaseDomainService.getHistoryByEvent(eventId);
     }
 
-    public List<PurchaseHistory> getHistoryByCompany(int adminId, int companyId) {
+    public List<PurchaseHistory> getHistoryByCompany(UUID adminId, UUID companyId) {
         validateAdmin(adminId);
         return purchaseDomainService.getHistoryByCompany(companyId);
     }

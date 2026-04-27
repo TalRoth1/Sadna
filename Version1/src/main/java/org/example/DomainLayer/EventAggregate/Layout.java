@@ -2,6 +2,7 @@ package org.example.DomainLayer.EventAggregate;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Venue layout for one event (1:1 with {@link Event}). Owns {@link Area}s (1:*).
@@ -31,7 +32,7 @@ public class Layout {
         areas.add(area);
     }
 
-    public Area requireArea(int areaId) 
+    public Area requireArea(UUID areaId) 
     {
         for (Area a : areas) {
             if (areaId == a.getAreaId()) {

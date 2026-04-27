@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Event aggregate root: 1:1 {@link Layout}, {@link PurchasePolicy}, {@link DiscountPolicy}; 1:* {@link Ticket}.
@@ -16,8 +17,8 @@ import java.util.Map;
  */
 public class Event {
 
-    private final int eventId;
-    private final int companyId;
+    private final UUID eventId;
+    private final UUID companyId;
     private LocalDateTime date;
     private String location;
     private final List<String> tags = new ArrayList<>();
@@ -29,9 +30,9 @@ public class Event {
     private final DiscountPolicy discountPolicy;
     private double rating;
     private String lotteryId;
-    private final Map<Integer, Ticket> ticketsById = new LinkedHashMap<>();
+    private final Map<UUID, Ticket> ticketsById = new LinkedHashMap<>();
 
-    public Event(int eventId, int companyId, LocalDateTime date, String location,
+    public Event(UUID eventId, UUID companyId, LocalDateTime date, String location,
                    String artist, String type, EventStatus status, double rating) {
         this.eventId = eventId;
         this.companyId = companyId;
@@ -52,11 +53,11 @@ public class Event {
         this.discountPolicy = new DiscountPolicy();
     }
 
-    public int getEventId() {
+    public UUID getEventId() {
         return eventId;
     }
 
-    public int getCompanyId() {
+    public UUID getCompanyId() {
         return companyId;
     }
 
@@ -169,7 +170,7 @@ public class Event {
         this.lotteryId = lotteryId;
     }
 
-    public Map<Integer, Ticket> getTicketsView() {
+    public Map<UUID, Ticket> getTicketsView() {
         return Map.copyOf(ticketsById);
     }
 
@@ -183,7 +184,7 @@ public class Event {
         if (!(eventId == ticket.getEventId())) {
             throw new IllegalArgumentException("ticket event mismatch");
         }
-        int tid = ticket.getTicketId();
+        UUID tid = ticket.getTicketId();
         if (ticketsById.containsKey(tid)) {
             throw new IllegalStateException("duplicate ticket id: " + tid);
         }
@@ -218,12 +219,12 @@ public class Event {
     }
 
 
-    public void checkAvailabilityOfStandingTickets(int amount, int areaID)
+    public void checkAvailabilityOfStandingTickets(int amount, UUID areaID)
     {
         Area area = layout.requireArea(areaID);
 
         // 2. שולף את כל ה-IDs של הכרטיסים ששייכים לאזור הזה
-        List<Integer> areaTicketIds = area.getTicketIdsView();
+        List<UUID> areaTicketIds = area.getTicketIdsView();
 
         // 3. סופר כמה מהם בסטטוס AVAILABLE בתוך ה-Map של האירוע
         long availableCount = areaTicketIds.stream()
@@ -264,12 +265,12 @@ public class Event {
         }
     }
 
-    public List<Integer> reserveStandingTickets(int amount, int areaId) {
+    public List<UUID> reserveStandingTickets(int amount, UUID areaId) {
         Area area = layout.requireArea(areaId);
-        List<Integer> areaTicketIds = area.getTicketIdsView();
+        List<UUID> areaTicketIds = area.getTicketIdsView();
 
         // מוצאים כרטיסים פנויים מתוך הרשימה של האזור
-        List<Integer> selectedTickets = areaTicketIds.stream()
+        List<UUID> selectedTickets = areaTicketIds.stream()
                 .map(ticketsById::get)
                 .filter(t -> t != null && t.getStatus() == TicketStatus.AVAILABLE)
                 .limit(amount) // לוקחים רק את הכמות המבוקשת
@@ -282,7 +283,7 @@ public class Event {
         }
 
         // מבצעים את השריון בפועל לכל אחד מהנבחרים
-        for (int tid : selectedTickets) {
+        for (UUID tid : selectedTickets) {
             ticketsById.get(tid).reserve();
         }
 

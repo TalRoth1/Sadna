@@ -2,18 +2,19 @@ package org.example.DomainLayer.ActivePurchaseAggregate;
 
 import java.time.LocalTime;
 import java.util.Map;
+import java.util.UUID;
 
 public class ActivePurchase
 {
-    private String userID;
-    private Map<Integer, Float> ticketIDPrices;
-    private int eventID;
+    private UUID userID;
+    private Map<UUID, Float> ticketIDPrices;
+    private UUID eventID;
     private LocalTime endTime;
     private String coupon;
     private float price;
 
 
-    public ActivePurchase(String userID, int eventID, Map<Integer, Float> ticketIDPrices, LocalTime endTime)
+    public ActivePurchase(UUID userID, UUID eventID, Map<UUID, Float> ticketIDPrices, LocalTime endTime)
     {
         this.userID = userID;
         this.ticketIDPrices = ticketIDPrices;
@@ -23,17 +24,17 @@ public class ActivePurchase
         this.price = ticketIDPrices.values().stream().reduce(0.0f, Float::sum);
     }
 
-    public String getUserID()
+    public UUID getUserID()
     {
         return this.userID;
     }
 
-    public Map<Integer, Float> getTicketIDs()
+    public Map<UUID, Float> getTicketIDs()
     {
         return this.ticketIDPrices;
     }
 
-    public int getEventID()
+    public UUID getEventID()
     {
         return this.eventID;
     }

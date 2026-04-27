@@ -4,6 +4,7 @@ import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 public class HistoryRepository {
@@ -17,13 +18,13 @@ public class HistoryRepository {
         return new ArrayList<>(historyList);
     }
 
-    public List<PurchaseHistory> getByUserId(int userId) {
+    public List<PurchaseHistory> getByUserId(UUID userId) {
         return historyList.stream()
                 .filter(h -> h.getUserId() == userId)
                 .collect(Collectors.toList());
     }
 
-    public List<PurchaseHistory> getByEventId(int eventId) {
+    public List<PurchaseHistory> getByEventId(UUID eventId) {
         return historyList.stream()
                 .filter(h -> h.getEventId() == eventId)
                 .collect(Collectors.toList());

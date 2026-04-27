@@ -6,6 +6,7 @@ import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 public class PurchaseDomainService {
     private final IHistoryRepository historyRepository;
@@ -25,7 +26,7 @@ public class PurchaseDomainService {
         this.companyRepository = companyRepository;
     }
 
-    public void addPurchaseToHistory(int userId, List<Integer> ticketIds, int eventId, Payment payment) {
+    public void addPurchaseToHistory(UUID userId, List<UUID> ticketIds, UUID eventId, Payment payment) {
         if (ticketIds == null || payment == null) {
             throw new IllegalArgumentException("Invalid purchase data");
         }
@@ -37,15 +38,15 @@ public class PurchaseDomainService {
         return historyRepository.getAll();
     }
 
-    public List<PurchaseHistory> getHistoryByUser(int userId) {
+    public List<PurchaseHistory> getHistoryByUser(UUID userId) {
         return historyRepository.getByUserId(userId);
     }
 
-    public List<PurchaseHistory> getHistoryByEvent(int eventId) {
+    public List<PurchaseHistory> getHistoryByEvent(UUID eventId) {
         return historyRepository.getByEventId(eventId);
     }
 
-    public List<PurchaseHistory> getHistoryByCompany(int companyId) {
+    public List<PurchaseHistory> getHistoryByCompany(UUID companyId) {
         List<PurchaseHistory> result = new ArrayList<>();
 
         for (PurchaseHistory history : historyRepository.getAll()) {
