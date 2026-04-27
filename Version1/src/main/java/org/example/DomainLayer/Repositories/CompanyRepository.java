@@ -8,7 +8,7 @@ import java.util.UUID;
 
 public class CompanyRepository implements ICompanyRepository {
 
-    private final Map<Integer, Company> companies = new HashMap<>();
+    private final Map<UUID, Company> companies = new HashMap<>();
 
     @Override
     public Company findByID(UUID companyId) {
@@ -24,6 +24,15 @@ public class CompanyRepository implements ICompanyRepository {
         }
 
         return company.isOwner(username);
+    }
+
+    @Override
+    public void save(Company company) {
+        if (company == null) {
+            throw new IllegalArgumentException("Company is required");
+        }
+
+        companies.put(company.getId(), company);
     }
 
 }

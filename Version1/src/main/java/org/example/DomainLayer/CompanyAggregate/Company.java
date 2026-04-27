@@ -19,6 +19,7 @@ public class Company {
     private int rating;
     private int amountRated;
     private List<UUID> eventIds;
+    private boolean isActive;
 
 public Company(String founderUsername) {
     this.id = UUID.randomUUID();
@@ -29,6 +30,7 @@ public Company(String founderUsername) {
     this.members.put(founderUsername, founder);
     this.discountPolicy = new DiscountPolicy();
     this.purchasePolicy = new PurchasePolicy();
+    this.isActive = true;
 }
 
     public UUID getId()
@@ -155,5 +157,22 @@ public Company(String founderUsername) {
 
     return member instanceof CompanyOwner
             || member instanceof CompanyFounder;
+    }
+
+    public boolean isActive() {
+        return isActive;
+    }
+
+    public void close() {
+        if (!isActive) {
+            throw new IllegalStateException("Company is already inactive");
+        }
+
+        isActive = false;
+
+        members.entrySet().removeIf(entry ->
+                entry.getValue() instanceof CompanyOwner
+                        || entry.getValue() instanceof CompanyManager
+        );
     }
 }

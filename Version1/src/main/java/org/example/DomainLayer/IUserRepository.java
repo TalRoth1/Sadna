@@ -10,5 +10,7 @@ public interface IUserRepository {
 
     public Optional<User> getUser(UUID UID);
 
-    boolean exists(int userId);
+    boolean exists(UUID userId);
+
+    boolean isSystemAdmin(String username);
 }
