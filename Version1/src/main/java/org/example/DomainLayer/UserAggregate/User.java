@@ -13,4 +13,5 @@ public abstract class User {
     public int getId() {
         return id;
     }
+
 }

@@ -38,6 +38,7 @@ C:\Users\ofekb\IdeaProjects\Sadna\Version1\src\main\java\org\example\Application
 C:\Users\ofekb\IdeaProjects\Sadna\Version1\src\main\java\org\example\DomainLayer\PolicyAggregate\DiscountPolicy.java
 C:\Users\ofekb\IdeaProjects\Sadna\Version1\src\main\java\org\example\DomainLayer\EventAggregate\EventStatus.java
 C:\Users\ofekb\IdeaProjects\Sadna\Version1\src\main\java\org\example\ApplicationLayer\EventService.java
+C:\Users\ofekb\IdeaProjects\Sadna\Version1\src\main\java\org\example\DomainLayer\CompanyRepository.java
 C:\Users\ofekb\IdeaProjects\Sadna\Version1\src\main\java\org\example\DomainLayer\EventAggregate\IPurchaseRule.java
 C:\Users\ofekb\IdeaProjects\Sadna\Version1\src\main\java\org\example\DomainLayer\EventAggregate\Area.java
 C:\Users\ofekb\IdeaProjects\Sadna\Version1\src\main\java\org\example\ApplicationLayer\CompanyService.java

@@ -1,5 +1,7 @@
 package org.example.DomainLayer.CompanyAggregate;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -16,15 +18,19 @@ public class Company {
     private int rating;
     private int amountRated;
     private List<Integer> eventIds;
+    private boolean isActive;
 
     public Company(String founderUsername)
     {
         this.id = Company.idCounter;
         Company.idCounter++;
+        this.members = new HashMap<>();
+        this.eventIds = new ArrayList<>();
         this.founder = new CompanyFounder(founderUsername);
         members.put(founderUsername, founder);
         this.discountPolicy = new DiscountPolicy();
         this.purchasePolicy = new PurchasePolicy();
+        this.isActive = true;
     }
 
     public int getId()
@@ -72,5 +78,22 @@ public class Company {
 
         return member instanceof CompanyOwner
                 || member instanceof CompanyFounder;
+    }
+
+    public boolean isActive() {
+        return isActive;
+    }
+
+    public void close() {
+        if (!isActive) {
+            throw new IllegalStateException("Company is already inactive");
+        }
+
+        isActive = false;
+
+        members.entrySet().removeIf(entry ->
+                entry.getValue() instanceof CompanyOwner
+                        || entry.getValue() instanceof CompanyManager
+        );
     }
 }
