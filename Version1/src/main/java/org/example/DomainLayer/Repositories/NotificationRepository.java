@@ -1,4 +1,4 @@
-package org.example.DomainLayer;
+package org.example.DomainLayer.Repositories;
 
 public class NotificationRepository {
 }
