@@ -1,14 +1,12 @@
 package org.example.DomainLayer;
 
 import org.example.DomainLayer.EventAggregate.Event;
+import java.util.List;
+import java.util.UUID;
 
 public interface IEventRepository {
-    Event findByID(int eventID);
-
+    Event getById(UUID eventId);
+    List<Event> getAll();
     void save(Event event);
-
-    void delete(int eventId);
-
-    /** Returns the next unique event id for new aggregates (simple persistence implementations). */
-    int allocateNextEventId();
+    void delete(UUID eventId);
 }

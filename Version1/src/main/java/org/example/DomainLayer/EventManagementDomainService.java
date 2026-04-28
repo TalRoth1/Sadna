@@ -1,121 +1,101 @@
 package org.example.DomainLayer;
 
-import java.time.LocalDateTime;
-import java.util.List;
-
-import org.example.DomainLayer.EventAggregate.Area;
 import org.example.DomainLayer.EventAggregate.Event;
-import org.example.DomainLayer.EventAggregate.EventStatus;
-import org.example.DomainLayer.EventAggregate.SeatRowSpec;
-import org.example.DomainLayer.EventAggregate.SittingArea;
-import org.example.DomainLayer.EventAggregate.SittingTicket;
-import org.example.DomainLayer.EventAggregate.StandingArea;
-import org.example.DomainLayer.EventAggregate.StandingTicket;
+import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 
-/**
- * Domain orchestration for event CRUD, hall layout, and ticket inventory (diagram: {@code EventManagementDomainService}).
- */
+import java.util.List;
+import java.util.UUID;
+
 public class EventManagementDomainService {
 
     private final IEventRepository eventRepository;
+    private final IHistoryRepository historyRepository;
+    private final ICompanyRepository companyRepository;
 
-    public EventManagementDomainService(IEventRepository eventRepository) {
+    public EventManagementDomainService(IEventRepository eventRepository,
+                                        IHistoryRepository historyRepository,
+                                        ICompanyRepository companyRepository) {
         this.eventRepository = eventRepository;
+        this.historyRepository = historyRepository;
+        this.companyRepository = companyRepository;
     }
 
-    public Event loadEvent(int eventId) {
-        Event e = eventRepository.findByID(eventId);
-        if (e == null) {
+    public List<PurchaseHistory> getEventPurchaseHistory(String username, UUID eventId) {
+        Event event = eventRepository.getById(eventId);
+
+        if (event == null) {
             throw new DomainException("Event not found");
         }
-        return e;
+
+        if (!companyRepository.isOwner(username, event.getCompanyId())) {
+            throw new DomainException("User is not authorized to view this event purchase history");
+        }
+
+        return historyRepository.getByEventId(eventId);
     }
 
-    public Event createEvent(int companyId, LocalDateTime date, String location, String artist, String type,
-                             EventStatus status, double rating) {
-        int id = eventRepository.allocateNextEventId();
-        Event event = new Event(id, companyId, date, location, artist, type, status, rating);
-        eventRepository.save(event);
-        return event;
-    }
-
-    public void updateEvent(int eventId, LocalDateTime date, String location, String artist, String type,
-                            EventStatus status, double rating) {
-        Event e = loadEvent(eventId);
-        e.setDate(date);
-        e.setLocation(location);
-        e.setArtist(artist);
-        e.setType(type);
-        e.setStatus(status);
-        e.setRating(rating);
-        eventRepository.save(e);
-    }
-
-    public void deleteEvent(int eventId) {
-        if (eventRepository.findByID(eventId) == null) {
+    public void addAgePolicy(UUID eventId, float age)
+    {
+        Event event = eventRepository.getById(eventId);
+        if (event == null) 
             throw new DomainException("Event not found");
-        }
-        eventRepository.delete(eventId);
+        event.addAgePolicy(age);
     }
 
-    /** Sets the venue graphic for the event (map image URI or path). */
-    public void setVenueMapImage(int eventId, String mapImageUri) {
-        Event e = loadEvent(eventId);
-        if (mapImageUri == null || mapImageUri.isBlank()) {
-            throw new IllegalArgumentException("mapImageUri required");
-        }
-        e.getLayout().setMapImage(mapImageUri.trim());
-        eventRepository.save(e);
+    public void deleteAgePolicy(UUID eventId)
+    {
+        Event event = eventRepository.getById(eventId);
+        if (event == null)
+            throw new IllegalArgumentException("event not found");
+        event.deleteAgePolicy();
     }
 
-    public void addSittingArea(int eventId, int areaId, double price) {
-        Event e = loadEvent(eventId);
-        e.getLayout().addArea(new SittingArea(areaId, price));
-        eventRepository.save(e);
+    public void addMinTicketPolicy(UUID eventId, int minTicket)
+    {
+        Event event = eventRepository.getById(eventId);
+        if (event == null) 
+            throw new DomainException("Event not found");
+        event.addMinTicketPolicy(minTicket);
     }
 
-    public void addStandingArea(int eventId, int areaId, double price) {
-        Event e = loadEvent(eventId);
-        e.getLayout().addArea(new StandingArea(areaId, price));
-        eventRepository.save(e);
+    public void deleteMinTicketPolicy(UUID eventId)
+    {
+        Event event = eventRepository.getById(eventId);
+        if (event == null)
+            throw new IllegalArgumentException("event not found");
+        event.deleteMinTicketPolicy();
     }
 
-    /**
-     * Adds numbered seats for each row in a sitting area (creates {@link SittingTicket} per seat).
-     */
-    public void addSittingRowsWithSeats(int eventId, int areaId, List<SeatRowSpec> rows) {
-        if (rows == null || rows.isEmpty()) {
-            throw new IllegalArgumentException("rows must not be empty");
-        }
-        Event e = loadEvent(eventId);
-        Area area = e.getLayout().requireArea(areaId);
-        if (!(area instanceof SittingArea)) {
-            throw new DomainException("Area not found");
-        }
-        for (SeatRowSpec row : rows) {
-            for (int n = 1; n <= row.getSeatCount(); n++) {
-                int tid = e.allocateTicketId();
-                String seatLabel = row.getRowLabel() + "-" + n;
-                e.addTicket(new SittingTicket(tid, eventId, areaId, area.getPrice(), seatLabel));
-            }
-        }
-        eventRepository.save(e);
+    public void addMaxTicketPolicy(UUID eventId, int maxTicket)
+    {
+        Event event = eventRepository.getById(eventId);
+        if (event == null) 
+            throw new DomainException("Event not found");
+        event.addMaxTicketPolicy(maxTicket);
     }
 
-    /** Adds quantity standing tickets to a standing area (ticket price is the area's {@link Area#getPrice()}). */
-    public void addStandingTicketQuantity(int eventId, int areaId, int quantity) {
-        if (quantity <= 0) {
-            throw new IllegalArgumentException("quantity must be positive");
-        }
-        Event e = loadEvent(eventId);
-        Area area = e.getLayout().requireArea(areaId);
-        if (!(area instanceof StandingArea)) {
-            throw new DomainException("אזור העמידה לא קיים או שאינו אזור עמידה");
-        }
-        for (int i = 0; i < quantity; i++) {
-            int tid = e.allocateTicketId();
-            e.addTicket(new StandingTicket(tid, eventId, areaId, area.getPrice()));
-        }
-        eventRepository.save(e);
+    public void deleteMaxTicketPolicy(UUID eventId)
+    {
+        Event event = eventRepository.getById(eventId);
+        if (event == null)
+            throw new IllegalArgumentException("event not found");
+        event.deleteMaxTicketPolicy();
     }
+
+    public void addLoneSeatPolicy(UUID eventId, boolean allowLoneSeat)
+    {
+        Event event = eventRepository.getById(eventId);
+        if (event == null) 
+            throw new DomainException("Event not found");
+        event.addLoneSeatPolicy(allowLoneSeat);
+    }
+
+    public void deleteLoneSeatPolicy(UUID eventId)
+    {
+        Event event = eventRepository.getById(eventId);
+        if (event == null)
+            throw new IllegalArgumentException("event not found");
+        event.deleteLoneSeatPolicy();
+    }
+
 }

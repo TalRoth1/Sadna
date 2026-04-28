@@ -2,6 +2,7 @@ package org.example.DomainLayer.EventAggregate;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Venue layout for one event
@@ -35,7 +36,8 @@ public class Layout {
         areas.add(area);
     }
 
-    public Area requireArea(int areaId) {
+    public Area requireArea(UUID areaId) 
+    {
         for (Area a : areas) {
             if (areaId == a.getAreaId()) {
                 return a;

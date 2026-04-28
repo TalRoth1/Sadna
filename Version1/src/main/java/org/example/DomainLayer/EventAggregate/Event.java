@@ -1,12 +1,19 @@
 package org.example.DomainLayer.EventAggregate;
 
 import org.example.DomainLayer.DomainException;
+import org.example.DomainLayer.PolicyAggregate.AgeRule;
+import org.example.DomainLayer.PolicyAggregate.DiscountPolicy;
+import org.example.DomainLayer.PolicyAggregate.LoneSeatRule;
+import org.example.DomainLayer.PolicyAggregate.MaxTicketRule;
+import org.example.DomainLayer.PolicyAggregate.MinTicketRule;
+import org.example.DomainLayer.PolicyAggregate.PurchasePolicy;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Event aggregate root: 1:1 {@link Layout}, {@link PurchasePolicy}, {@link DiscountPolicy}; 1:* {@link Ticket}.
@@ -14,8 +21,8 @@ import java.util.Map;
  */
 public class Event {
 
-    private final int eventId;
-    private final int companyId;
+    private final UUID eventId;
+    private final UUID companyId;
     private LocalDateTime date;
     private String location;
     private final List<String> tags = new ArrayList<>();
@@ -27,10 +34,9 @@ public class Event {
     private final DiscountPolicy discountPolicy;
     private double rating;
     private String lotteryId;
-    private final Map<Integer, Ticket> ticketsById = new LinkedHashMap<>();
-    private int nextTicketIdSequential = 1;
+    private final Map<UUID, Ticket> ticketsById = new LinkedHashMap<>();
 
-    public Event(int eventId, int companyId, LocalDateTime date, String location,
+    public Event(UUID eventId, UUID companyId, LocalDateTime date, String location,
                    String artist, String type, EventStatus status, double rating) {
         this.eventId = eventId;
         this.companyId = companyId;
@@ -51,11 +57,11 @@ public class Event {
         this.discountPolicy = new DiscountPolicy();
     }
 
-    public int getEventId() {
+    public UUID getEventId() {
         return eventId;
     }
 
-    public int getCompanyId() {
+    public UUID getCompanyId() {
         return companyId;
     }
 
@@ -159,7 +165,8 @@ public class Event {
         this.rating = rating;
     }
 
-    public String getLotteryId() {
+    public String getLotteryId()
+    {
         return lotteryId;
     }
 
@@ -167,18 +174,7 @@ public class Event {
         this.lotteryId = lotteryId;
     }
 
-    /**
-     * Allocates a unique ticket id for new inventory added to this aggregate.
-     */
-    public synchronized int allocateTicketId() {
-        int maxExisting = ticketsById.keySet().stream().mapToInt(Integer::intValue).max().orElse(0);
-        if (nextTicketIdSequential <= maxExisting) {
-            nextTicketIdSequential = maxExisting + 1;
-        }
-        return nextTicketIdSequential++;
-    }
-
-    public Map<Integer, Ticket> getTicketsView() {
+    public Map<UUID, Ticket> getTicketsView() {
         return Map.copyOf(ticketsById);
     }
 
@@ -192,7 +188,7 @@ public class Event {
         if (!(eventId == ticket.getEventId())) {
             throw new IllegalArgumentException("ticket event mismatch");
         }
-        int tid = ticket.getTicketId();
+        UUID tid = ticket.getTicketId();
         if (ticketsById.containsKey(tid)) {
             throw new IllegalStateException("duplicate ticket id: " + tid);
         }
@@ -200,16 +196,16 @@ public class Event {
         ticketsById.put(tid, ticket);
     }
 
-    public Ticket getTicket(int ticketId) {
+    public Ticket getTicket(UUID ticketId) {
         return ticketsById.get(ticketId);
     }
 
-    public void checkAvailabilityOfSittingTickets(List<Integer> ticketIDs) {
+    public void checkAvailabilityOfSittingTickets(List<UUID> ticketIDs) {
         if (ticketIDs == null || ticketIDs.isEmpty()) {
             throw new DomainException("Ticket id list is empty");
         }
 
-        for (int tid : ticketIDs) {
+        for (UUID tid : ticketIDs) {
             Ticket t = ticketsById.get(tid);
 
             if (t == null) {
@@ -223,11 +219,12 @@ public class Event {
     }
 
 
-    public void checkAvailabilityOfStandingTickets(int amount, int areaID)
+    public void checkAvailabilityOfStandingTickets(int amount, UUID areaID)
     {
         Area area = layout.requireArea(areaID);
 
-        List<Integer> areaTicketIds = area.getTicketIdsView();
+        // 2. שולף את כל ה-IDs של הכרטיסים ששייכים לאזור הזה
+        List<UUID> areaTicketIds = area.getTicketIdsView();
 
         long availableCount = areaTicketIds.stream()
                 .map(ticketsById::get) 
@@ -239,11 +236,11 @@ public class Event {
         }
     }
 
-    public void reserveSittingTickets(List<Integer> ticketIDs)
+    public void reserveSittingTickets(List<UUID> ticketIDs)
     {
         List<Ticket> ticketsToReserve = new ArrayList<>();
 
-        for (int id : ticketIDs) {
+        for (UUID id : ticketIDs) {
             Ticket ticket = ticketsById.get(id);
 
             if (ticket == null) {
@@ -262,11 +259,12 @@ public class Event {
         }
     }
 
-    public List<Integer> reserveStandingTickets(int amount, int areaId) {
+    public List<UUID> reserveStandingTickets(int amount, UUID areaId) {
         Area area = layout.requireArea(areaId);
-        List<Integer> areaTicketIds = area.getTicketIdsView();
+        List<UUID> areaTicketIds = area.getTicketIdsView();
 
-        List<Integer> selectedTickets = areaTicketIds.stream()
+        // מוצאים כרטיסים פנויים מתוך הרשימה של האזור
+        List<UUID> selectedTickets = areaTicketIds.stream()
                 .map(ticketsById::get)
                 .filter(t -> t != null && t.getStatus() == TicketStatus.AVAILABLE)
                 .limit(amount)
@@ -277,10 +275,51 @@ public class Event {
             throw new DomainException("Not enough available tickets in the requested area");
         }
 
-        for (int tid : selectedTickets) {
+        // מבצעים את השריון בפועל לכל אחד מהנבחרים
+        for (UUID tid : selectedTickets) {
             ticketsById.get(tid).reserve();
         }
 
         return selectedTickets;
+    }
+
+    public void addAgePolicy(float age)
+    {
+        this.purchasePolicy.addRule(new AgeRule(age));
+    }
+
+    public void deleteAgePolicy()
+    {
+        this.purchasePolicy.removeRule(new AgeRule(0));
+    }
+
+    public void addMinTicketPolicy(int minTicket)
+    {
+        this.purchasePolicy.addRule(new MinTicketRule(minTicket));
+    }
+
+    public void deleteMinTicketPolicy()
+    {
+        this.purchasePolicy.removeRule(new MinTicketRule(0));
+    }
+
+    public void addMaxTicketPolicy(int maxTicket)
+    {
+        this.purchasePolicy.addRule(new MaxTicketRule(maxTicket));
+    }
+
+    public void deleteMaxTicketPolicy()
+    {
+        this.purchasePolicy.removeRule(new MaxTicketRule(0));
+    }
+
+    public void addLoneSeatPolicy(boolean allowLoneSeat)
+    {
+        this.purchasePolicy.addRule(new LoneSeatRule(allowLoneSeat));
+    }
+
+    public void deleteLoneSeatPolicy()
+    {
+        this.purchasePolicy.removeRule(new LoneSeatRule(false));
     }
 }

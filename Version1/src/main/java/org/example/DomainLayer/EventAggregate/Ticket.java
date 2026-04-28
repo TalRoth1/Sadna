@@ -1,18 +1,20 @@
 package org.example.DomainLayer.EventAggregate;
 
+import java.util.UUID;
+
 /**
  * Abstract ticket in the event aggregate ({@link Event} 1:* {@link Ticket}).
  * Concrete kinds: {@link StandingTicket}, {@link SittingTicket}.
  */
 public abstract class Ticket {
 
-    private final int ticketId;
-    private final int eventId;
-    private final int areaId;
+    private final UUID ticketId;
+    private final UUID eventId;
+    private final UUID areaId;
     private TicketStatus status;
     private final double price;
 
-    protected Ticket(int ticketId, int eventId, int areaId, double price, TicketStatus initialStatus) {
+    protected Ticket(UUID ticketId, UUID eventId, UUID areaId, double price, TicketStatus initialStatus) {
         this.ticketId = ticketId;
         this.eventId = eventId;
         this.areaId = areaId;
@@ -20,15 +22,15 @@ public abstract class Ticket {
         this.status = initialStatus;
     }
 
-    public int getTicketId() {
+    public UUID getTicketId() {
         return ticketId;
     }
 
-    public int getEventId() {
+    public UUID getEventId() {
         return eventId;
     }
 
-    public int getAreaId() {
+    public UUID getAreaId() {
         return areaId;
     }
 

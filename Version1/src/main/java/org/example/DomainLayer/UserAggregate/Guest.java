@@ -1,4 +1,9 @@
 package org.example.DomainLayer.UserAggregate;
 
-public class Guest {
+import java.util.UUID;
+
+public class Guest extends User {
+    public Guest(UUID id) {
+        super(id);
+    }
 }

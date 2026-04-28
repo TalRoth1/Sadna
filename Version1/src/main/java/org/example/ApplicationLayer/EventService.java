@@ -1,115 +1,69 @@
 package org.example.ApplicationLayer;
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-
 import org.example.DomainLayer.EventManagementDomainService;
-import org.example.DomainLayer.EventAggregate.Area;
-import org.example.DomainLayer.EventAggregate.Event;
-import org.example.DomainLayer.EventAggregate.EventStatus;
-import org.example.DomainLayer.EventAggregate.SeatRowSpec;
-import org.example.DomainLayer.EventAggregate.SittingArea;
-import org.example.DomainLayer.EventAggregate.SittingTicket;
-import org.example.DomainLayer.EventAggregate.StandingArea;
-import org.example.DomainLayer.EventAggregate.Ticket;
-import org.example.DomainLayer.EventAggregate.TicketStatus;
+import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 
-import org.example.ApplicationLayer.EventDtos.EventInventoryView;
-import org.example.ApplicationLayer.EventDtos.SittingSeatInventoryView;
-import org.example.ApplicationLayer.EventDtos.SittingZoneInventoryView;
-import org.example.ApplicationLayer.EventDtos.StandingZoneInventoryView;
+import java.util.List;
+import java.util.UUID;
 
-/**
- * Application façade for event use cases (diagram: {@code EventService} → {@link EventManagementDomainService}).
- */
 public class EventService {
+    private final EventManagementDomainService eventManagementDomainService;
 
-    private final EventManagementDomainService eventManagement;
-
-    public EventService(EventManagementDomainService eventManagement) {
-        this.eventManagement = eventManagement;
+    public EventService(EventManagementDomainService eventManagementDomainService) {
+        this.eventManagementDomainService = eventManagementDomainService;
     }
 
-    /** View venue map reference + current inventory (standing totals, sitting per seat). */
-    public EventInventoryView getEventInventoryAndMap(int eventId) {
-        return buildInventoryView(eventManagement.loadEvent(eventId));
-    }
-
-    public Event createEvent(int companyId, LocalDateTime date, String location, String artist, String type,
-                             EventStatus status, double rating) {
-        return eventManagement.createEvent(companyId, date, location, artist, type, status, rating);
-    }
-
-    public void updateEvent(int eventId, LocalDateTime date, String location, String artist, String type,
-                            EventStatus status, double rating) {
-        eventManagement.updateEvent(eventId, date, location, artist, type, status, rating);
-    }
-
-    public void deleteEvent(int eventId) {
-        eventManagement.deleteEvent(eventId);
-    }
-
-    public void setVenueMapImage(int eventId, String mapImageUri) {
-        eventManagement.setVenueMapImage(eventId, mapImageUri);
-    }
-
-    public void addSittingArea(int eventId, int areaId, double price) {
-        eventManagement.addSittingArea(eventId, areaId, price);
-    }
-
-    public void addStandingArea(int eventId, int areaId, double price) {
-        eventManagement.addStandingArea(eventId, areaId, price);
-    }
-
-    public void addSittingRowsWithSeats(int eventId, int areaId, List<SeatRowSpec> rows) {
-        eventManagement.addSittingRowsWithSeats(eventId, areaId, rows);
-    }
-
-    public void addStandingTicketQuantity(int eventId, int areaId, int quantity) {
-        eventManagement.addStandingTicketQuantity(eventId, areaId, quantity);
-    }
-
-    private static EventInventoryView buildInventoryView(Event event) {
-        List<StandingZoneInventoryView> standing = new ArrayList<>();
-        List<SittingZoneInventoryView> sitting = new ArrayList<>();
-        for (Area area : event.getLayout().getAreasView()) {
-            if (area instanceof StandingArea) {
-                standing.add(buildStandingZone(event, area));
-            } else if (area instanceof SittingArea) {
-                sitting.add(buildSittingZone(event, area));
-            }
+    public List<PurchaseHistory> getEventPurchaseHistoryForOwner(String ownerUsername, UUID eventId) {
+        if (ownerUsername == null || ownerUsername.isBlank()) {
+            throw new IllegalArgumentException("Owner username is required");
         }
-        return new EventInventoryView(
-                event.getEventId(),
-                event.getLayout().getMapImage(),
-                List.copyOf(standing),
-                List.copyOf(sitting));
+
+        return eventManagementDomainService.getEventPurchaseHistory(ownerUsername, eventId);
     }
 
-    private static StandingZoneInventoryView buildStandingZone(Event event, Area area) {
-        int total = 0;
-        int available = 0;
-        for (int tid : area.getTicketIdsView()) {
-            Ticket t = event.getTicketsView().get(tid);
-            if (t != null) {
-                total++;
-                if (t.getStatus() == TicketStatus.AVAILABLE) {
-                    available++;
-                }
-            }
-        }
-        return new StandingZoneInventoryView(area.getAreaId(), area.getPrice(), available, total);
+    public void addAgePolicy(UUID eventId,float age)
+    {
+        if (age < 0)
+            throw new IllegalArgumentException("Age must be a non negative number");
+        eventManagementDomainService.addAgePolicy(eventId, age);
     }
 
-    private static SittingZoneInventoryView buildSittingZone(Event event, Area area) {
-        List<SittingSeatInventoryView> seats = new ArrayList<>();
-        for (int tid : area.getTicketIdsView()) {
-            Ticket t = event.getTicketsView().get(tid);
-            if (t instanceof SittingTicket st) {
-                seats.add(new SittingSeatInventoryView(tid, st.getSeatNumber(), st.getStatus()));
-            }
-        }
-        return new SittingZoneInventoryView(area.getAreaId(), area.getPrice(), List.copyOf(seats));
+    public void deleteAgePolicy(UUID eventId)
+    {
+        eventManagementDomainService.deleteAgePolicy(eventId);
+    }
+
+    public void addMinTicketPolicy(UUID eventId,int minTicket)
+    {
+        if (minTicket < 0)
+            throw new IllegalArgumentException("Minimum ticket amount must be a non negative integer");
+        eventManagementDomainService.addMinTicketPolicy(eventId, minTicket);
+    }
+
+    public void deleteMinTicketPolicy(UUID eventId)
+    {
+        eventManagementDomainService.deleteMinTicketPolicy(eventId);
+    }
+
+    public void addMaxTicketPolicy(UUID eventId,int maxTicket)
+    {
+        if (maxTicket < 0)
+            throw new IllegalArgumentException("maximum ticket amount must be a non negative integer");
+        eventManagementDomainService.addMaxTicketPolicy(eventId, maxTicket);
+    }
+
+    public void deleteMaxTicketPolicy(UUID eventId)
+    {
+        eventManagementDomainService.deleteMaxTicketPolicy(eventId);
+    }
+
+    public void addLoneSeatPolicy(UUID eventId, boolean allowLoneSeat)
+    {
+        eventManagementDomainService.addLoneSeatPolicy(eventId, allowLoneSeat);
+    }
+
+    public void deleteLoneSeatPolicy(UUID eventId)
+    {
+        eventManagementDomainService.deleteLoneSeatPolicy(eventId);
     }
 }

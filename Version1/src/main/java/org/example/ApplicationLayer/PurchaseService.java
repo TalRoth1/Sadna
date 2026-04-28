@@ -1,51 +1,45 @@
 package org.example.ApplicationLayer;
 
-import org.example.DomainLayer.DomainException;
 import org.example.DomainLayer.PurchaseDomainService;
+import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 
 import java.util.List;
+import java.util.UUID;
 
-public class PurchaseService
-{
-    PurchaseDomainService purchaseDomainService;
+public class PurchaseService {
+    private final PurchaseDomainService purchaseDomainService;
 
-    public PurchaseService(PurchaseDomainService purchaseDomainService)
-    {
+    public PurchaseService(PurchaseDomainService purchaseDomainService) {
         this.purchaseDomainService = purchaseDomainService;
     }
 
-    public void SelectSittingTickets(int eventID, List<Integer> ticketIDs, String userID)
-    {
-        if (ticketIDs == null || ticketIDs.isEmpty()) {
-            throw new IllegalArgumentException("Amount must be greater than zero");
-        }
-        if (userID == null || userID.isEmpty()) {
-            throw new IllegalArgumentException("User ID is required");
-        }
-
-        try {
-            purchaseDomainService.selectSittingTickets(eventID, ticketIDs, userID);
-        } catch (DomainException e) {
-            handleDomainError(e);
-        }
+    private void validateAdmin(UUID adminId) {
+        // TODO: replace with real admin validation
+        throw new IllegalArgumentException("Not yet Implemented");
     }
 
-    private void handleDomainError(DomainException e) {
+    public List<PurchaseHistory> getAllHistory(UUID adminId) {
+        validateAdmin(adminId);
+        return purchaseDomainService.getAllHistory();
     }
 
-    public void SelectStandingTickets(int eventID, int amount, int areaID, String userID)
-    {
-        if (amount <= 0) {
-            throw new IllegalArgumentException("Amount must be greater than zero");
-        }
-        if (userID == null || userID.isEmpty()) {
-            throw new IllegalArgumentException("User ID is required");
-        }
-
-        try {
-            purchaseDomainService.selectStandingTickets(eventID, amount, userID, areaID);
-        } catch (DomainException e) {
-            handleDomainError(e);
-        }
+    public List<PurchaseHistory> getHistoryByUser(UUID adminId, UUID userId) {
+        validateAdmin(adminId);
+        return purchaseDomainService.getHistoryByUser(userId);
     }
+
+    public List<PurchaseHistory> getHistoryByEvent(UUID adminId, UUID eventId) {
+        validateAdmin(adminId);
+        return purchaseDomainService.getHistoryByEvent(eventId);
+    }
+
+    public List<PurchaseHistory> getHistoryByCompany(UUID adminId, UUID companyId) {
+        validateAdmin(adminId);
+        return purchaseDomainService.getHistoryByCompany(companyId);
+    }
+
+    public List<PurchaseHistory> getPurchaseHistoryForMember(UUID userId) {
+        return purchaseDomainService.getPurchaseHistoryForMember(userId);
+    }
+
 }
