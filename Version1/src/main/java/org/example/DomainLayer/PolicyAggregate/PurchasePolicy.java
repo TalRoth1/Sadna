@@ -1,7 +1,6 @@
 package org.example.DomainLayer.PolicyAggregate;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -13,11 +12,14 @@ public class PurchasePolicy {
     private final List<IPurchaseRule> rules = new ArrayList<>();
 
     public List<IPurchaseRule> getRulesView() {
-        return Collections.unmodifiableList(rules);
+        return rules;
     }
 
-    public void addRule(IPurchaseRule rule) {
-        rules.add(Objects.requireNonNull(rule));
+    public void addRule(IPurchaseRule rule)
+    {
+        Objects.requireNonNull(rule);
+        rules.removeIf(existingRule -> existingRule.getClass().equals(rule.getClass()));
+        rules.add(rule);
     }
 
     public boolean validate(ActivePurchase purchase, User user)

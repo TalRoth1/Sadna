@@ -24,6 +24,13 @@ public class CompanyService {
         rolesDomainService.closeCompany(adminUsername, companyId);
     }
 
+    public void addAgePolicy(UUID companyId,float age)
+    {
+        if (age < 0)
+            throw new IllegalArgumentException("Age must be a non negative number");
+        
+    }
+
     public void removeCompanyMember(String adminUsername, int companyId, String usernameToRemove) {
         if (adminUsername == null || adminUsername.isBlank()) {
             throw new IllegalArgumentException("Admin username is required");
