@@ -164,6 +164,15 @@ public Company(String founderUsername, String name) {
         return true;
     }
 
+    public boolean hasPremision(String username, CompanyPermission premision, UUID eventId)
+    {
+        if (!isCompanyMember(username))
+        {
+            return false;
+        }
+        return members.get(username).hasPremission(premision, eventId);
+    }
+
     public boolean isOwner(String username) {
     if (username == null || username.isBlank()) {
         return false;
