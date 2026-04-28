@@ -11,7 +11,8 @@ import org.example.DomainLayer.PolicyAggregate.PurchasePolicy;
 
 public class Company {
     private UUID id;
-    private CompanyFounder founder; 
+    private CompanyFounder founder;
+    private String name; 
     private Map<String, ICompanyMember> members;
     private Map<UUID, Invitation> invitations;
     private DiscountPolicy discountPolicy;
@@ -21,8 +22,9 @@ public class Company {
     private List<UUID> eventIds;
     private boolean isActive;
 
-public Company(String founderUsername) {
+public Company(String founderUsername, String name) {
     this.id = UUID.randomUUID();
+    this.name = name;
     this.members = new HashMap<>();
     this.invitations = new HashMap<>();
     this.eventIds = new ArrayList<>();
@@ -36,6 +38,16 @@ public Company(String founderUsername) {
     public UUID getId()
     {
         return this.id;
+    }
+
+    public String getName()
+    {
+        return this.name;
+    }
+
+    public void setName(String newName)
+    {
+        this.name = newName;
     }
 
     public CompanyFounder getFounder()
