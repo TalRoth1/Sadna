@@ -4,6 +4,7 @@ import org.example.DomainLayer.EventManagementDomainService;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public class EventService {
@@ -21,49 +22,19 @@ public class EventService {
         return eventManagementDomainService.getEventPurchaseHistory(ownerUsername, eventId);
     }
 
-    public void addAgePolicy(UUID eventId,float age)
+    public void addPolicyRule(UUID eventId, Optional<Float> age, Optional<Integer> minTicket, Optional<Integer> maxTicket, Optional<Boolean> allowLoneSeat)
     {
-        if (age < 0)
+        if (age.isPresent() && age.get() < 0)
             throw new IllegalArgumentException("Age must be a non negative number");
-        eventManagementDomainService.addAgePolicy(eventId, age);
-    }
-
-    public void deleteAgePolicy(UUID eventId)
-    {
-        eventManagementDomainService.deleteAgePolicy(eventId);
-    }
-
-    public void addMinTicketPolicy(UUID eventId,int minTicket)
-    {
-        if (minTicket < 0)
+        if (minTicket.isPresent() && minTicket.get() < 0)
             throw new IllegalArgumentException("Minimum ticket amount must be a non negative integer");
-        eventManagementDomainService.addMinTicketPolicy(eventId, minTicket);
-    }
-
-    public void deleteMinTicketPolicy(UUID eventId)
-    {
-        eventManagementDomainService.deleteMinTicketPolicy(eventId);
-    }
-
-    public void addMaxTicketPolicy(UUID eventId,int maxTicket)
-    {
-        if (maxTicket < 0)
+        if (maxTicket.isPresent() && maxTicket.get() < 0)
             throw new IllegalArgumentException("maximum ticket amount must be a non negative integer");
-        eventManagementDomainService.addMaxTicketPolicy(eventId, maxTicket);
+        eventManagementDomainService.addPurchasePolicy(eventId, age, minTicket, maxTicket, allowLoneSeat);
     }
-
-    public void deleteMaxTicketPolicy(UUID eventId)
+    
+    public void deletePolicyRule(UUID eventId, boolean age, boolean minTicket, boolean maxTicket, boolean allowLoneSeat)
     {
-        eventManagementDomainService.deleteMaxTicketPolicy(eventId);
-    }
-
-    public void addLoneSeatPolicy(UUID eventId, boolean allowLoneSeat)
-    {
-        eventManagementDomainService.addLoneSeatPolicy(eventId, allowLoneSeat);
-    }
-
-    public void deleteLoneSeatPolicy(UUID eventId)
-    {
-        eventManagementDomainService.deleteLoneSeatPolicy(eventId);
+        eventManagementDomainService.deletePurchasePolicy(eventId, age, minTicket, maxTicket, allowLoneSeat);
     }
 }

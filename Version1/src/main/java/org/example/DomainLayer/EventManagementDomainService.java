@@ -4,6 +4,7 @@ import org.example.DomainLayer.EventAggregate.Event;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public class EventManagementDomainService {
@@ -33,69 +34,20 @@ public class EventManagementDomainService {
 
         return historyRepository.getByEventId(eventId);
     }
-
-    public void addAgePolicy(UUID eventId, float age)
-    {
-        Event event = eventRepository.getById(eventId);
-        if (event == null) 
-            throw new DomainException("Event not found");
-        event.addAgePolicy(age);
-    }
-
-    public void deleteAgePolicy(UUID eventId)
+    
+    public void addPurchasePolicy(UUID eventId, Optional<Float> age, Optional<Integer> minTicket, Optional<Integer> maxTicket, Optional<Boolean> allowLoneSeat)
     {
         Event event = eventRepository.getById(eventId);
         if (event == null)
-            throw new IllegalArgumentException("event not found");
-        event.deleteAgePolicy();
+            throw new IllegalArgumentException("Event not found");
+        event.addPurchasePolicy(age, minTicket, maxTicket, allowLoneSeat);
     }
 
-    public void addMinTicketPolicy(UUID eventId, int minTicket)
-    {
-        Event event = eventRepository.getById(eventId);
-        if (event == null) 
-            throw new DomainException("Event not found");
-        event.addMinTicketPolicy(minTicket);
-    }
-
-    public void deleteMinTicketPolicy(UUID eventId)
+    public void deletePurchasePolicy(UUID eventId, boolean age, boolean minTicket, boolean maxTicket, boolean allowLoneSeat)
     {
         Event event = eventRepository.getById(eventId);
         if (event == null)
-            throw new IllegalArgumentException("event not found");
-        event.deleteMinTicketPolicy();
+            throw new IllegalArgumentException("Event not found");
+        event.deletePurchaseRule(age, minTicket, maxTicket, allowLoneSeat);
     }
-
-    public void addMaxTicketPolicy(UUID eventId, int maxTicket)
-    {
-        Event event = eventRepository.getById(eventId);
-        if (event == null) 
-            throw new DomainException("Event not found");
-        event.addMaxTicketPolicy(maxTicket);
-    }
-
-    public void deleteMaxTicketPolicy(UUID eventId)
-    {
-        Event event = eventRepository.getById(eventId);
-        if (event == null)
-            throw new IllegalArgumentException("event not found");
-        event.deleteMaxTicketPolicy();
-    }
-
-    public void addLoneSeatPolicy(UUID eventId, boolean allowLoneSeat)
-    {
-        Event event = eventRepository.getById(eventId);
-        if (event == null) 
-            throw new DomainException("Event not found");
-        event.addLoneSeatPolicy(allowLoneSeat);
-    }
-
-    public void deleteLoneSeatPolicy(UUID eventId)
-    {
-        Event event = eventRepository.getById(eventId);
-        if (event == null)
-            throw new IllegalArgumentException("event not found");
-        event.deleteLoneSeatPolicy();
-    }
-
 }

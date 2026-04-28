@@ -5,6 +5,7 @@ import java.util.UUID;
 import org.example.DomainLayer.CompanyAggregate.Company;
 
 import java.util.List;
+import java.util.Optional;
 
 public class RolesDomainService {
 
@@ -75,66 +76,19 @@ public class RolesDomainService {
         // TODO: notify user after notification mechanism is implemented
     }
 
-    public void addAgePolicy(UUID companyId, float age)
+    public void addPurchasePolicy(UUID companyId, Optional<Float> age, Optional<Integer> minTicket, Optional<Integer> maxTicket, Optional<Boolean> allowLoneSeat)
     {
         Company company = companyRepository.findByID(companyId);
         if (company == null)
             throw new IllegalArgumentException("Company not found");
-        company.addAgePolicy(age);
+        company.addPurchasePolicy(age, minTicket, maxTicket, allowLoneSeat);
     }
 
-    public void deleteAgePolicy(UUID companyId)
+    public void deletePurchasePolicy(UUID companyId, boolean age, boolean minTicket, boolean maxTicket, boolean allowLoneSeat)
     {
         Company company = companyRepository.findByID(companyId);
         if (company == null)
             throw new IllegalArgumentException("Company not found");
-        company.deleteAgePolicy();
-    }
-
-    public void addMinTicketPolicy(UUID companyId, int minTicket)
-    {
-        Company company = companyRepository.findByID(companyId);
-        if (company == null)
-            throw new IllegalArgumentException("Company not found");
-        company.addMinTicketPolicy(minTicket);
-    }
-
-    public void deleteMinTicketPolicy(UUID companyId)
-    {
-        Company company = companyRepository.findByID(companyId);
-        if (company == null)
-            throw new IllegalArgumentException("Company not found");
-        company.deleteMinTicketPolicy();
-    }
-
-    public void addMaxTicketPolicy(UUID companyId, int maxTicket)
-    {
-        Company company = companyRepository.findByID(companyId);
-        if (company == null)
-            throw new IllegalArgumentException("Company not found");
-        company.addMaxTicketPolicy(maxTicket);
-    }
-    public void deleteMaxTicketPolicy(UUID companyId)
-    {
-        Company company = companyRepository.findByID(companyId);
-        if (company == null)
-            throw new IllegalArgumentException("Company not found");
-        company.deleteMaxTicketPolicy();
-    }
-
-    public void addLoneSeatPolicy(UUID companyId, boolean allowLoneSeat)
-    {
-        Company company = companyRepository.findByID(companyId);
-        if (company == null)
-            throw new IllegalArgumentException("Company not found");
-        company.addLoneSeatPolicy(allowLoneSeat);
-    }
-
-    public void deleteLoneSeatPolicy(UUID companyId)
-    {
-        Company company = companyRepository.findByID(companyId);
-        if (company == null)
-            throw new IllegalArgumentException("Company not found");
-        company.deleteLoneSeatPolicy();
+        company.deletePurchaseRule(age, minTicket, maxTicket, allowLoneSeat);
     }
 }

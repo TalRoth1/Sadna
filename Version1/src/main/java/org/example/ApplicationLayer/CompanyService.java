@@ -1,5 +1,6 @@
 package org.example.ApplicationLayer;
 
+import java.util.Optional;
 import java.util.UUID;
 
 import org.example.DomainLayer.RolesDomainService;
@@ -24,50 +25,20 @@ public class CompanyService {
         rolesDomainService.closeCompany(adminUsername, companyId);
     }
 
-    public void addAgePolicy(UUID companyId,float age)
+    public void addPolicyRule(UUID companyId, Optional<Float> age, Optional<Integer> minTicket, Optional<Integer> maxTicket, Optional<Boolean> allowLoneSeat)
     {
-        if (age < 0)
+        if (age.isPresent() && age.get() < 0)
             throw new IllegalArgumentException("Age must be a non negative number");
-        rolesDomainService.addAgePolicy(companyId, age);
-    }
-
-    public void deleteAgePolicy(UUID companyId)
-    {
-        rolesDomainService.deleteAgePolicy(companyId);
-    }
-
-    public void addMinTicketPolicy(UUID companyId,int minTicket)
-    {
-        if (minTicket < 0)
+        if (minTicket.isPresent() && minTicket.get() < 0)
             throw new IllegalArgumentException("Minimum ticket amount must be a non negative integer");
-        rolesDomainService.addMinTicketPolicy(companyId, minTicket);
-    }
-
-    public void deleteMinTicketPolicy(UUID companyId)
-    {
-        rolesDomainService.deleteMinTicketPolicy(companyId);
-    }
-
-    public void addMaxTicketPolicy(UUID companyId,int maxTicket)
-    {
-        if (maxTicket < 0)
+        if (maxTicket.isPresent() && maxTicket.get() < 0)
             throw new IllegalArgumentException("maximum ticket amount must be a non negative integer");
-        rolesDomainService.addMaxTicketPolicy(companyId, maxTicket);
+        rolesDomainService.addPurchasePolicy(companyId, age, minTicket, maxTicket, allowLoneSeat);
     }
-
-    public void deleteMaxTicketPolicy(UUID companyId)
+    
+    public void deletePolicyRule(UUID companyId, boolean age, boolean minTicket, boolean maxTicket, boolean allowLoneSeat)
     {
-        rolesDomainService.deleteMaxTicketPolicy(companyId);
-    }
-
-    public void addLoneSeatPolicy(UUID companyId, boolean allowLoneSeat)
-    {
-        rolesDomainService.addLoneSeatPolicy(companyId, allowLoneSeat);
-    }
-
-    public void deleteLoneSeatPolicy(UUID companyId)
-    {
-        rolesDomainService.deleteLoneSeatPolicy(companyId);
+        rolesDomainService.deletePurchasePolicy(companyId, age, minTicket, maxTicket, allowLoneSeat);
     }
 
     public void removeCompanyMember(String adminUsername, int companyId, String usernameToRemove) {

@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.example.DomainLayer.PolicyAggregate.AgeRule;
@@ -208,43 +209,28 @@ public Company(String founderUsername, String name) {
         members.remove(username);
     }
 
-    public void addAgePolicy(float age)
+    public void addPurchasePolicy(Optional<Float> age, Optional<Integer> minTicket, Optional<Integer> maxTicket, Optional<Boolean> allowLoneSeat)
     {
-        this.purchasePolicy.addRule(new AgeRule(age));
+        if(Optional.ofNullable(age).isPresent())
+            this.purchasePolicy.addRule(new AgeRule(age.get()));
+        if(Optional.ofNullable(minTicket).isPresent())
+            this.purchasePolicy.addRule(new MinTicketRule(minTicket.get()));
+        if(Optional.ofNullable(maxTicket).isPresent())
+            this.purchasePolicy.addRule(new MaxTicketRule(maxTicket.get()));
+        if(Optional.ofNullable(allowLoneSeat).isPresent())
+            this.purchasePolicy.addRule(new LoneSeatRule(allowLoneSeat.get()));
+
     }
 
-    public void deleteAgePolicy()
+    public void deletePurchaseRule(boolean age, boolean minTicket, boolean maxTicket, boolean allowLoneSeat)
     {
-        this.purchasePolicy.removeRule(new AgeRule(0));
-    }
-
-    public void addMinTicketPolicy(int minTicket)
-    {
-        this.purchasePolicy.addRule(new MinTicketRule(minTicket));
-    }
-
-    public void deleteMinTicketPolicy()
-    {
-        this.purchasePolicy.removeRule(new MinTicketRule(0));
-    }
-
-    public void addMaxTicketPolicy(int maxTicket)
-    {
-        this.purchasePolicy.addRule(new MaxTicketRule(maxTicket));
-    }
-
-    public void deleteMaxTicketPolicy()
-    {
-        this.purchasePolicy.removeRule(new MaxTicketRule(0));
-    }
-
-    public void addLoneSeatPolicy(boolean allowLoneSeat)
-    {
-        this.purchasePolicy.addRule(new LoneSeatRule(allowLoneSeat));
-    }
-
-    public void deleteLoneSeatPolicy()
-    {
-        this.purchasePolicy.removeRule(new LoneSeatRule(false));
+        if(age)
+            this.purchasePolicy.removeRule(new AgeRule(0));
+        if(minTicket)
+            this.purchasePolicy.removeRule(new MinTicketRule(0));
+        if(maxTicket)
+            this.purchasePolicy.removeRule(new MaxTicketRule(0));
+        if(allowLoneSeat)
+            this.purchasePolicy.removeRule(new LoneSeatRule(false));
     }
 }
