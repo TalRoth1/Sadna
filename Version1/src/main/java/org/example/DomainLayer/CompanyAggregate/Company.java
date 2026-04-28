@@ -115,7 +115,7 @@ public Company(String founderUsername, String name) {
         return true;
     }
 
-    public boolean inviteNewManager(String appointeeUsername, String appointerUsername, Set<Premissions> premissions)
+    public boolean inviteNewManager(String appointeeUsername, String appointerUsername, Set<CompanyPermission> premissions)
     {
         // check if appointer is a in the company and is an owner
         if (!isCompanyMember(appointerUsername) || !(members.get(appointerUsername) instanceof CompanyOwner))
@@ -150,7 +150,7 @@ public Company(String founderUsername, String name) {
         return false;
     }
 
-    public boolean appointNewManager(String appointeeUsername, String appointerUsername, Set<Premissions> premissions)
+    public boolean appointNewManager(String appointeeUsername, String appointerUsername, Set<CompanyPermission> premissions)
     {
         // check if appointer is a in the company and is an owner
         if (!isCompanyMember(appointerUsername) || !(members.get(appointerUsername) instanceof CompanyOwner))

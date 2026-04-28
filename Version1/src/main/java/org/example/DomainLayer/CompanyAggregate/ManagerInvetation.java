@@ -4,14 +4,14 @@ import java.util.Set;
 import java.util.UUID;
 
 public class ManagerInvetation extends Invitation {
-    Set<Premissions> premissions;
+    Set<CompanyPermission> premissions;
 
-    public ManagerInvetation(String appointerUsername, String appointeeUsername, UUID companyId, Set<Premissions> premissions) {
+    public ManagerInvetation(String appointerUsername, String appointeeUsername, UUID companyId, Set<CompanyPermission> premissions) {
         super(appointerUsername, appointeeUsername, companyId);
         this.premissions = premissions;
     }
 
-    public Set<Premissions> getPremissions() {
+    public Set<CompanyPermission> getPremissions() {
         return premissions;
     }
 }
