@@ -50,4 +50,10 @@ public class CompanyRepository implements ICompanyRepository {
 
         return result;
     }
+
+     @Override
+     public void createCompany(String founderUsername, String companyName) {
+        Company newCompany = new Company(founderUsername, companyName);
+        companies.put(newCompany.getId(), newCompany);
+     }
 }

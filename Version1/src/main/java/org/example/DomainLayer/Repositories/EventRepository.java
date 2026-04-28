@@ -1,6 +1,7 @@
 package org.example.DomainLayer.Repositories;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.example.DomainLayer.IEventRepository;
@@ -8,7 +9,7 @@ import org.example.DomainLayer.EventAggregate.Event;
 
 public class EventRepository implements IEventRepository {
 
-    public List<Event> events;
+    public Map<UUID, Event> events;
 
     public Event getById(UUID eventId)
     {

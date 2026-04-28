@@ -10,7 +10,12 @@ public class CompanyService {
     public CompanyService(RolesDomainService rolesDomainService) {
         this.rolesDomainService = rolesDomainService;
     }
-
+    public void createCompany(String founderUsername, String companyName)
+    {
+        if (founderUsername == null || founderUsername.isBlank()) 
+            throw new IllegalArgumentException("founder username is required");
+        rolesDomainService.createCompany(founderUsername, companyName);
+    }
     public void closeCompany(String adminUsername, UUID companyId) {
         if (adminUsername == null || adminUsername.isBlank()) {
             throw new IllegalArgumentException("Admin username is required");
