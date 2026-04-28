@@ -30,7 +30,7 @@ public class RolesDomainService {
             throw new IllegalArgumentException("User is not system admin");
         }
 
-        Company company = companyRepository.findByID(companyId);
+        Company company = companyRepository.findByID(companyId).get();
 
         if (company == null) {
             throw new IllegalArgumentException("Company not found");
@@ -77,7 +77,7 @@ public class RolesDomainService {
 
     public void addAgePolicy(UUID companyId, float age)
     {
-        Company company = companyRepository.findByID(companyId);
+        Company company = companyRepository.findByID(companyId).get();
         if (company == null)
             throw new IllegalArgumentException("Company not found");
         company.addAgePolicy(age);
@@ -85,7 +85,7 @@ public class RolesDomainService {
 
     public void deleteAgePolicy(UUID companyId)
     {
-        Company company = companyRepository.findByID(companyId);
+        Company company = companyRepository.findByID(companyId).get();
         if (company == null)
             throw new IllegalArgumentException("Company not found");
         company.deleteAgePolicy();
@@ -93,7 +93,7 @@ public class RolesDomainService {
 
     public void addMinTicketPolicy(UUID companyId, int minTicket)
     {
-        Company company = companyRepository.findByID(companyId);
+        Company company = companyRepository.findByID(companyId).get();
         if (company == null)
             throw new IllegalArgumentException("Company not found");
         company.addMinTicketPolicy(minTicket);
@@ -101,7 +101,7 @@ public class RolesDomainService {
 
     public void deleteMinTicketPolicy(UUID companyId)
     {
-        Company company = companyRepository.findByID(companyId);
+        Company company = companyRepository.findByID(companyId).get();
         if (company == null)
             throw new IllegalArgumentException("Company not found");
         company.deleteMinTicketPolicy();
@@ -109,14 +109,14 @@ public class RolesDomainService {
 
     public void addMaxTicketPolicy(UUID companyId, int maxTicket)
     {
-        Company company = companyRepository.findByID(companyId);
+        Company company = companyRepository.findByID(companyId).get();
         if (company == null)
             throw new IllegalArgumentException("Company not found");
         company.addMaxTicketPolicy(maxTicket);
     }
     public void deleteMaxTicketPolicy(UUID companyId)
     {
-        Company company = companyRepository.findByID(companyId);
+        Company company = companyRepository.findByID(companyId).get();
         if (company == null)
             throw new IllegalArgumentException("Company not found");
         company.deleteMaxTicketPolicy();
@@ -124,7 +124,7 @@ public class RolesDomainService {
 
     public void addLoneSeatPolicy(UUID companyId, boolean allowLoneSeat)
     {
-        Company company = companyRepository.findByID(companyId);
+        Company company = companyRepository.findByID(companyId).get();
         if (company == null)
             throw new IllegalArgumentException("Company not found");
         company.addLoneSeatPolicy(allowLoneSeat);
@@ -132,7 +132,7 @@ public class RolesDomainService {
 
     public void deleteLoneSeatPolicy(UUID companyId)
     {
-        Company company = companyRepository.findByID(companyId);
+        Company company = companyRepository.findByID(companyId).get();
         if (company == null)
             throw new IllegalArgumentException("Company not found");
         company.deleteLoneSeatPolicy();
