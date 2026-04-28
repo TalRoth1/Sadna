@@ -2,12 +2,16 @@ package org.example.DomainLayer.EventAggregate;
 
 import org.example.DomainLayer.DomainException;
 import org.example.DomainLayer.PolicyAggregate.AgeRule;
+import org.example.DomainLayer.PolicyAggregate.ConditionalDiscount;
+import org.example.DomainLayer.PolicyAggregate.CouponCode;
 import org.example.DomainLayer.PolicyAggregate.DiscountPolicy;
 import org.example.DomainLayer.PolicyAggregate.LoneSeatRule;
 import org.example.DomainLayer.PolicyAggregate.MaxTicketRule;
 import org.example.DomainLayer.PolicyAggregate.MinTicketRule;
+import org.example.DomainLayer.PolicyAggregate.OvertDiscount;
 import org.example.DomainLayer.PolicyAggregate.PurchasePolicy;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -332,5 +336,25 @@ public class Event {
     public void deleteLoneSeatPolicy()
     {
         this.purchasePolicy.removeRule(new LoneSeatRule(false));
+    }
+
+        public void addOvertDiscount(LocalDate fromDate, LocalDate toDate, float discountPrecent)
+    {
+        this.discountPolicy.addRule(new OvertDiscount(discountPrecent, fromDate, toDate));
+    }
+
+    public void addConditionalDiscount(LocalDate fromDate, LocalDate toDate, float discountPrecent, int requiredTickets, int appliedTickets)
+    {
+        this.discountPolicy.addRule(new ConditionalDiscount(fromDate, toDate, discountPrecent, requiredTickets, appliedTickets));
+    }
+
+    public void addCouponCode(LocalDate fromDate, LocalDate toDate, float discountPrecent, String code)
+    {
+        this.discountPolicy.addRule(new CouponCode(fromDate, toDate, discountPrecent, code));
+    }
+
+    public void removeDiscount(UUID discountId)
+    {
+        this.discountPolicy.removeRule(discountId);
     }
 }

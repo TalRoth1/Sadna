@@ -4,6 +4,7 @@ import java.util.UUID;
 
 import org.example.DomainLayer.CompanyAggregate.Company;
 
+import java.time.LocalDate;
 import java.util.List;
 
 public class RolesDomainService {
@@ -48,7 +49,7 @@ public class RolesDomainService {
         // notificationService.notifyCompanyClosed(...)
     }
 
-    public void removeCompanyMember(String adminUsername, int companyId, String usernameToRemove) {
+    public void removeCompanyMember(String adminUsername, UUID companyId, String usernameToRemove) {
         if (adminUsername == null || adminUsername.isBlank()) {
             throw new IllegalArgumentException("Admin username is required");
         }
@@ -136,5 +137,37 @@ public class RolesDomainService {
         if (company == null)
             throw new IllegalArgumentException("Company not found");
         company.deleteLoneSeatPolicy();
+    }
+
+    public void addOvertDiscount(UUID companyId, LocalDate fromDate, LocalDate toDate, float discountPrecent)
+    {
+        Company company = companyRepository.findByID(companyId);
+        if (company == null)
+            throw new IllegalArgumentException("Company not found");
+        company.addOvertDiscount(fromDate, toDate, discountPrecent);
+    }
+
+    public void addConditionalDiscount(UUID companyId, LocalDate fromDate, LocalDate toDate, float discountPrecent, int requiredTickets, int appliedTickets)
+    {
+        Company company = companyRepository.findByID(companyId);
+        if (company == null)
+            throw new IllegalArgumentException("Company not found");
+        company.addConditionalDiscount(fromDate, toDate, discountPrecent, requiredTickets, appliedTickets);
+    }
+
+    public void addCouponCode(UUID companyId, LocalDate fromDate, LocalDate toDate, float discountPrecent, String code)
+    {
+        Company company = companyRepository.findByID(companyId);
+        if (company == null)
+            throw new IllegalArgumentException("Company not found");
+        company.addCouponCode(fromDate, toDate, discountPrecent, code);
+    }
+
+    public void removeDiscount(UUID companyId, UUID discountId)
+    {
+                Company company = companyRepository.findByID(companyId);
+        if (company == null)
+            throw new IllegalArgumentException("Company not found");
+        company.removeDiscount(discountId); 
     }
 }

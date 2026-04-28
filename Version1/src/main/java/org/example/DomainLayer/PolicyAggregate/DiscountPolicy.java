@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 
@@ -17,6 +18,11 @@ public class DiscountPolicy {
     public void addRule(IDiscountRule rule)
     {
         discounts.add(Objects.requireNonNull(rule));
+    }
+
+    public void removeRule(UUID id)
+    {
+        discounts.removeIf(rule -> rule.getId() == id);
     }
 
     public float applyDiscount(ActivePurchase purchase)
