@@ -13,9 +13,9 @@ public class LoneSeatRule implements IPurchaseRule {
     }
 
     @Override
-    public boolean doesHold(ActivePurchase purchase, User user) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'doesHold'");
+    public boolean doesHold(ActivePurchase purchase, User user)
+    {
+        return true;
     }
     
 }
