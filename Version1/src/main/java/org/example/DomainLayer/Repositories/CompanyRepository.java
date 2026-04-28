@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 public class CompanyRepository implements ICompanyRepository {
@@ -14,13 +15,13 @@ public class CompanyRepository implements ICompanyRepository {
     private final Map<UUID, Company> companies = new HashMap<>();
 
     @Override
-    public Company findByID(UUID companyId) {
-        return companies.get(companyId);
+    public Optional<Company> findByID(UUID companyId) {
+        return Optional.ofNullable(companies.get(companyId));
     }
 
     @Override
     public boolean isOwner(String username, UUID companyId) {
-        Company company = findByID(companyId);
+        Company company = findByID(companyId).get();
 
         if (company == null) {
             return false;

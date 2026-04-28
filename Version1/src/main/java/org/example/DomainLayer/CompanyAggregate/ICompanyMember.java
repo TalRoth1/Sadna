@@ -2,11 +2,12 @@ package org.example.DomainLayer.CompanyAggregate;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 public abstract class ICompanyMember {
     private final String username;
     private ICompanyMember Appointer;
-    private final List<String> eventsIds;
+    private final List<UUID> eventsIds;
 
     public String getUsername() {
         return username;
@@ -16,7 +17,7 @@ public abstract class ICompanyMember {
         return Appointer;
     }
 
-    public List<String> getEventsIds() {
+    public List<UUID> getEventsIds() {
         return eventsIds;
     }
 
@@ -39,4 +40,9 @@ public abstract class ICompanyMember {
     public void setAppointer(ICompanyMember newAppointer) {
         this.Appointer = newAppointer;
     }
+
+    public abstract boolean hasPremission(CompanyPermission premision, UUID eventId);
+
+    public abstract boolean isInChargeOfEvent(UUID eventId);
+
 }

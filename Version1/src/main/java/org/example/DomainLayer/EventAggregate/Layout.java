@@ -5,8 +5,7 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Venue layout for one event (1:1 with {@link Event}). Owns {@link Area}s (1:*).
- * {@code mapImage} holds a reference for the visual map.
+ * Venue layout for one event
  */
 public class Layout {
 
@@ -28,6 +27,11 @@ public class Layout {
     public void addArea(Area area) {
         if (area == null) {
             throw new IllegalArgumentException("area must not be null");
+        }
+        for (Area existing : areas) {
+            if (existing.getAreaId() == area.getAreaId()) {
+                throw new IllegalStateException("duplicate area id: " + area.getAreaId());
+            }
         }
         areas.add(area);
     }
