@@ -145,4 +145,13 @@ public Company(String founderUsername) {
         members.put(appointeeUsername, newOwner);
         return true;
     }
+
+    public boolean hasPremision(String username, CompanyPermission premision, UUID eventId)
+    {
+        if (!isCompanyMember(username))
+        {
+            return false;
+        }
+        return members.get(username).hasPremission(premision, eventId);
+    }
 }
