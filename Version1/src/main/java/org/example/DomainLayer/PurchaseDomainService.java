@@ -3,6 +3,8 @@ package org.example.DomainLayer;
 import org.example.DomainLayer.EventAggregate.Event;
 import org.example.DomainLayer.PurchaseHistoryAggregate.Payment;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
+import org.example.DomainLayer.UserAggregate.Member;
+import org.example.DomainLayer.UserAggregate.User;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -13,17 +15,20 @@ public class PurchaseDomainService {
     private final IEventRepository eventRepository;
     private final IPurchaseRepository purchaseRepository;
     private final ICompanyRepository companyRepository;
+    private final IUserRepository userRepository;
 
 
 
     public PurchaseDomainService(IHistoryRepository historyRepository,
                                  IEventRepository eventRepository,
                                  IPurchaseRepository purchaseRepository,
-                                 ICompanyRepository companyRepository) {
+                                 ICompanyRepository companyRepository,
+                                 IUserRepository userRepository) {
         this.historyRepository = historyRepository;
         this.eventRepository = eventRepository;
         this.purchaseRepository = purchaseRepository;
         this.companyRepository = companyRepository;
+        this.userRepository = userRepository;
     }
 
     public void addPurchaseToHistory(UUID userId, List<UUID> ticketIds, UUID eventId, Payment payment) {
@@ -58,5 +63,23 @@ public class PurchaseDomainService {
         }
 
         return result;
+    }
+
+    public List<PurchaseHistory> getPurchaseHistoryForMember(UUID userId) {
+
+        User user = userRepository.getUser(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        if (!(user instanceof Member)) {
+            throw new IllegalArgumentException("User is not a member");
+        }
+
+        Member member = (Member) user;
+
+        if (!member.isLoggedIn()) {
+            throw new IllegalArgumentException("Member is not logged in");
+        }
+
+        return historyRepository.getByUserId(userId);
     }
 }

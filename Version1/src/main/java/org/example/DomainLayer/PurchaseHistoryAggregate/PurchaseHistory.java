@@ -1,6 +1,7 @@
 package org.example.DomainLayer.PurchaseHistoryAggregate;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -13,7 +14,7 @@ public class PurchaseHistory {
 
     public PurchaseHistory(UUID userId, List<UUID> ticketIds, UUID eventId, Payment payment) {
         this.userId = userId;
-        this.ticketIds = ticketIds;
+        this.ticketIds = new ArrayList<>(ticketIds);
         this.eventId = eventId;
         this.payment = payment;
         this.purchaseDate = LocalDateTime.now();

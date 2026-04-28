@@ -1,7 +1,11 @@
 package org.example.DomainLayer.EventAggregate;
 
 import org.example.DomainLayer.DomainException;
+import org.example.DomainLayer.PolicyAggregate.AgeRule;
 import org.example.DomainLayer.PolicyAggregate.DiscountPolicy;
+import org.example.DomainLayer.PolicyAggregate.LoneSeatRule;
+import org.example.DomainLayer.PolicyAggregate.MaxTicketRule;
+import org.example.DomainLayer.PolicyAggregate.MinTicketRule;
 import org.example.DomainLayer.PolicyAggregate.PurchasePolicy;
 
 import java.time.LocalDateTime;
@@ -192,16 +196,16 @@ public class Event {
         ticketsById.put(tid, ticket);
     }
 
-    public Ticket getTicket(int ticketId) {
+    public Ticket getTicket(UUID ticketId) {
         return ticketsById.get(ticketId);
     }
 
-    public void checkAvailabilityOfSittingTickets(List<Integer> ticketIDs) {
+    public void checkAvailabilityOfSittingTickets(List<UUID> ticketIDs) {
         if (ticketIDs == null || ticketIDs.isEmpty()) {
             throw new DomainException("רשימת הכרטיסים שהוזנה ריקה");
         }
 
-        for (int tid : ticketIDs) {
+        for (UUID tid : ticketIDs) {
             Ticket t = ticketsById.get(tid);
 
             // בדיקה 1: האם הכרטיס בכלל קיים באירוע הזה?
@@ -239,11 +243,11 @@ public class Event {
         }
     }
 
-    public void reserveSittingTickets(List<Integer> ticketIDs)
+    public void reserveSittingTickets(List<UUID> ticketIDs)
     {
         List<Ticket> ticketsToReserve = new ArrayList<>();
 
-        for (int id : ticketIDs) {
+        for (UUID id : ticketIDs) {
             Ticket ticket = ticketsById.get(id);
 
             // הגנה: האם הכרטיס בכלל קיים באירוע הזה?
@@ -288,5 +292,45 @@ public class Event {
         }
 
         return selectedTickets; // מחזירים את ה-IDs ל-Service
+    }
+
+    public void addAgePolicy(float age)
+    {
+        this.purchasePolicy.addRule(new AgeRule(age));
+    }
+
+    public void deleteAgePolicy()
+    {
+        this.purchasePolicy.removeRule(new AgeRule(0));
+    }
+
+    public void addMinTicketPolicy(int minTicket)
+    {
+        this.purchasePolicy.addRule(new MinTicketRule(minTicket));
+    }
+
+    public void deleteMinTicketPolicy()
+    {
+        this.purchasePolicy.removeRule(new MinTicketRule(0));
+    }
+
+    public void addMaxTicketPolicy(int maxTicket)
+    {
+        this.purchasePolicy.addRule(new MaxTicketRule(maxTicket));
+    }
+
+    public void deleteMaxTicketPolicy()
+    {
+        this.purchasePolicy.removeRule(new MaxTicketRule(0));
+    }
+
+    public void addLoneSeatPolicy(boolean allowLoneSeat)
+    {
+        this.purchasePolicy.addRule(new LoneSeatRule(allowLoneSeat));
+    }
+
+    public void deleteLoneSeatPolicy()
+    {
+        this.purchasePolicy.removeRule(new LoneSeatRule(false));
     }
 }

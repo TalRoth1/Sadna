@@ -1,9 +1,16 @@
 package org.example.DomainLayer;
 
-import java.util.UUID;
-
 import org.example.DomainLayer.UserAggregate.User;
 
+import java.util.Optional;
+import java.util.UUID;
+
 public interface IUserRepository {
-    public User getUser(UUID UID);
+    void add(User user);
+
+    public Optional<User> getUser(UUID UID);
+
+    boolean exists(UUID userId);
+
+    boolean isSystemAdmin(String username);
 }

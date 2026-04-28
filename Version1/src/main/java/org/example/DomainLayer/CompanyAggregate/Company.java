@@ -6,12 +6,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.example.DomainLayer.PolicyAggregate.AgeRule;
 import org.example.DomainLayer.PolicyAggregate.DiscountPolicy;
+import org.example.DomainLayer.PolicyAggregate.LoneSeatRule;
+import org.example.DomainLayer.PolicyAggregate.MaxTicketRule;
+import org.example.DomainLayer.PolicyAggregate.MinTicketRule;
 import org.example.DomainLayer.PolicyAggregate.PurchasePolicy;
 
 public class Company {
     private UUID id;
-    private CompanyFounder founder; 
+    private CompanyFounder founder;
+    private String name; 
     private Map<String, ICompanyMember> members;
     private Map<UUID, Invitation> invitations;
     private DiscountPolicy discountPolicy;
@@ -19,9 +24,11 @@ public class Company {
     private int rating;
     private int amountRated;
     private List<UUID> eventIds;
+    private boolean isActive;
 
-public Company(String founderUsername) {
+public Company(String founderUsername, String name) {
     this.id = UUID.randomUUID();
+    this.name = name;
     this.members = new HashMap<>();
     this.invitations = new HashMap<>();
     this.eventIds = new ArrayList<>();
@@ -29,11 +36,22 @@ public Company(String founderUsername) {
     this.members.put(founderUsername, founder);
     this.discountPolicy = new DiscountPolicy();
     this.purchasePolicy = new PurchasePolicy();
+    this.isActive = true;
 }
 
     public UUID getId()
     {
         return this.id;
+    }
+
+    public String getName()
+    {
+        return this.name;
+    }
+
+    public void setName(String newName)
+    {
+        this.name = newName;
     }
 
     public CompanyFounder getFounder()
@@ -153,5 +171,89 @@ public Company(String founderUsername) {
             return false;
         }
         return members.get(username).hasPremission(premision, eventId);
+    }
+
+    public boolean isOwner(String username) {
+    if (username == null || username.isBlank()) {
+        return false;
+    }
+
+    ICompanyMember member = members.get(username);
+
+    return member instanceof CompanyOwner
+            || member instanceof CompanyFounder;
+    }
+
+    public boolean isActive() {
+        return isActive;
+    }
+
+    public void close() {
+        if (!isActive) {
+            throw new IllegalStateException("Company is already inactive");
+        }
+
+        isActive = false;
+
+        members.entrySet().removeIf(entry ->
+                entry.getValue() instanceof CompanyOwner
+                        || entry.getValue() instanceof CompanyManager
+        );
+    }
+
+    public boolean hasMember(String username) {
+        return username != null && members.containsKey(username);
+    }
+
+    public void removeMember(String username) {
+        if (username == null || username.isBlank()) {
+            throw new IllegalArgumentException("Username is required");
+        }
+
+        if (!members.containsKey(username)) {
+            throw new IllegalArgumentException("User is not a company member");
+        }
+
+        members.remove(username);
+    }
+
+    public void addAgePolicy(float age)
+    {
+        this.purchasePolicy.addRule(new AgeRule(age));
+    }
+
+    public void deleteAgePolicy()
+    {
+        this.purchasePolicy.removeRule(new AgeRule(0));
+    }
+
+    public void addMinTicketPolicy(int minTicket)
+    {
+        this.purchasePolicy.addRule(new MinTicketRule(minTicket));
+    }
+
+    public void deleteMinTicketPolicy()
+    {
+        this.purchasePolicy.removeRule(new MinTicketRule(0));
+    }
+
+    public void addMaxTicketPolicy(int maxTicket)
+    {
+        this.purchasePolicy.addRule(new MaxTicketRule(maxTicket));
+    }
+
+    public void deleteMaxTicketPolicy()
+    {
+        this.purchasePolicy.removeRule(new MaxTicketRule(0));
+    }
+
+    public void addLoneSeatPolicy(boolean allowLoneSeat)
+    {
+        this.purchasePolicy.addRule(new LoneSeatRule(allowLoneSeat));
+    }
+
+    public void deleteLoneSeatPolicy()
+    {
+        this.purchasePolicy.removeRule(new LoneSeatRule(false));
     }
 }

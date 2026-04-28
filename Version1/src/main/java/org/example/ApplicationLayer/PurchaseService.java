@@ -37,4 +37,9 @@ public class PurchaseService {
         validateAdmin(adminId);
         return purchaseDomainService.getHistoryByCompany(companyId);
     }
+
+    public List<PurchaseHistory> getPurchaseHistoryForMember(UUID userId) {
+        return purchaseDomainService.getPurchaseHistoryForMember(userId);
+    }
+
 }

@@ -1,5 +1,6 @@
-package org.example.DomainLayer;
+package org.example.DomainLayer.Repositories;
 
+import org.example.DomainLayer.IHistoryRepository;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 
 import java.util.ArrayList;
@@ -7,7 +8,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-public class HistoryRepository {
+public class HistoryRepository implements IHistoryRepository{
     private final List<PurchaseHistory> historyList = new ArrayList<>();
 
     public void add(PurchaseHistory purchaseHistory) {

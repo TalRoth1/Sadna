@@ -1,9 +1,20 @@
 package org.example.DomainLayer.UserAggregate;
 
-public class User {
-    double age;
+import java.util.UUID;
 
-    public double getAge()
+public abstract class User {
+    private final UUID id;
+    float age;
+
+    protected User(UUID id) {
+        this.id = id;
+    }
+
+    public UUID getId() {
+        return id;
+    }
+
+    public float getAge()
     {
         return this.age;
     }
