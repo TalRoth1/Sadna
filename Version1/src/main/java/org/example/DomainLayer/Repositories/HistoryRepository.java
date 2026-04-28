@@ -1,5 +1,6 @@
-package org.example.DomainLayer;
+package org.example.DomainLayer.Repositories;
 
+import org.example.DomainLayer.IHistoryRepository;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 
 import java.util.ArrayList;
