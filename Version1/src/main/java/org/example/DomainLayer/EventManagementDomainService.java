@@ -34,4 +34,68 @@ public class EventManagementDomainService {
         return historyRepository.getByEventId(eventId);
     }
 
+    public void addAgePolicy(UUID eventId, float age)
+    {
+        Event event = eventRepository.getById(eventId);
+        if (event == null) 
+            throw new DomainException("Event not found");
+        event.addAgePolicy(age);
+    }
+
+    public void deleteAgePolicy(UUID eventId)
+    {
+        Event event = eventRepository.getById(eventId);
+        if (event == null)
+            throw new IllegalArgumentException("event not found");
+        event.deleteAgePolicy();
+    }
+
+    public void addMinTicketPolicy(UUID eventId, int minTicket)
+    {
+        Event event = eventRepository.getById(eventId);
+        if (event == null) 
+            throw new DomainException("Event not found");
+        event.addMinTicketPolicy(minTicket);
+    }
+
+    public void deleteMinTicketPolicy(UUID eventId)
+    {
+        Event event = eventRepository.getById(eventId);
+        if (event == null)
+            throw new IllegalArgumentException("event not found");
+        event.deleteMinTicketPolicy();
+    }
+
+    public void addMaxTicketPolicy(UUID eventId, int maxTicket)
+    {
+        Event event = eventRepository.getById(eventId);
+        if (event == null) 
+            throw new DomainException("Event not found");
+        event.addMaxTicketPolicy(maxTicket);
+    }
+
+    public void deleteMaxTicketPolicy(UUID eventId)
+    {
+        Event event = eventRepository.getById(eventId);
+        if (event == null)
+            throw new IllegalArgumentException("event not found");
+        event.deleteMaxTicketPolicy();
+    }
+
+    public void addLoneSeatPolicy(UUID eventId, boolean allowLoneSeat)
+    {
+        Event event = eventRepository.getById(eventId);
+        if (event == null) 
+            throw new DomainException("Event not found");
+        event.addLoneSeatPolicy(allowLoneSeat);
+    }
+
+    public void deleteLoneSeatPolicy(UUID eventId)
+    {
+        Event event = eventRepository.getById(eventId);
+        if (event == null)
+            throw new IllegalArgumentException("event not found");
+        event.deleteLoneSeatPolicy();
+    }
+
 }

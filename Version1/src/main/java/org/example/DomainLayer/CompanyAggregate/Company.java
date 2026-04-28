@@ -6,7 +6,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.example.DomainLayer.PolicyAggregate.AgeRule;
 import org.example.DomainLayer.PolicyAggregate.DiscountPolicy;
+import org.example.DomainLayer.PolicyAggregate.LoneSeatRule;
+import org.example.DomainLayer.PolicyAggregate.MaxTicketRule;
+import org.example.DomainLayer.PolicyAggregate.MinTicketRule;
 import org.example.DomainLayer.PolicyAggregate.PurchasePolicy;
 
 public class Company {
@@ -202,5 +206,45 @@ public Company(String founderUsername, String name) {
         }
 
         members.remove(username);
+    }
+
+    public void addAgePolicy(float age)
+    {
+        this.purchasePolicy.addRule(new AgeRule(age));
+    }
+
+    public void deleteAgePolicy()
+    {
+        this.purchasePolicy.removeRule(new AgeRule(0));
+    }
+
+    public void addMinTicketPolicy(int minTicket)
+    {
+        this.purchasePolicy.addRule(new MinTicketRule(minTicket));
+    }
+
+    public void deleteMinTicketPolicy()
+    {
+        this.purchasePolicy.removeRule(new MinTicketRule(0));
+    }
+
+    public void addMaxTicketPolicy(int maxTicket)
+    {
+        this.purchasePolicy.addRule(new MaxTicketRule(maxTicket));
+    }
+
+    public void deleteMaxTicketPolicy()
+    {
+        this.purchasePolicy.removeRule(new MaxTicketRule(0));
+    }
+
+    public void addLoneSeatPolicy(boolean allowLoneSeat)
+    {
+        this.purchasePolicy.addRule(new LoneSeatRule(allowLoneSeat));
+    }
+
+    public void deleteLoneSeatPolicy()
+    {
+        this.purchasePolicy.removeRule(new LoneSeatRule(false));
     }
 }

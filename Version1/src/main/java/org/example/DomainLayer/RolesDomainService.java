@@ -20,7 +20,6 @@ public class RolesDomainService {
     {
         companyRepository.createCompany(founderUsername, companyName);
     }
-
     public void closeCompany(String adminUsername, UUID companyId) {
 
         if (adminUsername == null || adminUsername.isBlank()) {
@@ -74,5 +73,68 @@ public class RolesDomainService {
         }
 
         // TODO: notify user after notification mechanism is implemented
+    }
+
+    public void addAgePolicy(UUID companyId, float age)
+    {
+        Company company = companyRepository.findByID(companyId);
+        if (company == null)
+            throw new IllegalArgumentException("Company not found");
+        company.addAgePolicy(age);
+    }
+
+    public void deleteAgePolicy(UUID companyId)
+    {
+        Company company = companyRepository.findByID(companyId);
+        if (company == null)
+            throw new IllegalArgumentException("Company not found");
+        company.deleteAgePolicy();
+    }
+
+    public void addMinTicketPolicy(UUID companyId, int minTicket)
+    {
+        Company company = companyRepository.findByID(companyId);
+        if (company == null)
+            throw new IllegalArgumentException("Company not found");
+        company.addMinTicketPolicy(minTicket);
+    }
+
+    public void deleteMinTicketPolicy(UUID companyId)
+    {
+        Company company = companyRepository.findByID(companyId);
+        if (company == null)
+            throw new IllegalArgumentException("Company not found");
+        company.deleteMinTicketPolicy();
+    }
+
+    public void addMaxTicketPolicy(UUID companyId, int maxTicket)
+    {
+        Company company = companyRepository.findByID(companyId);
+        if (company == null)
+            throw new IllegalArgumentException("Company not found");
+        company.addMaxTicketPolicy(maxTicket);
+    }
+    public void deleteMaxTicketPolicy(UUID companyId)
+    {
+        Company company = companyRepository.findByID(companyId);
+        if (company == null)
+            throw new IllegalArgumentException("Company not found");
+        company.deleteMaxTicketPolicy();
+    }
+
+    public void addLoneSeatPolicy(UUID companyId, boolean allowLoneSeat)
+    {
+        Company company = companyRepository.findByID(companyId);
+        if (company == null)
+            throw new IllegalArgumentException("Company not found");
+        company.addLoneSeatPolicy(allowLoneSeat);
+    }
+
+    public void deleteLoneSeatPolicy(UUID companyId)
+    {
+        Company company = companyRepository.findByID(companyId);
+        if (company == null)
+            throw new IllegalArgumentException("Company not found");
+        company.deleteLoneSeatPolicy();
     }
 }
