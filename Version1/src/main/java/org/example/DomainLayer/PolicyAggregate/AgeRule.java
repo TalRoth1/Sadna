@@ -4,9 +4,9 @@ import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 import org.example.DomainLayer.UserAggregate.User;
 
 public class AgeRule implements IPurchaseRule {
-    private double minAge;
+    private float minAge;
 
-    public AgeRule(double age)
+    public AgeRule(float age)
     {
         this.minAge = age;
     }

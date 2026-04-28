@@ -28,7 +28,46 @@ public class CompanyService {
     {
         if (age < 0)
             throw new IllegalArgumentException("Age must be a non negative number");
-        
+        rolesDomainService.addAgePolicy(companyId, age);
+    }
+
+    public void deleteAgePolicy(UUID companyId)
+    {
+        rolesDomainService.deleteAgePolicy(companyId);
+    }
+
+    public void addMinTicketPolicy(UUID companyId,int minTicket)
+    {
+        if (minTicket < 0)
+            throw new IllegalArgumentException("Minimum ticket amount must be a non negative integer");
+        rolesDomainService.addMinTicketPolicy(companyId, minTicket);
+    }
+
+    public void deleteMinTicketPolicy(UUID companyId)
+    {
+        rolesDomainService.deleteMinTicketPolicy(companyId);
+    }
+
+    public void addMaxTicketPolicy(UUID companyId,int maxTicket)
+    {
+        if (maxTicket < 0)
+            throw new IllegalArgumentException("maximum ticket amount must be a non negative integer");
+        rolesDomainService.addMaxTicketPolicy(companyId, maxTicket);
+    }
+
+    public void deleteMaxTicketPolicy(UUID companyId)
+    {
+        rolesDomainService.deleteMaxTicketPolicy(companyId);
+    }
+
+    public void addLoneSeatPolicy(UUID companyId, boolean allowLoneSeat)
+    {
+        rolesDomainService.addLoneSeatPolicy(companyId, allowLoneSeat);
+    }
+
+    public void deleteLoneSeatPolicy(UUID companyId)
+    {
+        rolesDomainService.deleteLoneSeatPolicy(companyId);
     }
 
     public void removeCompanyMember(String adminUsername, int companyId, String usernameToRemove) {

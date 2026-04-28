@@ -22,6 +22,12 @@ public class PurchasePolicy {
         rules.add(rule);
     }
 
+    public void removeRule(IPurchaseRule ruleType)
+    {
+        Objects.requireNonNull(ruleType);
+        rules.removeIf(existingRule -> existingRule.getClass().equals(ruleType.getClass()));
+    }
+
     public boolean validate(ActivePurchase purchase, User user)
     {
         for (IPurchaseRule iPurchaseRule : rules) {
