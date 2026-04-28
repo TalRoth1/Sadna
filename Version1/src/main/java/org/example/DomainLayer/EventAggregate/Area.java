@@ -7,7 +7,7 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * Priced zone in a venue layout. References ticket ids owned by the {@link Event} aggregate (1:* tickets).
+ * Priced zone in a venue layout (diagram: Price + ticket ids list).
  */
 public abstract class Area {
 
