@@ -16,6 +16,11 @@ public class RolesDomainService {
         this.userRepository = userRepository;
     }
 
+    public void createCompany(String founderUsername, String companyName)
+    {
+        companyRepository.createCompany(founderUsername, companyName);
+    }
+
     public void closeCompany(String adminUsername, UUID companyId) {
 
         if (adminUsername == null || adminUsername.isBlank()) {
