@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import org.example.DomainLayer.PolicyAggregate.AgeRule;
@@ -14,16 +15,16 @@ import org.example.DomainLayer.PolicyAggregate.MinTicketRule;
 import org.example.DomainLayer.PolicyAggregate.PurchasePolicy;
 
 public class Company {
-    private UUID id;
+    private final UUID id;
     private CompanyFounder founder;
     private String name; 
-    private Map<String, ICompanyMember> members;
-    private Map<UUID, Invitation> invitations;
-    private DiscountPolicy discountPolicy;
-    private PurchasePolicy purchasePolicy;
+    private final Map<String, ICompanyMember> members;
+    private final Map<UUID, Invitation> invitations;
+    private final DiscountPolicy discountPolicy;
+    private final PurchasePolicy purchasePolicy;
     private int rating;
     private int amountRated;
-    private List<UUID> eventIds;
+    private final List<UUID> eventIds;
     private boolean isActive;
 
 public Company(String founderUsername, String name) {
@@ -114,6 +115,23 @@ public Company(String founderUsername, String name) {
         return true;
     }
 
+    public boolean inviteNewManager(String appointeeUsername, String appointerUsername, Set<Premissions> premissions)
+    {
+        // check if appointer is a in the company and is an owner
+        if (!isCompanyMember(appointerUsername) || !(members.get(appointerUsername) instanceof CompanyOwner))
+        {
+            throw new IllegalArgumentException("The appointer is not a company owner and therefore cannot invite a new manager");
+        }
+        // check if appointee is already a member of the company
+        if (isCompanyMember(appointeeUsername))
+        {
+            throw new IllegalArgumentException("The appointee is already a member of the company and therefore cannot be invited as a manager");
+        }
+        Invitation invitation = new ManagerInvetation(appointerUsername, appointeeUsername, id, premissions);
+        invitations.put(invitation.getId(), invitation);
+        return true;
+    }
+
     public boolean acceptInvitation(UUID invitationId)
     {
         if (!invitations.containsKey(invitationId))
@@ -121,14 +139,32 @@ public Company(String founderUsername, String name) {
             throw new IllegalArgumentException("The invitation does not exist");
         }
         Invitation invitation = invitations.get(invitationId);
-        if (invitation instanceof OwnerInvetation)
+        if (invitation instanceof OwnerInvetation ownerInvitation)
         {
-            return appointNewOwner(invitation.getAppointeeUsername(), invitation.getAppointerUsername());
+            return appointNewOwner(ownerInvitation.getAppointeeUsername(), ownerInvitation.getAppointerUsername());
         }
-        else{
-            // NOT IMPLEMENTED YET
+        else if (invitation instanceof ManagerInvetation managerInvitation)
+        {
+            return appointNewManager(managerInvitation.getAppointeeUsername(), managerInvitation.getAppointerUsername(), managerInvitation.getPremissions());
         }
         return false;
+    }
+
+    public boolean appointNewManager(String appointeeUsername, String appointerUsername, Set<Premissions> premissions)
+    {
+        // check if appointer is a in the company and is an owner
+        if (!isCompanyMember(appointerUsername) || !(members.get(appointerUsername) instanceof CompanyOwner))
+        {
+            throw new IllegalArgumentException("The appointer is not a company owner and therefore cannot appoint a new manager");
+        }
+        // check if appointee is already a member of the company, if so we have to check that he under the appointer, otherwise we can appoint him as a manager without any problem
+        if (isCompanyMember(appointeeUsername))
+        {
+            throw new IllegalArgumentException("The appointee is already a member of the company and therefore cannot be appointed as a manager");
+        }
+        CompanyManager newManager = new CompanyManager(appointeeUsername, members.get(appointerUsername), premissions);
+        members.put(appointeeUsername, newManager);
+        return true;
     }
 
     // Appointing a new owner to the company.

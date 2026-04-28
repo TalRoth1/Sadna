@@ -1,16 +1,16 @@
 package org.example.DomainLayer.CompanyAggregate;
 
-import java.util.List;
+import java.util.Set;
 
 public class CompanyManager extends ICompanyMember {
-    private final List<Premissions> premissions;
+    private final Set<Premissions> premissions;
 
-    public CompanyManager(String username, ICompanyMember Appointer, List<Premissions> premissions) {
+    public CompanyManager(String username, ICompanyMember Appointer, Set<Premissions> premissions) {
         super(username, Appointer);
         this.premissions = premissions;
     }
 
-    public List<Premissions> getPremissions() {
+    public Set<Premissions> getPremissions() {
         return premissions;
     }
 
