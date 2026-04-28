@@ -4,8 +4,11 @@ import java.util.UUID;
 
 import org.example.DomainLayer.CompanyAggregate.Company;
 
+import java.util.List;
+
 public interface ICompanyRepository {
     Company findByID(UUID companyId);
     boolean isOwner(String username, UUID companyId);
     void save(Company company);
+    List<Company> getCompaniesByMember(String username);
 }

@@ -1,8 +1,11 @@
-package org.example.DomainLayer;
+package org.example.DomainLayer.Repositories;
 
+import org.example.DomainLayer.ICompanyRepository;
 import org.example.DomainLayer.CompanyAggregate.Company;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -35,4 +38,16 @@ public class CompanyRepository implements ICompanyRepository {
         companies.put(company.getId(), company);
     }
 
+     @Override
+    public List<Company> getCompaniesByMember(String username) {
+        List<Company> result = new ArrayList<>();
+
+        for (Company company : companies.values()) {
+            if (company.hasMember(username)) {
+                result.add(company);
+            }
+        }
+
+        return result;
+    }
 }

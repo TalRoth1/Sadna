@@ -175,4 +175,20 @@ public Company(String founderUsername) {
                         || entry.getValue() instanceof CompanyManager
         );
     }
+
+    public boolean hasMember(String username) {
+        return username != null && members.containsKey(username);
+    }
+
+    public void removeMember(String username) {
+        if (username == null || username.isBlank()) {
+            throw new IllegalArgumentException("Username is required");
+        }
+
+        if (!members.containsKey(username)) {
+            throw new IllegalArgumentException("User is not a company member");
+        }
+
+        members.remove(username);
+    }
 }
