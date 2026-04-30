@@ -3,8 +3,9 @@ package org.example.DomainLayer;
 import org.example.DomainLayer.EventAggregate.Event;
 import org.example.DomainLayer.PurchaseHistoryAggregate.Payment;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
-import org.example.DomainLayer.UserAggregate.Member;
 import org.example.DomainLayer.UserAggregate.User;
+import org.example.DomainLayer.UserAggregate.UserRole;
+import org.example.DomainLayer.UserAggregate.UserStatus;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -70,13 +71,12 @@ public class PurchaseDomainService {
         User user = userRepository.getUser(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        if (!(user instanceof Member)) {
+        if (!(user.getRole() == UserRole.MEMBER)) {
             throw new IllegalArgumentException("User is not a member");
         }
 
-        Member member = (Member) user;
 
-        if (!member.isLoggedIn()) {
+        if (!(user.getStatus() == UserStatus.LOGGED_IN)) {
             throw new IllegalArgumentException("Member is not logged in");
         }
 
