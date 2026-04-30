@@ -1,5 +1,6 @@
 package org.example.DomainLayer;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -135,5 +136,37 @@ public class RolesDomainService {
         if (company == null)
             throw new IllegalArgumentException("Company not found");
         company.deleteLoneSeatPolicy();
+    }
+
+    public void addOvertDiscount(UUID companyId, LocalDate fromDate, LocalDate toDate, float discountPrecent)
+    {
+        Company company = companyRepository.findByID(companyId).get();
+        if (company == null)
+            throw new IllegalArgumentException("Company not found");
+        company.addOvertDiscount(fromDate, toDate, discountPrecent);
+    }
+
+    public void addConditionalDiscount(UUID companyId, LocalDate fromDate, LocalDate toDate, float discountPrecent, int requiredTickets, int appliedTickets)
+    {
+        Company company = companyRepository.findByID(companyId).get();
+        if (company == null)
+            throw new IllegalArgumentException("Company not found");
+        company.addConditionalDiscount(fromDate, toDate, discountPrecent, requiredTickets, appliedTickets);
+    }
+
+    public void addCouponCode(UUID companyId, LocalDate fromDate, LocalDate toDate, float discountPrecent, String code)
+    {
+        Company company = companyRepository.findByID(companyId).get();
+        if (company == null)
+            throw new IllegalArgumentException("Company not found");
+        company.addCouponCode(fromDate, toDate, discountPrecent, code);
+    }
+
+    public void removeDiscount(UUID companyId, UUID discountId)
+    {
+                Company company = companyRepository.findByID(companyId).get();
+        if (company == null)
+            throw new IllegalArgumentException("Company not found");
+        company.removeDiscount(discountId); 
     }
 }

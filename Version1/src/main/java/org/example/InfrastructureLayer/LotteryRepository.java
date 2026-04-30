@@ -1,4 +1,4 @@
-package org.example.DomainLayer.Repositories;
+package org.example.InfrastructureLayer;
 
 import org.example.DomainLayer.ILotteryRepository;
 

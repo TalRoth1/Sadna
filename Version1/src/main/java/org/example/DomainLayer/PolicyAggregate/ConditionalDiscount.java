@@ -12,6 +12,7 @@ import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 
 public class ConditionalDiscount implements IDiscountRule
 {
+    private UUID id;
     private LocalDate fromDate;
     private LocalDate toDate;
     private float discoutPrecent;
@@ -20,11 +21,17 @@ public class ConditionalDiscount implements IDiscountRule
 
     public ConditionalDiscount(LocalDate from, LocalDate to, float discount, int requiredTickets, int appliedTickets)
     {
+        this.id = UUID.randomUUID();
         this.fromDate = from;
         this.toDate = to;
         this.discoutPrecent = discount;
         this.requiredTickets = requiredTickets;
         this.appliedTickets = appliedTickets;
+    }
+
+    public UUID getId()
+    {
+        return this.id;
     }
 
     public float apply(ActivePurchase purchase)

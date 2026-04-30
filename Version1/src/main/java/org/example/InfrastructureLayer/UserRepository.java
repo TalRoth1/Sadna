@@ -1,4 +1,4 @@
-package org.example.DomainLayer.Repositories;
+package org.example.InfrastructureLayer;
 
 import org.example.DomainLayer.IUserRepository;
 import org.example.DomainLayer.AdminAggregate.Admin;
@@ -32,5 +32,31 @@ public class UserRepository implements IUserRepository {
     public boolean isSystemAdmin(String username) {
         return admins.values().stream()
                 .anyMatch(admin -> admin.getUsername().equals(username));
+    }
+
+    @Override
+    public boolean existsByEmail(String email)
+    {
+        if (email == null) return false;
+        
+        for (Map.Entry<UUID, User> entry : users.entrySet()) {
+            if (email.equals(entry.getValue().getEmail())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public Optional<User> findByEmail(String email)
+    {
+        if (email == null) return null;
+        
+        for (Map.Entry<UUID, User> entry : users.entrySet()) {
+            if (email.equals(entry.getValue().getEmail())) {
+                return Optional.ofNullable(entry.getValue());
+            }
+        }
+        return null;
     }
 }
