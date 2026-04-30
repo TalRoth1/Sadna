@@ -7,7 +7,7 @@ import java.util.UUID;
 public class CompanyOwner extends ICompanyMember {
     private final List<ICompanyMember> subordinates;
 
-    public CompanyOwner(String username, ICompanyMember Appointer) {
+    public CompanyOwner(String username, CompanyOwner Appointer) {
         super(username, Appointer);
         this.subordinates = new ArrayList<>();
     }
@@ -25,10 +25,11 @@ public class CompanyOwner extends ICompanyMember {
         // first we have to check if the subordinate is a manager or owner
         if (subordinate instanceof CompanyOwner companyOwner) {
             // if it's a Owner we need to realocate all his subordinates to the current
-            // owner
-            for (ICompanyMember sub : companyOwner.getSubordinates()) {
+            List<ICompanyMember> reassignedSubordinates = new ArrayList<>(companyOwner.getSubordinates());
+            for (ICompanyMember sub : reassignedSubordinates) {
                 this.addSubordinate(sub);
             }
+            companyOwner.getSubordinates().clear();
         }
         this.subordinates.remove(subordinate);
     }

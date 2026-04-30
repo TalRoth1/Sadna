@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import org.example.DomainLayer.PolicyAggregate.AgeRule;
@@ -18,16 +19,16 @@ import org.example.DomainLayer.PolicyAggregate.OvertDiscount;
 import org.example.DomainLayer.PolicyAggregate.PurchasePolicy;
 
 public class Company {
-    private UUID id;
+    private final UUID id;
     private CompanyFounder founder;
     private String name; 
-    private Map<String, ICompanyMember> members;
-    private Map<UUID, Invitation> invitations;
-    private DiscountPolicy discountPolicy;
-    private PurchasePolicy purchasePolicy;
+    private final Map<String, ICompanyMember> members;
+    private final Map<UUID, Invitation> invitations;
+    private final DiscountPolicy discountPolicy;
+    private final PurchasePolicy purchasePolicy;
     private int rating;
     private int amountRated;
-    private List<UUID> eventIds;
+    private final List<UUID> eventIds;
     private boolean isActive;
 
 public Company(String founderUsername, String name) {
@@ -118,6 +119,23 @@ public Company(String founderUsername, String name) {
         return true;
     }
 
+    public boolean inviteNewManager(String appointeeUsername, String appointerUsername, Set<CompanyPermission> premissions)
+    {
+        // check if appointer is a in the company and is an owner
+        if (!isCompanyMember(appointerUsername) || !(members.get(appointerUsername) instanceof CompanyOwner))
+        {
+            throw new IllegalArgumentException("The appointer is not a company owner and therefore cannot invite a new manager");
+        }
+        // check if appointee is already a member of the company
+        if (isCompanyMember(appointeeUsername))
+        {
+            throw new IllegalArgumentException("The appointee is already a member of the company and therefore cannot be invited as a manager");
+        }
+        Invitation invitation = new ManagerInvetation(appointerUsername, appointeeUsername, id, premissions);
+        invitations.put(invitation.getId(), invitation);
+        return true;
+    }
+
     public boolean acceptInvitation(UUID invitationId)
     {
         if (!invitations.containsKey(invitationId))
@@ -125,14 +143,32 @@ public Company(String founderUsername, String name) {
             throw new IllegalArgumentException("The invitation does not exist");
         }
         Invitation invitation = invitations.get(invitationId);
-        if (invitation instanceof OwnerInvetation)
+        if (invitation instanceof OwnerInvetation ownerInvitation)
         {
-            return appointNewOwner(invitation.getAppointeeUsername(), invitation.getAppointerUsername());
+            return appointNewOwner(ownerInvitation.getAppointeeUsername(), ownerInvitation.getAppointerUsername());
         }
-        else{
-            // NOT IMPLEMENTED YET
+        else if (invitation instanceof ManagerInvetation managerInvitation)
+        {
+            return appointNewManager(managerInvitation.getAppointeeUsername(), managerInvitation.getAppointerUsername(), managerInvitation.getPremissions());
         }
         return false;
+    }
+
+    public boolean appointNewManager(String appointeeUsername, String appointerUsername, Set<CompanyPermission> premissions)
+    {
+        // check if appointer is a in the company and is an owner
+        if (!isCompanyMember(appointerUsername) || !(members.get(appointerUsername) instanceof CompanyOwner))
+        {
+            throw new IllegalArgumentException("The appointer is not a company owner and therefore cannot appoint a new manager");
+        }
+        // check if appointee is already a member of the company, if so we have to check that he under the appointer, otherwise we can appoint him as a manager without any problem
+        if (isCompanyMember(appointeeUsername))
+        {
+            throw new IllegalArgumentException("The appointee is already a member of the company and therefore cannot be appointed as a manager");
+        }
+        CompanyManager newManager = new CompanyManager(appointeeUsername, (CompanyOwner) members.get(appointerUsername), premissions);
+        members.put(appointeeUsername, newManager);
+        return true;
     }
 
     // Appointing a new owner to the company.
@@ -163,7 +199,7 @@ public Company(String founderUsername, String name) {
             return true;
         }
         // create new company owner in case the appointee is not a member of the company
-        CompanyOwner newOwner = new CompanyOwner(appointeeUsername, members.get(appointerUsername));
+        CompanyOwner newOwner = new CompanyOwner(appointeeUsername, (CompanyOwner) members.get(appointerUsername));
         members.put(appointeeUsername, newOwner);
         return true;
     }
@@ -192,7 +228,7 @@ public Company(String founderUsername, String name) {
         return isActive;
     }
 
-    public void close() {
+    public void AdminClose() {
         if (!isActive) {
             throw new IllegalStateException("Company is already inactive");
         }
@@ -205,19 +241,28 @@ public Company(String founderUsername, String name) {
         );
     }
 
+    public void FounderClose(String founderUsername) {
+        // TODO: imlement founder close
+    }
+
     public boolean hasMember(String username) {
         return username != null && members.containsKey(username);
     }
 
-    public void removeMember(String username) {
+    // differ from removeMemberAsOwner in the fact that the admin could remove any member of the company without any restriction, while the founder can only remove members that are under him in the company hyrarchy and he cannot remove managers that are not under him.
+    public void removeMemberAsAdmin(String username) {
         if (username == null || username.isBlank()) {
             throw new IllegalArgumentException("Username is required");
         }
-
         if (!members.containsKey(username)) {
             throw new IllegalArgumentException("User is not a company member");
         }
+        removeMember(username);
+    }
 
+    private void removeMember(String username) {
+        ICompanyMember memberToRemove = members.get(username);
+        memberToRemove.removeFromCompanyHyrarchy();
         members.remove(username);
     }
 

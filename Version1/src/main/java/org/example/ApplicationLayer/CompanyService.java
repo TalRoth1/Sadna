@@ -17,12 +17,12 @@ public class CompanyService {
             throw new IllegalArgumentException("founder username is required");
         rolesDomainService.createCompany(founderUsername, companyName);
     }
-    public void closeCompany(String adminUsername, UUID companyId) {
+    public void closeCompanyAsAdmin(String adminUsername, UUID companyId) {
         if (adminUsername == null || adminUsername.isBlank()) {
             throw new IllegalArgumentException("Admin username is required");
         }
 
-        rolesDomainService.closeCompany(adminUsername, companyId);
+        rolesDomainService.closeCompanyAsAdmin(adminUsername, companyId);
     }
 
     public void addAgePolicy(UUID companyId,float age)
@@ -71,12 +71,12 @@ public class CompanyService {
         rolesDomainService.deleteLoneSeatPolicy(companyId);
     }
 
-    public void removeCompanyMember(String adminUsername, UUID companyId, String usernameToRemove) {
+    public void removeCompanyMemberAsAdmin(String adminUsername, int companyId, String usernameToRemove) {
         if (adminUsername == null || adminUsername.isBlank()) {
             throw new IllegalArgumentException("Admin username is required");
         }
 
-        rolesDomainService.removeCompanyMember(adminUsername, companyId, usernameToRemove);
+        rolesDomainService.removeCompanyMemberAsAdmin(adminUsername, companyId, usernameToRemove);
     }
 
     public void addOvertDiscount(UUID companyId ,LocalDate fromDate, LocalDate toDate, float discountPrecent)
