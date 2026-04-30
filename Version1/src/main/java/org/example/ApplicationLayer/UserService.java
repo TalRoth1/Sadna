@@ -21,30 +21,33 @@ public class UserService{
 
     public AuthResponse logout(UUID memberId) {
         try {
-            User user = userRepository.getUser(memberId).get();
+            User user = userRepository.getUser(memberId).orElse(null);
             if (user == null) {
-                return new AuthResponse(false, "הבקשה נדחתה: מזהה המשתמש אינו קיים.", null);
+                return new AuthResponse(false, "Request denied: user does not exist.", null);
             }
 
             user.logout();
             userRepository.add(user);
 
-            return new AuthResponse(true, "התנתקת בהצלחה.", user.getId());
+            return new AuthResponse(true, "logout successfully", user.getId());
         } catch (IllegalStateException e) {
             return new AuthResponse(false, e.getMessage(), memberId);
         } catch (Exception e) {
-            return new AuthResponse(false, "שגיאת מערכת בעת התנתקות.", memberId);
+            return new AuthResponse(false, "Logout failed: system exception.", memberId);
         }
     }
 
     public AuthResponse register(RegisterRequest request) {
         try {
             if (request.email == null || request.email.isEmpty() || request.plainPassword == null) {
-                return new AuthResponse(false, "פרטים חסרים.", null);
+                return new AuthResponse(false, "Missing details.", null);
             }
 
             if (userRepository.existsByEmail(request.email)) {
-                return new AuthResponse(false, "האימייל כבר קיים במערכת.", null);
+                return new AuthResponse(false, "User Email is already exist.", null);
+            }
+            if(!(authGateway.verifyUserDetails(request.email,request.plainPassword,request.age,request.username))){
+                return new AuthResponse(false, "One or more of the details is incorrect.",null);
             }
 
             String hashedPassword = authGateway.hashPassword(request.plainPassword);
@@ -52,45 +55,32 @@ public class UserService{
             User newUser = new User(newUserId,request.username, request.email, hashedPassword, request.age);
 
             userRepository.add(newUser);
-            return new AuthResponse(true, "נרשמת בהצלחה!", newUser.getId());
+            return new AuthResponse(true, "Register Successfully", newUser.getId());
         } catch (Exception e) {
-            return new AuthResponse(false, "שגיאת מערכת בהרשמה.", null);
+            return new AuthResponse(false, "Register failed: system exception", null);
         }
     }
 
     public AuthResponse login(LoginRequest request) {
         try {
-            // 1. בדיקת תקינות קלט בסיסית
             if (request.email == null || request.plainPassword == null) {
-                return new AuthResponse(false, "חובה להזין אימייל וסיסמה.", null);
+                return new AuthResponse(false, "email or pass is empty", null);
             }
-
-            // 2. חיפוש המנוי במאגר (אלטרנטיבה 7.2א: זיהוי נכשל)
-            User user = userRepository.findByEmail(request.email).get();
+            User user = userRepository.findByEmail(request.email).orElse(null);
             if (user == null) {
-                // מטעמי אבטחה מחזירים הודעה כללית "פרטים שגויים"
-                return new AuthResponse(false, "אימייל או סיסמה שגויים.", null);
+                return new AuthResponse(false, "incorrect email or password.", null);
             }
-
-            // 3. אימות הסיסמה (אלטרנטיבה 7.3א: אימות נכשל)
             boolean isPasswordCorrect = authGateway.verifyPassword(request.plainPassword, user.getPasswordHash());
             if (!isPasswordCorrect) {
-                // כאן נהוג לרשום לוג של ניסיון כושל (לטובת הגנה מפריצות)
                 System.out.println("LOG: Failed login attempt for user: " + request.email);
-                return new AuthResponse(false, "אימייל או סיסמה שגויים.", null);
+                return new AuthResponse(false, "incorrect email or password", null);
             }
-
-            // 4. עדכון ישות הדומיין (שינוי סטטוס ל-LoggedIn ותפקיד ל-Member)
             user.login();
-
-            // 5. שמירה במאגר
             userRepository.add(user);
-
-            // 6. החזרת אישור הצלחה
-            return new AuthResponse(true, "התחברת בהצלחה!", user.getId());
+            return new AuthResponse(true, "Login successfully", user.getId());
 
         } catch (Exception e) {
-            return new AuthResponse(false, "שגיאת שרת פנימית בעת ניסיון התחברות.", null);
+            return new AuthResponse(false, "Login failed: system exception", null);
         }
     }
 }
