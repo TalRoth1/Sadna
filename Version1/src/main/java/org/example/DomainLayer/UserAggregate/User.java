@@ -6,13 +6,13 @@ import java.util.UUID;
 public class User {
     private UUID id;
     private String username;
-    private String email; // המזהה הייחודי (מיוז קייס 2 ו-3)
-    private String passwordHash; // לעולם לא שומרים סיסמה גלויה!
+    private String email; // identifier
+    private String passwordHash;
     private UserRole role;
     private UserStatus status;
     private float age;
 
-    // בנאי ליצירת משתמש חדש (תרחיש 2)
+
     public User(UUID id,String username, String email, String passwordHash, float age) {
         this.id = id;
         this.username = username;
@@ -23,22 +23,26 @@ public class User {
         this.age = age;
     }
 
-    // --- Domain Logic (Rich Model) ---
 
-    // מיוז קייס 3: כניסה למערכת
     public void login() {
-        if (this.status == UserStatus.NOT_LOGGED_IN) {
-            throw new IllegalStateException("הבקשה נדחתה: המשתמש כבר נמצא בסטטוס מנותק.");
+        // שומר סף: זורק שגיאה רק אם המשתמש מנסה להתחבר כשהוא כבר מחובר
+        if (this.status == UserStatus.LOGGED_IN) {
+            throw new IllegalStateException("The user is already logged in.");
         }
         this.status = UserStatus.LOGGED_IN;
         this.role = UserRole.MEMBER;
     }
 
-    // מיוז קייס 1: יציאה ועזיבת המערכת
+
     public void logout() {
+        if (this.status == UserStatus.NOT_LOGGED_IN) {
+            throw new IllegalStateException("The user is already logged out.");
+        }
         this.status = UserStatus.NOT_LOGGED_IN;
         this.role = UserRole.GUEST;
     }
+
+
 
 
 
