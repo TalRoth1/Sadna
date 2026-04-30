@@ -162,7 +162,7 @@ public Company(String founderUsername, String name) {
         {
             throw new IllegalArgumentException("The appointee is already a member of the company and therefore cannot be appointed as a manager");
         }
-        CompanyManager newManager = new CompanyManager(appointeeUsername, members.get(appointerUsername), premissions);
+        CompanyManager newManager = new CompanyManager(appointeeUsername, (CompanyOwner) members.get(appointerUsername), premissions);
         members.put(appointeeUsername, newManager);
         return true;
     }
@@ -195,7 +195,7 @@ public Company(String founderUsername, String name) {
             return true;
         }
         // create new company owner in case the appointee is not a member of the company
-        CompanyOwner newOwner = new CompanyOwner(appointeeUsername, members.get(appointerUsername));
+        CompanyOwner newOwner = new CompanyOwner(appointeeUsername, (CompanyOwner) members.get(appointerUsername));
         members.put(appointeeUsername, newOwner);
         return true;
     }
@@ -224,7 +224,7 @@ public Company(String founderUsername, String name) {
         return isActive;
     }
 
-    public void close() {
+    public void AdminClose() {
         if (!isActive) {
             throw new IllegalStateException("Company is already inactive");
         }
@@ -237,19 +237,28 @@ public Company(String founderUsername, String name) {
         );
     }
 
+    public void FounderClose(String founderUsername) {
+        // TODO: imlement founder close
+    }
+
     public boolean hasMember(String username) {
         return username != null && members.containsKey(username);
     }
 
-    public void removeMember(String username) {
+    // differ from removeMemberAsOwner in the fact that the admin could remove any member of the company without any restriction, while the founder can only remove members that are under him in the company hyrarchy and he cannot remove managers that are not under him.
+    public void removeMemberAsAdmin(String username) {
         if (username == null || username.isBlank()) {
             throw new IllegalArgumentException("Username is required");
         }
-
         if (!members.containsKey(username)) {
             throw new IllegalArgumentException("User is not a company member");
         }
+        removeMember(username);
+    }
 
+    private void removeMember(String username) {
+        ICompanyMember memberToRemove = members.get(username);
+        memberToRemove.removeFromCompanyHyrarchy();
         members.remove(username);
     }
 

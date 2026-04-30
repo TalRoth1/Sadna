@@ -7,7 +7,7 @@ import java.util.UUID;
 public class CompanyManager extends ICompanyMember {
     private final Set<CompanyPermission> premissions;
 
-    public CompanyManager(String username, ICompanyMember Appointer, Set<CompanyPermission> premissions) {
+    public CompanyManager(String username, CompanyOwner Appointer, Set<CompanyPermission> premissions) {
         super(username, Appointer);
         this.premissions = new HashSet<>(premissions);
     }

@@ -1,10 +1,9 @@
 package org.example.DomainLayer;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.example.DomainLayer.CompanyAggregate.Company;
-
-import java.util.List;
 
 public class RolesDomainService {
 
@@ -20,7 +19,7 @@ public class RolesDomainService {
     {
         companyRepository.createCompany(founderUsername, companyName);
     }
-    public void closeCompany(String adminUsername, UUID companyId) {
+    public void closeCompanyAsAdmin(String adminUsername, UUID companyId) {
 
         if (adminUsername == null || adminUsername.isBlank()) {
             throw new IllegalArgumentException("Admin username is required");
@@ -40,7 +39,7 @@ public class RolesDomainService {
             throw new IllegalStateException("Company already inactive");
         }
 
-        company.close();
+        company.AdminClose();
 
         companyRepository.save(company);
 
@@ -48,7 +47,7 @@ public class RolesDomainService {
         // notificationService.notifyCompanyClosed(...)
     }
 
-    public void removeCompanyMember(String adminUsername, int companyId, String usernameToRemove) {
+    public void removeCompanyMemberAsAdmin(String adminUsername, int companyId, String usernameToRemove) {
         if (adminUsername == null || adminUsername.isBlank()) {
             throw new IllegalArgumentException("Admin username is required");
         }
@@ -68,7 +67,7 @@ public class RolesDomainService {
         }
 
         for (Company company : companies) {
-            company.removeMember(usernameToRemove);
+            company.removeMemberAsAdmin(usernameToRemove);
             companyRepository.save(company);
         }
 
