@@ -1,4 +1,10 @@
 package org.example.DomainLayer.ActivePurchaseAggregate;
 
-public interface IPaymentGateway {
+import java.util.UUID;
+
+import org.example.ApplicationLayer.PaymentDetails;
+
+public interface IPaymentGateway
+{
+    boolean pay(UUID userID, float amount, PaymentDetails paymentDetails);
 }

@@ -1,11 +1,13 @@
 package org.example.DomainLayer.PolicyAggregate;
 
+import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 
-import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 
 public class DiscountPolicy {
     private final List<IDiscountRule> discounts = new ArrayList<IDiscountRule>();
@@ -19,14 +21,17 @@ public class DiscountPolicy {
         discounts.add(Objects.requireNonNull(rule));
     }
 
-    public boolean applyDiscount(ActivePurchase purchase)
+    public void removeRule(UUID id)
     {
+        discounts.removeIf(rule -> rule.getId() == id);
+    }
+
+    public float applyDiscount(ActivePurchase purchase)
+    {
+        float price = purchase.getPrice();
         for (IDiscountRule iDiscountRule : discounts) {
-            if(!iDiscountRule.apply(purchase))
-                {
-                    return false;
-                }
+            price = iDiscountRule.apply(purchase);
         }
-        return true;
+        return price;
     }
 }

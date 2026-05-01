@@ -1,32 +1,34 @@
 package org.example.DomainLayer.PurchaseHistoryAggregate;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 public class PurchaseHistory {
-    private final int userId;
-    private final List<Integer> ticketIds;
-    private final int eventId;
+    private final UUID userId;
+    private final List<UUID> ticketIds;
+    private final UUID eventId;
     private final Payment payment;
     private final LocalDateTime purchaseDate;
 
-    public PurchaseHistory(int userId, List<Integer> ticketIds, int eventId, Payment payment) {
+    public PurchaseHistory(UUID userId, List<UUID> ticketIds, UUID eventId, Payment payment) {
         this.userId = userId;
-        this.ticketIds = ticketIds;
+        this.ticketIds = new ArrayList<>(ticketIds);
         this.eventId = eventId;
         this.payment = payment;
         this.purchaseDate = LocalDateTime.now();
     }
 
-    public int getUserId() {
+    public UUID getUserId() {
         return userId;
     }
 
-    public List<Integer> getTicketIds() {
+    public List<UUID> getTicketIds() {
         return ticketIds;
     }
 
-    public int getEventId() {
+    public UUID getEventId() {
         return eventId;
     }
 

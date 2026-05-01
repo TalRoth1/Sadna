@@ -2,8 +2,19 @@ package org.example.DomainLayer;
 
 import org.example.DomainLayer.UserAggregate.User;
 
+import java.util.Optional;
+import java.util.UUID;
+
 public interface IUserRepository {
-    public static User getUser(String UID) {
-        throw new UnsupportedOperationException("Unimplemented method 'getUser'");
-    }
+    void add(User user);
+
+    public Optional<User> getUser(UUID UID);
+
+    boolean exists(UUID userId);
+
+    boolean isSystemAdmin(String username);
+
+    public boolean existsByEmail(String email);
+
+    public Optional<User> findByEmail(String email);
 }

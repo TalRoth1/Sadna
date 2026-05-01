@@ -1,21 +1,18 @@
 package org.example.DomainLayer.PolicyAggregate;
 
-import org.example.DomainLayer.IUserRepository;
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 import org.example.DomainLayer.UserAggregate.User;
 
 public class AgeRule implements IPurchaseRule {
-    private double minAge;
+    private float minAge;
 
-    public AgeRule(double age)
+    public AgeRule(float age)
     {
         this.minAge = age;
     }
 
-    public boolean doesHold(ActivePurchase purchase)
+    public boolean doesHold(ActivePurchase purchase, User user)
     {
-        String userId = purchase.getUserID();
-        User user = IUserRepository.getUser(userId);
         return user.getAge() >= this.minAge;
     }
 }
