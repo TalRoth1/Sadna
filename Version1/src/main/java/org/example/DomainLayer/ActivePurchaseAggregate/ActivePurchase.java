@@ -1,21 +1,25 @@
 package org.example.DomainLayer.ActivePurchaseAggregate;
 
-import java.time.LocalTime;
+import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 
 public class ActivePurchase
 {
+    private UUID id;
     private UUID userID;
     private Map<UUID, Float> ticketIDPrices;
     private UUID eventID;
-    private LocalTime endTime;
+    private LocalDateTime endTime;
+    private boolean isGuestConfirmedAge = false;
     private String coupon;
     private float price;
 
 
-    public ActivePurchase(UUID userID, UUID eventID, Map<UUID, Float> ticketIDPrices, LocalTime endTime)
+    public ActivePurchase(UUID userID, UUID eventID, Map<UUID, Float> ticketIDPrices, LocalDateTime endTime)
     {
+        this.id = UUID.randomUUID();
         this.userID = userID;
         this.ticketIDPrices = ticketIDPrices;
         this.eventID = eventID;
@@ -24,6 +28,10 @@ public class ActivePurchase
         this.price = ticketIDPrices.values().stream().reduce(0.0f, Float::sum);
     }
 
+    public void SetGuestAgeConfirmed(boolean isGuestConfirmedAge)
+    {
+        this.isGuestConfirmedAge = isGuestConfirmedAge;
+    }
     public UUID getUserID()
     {
         return this.userID;
@@ -31,7 +39,7 @@ public class ActivePurchase
 
     public Map<UUID, Float> getTicketIDs()
     {
-        return this.ticketIDPrices;
+        return Map.copyOf(this.ticketIDPrices);
     }
 
     public UUID getEventID()
@@ -39,7 +47,7 @@ public class ActivePurchase
         return this.eventID;
     }
 
-    public LocalTime getEndTime()
+    public LocalDateTime getEndTime()
     {
         return this.endTime;
     }
@@ -62,4 +70,31 @@ public class ActivePurchase
     {
         this.coupon = couponCode;
     }
-} 
+
+    public boolean getGuestAgeConfirmed()
+    {
+        return this.isGuestConfirmedAge;
+    }
+    public boolean isExpired(LocalDateTime now) {
+        return !now.isBefore(endTime);
+    }
+    public UUID getActivePurchaseId()
+    {
+        return this.id;
+    }
+    public void setNewTicketPricePrice(UUID ticketID, float newPrice)
+    {
+        ticketIDPrices.put(ticketID, newPrice);
+    }
+
+    public float getCurrentPrice(UUID ticketId)
+    {
+        return ticketIDPrices.get(ticketId);
+    }
+
+    public void replaceTickets(LinkedHashMap<UUID, Float> newTicketPrices)
+    {
+        this.ticketIDPrices.clear();
+        this.ticketIDPrices.putAll(newTicketPrices);
+    }
+}

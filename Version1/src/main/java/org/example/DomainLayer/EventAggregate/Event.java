@@ -2,24 +2,26 @@ package org.example.DomainLayer.EventAggregate;
 
 import org.example.DomainLayer.DomainException;
 import org.example.DomainLayer.PolicyAggregate.AgeRule;
+import org.example.DomainLayer.PolicyAggregate.ConditionalDiscount;
+import org.example.DomainLayer.PolicyAggregate.CouponCode;
 import org.example.DomainLayer.PolicyAggregate.DiscountPolicy;
 import org.example.DomainLayer.PolicyAggregate.LoneSeatRule;
 import org.example.DomainLayer.PolicyAggregate.MaxTicketRule;
 import org.example.DomainLayer.PolicyAggregate.MinTicketRule;
+import org.example.DomainLayer.PolicyAggregate.OvertDiscount;
 import org.example.DomainLayer.PolicyAggregate.PurchasePolicy;
+import org.example.DomainLayer.Rating;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
-/**
- * Event aggregate root: 1:1 {@link Layout}, {@link PurchasePolicy}, {@link DiscountPolicy}; 1:* {@link Ticket}.
- * Optional {@code lotteryId} links to a lottery mechanism elsewhere in the system.
- */
 public class Event {
 
     private final UUID eventId;
@@ -36,9 +38,10 @@ public class Event {
     private double rating;
     private String lotteryId;
     private final Map<UUID, Ticket> ticketsById = new LinkedHashMap<>();
+    private Map<UUID, Rating> ratingsByUsers = new LinkedHashMap<>();
 
     public Event(UUID eventId, UUID companyId, LocalDateTime date, String location,
-                   String artist, String type, EventStatus status, double rating) {
+                   String artist, String type, EventStatus status) {
         this.eventId = eventId;
         this.companyId = companyId;
         setDate(date);
@@ -49,10 +52,7 @@ public class Event {
             throw new IllegalArgumentException("status must not be null");
         }
         this.status = status;
-        if (rating < 0) {
-            throw new IllegalArgumentException("rating must be non-negative");
-        }
-        this.rating = rating;
+        this.rating = 0;
         this.layout = new Layout();
         this.purchasePolicy = new PurchasePolicy();
         this.discountPolicy = new DiscountPolicy();
@@ -179,9 +179,6 @@ public class Event {
         return Map.copyOf(ticketsById);
     }
 
-    /**
-     * Registers a ticket on the event and links its id to the given layout area (Area 1:* Ticket by id).
-     */
     public void addTicket(Ticket ticket) {
         if (ticket == null) {
             throw new IllegalArgumentException("ticket must not be null");
@@ -203,22 +200,18 @@ public class Event {
 
     public void checkAvailabilityOfSittingTickets(List<UUID> ticketIDs) {
         if (ticketIDs == null || ticketIDs.isEmpty()) {
-            throw new DomainException("רשימת הכרטיסים שהוזנה ריקה");
+            throw new DomainException("Ticket id list is empty");
         }
 
         for (UUID tid : ticketIDs) {
             Ticket t = ticketsById.get(tid);
 
-            // בדיקה 1: האם הכרטיס בכלל קיים באירוע הזה?
             if (t == null) {
-                throw new DomainException("הכרטיס " + tid + "לא קיים באירוע");
-
+                throw new DomainException("Ticket " + tid + " does not exist for this event");
             }
 
-            // בדיקה 2: האם הוא בסטטוס פנוי?
             if (t.getStatus() != TicketStatus.AVAILABLE) {
-                throw new DomainException("הכרטיס " + tid + "לא פנוי");
-
+                throw new DomainException("Ticket " + tid + " is not available");
             }
         }
     }
@@ -228,71 +221,60 @@ public class Event {
     {
         Area area = layout.requireArea(areaID);
 
-        // 2. שולף את כל ה-IDs של הכרטיסים ששייכים לאזור הזה
         List<UUID> areaTicketIds = area.getTicketIdsView();
 
-        // 3. סופר כמה מהם בסטטוס AVAILABLE בתוך ה-Map של האירוע
         long availableCount = areaTicketIds.stream()
-                .map(ticketsById::get) // שואב את אובייקט ה-Ticket לפי ה-ID
+                .map(ticketsById::get) 
                 .filter(t -> t != null && t.getStatus() == TicketStatus.AVAILABLE)
                 .count();
 
-        // 4. בודק אם יש מספיק כרטיסים פנויים לפי הכמות המבוקשת
         if (availableCount < amount) {
-            // ה-Event זורק את השגיאה כי הוא זה שגילה שהמלאי חסר
-            throw new DomainException("אין מספיק כרטיסים פנויים באזור המבוקש");
+            throw new DomainException("Not enough available tickets in the requested area");
         }
     }
 
-    public void reserveSittingTickets(List<UUID> ticketIDs)
+    public synchronized void reserveSittingTickets(List<UUID> ticketIDs)
     {
         List<Ticket> ticketsToReserve = new ArrayList<>();
 
         for (UUID id : ticketIDs) {
             Ticket ticket = ticketsById.get(id);
 
-            // הגנה: האם הכרטיס בכלל קיים באירוע הזה?
             if (ticket == null) {
-                throw new DomainException("כרטיס שמזההו " + id + " אינו קיים באירוע זה.");
+                throw new DomainException("Ticket id " + id + " does not exist for this event");
             }
 
-            // הגנה: האם הכרטיס פנוי?
             if (ticket.getStatus() != TicketStatus.AVAILABLE) {
-                throw new DomainException("הכיסא שנבחר כבר אינו פנוי.");
+                throw new DomainException("The selected seat is no longer available");
             }
 
             ticketsToReserve.add(ticket);
         }
 
-        // 2. שלב הביצוע - רק אם כל הכרטיסים עברו את הבדיקה, נשריין אותם
         for (Ticket ticket : ticketsToReserve) {
-            ticket.reserve(); // המתודה הפנימית ב-Ticket שמשנה ל-RESERVED
+            ticket.reserve();
         }
     }
 
-    public List<UUID> reserveStandingTickets(int amount, UUID areaId) {
+    public synchronized List<UUID> reserveStandingTickets(int amount, UUID areaId) {
         Area area = layout.requireArea(areaId);
         List<UUID> areaTicketIds = area.getTicketIdsView();
 
-        // מוצאים כרטיסים פנויים מתוך הרשימה של האזור
         List<UUID> selectedTickets = areaTicketIds.stream()
                 .map(ticketsById::get)
                 .filter(t -> t != null && t.getStatus() == TicketStatus.AVAILABLE)
-                .limit(amount) // לוקחים רק את הכמות המבוקשת
+                .limit(amount)
                 .map(Ticket::getTicketId)
                 .toList();
 
-        // בדיקה: האם הצלחנו למצוא מספיק כרטיסים?
         if (selectedTickets.size() < amount) {
-            throw new DomainException("אין מספיק כרטיסים פנויים באזור המבוקש");
+            throw new DomainException("Not enough available tickets in the requested area");
         }
-
-        // מבצעים את השריון בפועל לכל אחד מהנבחרים
         for (UUID tid : selectedTickets) {
             ticketsById.get(tid).reserve();
         }
 
-        return selectedTickets; // מחזירים את ה-IDs ל-Service
+        return selectedTickets;
     }
 
     public void addPurchasePolicy(Optional<Float> age, Optional<Integer> minTicket, Optional<Integer> maxTicket, Optional<Boolean> allowLoneSeat)
@@ -318,5 +300,73 @@ public class Event {
             this.purchasePolicy.removeRule(new MaxTicketRule(0));
         if(allowLoneSeat)
             this.purchasePolicy.removeRule(new LoneSeatRule(false));
+    }
+
+        public void addOvertDiscount(LocalDate fromDate, LocalDate toDate, float discountPrecent)
+    {
+        this.discountPolicy.addRule(new OvertDiscount(discountPrecent, fromDate, toDate));
+    }
+
+    public void addConditionalDiscount(LocalDate fromDate, LocalDate toDate, float discountPrecent, int requiredTickets, int appliedTickets)
+    {
+        this.discountPolicy.addRule(new ConditionalDiscount(fromDate, toDate, discountPrecent, requiredTickets, appliedTickets));
+    }
+
+    public void addCouponCode(LocalDate fromDate, LocalDate toDate, float discountPrecent, String code)
+    {
+        this.discountPolicy.addRule(new CouponCode(fromDate, toDate, discountPrecent, code));
+    }
+
+    public void removeDiscount(UUID discountId)
+    {
+        this.discountPolicy.removeRule(discountId);
+    }
+
+    public synchronized void releaseTickets(Map<UUID, Float> ticketIDs) {
+        for (Map.Entry<UUID, Float> tid : ticketIDs.entrySet()) {
+            Ticket ticket = ticketsById.get(tid.getKey());
+            if (ticket != null && ticket.getStatus() == TicketStatus.RESERVED) {
+                ticket.releaseReservation();
+            }
+        }
+    }
+    public synchronized void sellTickets(Set<UUID> ticketIDs) {
+        for (UUID tid : ticketIDs) {
+            Ticket ticket = ticketsById.get(tid);
+            if (ticket != null) {
+                ticket.markSold();
+            }
+        }
+    }
+    public double calculateTotalPrice(List<UUID> ticketIDs)
+    {
+        double totalPrice = 0;
+
+        for (UUID tid : ticketIDs) {
+            Ticket ticket = ticketsById.get(tid);
+            if (ticket == null) {
+                throw new DomainException("הכרטיס " + tid + " לא קיים באירוע");
+            }
+            totalPrice += ticket.getPrice();
+        }
+
+        return totalPrice;
+    }
+
+    public synchronized void addRating(UUID userID, int rating) {
+        if (ratingsByUsers.containsKey(userID))
+            throw new DomainException("User already reviewed this event");
+        else {
+            Rating r = new Rating(rating, userID);
+            ratingsByUsers.put(userID, r);
+
+            double sum = 0;
+
+            for (Rating existingRating : ratingsByUsers.values()) {
+                sum += existingRating.getRating();
+            }
+
+            this.rating = sum / ratingsByUsers.size();
+        }
     }
 }

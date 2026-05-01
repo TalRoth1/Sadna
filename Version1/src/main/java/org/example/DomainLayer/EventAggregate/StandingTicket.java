@@ -7,7 +7,7 @@ import java.util.UUID;
  */
 public class StandingTicket extends Ticket {
 
-    public StandingTicket(UUID ticketId, UUID eventId, UUID areaId, double price) {
+    public StandingTicket(UUID ticketId, UUID eventId, UUID areaId, float price) {
         super(ticketId, eventId, areaId, price, TicketStatus.AVAILABLE);
     }
 }
