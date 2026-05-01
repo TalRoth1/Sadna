@@ -19,4 +19,5 @@ public class SittingTicket extends Ticket {
     public int getSeatRow() {
         return seatRow;
     }
+
 }
