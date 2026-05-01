@@ -117,12 +117,12 @@ public class PurchaseDomainService {
             try
             {
                 if (event.getPurchasePolicy() != null) {
-                    event.getPurchasePolicy().validate(activePurchase, user);
+                    event.getPurchasePolicy().validate(activePurchase, user, event);
                 }
                 else
                 {
                     Company eventCompany = companyRepository.findByID(event.getCompanyId()).get();
-                    eventCompany.getPurchasePolicy().validate(activePurchase, user);
+                    eventCompany.getPurchasePolicy().validate(activePurchase, user, event);
                 }
             }
             catch (DomainException e)

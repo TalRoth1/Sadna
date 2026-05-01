@@ -1,6 +1,7 @@
 package org.example.DomainLayer.PolicyAggregate;
 
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
+import org.example.DomainLayer.EventAggregate.Event;
 import org.example.DomainLayer.UserAggregate.User;
 
 public class MinTicketRule implements IPurchaseRule {
@@ -11,7 +12,7 @@ public class MinTicketRule implements IPurchaseRule {
         this.minTicket = amount;
     }
 
-    public boolean doesHold(ActivePurchase purchase, User user)
+    public boolean doesHold(ActivePurchase purchase, User user, Event Event)
     {
         int ticketNum = purchase.getTicketIDs().size();
         return ticketNum >= this.minTicket;

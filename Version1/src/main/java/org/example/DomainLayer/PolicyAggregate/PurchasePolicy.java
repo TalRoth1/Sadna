@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Objects;
 
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
+import org.example.DomainLayer.EventAggregate.Event;
 import org.example.DomainLayer.UserAggregate.User;
 
 
@@ -29,10 +30,10 @@ public class PurchasePolicy {
         rules.removeIf(existingRule -> existingRule.getClass().equals(ruleType.getClass()));
     }
 
-    public boolean validate(ActivePurchase purchase, User user)
+    public boolean validate(ActivePurchase purchase, User user, Event event)
     {
         for (IPurchaseRule iPurchaseRule : rules) {
-            if(!iPurchaseRule.doesHold(purchase, user))
+            if(!iPurchaseRule.doesHold(purchase, user, event))
                 return false;
         }
         return true;

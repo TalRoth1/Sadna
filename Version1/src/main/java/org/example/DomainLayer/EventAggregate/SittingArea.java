@@ -10,4 +10,14 @@ public class SittingArea extends Area {
     public SittingArea(UUID areaId, double price) {
         super(areaId, price);
     }
+
+    public SittingTicket getTicketAt(int row, int col, Event event) {
+        return getTicketIdsView().stream()
+            .map(event::getTicket)
+            .filter(t -> t instanceof SittingTicket)
+            .map(t -> (SittingTicket) t)
+            .filter(st -> st.getSeatRow() == row && st.getSeatNumber() == col)
+            .findFirst()
+            .orElse(null);
+    }
 }
