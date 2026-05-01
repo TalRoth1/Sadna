@@ -12,9 +12,9 @@ public abstract class Ticket {
     private final UUID eventId;
     private final UUID areaId;
     private TicketStatus status;
-    private final double price;
+    private final float price;
 
-    protected Ticket(UUID ticketId, UUID eventId, UUID areaId, double price, TicketStatus initialStatus) {
+    protected Ticket(UUID ticketId, UUID eventId, UUID areaId, float price, TicketStatus initialStatus) {
         this.ticketId = ticketId;
         this.eventId = eventId;
         this.areaId = areaId;
@@ -38,7 +38,7 @@ public abstract class Ticket {
         return status;
     }
 
-    public double getPrice() {
+    public float getPrice() {
         return price;
     }
 

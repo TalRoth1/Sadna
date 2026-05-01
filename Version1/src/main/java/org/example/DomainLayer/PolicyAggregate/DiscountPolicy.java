@@ -1,12 +1,13 @@
 package org.example.DomainLayer.PolicyAggregate;
 
+import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
-import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 
 public class DiscountPolicy {
     private final List<IDiscountRule> discounts = new ArrayList<IDiscountRule>();

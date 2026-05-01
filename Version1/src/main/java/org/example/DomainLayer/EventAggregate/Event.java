@@ -17,12 +17,9 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
-/**
- * Event aggregate root: 1:1 {@link Layout}, {@link PurchasePolicy}, {@link DiscountPolicy}; 1:* {@link Ticket}.
- * Optional {@code lotteryId} links to a lottery mechanism elsewhere in the system.
- */
 public class Event {
 
     private final UUID eventId;
@@ -182,9 +179,6 @@ public class Event {
         return Map.copyOf(ticketsById);
     }
 
-    /**
-     * Registers a ticket on the event and links its id to the given layout area (Area 1:* Ticket by id).
-     */
     public void addTicket(Ticket ticket) {
         if (ticket == null) {
             throw new IllegalArgumentException("ticket must not be null");
@@ -227,7 +221,6 @@ public class Event {
     {
         Area area = layout.requireArea(areaID);
 
-        // 2. שולף את כל ה-IDs של הכרטיסים ששייכים לאזור הזה
         List<UUID> areaTicketIds = area.getTicketIdsView();
 
         long availableCount = areaTicketIds.stream()
@@ -240,7 +233,7 @@ public class Event {
         }
     }
 
-    public void reserveSittingTickets(List<UUID> ticketIDs)
+    public synchronized void reserveSittingTickets(List<UUID> ticketIDs)
     {
         List<Ticket> ticketsToReserve = new ArrayList<>();
 
@@ -263,11 +256,10 @@ public class Event {
         }
     }
 
-    public List<UUID> reserveStandingTickets(int amount, UUID areaId) {
+    public synchronized List<UUID> reserveStandingTickets(int amount, UUID areaId) {
         Area area = layout.requireArea(areaId);
         List<UUID> areaTicketIds = area.getTicketIdsView();
 
-        // מוצאים כרטיסים פנויים מתוך הרשימה של האזור
         List<UUID> selectedTickets = areaTicketIds.stream()
                 .map(ticketsById::get)
                 .filter(t -> t != null && t.getStatus() == TicketStatus.AVAILABLE)
@@ -278,8 +270,6 @@ public class Event {
         if (selectedTickets.size() < amount) {
             throw new DomainException("Not enough available tickets in the requested area");
         }
-
-        // מבצעים את השריון בפועל לכל אחד מהנבחרים
         for (UUID tid : selectedTickets) {
             ticketsById.get(tid).reserve();
         }
@@ -345,5 +335,36 @@ public class Event {
     public void removeDiscount(UUID discountId)
     {
         this.discountPolicy.removeRule(discountId);
+    }
+
+    public synchronized void releaseTickets(Map<UUID, Float> ticketIDs) {
+        for (Map.Entry<UUID, Float> tid : ticketIDs.entrySet()) {
+            Ticket ticket = ticketsById.get(tid.getKey());
+            if (ticket != null && ticket.getStatus() == TicketStatus.RESERVED) {
+                ticket.releaseReservation();
+            }
+        }
+    }
+    public synchronized void sellTickets(Set<UUID> ticketIDs) {
+        for (UUID tid : ticketIDs) {
+            Ticket ticket = ticketsById.get(tid);
+            if (ticket != null) {
+                ticket.markSold();
+            }
+        }
+    }
+    public double calculateTotalPrice(List<UUID> ticketIDs)
+    {
+        double totalPrice = 0;
+
+        for (UUID tid : ticketIDs) {
+            Ticket ticket = ticketsById.get(tid);
+            if (ticket == null) {
+                throw new DomainException("הכרטיס " + tid + " לא קיים באירוע");
+            }
+            totalPrice += ticket.getPrice();
+        }
+
+        return totalPrice;
     }
 }

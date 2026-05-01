@@ -7,6 +7,7 @@ import java.util.Objects;
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 import org.example.DomainLayer.UserAggregate.User;
 
+
 public class PurchasePolicy {
 
     private final List<IPurchaseRule> rules = new ArrayList<>();

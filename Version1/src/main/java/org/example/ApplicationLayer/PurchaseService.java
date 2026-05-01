@@ -1,5 +1,6 @@
 package org.example.ApplicationLayer;
 
+import org.example.DomainLayer.DomainException;
 import org.example.DomainLayer.PurchaseDomainService;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 
@@ -14,8 +15,40 @@ public class PurchaseService {
     }
 
     private void validateAdmin(UUID adminId) {
-        // TODO: replace with real admin validation
         throw new IllegalArgumentException("Not yet Implemented");
+    }
+
+    public void selectSittingTickets(UUID eventID, List<UUID> ticketIDs, UUID userID, boolean isConfirmedAge)
+    {
+        if (ticketIDs == null || ticketIDs.isEmpty()) {
+            throw new IllegalArgumentException("Amount must be greater than zero");
+        }
+        if (userID == null) {
+            throw new IllegalArgumentException("User ID is required");
+        }
+
+        try {
+            purchaseDomainService.selectSittingTickets(eventID, ticketIDs, userID, isConfirmedAge);
+        } catch (DomainException e) {
+            throw new IllegalStateException("couldn't select the sitting tickts");
+        }
+    }
+    public void completePurchase(UUID activePurchaseID, PaymentDetails paymentDetails, String couponCode)
+    {
+        if (activePurchaseID == null) {
+            throw new IllegalArgumentException("Active Purchase ID is required");
+        }
+        else if (paymentDetails == null) {
+            throw new IllegalArgumentException("Payment details are required");
+        }
+
+        try
+        {
+            purchaseDomainService.completePurchase(activePurchaseID, paymentDetails, couponCode);
+        }
+        catch (DomainException e) {
+            throw new IllegalStateException("couldn't complete purchase");
+        }
     }
 
     public List<PurchaseHistory> getAllHistory(UUID adminId) {
@@ -26,6 +59,25 @@ public class PurchaseService {
     public List<PurchaseHistory> getHistoryByUser(UUID adminId, UUID userId) {
         validateAdmin(adminId);
         return purchaseDomainService.getHistoryByUser(userId);
+    }
+
+    public void selectStandingTickets(UUID eventID, int amount, UUID areaID, UUID userID, boolean isConfirmedAge)
+    {
+        if (amount <= 0) {
+            throw new IllegalArgumentException("Amount must be greater than zero");
+        }
+        if (userID == null) {
+            throw new IllegalArgumentException("User ID is required");
+        }
+
+        try 
+        {
+            purchaseDomainService.selectStandingTickets(eventID, amount, userID, areaID, isConfirmedAge);
+        } 
+        catch (DomainException e) 
+        {
+            throw new IllegalStateException("couldn't select the standing tickts");
+        }
     }
 
     public List<PurchaseHistory> getHistoryByEvent(UUID adminId, UUID eventId) {

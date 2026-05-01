@@ -97,12 +97,10 @@ public Company(String founderUsername, String name) {
 
     public boolean inviteNewOwner(String appointeeUsername, String appointerUsername)
     {
-        // check if appointer is a in the company and is an owner
         if (!isCompanyMember(appointerUsername) || !(members.get(appointerUsername) instanceof CompanyOwner))
         {
             throw new IllegalArgumentException("The appointer is not a company owner and therefore cannot invite a new owner");
         }
-        // check if appointee is already a member of the company, if so we have to check that he under the appointer and that he's a manager, otherwise we can appoint him as an owner without any problem
         if (isCompanyMember(appointeeUsername))
         {
             if (!members.get(appointeeUsername).isSubordinateOf(appointerUsername))
@@ -121,12 +119,10 @@ public Company(String founderUsername, String name) {
 
     public boolean inviteNewManager(String appointeeUsername, String appointerUsername, Set<CompanyPermission> premissions)
     {
-        // check if appointer is a in the company and is an owner
         if (!isCompanyMember(appointerUsername) || !(members.get(appointerUsername) instanceof CompanyOwner))
         {
             throw new IllegalArgumentException("The appointer is not a company owner and therefore cannot invite a new manager");
         }
-        // check if appointee is already a member of the company
         if (isCompanyMember(appointeeUsername))
         {
             throw new IllegalArgumentException("The appointee is already a member of the company and therefore cannot be invited as a manager");
@@ -156,12 +152,10 @@ public Company(String founderUsername, String name) {
 
     public boolean appointNewManager(String appointeeUsername, String appointerUsername, Set<CompanyPermission> premissions)
     {
-        // check if appointer is a in the company and is an owner
         if (!isCompanyMember(appointerUsername) || !(members.get(appointerUsername) instanceof CompanyOwner))
         {
             throw new IllegalArgumentException("The appointer is not a company owner and therefore cannot appoint a new manager");
         }
-        // check if appointee is already a member of the company, if so we have to check that he under the appointer, otherwise we can appoint him as a manager without any problem
         if (isCompanyMember(appointeeUsername))
         {
             throw new IllegalArgumentException("The appointee is already a member of the company and therefore cannot be appointed as a manager");
@@ -170,17 +164,13 @@ public Company(String founderUsername, String name) {
         members.put(appointeeUsername, newManager);
         return true;
     }
-
-    // Appointing a new owner to the company.
     public boolean appointNewOwner(String appointeeUsername, String appointerUsername)
     {
-        // check if appointer is a in the company and is an owner
         if (!isCompanyMember(appointerUsername) || !(members.get(appointerUsername) instanceof CompanyOwner))
         {
             throw new IllegalArgumentException("The appointer is not a company owner and therefore cannot appoint a new owner");
         }
         CompanyOwner appointer = (CompanyOwner) members.get(appointerUsername);
-        // check if appointee is already a member of the company, if so we have to check that he under the appointer and that he's a manager, otherwise we can appoint him as an owner without any problem
         if (isCompanyMember(appointeeUsername))
         {
             if (!members.get(appointeeUsername).isSubordinateOf(appointerUsername))
@@ -192,13 +182,11 @@ public Company(String founderUsername, String name) {
                 throw new IllegalArgumentException("The appointee is a company owner and cannot be appointed as an owner again");
             }
             CompanyManager appointee = (CompanyManager) members.get(appointeeUsername);
-            // remove the appointee from his current manager's subordinates list
             CompanyOwner appointeeManager = (CompanyOwner) members.get(appointee.getAppointer().getUsername());
             appointeeManager.removeSubordinate(appointee);
             appointer.addSubordinate(appointee);
             return true;
         }
-        // create new company owner in case the appointee is not a member of the company
         CompanyOwner newOwner = new CompanyOwner(appointeeUsername, (CompanyOwner) members.get(appointerUsername));
         members.put(appointeeUsername, newOwner);
         return true;
