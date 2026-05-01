@@ -1,5 +1,6 @@
 package org.example.DomainLayer;
 
+import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 import org.example.DomainLayer.EventAggregate.Event;
 import org.example.DomainLayer.PurchaseHistoryAggregate.Payment;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
@@ -7,17 +8,17 @@ import org.example.DomainLayer.UserAggregate.User;
 import org.example.DomainLayer.UserAggregate.UserRole;
 import org.example.DomainLayer.UserAggregate.UserStatus;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import org.example.ApplicationLayer.PaymentDetails;
-import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 import org.example.DomainLayer.ActivePurchaseAggregate.IPaymentGateway;
 import org.example.DomainLayer.ActivePurchaseAggregate.ITicketingGateway;
 import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.DomainLayer.PolicyAggregate.DiscountPolicy;
 
-import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 public class PurchaseDomainService {
@@ -207,4 +208,121 @@ public class PurchaseDomainService {
         if (purchaseRepository.findByUserID(userID) != null)
             throw new DomainException("Cannot start a new purchase while there is another active purcahse in the system");
     }
+
+    public void updateActivePurchaseSittingTickets(UUID activePurchaseID, List<UUID> newTicketIDs)
+    {
+        ActivePurchase activePurchase = purchaseRepository.findByID(activePurchaseID);
+        if (activePurchase == null) {
+            throw new DomainException("לא נמצאה הזמנה פעילה");
+        }
+
+        Event event = eventRepository.getById(activePurchase.getEventID());
+
+        synchronized (event)
+        {
+            if (activePurchase.isExpired(LocalDateTime.now())) {
+                event.releaseTickets(activePurchase.getTicketIDs());
+                purchaseRepository.deleteByID(activePurchaseID);
+                throw new DomainException("פג תוקף ההזמנה הפעילה");
+            }
+
+            Map<UUID, Float> oldTickets = activePurchase.getTicketIDs();
+
+            try {
+                event.releaseTickets(oldTickets);
+                event.reserveSittingTickets(newTicketIDs);
+
+                LinkedHashMap<UUID, Float> newTicketPrices = new LinkedHashMap<>();
+                for (UUID ticketId : newTicketIDs) {
+                    newTicketPrices.put(ticketId, event.getTicket(ticketId).getPrice());
+                }
+
+                activePurchase.replaceTickets(newTicketPrices);
+                purchaseRepository.save(activePurchase);
+            }
+            catch (DomainException | IllegalStateException e) {
+                List<UUID> oldticketsId = new ArrayList<>(oldTickets.keySet());
+                event.reserveSittingTickets(oldticketsId);
+                throw e;
+            }
+        }
+    }
+    public void updateActivePurchaseStandingTickets(UUID activePurchaseId, int newAmount, UUID areaId)
+    {
+        ActivePurchase activePurchase = purchaseRepository.findByID(activePurchaseId);
+        if (activePurchase == null) {
+            throw new DomainException("לא נמצאה הזמנה פעילה");
+        }
+
+        Event event = eventRepository.getById(activePurchase.getEventID());
+
+        synchronized (event)
+        {
+            if (activePurchase.isExpired(LocalDateTime.now())) {
+                event.releaseTickets(activePurchase.getTicketIDs());
+                purchaseRepository.deleteByID(activePurchaseId);
+                throw new DomainException("פג תוקף ההזמנה הפעילה");
+            }
+
+            Map<UUID, Float> oldTickets = activePurchase.getTicketIDs();
+
+            try {
+                event.releaseTickets(oldTickets);
+                List<UUID> newTicketIDs = event.reserveStandingTickets(newAmount, areaId);
+
+                LinkedHashMap<UUID, Float> newTicketPrices = new LinkedHashMap<>();
+                for (UUID ticketId : newTicketIDs) {
+                    newTicketPrices.put(ticketId, event.getTicket(ticketId).getPrice());
+                }
+
+                activePurchase.replaceTickets(newTicketPrices);
+                purchaseRepository.save(activePurchase);
+            }
+            catch (DomainException | IllegalStateException e) {
+                List<UUID> oldticketsId = new ArrayList<>(oldTickets.keySet());
+                event.reserveSittingTickets(oldticketsId);
+                throw e;
+            }
+        }
+    }
+
+
+    public void cancelActivePurchase(UUID activePurchaseId)
+    {
+        ActivePurchase activePurchase = purchaseRepository.findByID(activePurchaseId);
+        if (activePurchase == null) {
+            throw new DomainException("לא נמצאה הזמנה פעילה");
+        }
+
+        Event event = eventRepository.getById(activePurchase.getEventID());
+
+        synchronized (event)
+        {
+            event.releaseTickets(activePurchase.getTicketIDs());
+            purchaseRepository.deleteByID(activePurchaseId);
+        }
+    }
+
+    public ActivePurchase viewActivePurchase(UUID activePurchaseId)
+    {
+        ActivePurchase activePurchase = purchaseRepository.findByID(activePurchaseId);
+        if (activePurchase == null) {
+            throw new DomainException("לא נמצאה הזמנה פעילה");
+        }
+
+        Event event = eventRepository.getById(activePurchase.getEventID());
+
+        synchronized (event)
+        {
+            if (activePurchase.isExpired(LocalDateTime.now()))
+            {
+                event.releaseTickets(activePurchase.getTicketIDs());
+                purchaseRepository.deleteByID(activePurchaseId);
+                throw new DomainException("פג תוקף ההזמנה שברצוננו לצפות");
+            }
+            else return activePurchase;
+        }
+    }
+
+
 }

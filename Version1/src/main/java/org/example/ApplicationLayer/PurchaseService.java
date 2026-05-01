@@ -1,5 +1,6 @@
 package org.example.ApplicationLayer;
 
+import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 import org.example.DomainLayer.DomainException;
 import org.example.DomainLayer.PurchaseDomainService;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
@@ -92,6 +93,65 @@ public class PurchaseService {
 
     public List<PurchaseHistory> getPurchaseHistoryForMember(UUID userId) {
         return purchaseDomainService.getPurchaseHistoryForMember(userId);
+    }
+    public ActivePurchase viewActivePurchase(UUID activePurchaseId)
+    {
+        if (activePurchaseId == null) {
+            throw new IllegalArgumentException("Active purchase ID is required");
+        }
+        try
+        {
+            return purchaseDomainService.viewActivePurchase(activePurchaseId);
+        }
+        catch (DomainException e)
+        {
+            return null;
+        }
+    }
+    public void cancelActivePurchase(UUID activePurchaseId)
+    {
+        if (activePurchaseId == null) {
+            throw new IllegalArgumentException("Active purchase ID is required");
+        }
+        try
+        {
+            purchaseDomainService.cancelActivePurchase(activePurchaseId);
+        }
+        catch (DomainException e)
+        {
+            throw new IllegalStateException("Couldn't cancel purchase");
+        }
+    }
+    public void updateActivePurchaseSittingTickets(UUID activePurchaseId, List<UUID> newTicketIds)
+    {
+        if (activePurchaseId == null) {
+            throw new IllegalArgumentException("Active purchase ID is required");
+        }
+        if (newTicketIds == null || newTicketIds.isEmpty()) {
+            throw new IllegalArgumentException("New ticket IDs are required");
+        }
+        try
+        {
+            purchaseDomainService.updateActivePurchaseSittingTickets(activePurchaseId, newTicketIds);
+        }
+        catch (DomainException e)
+        {
+            throw new IllegalStateException("Couldn't update active purchase");
+        }
+    }
+
+    public void updateActivePurchaseStandingTickets(UUID activePurchaseId, int newAmount, UUID areaId) {
+        if (activePurchaseId == null) {
+            throw new IllegalArgumentException("Active purchase ID is required");
+        }
+        if (newAmount <= 0) {
+            throw new IllegalArgumentException("New amount must be non-negative");
+        }
+        try {
+            purchaseDomainService.updateActivePurchaseStandingTickets(activePurchaseId, newAmount, areaId);
+        } catch (DomainException e) {
+            throw new IllegalStateException("Couldn't update active purchase");
+        }
     }
 
 }

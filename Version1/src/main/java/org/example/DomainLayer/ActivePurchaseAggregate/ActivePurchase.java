@@ -1,6 +1,7 @@
 package org.example.DomainLayer.ActivePurchaseAggregate;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -89,5 +90,11 @@ public class ActivePurchase
     public float getCurrentPrice(UUID ticketId)
     {
         return ticketIDPrices.get(ticketId);
+    }
+
+    public void replaceTickets(LinkedHashMap<UUID, Float> newTicketPrices)
+    {
+        this.ticketIDPrices.clear();
+        this.ticketIDPrices.putAll(newTicketPrices);
     }
 }
