@@ -11,12 +11,14 @@ import java.util.UUID;
 import org.example.DomainLayer.PolicyAggregate.AgeRule;
 import org.example.DomainLayer.PolicyAggregate.ConditionalDiscount;
 import org.example.DomainLayer.PolicyAggregate.CouponCode;
+import org.example.DomainLayer.DomainException;
 import org.example.DomainLayer.PolicyAggregate.DiscountPolicy;
 import org.example.DomainLayer.PolicyAggregate.LoneSeatRule;
 import org.example.DomainLayer.PolicyAggregate.MaxTicketRule;
 import org.example.DomainLayer.PolicyAggregate.MinTicketRule;
 import org.example.DomainLayer.PolicyAggregate.OvertDiscount;
 import org.example.DomainLayer.PolicyAggregate.PurchasePolicy;
+import org.example.DomainLayer.Rating;
 
 public class Company {
     private final UUID id;
@@ -26,9 +28,10 @@ public class Company {
     private final Map<UUID, Invitation> invitations;
     private final DiscountPolicy discountPolicy;
     private final PurchasePolicy purchasePolicy;
-    private int rating;
+    private double rating;
     private int amountRated;
     private final List<UUID> eventIds;
+    private Map<UUID, Rating> ratingsByUsers;
     private boolean isActive;
 
 public Company(String founderUsername, String name) {
@@ -42,6 +45,7 @@ public Company(String founderUsername, String name) {
     this.discountPolicy = new DiscountPolicy();
     this.purchasePolicy = new PurchasePolicy();
     this.isActive = true;
+    this.ratingsByUsers = new HashMap<UUID, Rating>();
 }
 
     public UUID getId()
@@ -79,7 +83,7 @@ public Company(String founderUsername, String name) {
         return this.purchasePolicy;
     }
 
-    public int getRating()
+    public double getRating()
     {
         return this.rating;
     }
@@ -312,5 +316,22 @@ public Company(String founderUsername, String name) {
     public void removeDiscount(UUID discountId)
     {
         this.discountPolicy.removeRule(discountId);
+    }
+
+    public synchronized void addRating(UUID userID, int rating) {
+        if (ratingsByUsers.containsKey(userID))
+            throw new DomainException("User already reviewed this company");
+        else {
+            Rating r = new Rating(rating, userID);
+            ratingsByUsers.put(userID, r);
+
+            double sum = 0;
+
+            for (Rating existingRating : ratingsByUsers.values()) {
+                sum += existingRating.getRating();
+            }
+
+            this.rating = sum / ratingsByUsers.size();
+        }
     }
 }

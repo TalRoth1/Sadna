@@ -42,10 +42,6 @@ public class User {
         this.role = UserRole.GUEST;
     }
 
-
-
-
-
     // Getters...
     public UUID getId() { return id; }
     public String getUsername() {return username;}

@@ -169,4 +169,18 @@ public class RolesDomainService {
             throw new IllegalArgumentException("Company not found");
         company.removeDiscount(discountId); 
     }
+
+    public void rateCompany(UUID userID, UUID companyID, int rating)
+    {
+        Company company = companyRepository.findByID(companyID).get();
+
+        if (company == null)
+            throw new DomainException("Event not found while rating");
+
+        if (userID == null)
+            throw new DomainException("User not found while rating");
+
+        company.addRating(userID, rating);
+        companyRepository.save(company);
+    }
 }

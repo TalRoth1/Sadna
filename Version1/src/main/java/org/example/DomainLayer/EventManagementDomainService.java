@@ -130,5 +130,19 @@ public class EventManagementDomainService {
             throw new IllegalArgumentException("Event not found");
         event.removeDiscount(discountId); 
     }
+    
+    public void rateEvent(UUID userID, UUID eventID, int rating)
+    {
+        Event event = eventRepository.getById(eventID);
+
+        if (event == null)
+            throw new DomainException("Event not found while rating");
+
+        if (userID == null)
+            throw new DomainException("User not found while rating");
+
+        event.addRating(userID, rating);
+        eventRepository.save(event);
+    }
 
 }

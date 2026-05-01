@@ -10,6 +10,7 @@ import org.example.DomainLayer.PolicyAggregate.MaxTicketRule;
 import org.example.DomainLayer.PolicyAggregate.MinTicketRule;
 import org.example.DomainLayer.PolicyAggregate.OvertDiscount;
 import org.example.DomainLayer.PolicyAggregate.PurchasePolicy;
+import org.example.DomainLayer.Rating;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -36,9 +37,10 @@ public class Event {
     private double rating;
     private String lotteryId;
     private final Map<UUID, Ticket> ticketsById = new LinkedHashMap<>();
+    private Map<UUID, Rating> ratingsByUsers = new LinkedHashMap<>();
 
     public Event(UUID eventId, UUID companyId, LocalDateTime date, String location,
-                   String artist, String type, EventStatus status, double rating) {
+                   String artist, String type, EventStatus status) {
         this.eventId = eventId;
         this.companyId = companyId;
         setDate(date);
@@ -49,10 +51,7 @@ public class Event {
             throw new IllegalArgumentException("status must not be null");
         }
         this.status = status;
-        if (rating < 0) {
-            throw new IllegalArgumentException("rating must be non-negative");
-        }
-        this.rating = rating;
+        this.rating = 0;
         this.layout = new Layout();
         this.purchasePolicy = new PurchasePolicy();
         this.discountPolicy = new DiscountPolicy();
@@ -366,5 +365,22 @@ public class Event {
         }
 
         return totalPrice;
+    }
+
+    public synchronized void addRating(UUID userID, int rating) {
+        if (ratingsByUsers.containsKey(userID))
+            throw new DomainException("User already reviewed this event");
+        else {
+            Rating r = new Rating(rating, userID);
+            ratingsByUsers.put(userID, r);
+
+            double sum = 0;
+
+            for (Rating existingRating : ratingsByUsers.values()) {
+                sum += existingRating.getRating();
+            }
+
+            this.rating = sum / ratingsByUsers.size();
+        }
     }
 }

@@ -1,5 +1,6 @@
 package org.example.ApplicationLayer;
 
+import org.example.DomainLayer.DomainException;
 import org.example.DomainLayer.EventManagementDomainService;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 
@@ -102,5 +103,19 @@ public class EventService {
     public void removeDiscount(UUID eventId, UUID discountId)
     {
         eventManagementDomainService.removeDiscount(eventId, discountId);
+    }
+
+    public void rateEvent(UUID userID, UUID eventID, int rating)
+    {
+        if (rating < 0 || rating > 5)
+            throw new IllegalArgumentException("Rating must be between 0 and 5");
+        try
+        {
+            eventManagementDomainService.rateEvent(userID, eventID, rating);
+        }
+        catch (DomainException e)
+        {
+            //TODO
+        }
     }
 }
