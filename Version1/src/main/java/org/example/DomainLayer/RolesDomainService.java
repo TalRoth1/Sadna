@@ -2,11 +2,12 @@ package org.example.DomainLayer;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import org.example.DomainLayer.CompanyAggregate.Company;
-
-import java.util.Optional;
+import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
 
 public class RolesDomainService {
 
@@ -18,10 +19,10 @@ public class RolesDomainService {
         this.userRepository = userRepository;
     }
 
-    public void createCompany(String founderUsername, String companyName)
-    {
+    public void createCompany(String founderUsername, String companyName) {
         companyRepository.createCompany(founderUsername, companyName);
     }
+
     public void closeCompanyAsAdmin(String adminUsername, UUID companyId) {
 
         if (adminUsername == null || adminUsername.isBlank()) {
@@ -50,7 +51,7 @@ public class RolesDomainService {
         // notificationService.notifyCompanyClosed(...)
     }
 
-    public void removeCompanyMemberAsAdmin(String adminUsername, int companyId, String usernameToRemove) {
+    public void removeCompanyMemberAsAdmin(String adminUsername, UUID companyId, String usernameToRemove) {
         if (adminUsername == null || adminUsername.isBlank()) {
             throw new IllegalArgumentException("Admin username is required");
         }
@@ -77,56 +78,110 @@ public class RolesDomainService {
         // TODO: notify user after notification mechanism is implemented
     }
 
-    public void addPurchasePolicy(UUID companyId, Optional<Float> age, Optional<Integer> minTicket, Optional<Integer> maxTicket, Optional<Boolean> allowLoneSeat)
-    {
+    public void removeCompanyMemberAsOwner(String ownerUsername, UUID companyId, String usernameToRemove) {
+        if (ownerUsername == null || ownerUsername.isBlank()) {
+            throw new IllegalArgumentException("Owner username is required");
+        }
+
+        if (usernameToRemove == null || usernameToRemove.isBlank()) {
+            throw new IllegalArgumentException("Username to remove is required");
+        }
+
+        Company company = companyRepository.findByID(companyId).get();
+        if (company == null)
+            throw new IllegalArgumentException("Company not found");
+
+        company.removeMemberAsOwner(usernameToRemove, ownerUsername);
+    }
+
+    public void inviteCompanyManager(String ownerUsername, UUID companyId, String usernameToInvite, Set<CompanyPermission> premissions) {
+        if (ownerUsername == null || ownerUsername.isBlank()) {
+            throw new IllegalArgumentException("Owner username is required");
+        }
+
+        if (usernameToInvite == null || usernameToInvite.isBlank()) {
+            throw new IllegalArgumentException("Username to invite is required");
+        }
+        Company company = companyRepository.findByID(companyId).get();
+
+        if (company == null)
+            throw new IllegalArgumentException("Company not found");
+
+        company.inviteNewManager(ownerUsername, ownerUsername, premissions);
+    }
+
+    public void inviteCompanyOwner(String ownerUsername, UUID companyId, String usernameToInvite) {
+        if (ownerUsername == null || ownerUsername.isBlank()) {
+            throw new IllegalArgumentException("Owner username is required");
+        }
+
+        if (usernameToInvite == null || usernameToInvite.isBlank()) {
+            throw new IllegalArgumentException("Username to invite is required");
+        }
+        Company company = companyRepository.findByID(companyId).get();
+
+        if (company == null)
+            throw new IllegalArgumentException("Company not found");
+
+        company.inviteNewOwner(ownerUsername, usernameToInvite);
+    }
+
+    public void acceptCompanyInvitation(UUID invetationID, UUID companyId) {
+        Company company = companyRepository.findByID(companyId).get();
+
+        if (company == null)
+            throw new IllegalArgumentException("Company not found");
+
+        company.acceptInvitation(invetationID);
+    }
+
+    public void addPurchasePolicy(UUID companyId, Optional<Float> age, Optional<Integer> minTicket,
+            Optional<Integer> maxTicket, Optional<Boolean> allowLoneSeat) {
         Company company = companyRepository.findByID(companyId).get();
         if (company == null)
             throw new IllegalArgumentException("Company not found");
         company.addPurchasePolicy(age, minTicket, maxTicket, allowLoneSeat);
     }
 
-    public void deletePurchasePolicy(UUID companyId, boolean age, boolean minTicket, boolean maxTicket, boolean allowLoneSeat)
-    {
+    public void deletePurchasePolicy(UUID companyId, boolean age, boolean minTicket, boolean maxTicket,
+            boolean allowLoneSeat) {
         Company company = companyRepository.findByID(companyId).get();
         if (company == null)
             throw new IllegalArgumentException("Company not found");
         company.deletePurchaseRule(age, minTicket, maxTicket, allowLoneSeat);
     }
 
-    public void addOvertDiscount(UUID companyId, LocalDate fromDate, LocalDate toDate, float discountPrecent)
-    {
+    public void addOvertDiscount(UUID companyId, LocalDate fromDate, LocalDate toDate, float discountPrecent) {
         Company company = companyRepository.findByID(companyId).get();
         if (company == null)
             throw new IllegalArgumentException("Company not found");
         company.addOvertDiscount(fromDate, toDate, discountPrecent);
     }
 
-    public void addConditionalDiscount(UUID companyId, LocalDate fromDate, LocalDate toDate, float discountPrecent, int requiredTickets, int appliedTickets)
-    {
+    public void addConditionalDiscount(UUID companyId, LocalDate fromDate, LocalDate toDate, float discountPrecent,
+            int requiredTickets, int appliedTickets) {
         Company company = companyRepository.findByID(companyId).get();
         if (company == null)
             throw new IllegalArgumentException("Company not found");
         company.addConditionalDiscount(fromDate, toDate, discountPrecent, requiredTickets, appliedTickets);
     }
 
-    public void addCouponCode(UUID companyId, LocalDate fromDate, LocalDate toDate, float discountPrecent, String code)
-    {
+    public void addCouponCode(UUID companyId, LocalDate fromDate, LocalDate toDate, float discountPrecent,
+            String code) {
         Company company = companyRepository.findByID(companyId).get();
         if (company == null)
             throw new IllegalArgumentException("Company not found");
         company.addCouponCode(fromDate, toDate, discountPrecent, code);
     }
 
-    public void removeDiscount(UUID companyId, UUID discountId)
-    {
-                Company company = companyRepository.findByID(companyId).get();
+    public void removeDiscount(UUID companyId, UUID discountId) {
+        Company company = companyRepository.findByID(companyId).get();
         if (company == null)
             throw new IllegalArgumentException("Company not found");
-        company.removeDiscount(discountId); 
+        company.removeDiscount(discountId);
     }
 
-    public void rateCompany(UUID userID, UUID companyID, int rating)
-    {
+    public void rateCompany(UUID userID, UUID companyID, int rating) {
         Company company = companyRepository.findByID(companyID).get();
 
         if (company == null)

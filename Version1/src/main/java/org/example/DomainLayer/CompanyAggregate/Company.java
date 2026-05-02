@@ -253,6 +253,31 @@ public Company(String founderUsername, String name) {
         removeMember(username);
     }
 
+    public void removeMemberAsOwner(String username, String ownerUsername) {
+        if (username == null || username.isBlank() || ownerUsername == null || ownerUsername.isBlank()) {
+            throw new IllegalArgumentException("Username and owner username are required");
+        }
+        if (!members.containsKey(username)) {
+            throw new IllegalArgumentException("User is not a company member");
+        }
+        if (!members.containsKey(ownerUsername) || !(members.get(ownerUsername) instanceof CompanyOwner)) {
+            throw new IllegalArgumentException("Owner username is not a company owner");
+        }
+        ICompanyMember memberToRemove = members.get(username);
+        if (memberToRemove instanceof CompanyManager manager) {
+            if (!manager.isSubordinateOf(ownerUsername)) {
+                throw new IllegalArgumentException("The owner can only remove managers that are under him in the company hyrarchy");
+            }
+        } else if (memberToRemove instanceof CompanyOwner owner) {
+            if (!owner.isSubordinateOf(ownerUsername)) {
+                throw new IllegalArgumentException("The owner can only remove owners that are under him in the company hyrarchy");
+            }
+        } else {
+            throw new IllegalArgumentException("The owner can only remove managers or owners");
+        }
+        removeMember(username);
+    }
+
     private void removeMember(String username) {
         ICompanyMember memberToRemove = members.get(username);
         memberToRemove.removeFromCompanyHyrarchy();

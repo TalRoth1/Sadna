@@ -1,9 +1,11 @@
 package org.example.ApplicationLayer;
 
-import java.util.Optional;
 import java.time.LocalDate;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
+import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
 import org.example.DomainLayer.DomainException;
 import org.example.DomainLayer.RolesDomainService;
 
@@ -19,6 +21,7 @@ public class CompanyService {
             throw new IllegalArgumentException("founder username is required");
         rolesDomainService.createCompany(founderUsername, companyName);
     }
+
     public void closeCompanyAsAdmin(String adminUsername, UUID companyId) {
         if (adminUsername == null || adminUsername.isBlank()) {
             throw new IllegalArgumentException("Admin username is required");
@@ -27,6 +30,34 @@ public class CompanyService {
         rolesDomainService.closeCompanyAsAdmin(adminUsername, companyId);
     }
 
+    public void inviteCompanyManager(String ownerUsername, UUID companyId, String usernameToInvite, Set<CompanyPermission> premissions) {
+        if (ownerUsername == null || ownerUsername.isBlank()) {
+            throw new IllegalArgumentException("Owner username is required");
+        }
+
+        rolesDomainService.inviteCompanyManager(ownerUsername, companyId, usernameToInvite, premissions);
+    }
+
+    public void removeCompanyMemberAsOwner(String ownerUsername, UUID companyId, String usernameToRemove) {
+        if (ownerUsername == null || ownerUsername.isBlank()) {
+            throw new IllegalArgumentException("Owner username is required");
+        }
+
+        rolesDomainService.removeCompanyMemberAsOwner(ownerUsername, companyId, usernameToRemove);
+    }
+
+    public void inviteCompanyOwner(String ownerUsername, UUID companyId, String usernameToInvite) {
+        if (ownerUsername == null || ownerUsername.isBlank()) {
+            throw new IllegalArgumentException("Owner username is required");
+        }
+
+        rolesDomainService.inviteCompanyOwner(ownerUsername, companyId, usernameToInvite);
+    }
+
+    public void acceptCompanyInvitation(UUID invetationID, UUID companyId) {
+         rolesDomainService.acceptCompanyInvitation(invetationID, companyId);
+    }
+    
     public void addPolicyRule(UUID companyId, Optional<Float> age, Optional<Integer> minTicket, Optional<Integer> maxTicket, Optional<Boolean> allowLoneSeat)
     {
         if (age.isPresent() && age.get() < 0)
@@ -43,7 +74,7 @@ public class CompanyService {
         rolesDomainService.deletePurchasePolicy(companyId, age, minTicket, maxTicket, allowLoneSeat);
     }
 
-    public void removeCompanyMemberAsAdmin(String adminUsername, int companyId, String usernameToRemove) {
+    public void removeCompanyMemberAsAdmin(String adminUsername, UUID companyId, String usernameToRemove) {
         if (adminUsername == null || adminUsername.isBlank()) {
             throw new IllegalArgumentException("Admin username is required");
         }
@@ -97,7 +128,7 @@ public class CompanyService {
         }
         catch (DomainException e)
         {
-            //TODO
+            //TODO: Handle the domain exception appropriately
         }
     }
 }
