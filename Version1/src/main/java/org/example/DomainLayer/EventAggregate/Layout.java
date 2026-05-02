@@ -2,10 +2,10 @@ package org.example.DomainLayer.EventAggregate;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 /**
- * Venue layout for one event (1:1 with {@link Event}). Owns {@link Area}s (1:*).
- * {@code mapImage} holds a reference for the visual map.
+ * Venue layout for one event
  */
 public class Layout {
 
@@ -28,10 +28,15 @@ public class Layout {
         if (area == null) {
             throw new IllegalArgumentException("area must not be null");
         }
+        for (Area existing : areas) {
+            if (existing.getAreaId() == area.getAreaId()) {
+                throw new IllegalStateException("duplicate area id: " + area.getAreaId());
+            }
+        }
         areas.add(area);
     }
 
-    public Area requireArea(int areaId) 
+    public Area requireArea(UUID areaId) 
     {
         for (Area a : areas) {
             if (areaId == a.getAreaId()) {
