@@ -31,6 +31,7 @@ public class DiscountPolicy {
         float price = purchase.getPrice();
         for (IDiscountRule iDiscountRule : discounts) {
             price = iDiscountRule.apply(purchase);
+            purchase.setPrice(price);
         }
         return price;
     }
