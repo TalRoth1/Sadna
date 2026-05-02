@@ -187,11 +187,6 @@ public class PurchaseDomainService {
     }
 
     public List<PurchaseHistory> getPurchaseHistoryForMember(UUID userId) {
-
-        User user = userRepository.getUser(userId)
-                .orElseThrow(() -> new IllegalArgumentException("Member does not exist"));
-
-
         return historyRepository.getByUserId(userId);
     }
 
