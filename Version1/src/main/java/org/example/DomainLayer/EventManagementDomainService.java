@@ -1,9 +1,11 @@
 package org.example.DomainLayer;
 
 import org.example.DomainLayer.EventAggregate.Event;
+import org.example.DomainLayer.EventAggregate.EventStatus;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -95,6 +97,67 @@ public class EventManagementDomainService {
             throw new DomainException("User not found while rating");
 
         event.addRating(userID, rating);
+        eventRepository.save(event);
+    }
+
+    public void addEvent(UUID eventId, UUID companyId, LocalDateTime date, String location,
+                         String artist, String type, EventStatus status) {
+        if (eventRepository.getById(eventId) != null) {
+            throw new DomainException("Event already exists: " + eventId);
+        }
+        Event event = new Event(eventId, companyId, date, location, artist, type, status);
+        eventRepository.save(event);
+    }
+
+    public boolean editEvent(UUID eventId, LocalDateTime date, String location,
+                             String artist, String type, EventStatus status) {
+        Event event = eventRepository.getById(eventId);
+        if (event == null) {
+            throw new DomainException("Event not found");
+        }
+        if (date != null) {
+            event.setDate(date);
+        }
+        if (location != null) {
+            event.setLocation(location);
+        }
+        if (artist != null) {
+            event.setArtist(artist);
+        }
+        if (type != null) {
+            event.setType(type);
+        }
+        if (status != null) {
+            event.setStatus(status);
+        }
+        eventRepository.save(event);
+        return true;
+    }
+
+    public boolean deleteEvent(UUID eventId) {
+        Event event = eventRepository.getById(eventId);
+        if (event == null) {
+            throw new DomainException("Event not found");
+        }
+        eventRepository.delete(eventId);
+        return true;
+    }
+
+    public void addStandingTickets(UUID eventId, UUID areaId, int count) {
+        Event event = eventRepository.getById(eventId);
+        if (event == null) {
+            throw new DomainException("Event not found");
+        }
+        event.addStandingTickets(areaId, count);
+        eventRepository.save(event);
+    }
+
+    public void addSittingTickets(UUID eventId, UUID areaId, int rows, int seatsPerRow) {
+        Event event = eventRepository.getById(eventId);
+        if (event == null) {
+            throw new DomainException("Event not found");
+        }
+        event.addSittingTickets(areaId, rows, seatsPerRow);
         eventRepository.save(event);
     }
 

@@ -279,15 +279,14 @@ public class Event {
 
     public void addPurchasePolicy(Optional<Float> age, Optional<Integer> minTicket, Optional<Integer> maxTicket, Optional<Boolean> allowLoneSeat)
     {
-        if(Optional.ofNullable(age).isPresent())
+        if (age != null && age.isPresent())
             this.purchasePolicy.addRule(new AgeRule(age.get()));
-        if(Optional.ofNullable(minTicket).isPresent())
+        if (minTicket != null && minTicket.isPresent())
             this.purchasePolicy.addRule(new MinTicketRule(minTicket.get()));
-        if(Optional.ofNullable(maxTicket).isPresent())
+        if (maxTicket != null && maxTicket.isPresent())
             this.purchasePolicy.addRule(new MaxTicketRule(maxTicket.get()));
-        if(Optional.ofNullable(allowLoneSeat).isPresent())
+        if (allowLoneSeat != null && allowLoneSeat.isPresent())
             this.purchasePolicy.addRule(new LoneSeatRule(allowLoneSeat.get()));
-
     }
 
     public void deletePurchaseRule(boolean age, boolean minTicket, boolean maxTicket, boolean allowLoneSeat)
@@ -367,6 +366,44 @@ public class Event {
             }
 
             this.rating = sum / ratingsByUsers.size();
+        }
+    }
+
+    public int getTotalCapacity() {
+        return ticketsById.size();
+    }
+
+    public void addStandingTickets(UUID areaId, int count) {
+        if (count <= 0) {
+            throw new IllegalArgumentException("count must be positive");
+        }
+        Area area = layout.requireArea(areaId);
+        if (!(area instanceof StandingArea)) {
+            throw new IllegalArgumentException("area is not a standing area: " + areaId);
+        }
+        float price = (float) area.getPrice();
+        for (int i = 0; i < count; i++) {
+            UUID ticketId = UUID.randomUUID();
+            StandingTicket ticket = new StandingTicket(ticketId, eventId, areaId, price);
+            addTicket(ticket);
+        }
+    }
+
+    public void addSittingTickets(UUID areaId, int rows, int seatsPerRow) {
+        if (rows <= 0 || seatsPerRow <= 0) {
+            throw new IllegalArgumentException("rows and seatsPerRow must be positive");
+        }
+        Area area = layout.requireArea(areaId);
+        if (!(area instanceof SittingArea)) {
+            throw new IllegalArgumentException("area is not a sitting area: " + areaId);
+        }
+        float price = (float) area.getPrice();
+        for (int row = 1; row <= rows; row++) {
+            for (int seat = 1; seat <= seatsPerRow; seat++) {
+                UUID ticketId = UUID.randomUUID();
+                SittingTicket ticket = new SittingTicket(ticketId, eventId, areaId, price, seat, row);
+                addTicket(ticket);
+            }
         }
     }
 }
