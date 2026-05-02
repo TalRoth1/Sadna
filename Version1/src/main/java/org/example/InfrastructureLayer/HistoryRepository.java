@@ -9,8 +9,12 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 public class HistoryRepository implements IHistoryRepository{
-    private final List<PurchaseHistory> historyList = new ArrayList<>();
 
+    private List<PurchaseHistory> historyList;
+
+    public HistoryRepository() {
+        this.historyList = new ArrayList<>();
+    }
     public void add(PurchaseHistory purchaseHistory) {
         historyList.add(purchaseHistory);
     }

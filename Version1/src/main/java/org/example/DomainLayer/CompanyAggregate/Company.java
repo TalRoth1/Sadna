@@ -364,4 +364,14 @@ public Company(String founderUsername, String name) {
             this.rating = sum / ratingsByUsers.size();
         }
     }
+
+    public Object getOwnerNames() {
+        List<String> ownerNames = new ArrayList<>();
+        for (ICompanyMember member : members.values()) {
+            if (member instanceof CompanyOwner) {
+                ownerNames.add(member.getUsername());
+            }
+        }
+        return ownerNames;
+    }
 }
