@@ -1,0 +1,39 @@
+package org.example.DomainLayer.LotteryAggregate;
+
+import org.example.DomainLayer.DomainException;
+import org.example.DomainLayer.ILotteryRepository;
+
+import java.util.HashMap;
+import java.util.Map;
+
+public class LotteryRepository implements ILotteryRepository {
+
+    private final Map<String, PuchaseLottery> lotteriesById = new HashMap<>();
+    private final Map<String, String> lotteryIdByEventId = new HashMap<>();
+
+    @Override
+    public PuchaseLottery findByID(String lotteryId) {
+        return lotteriesById.get(lotteryId);
+    }
+
+    @Override
+    public PuchaseLottery findByEventID(int eventId) {
+        String lotteryId = lotteryIdByEventId.get(String.valueOf(eventId));
+
+        if (lotteryId == null) {
+            return null;
+        }
+
+        return lotteriesById.get(lotteryId);
+    }
+
+    @Override
+    public void save(PuchaseLottery lottery) {
+        if (lottery == null) {
+            throw new DomainException("Lottery cannot be null");
+        }
+
+        lotteriesById.put(lottery.getLotteryId(), lottery);
+        lotteryIdByEventId.put(lottery.getEventId(), lottery.getLotteryId());
+    }
+}
