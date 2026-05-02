@@ -15,6 +15,8 @@ public class ActivePurchase
     private boolean isGuestConfirmedAge = false;
     private String coupon;
     private float price;
+    private float maxWaitTime = 10.0f;
+    private LocalDateTime lastUpdate = LocalDateTime.now();
 
 
     public ActivePurchase(UUID userID, UUID eventID, Map<UUID, Float> ticketIDPrices, LocalDateTime endTime)
@@ -26,6 +28,24 @@ public class ActivePurchase
         this.endTime = endTime;
         this.coupon = "";
         this.price = ticketIDPrices.values().stream().reduce(0.0f, Float::sum);
+    }
+
+    public LocalDateTime getLastUpdate() {
+        return lastUpdate;
+    }
+
+    public float getMaxWaitTime() {
+        return maxWaitTime;
+    }
+
+    public void setMaxWaitTime(float maxWait)
+    {
+        this.maxWaitTime = maxWait;
+    }
+
+    public void update()
+    {
+        this.lastUpdate = LocalDateTime.now();
     }
 
     public void SetGuestAgeConfirmed(boolean isGuestConfirmedAge)
