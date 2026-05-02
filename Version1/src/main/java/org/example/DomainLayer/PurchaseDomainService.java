@@ -189,18 +189,14 @@ public class PurchaseDomainService {
     public List<PurchaseHistory> getPurchaseHistoryForMember(UUID userId) {
 
         User user = userRepository.getUser(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+                .orElseThrow(() -> new IllegalArgumentException("Member does not exist"));
 
-        if (!(user.getRole() == UserRole.MEMBER)) {
-            throw new IllegalArgumentException("User is not a member");
-        }
-
-
-        if (!(user.getStatus() == UserStatus.LOGGED_IN)) {
-            throw new IllegalArgumentException("Member is not logged in");
-        }
 
         return historyRepository.getByUserId(userId);
+    }
+
+    public boolean memberExists(UUID userId) {
+        return userRepository.getUser(userId).isPresent();
     }
 
     private void ensureUserHasNoOtherActivePurchases(UUID userID)
@@ -324,5 +320,44 @@ public class PurchaseDomainService {
         }
     }
 
+    public boolean validateAdmin(UUID adminId) {
+        if (!userRepository.existsAdmin(adminId)) {
+            return false;
+        }
+        return true;
+    }
 
+    public boolean isMemberLoggedIn(UUID memberId) {
+        User user = userRepository.getUser(memberId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        return user.getStatus() == UserStatus.LOGGED_IN;
+    }
+
+    public boolean isMember(UUID memberId) {
+        User user = userRepository.getUser(memberId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        return user.getRole() == UserRole.MEMBER;
+    }
+
+
+    public boolean eventExists(UUID eventId) {
+        return eventRepository.getById(eventId) != null;
+    }
+
+    public boolean isCompanyOwnerOfEvent(String ownerName, UUID eventId) {
+        Event event = eventRepository.getById(eventId);
+
+        if (event == null) {
+            return false;
+        }
+
+        Company company = companyRepository.findByID(event.getCompanyId())
+                .orElse(null);
+
+        if (company == null) {
+            return false;
+        }
+
+        return company.isOwner(ownerName);
+    }
 }

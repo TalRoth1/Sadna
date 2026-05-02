@@ -59,4 +59,12 @@ public class UserRepository implements IUserRepository {
         }
         return null;
     }
+
+    public void addAdmin(Admin admin) {
+        admins.put(admin.getId(), admin);
+    }
+
+    public boolean existsAdmin(UUID adminId) {
+        return admins.containsKey(adminId);
+    }
 }

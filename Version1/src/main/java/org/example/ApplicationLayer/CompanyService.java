@@ -74,12 +74,16 @@ public class CompanyService {
         rolesDomainService.deletePurchasePolicy(companyId, age, minTicket, maxTicket, allowLoneSeat);
     }
 
-    public void removeCompanyMemberAsAdmin(String adminUsername, UUID companyId, String usernameToRemove) {
+    public void removeCompanyMemberAsAdmin(String adminUsername, String usernameToRemove) {
         if (adminUsername == null || adminUsername.isBlank()) {
             throw new IllegalArgumentException("Admin username is required");
         }
 
-        rolesDomainService.removeCompanyMemberAsAdmin(adminUsername, companyId, usernameToRemove);
+        if (usernameToRemove == null || usernameToRemove.isBlank()) {
+            throw new IllegalArgumentException("Username to remove is required");
+        }
+
+        rolesDomainService.removeCompanyMemberAsAdmin(adminUsername, usernameToRemove);
     }
 
     public void addOvertDiscount(UUID companyId ,LocalDate fromDate, LocalDate toDate, float discountPrecent)

@@ -16,7 +16,12 @@ public class PurchaseService {
     }
 
     private void validateAdmin(UUID adminId) {
-        throw new IllegalArgumentException("Not yet Implemented");
+        if (adminId == null) {
+            throw new IllegalArgumentException("Admin ID is required");
+        }
+        if (!purchaseDomainService.validateAdmin(adminId)) {
+            throw new IllegalArgumentException("User is not an admin");
+        }
     }
 
     public void selectSittingTickets(UUID eventID, List<UUID> ticketIDs, UUID userID, boolean isConfirmedAge)
@@ -58,8 +63,27 @@ public class PurchaseService {
     }
 
     public List<PurchaseHistory> getHistoryByUser(UUID adminId, UUID userId) {
+        if (userId == null) {
+            throw new IllegalArgumentException("User ID is required");
+        }
         validateAdmin(adminId);
+
         return purchaseDomainService.getHistoryByUser(userId);
+    }
+
+    public List<PurchaseHistory> getHistoryByFilter(UUID adminId, String filterType, UUID filterId) {
+        if (filterType == null || filterType.isBlank()) {
+            throw new IllegalArgumentException("Filter type is required");
+        }
+        validateAdmin(adminId);
+
+        return switch (filterType.toLowerCase()) {
+            case "user" -> getHistoryByUser(adminId, filterId);
+            case "event" -> getHistoryByEvent(adminId, filterId);
+            case "company" -> getHistoryByCompany(adminId, filterId);
+            case "all" -> getAllHistory(adminId);
+            default -> throw new IllegalArgumentException("Invalid filter type");
+        };
     }
 
     public void selectStandingTickets(UUID eventID, int amount, UUID areaID, UUID userID, boolean isConfirmedAge)
@@ -82,17 +106,39 @@ public class PurchaseService {
     }
 
     public List<PurchaseHistory> getHistoryByEvent(UUID adminId, UUID eventId) {
+        if (eventId == null) {
+            throw new IllegalArgumentException("Event ID is required");
+        }
         validateAdmin(adminId);
         return purchaseDomainService.getHistoryByEvent(eventId);
     }
 
     public List<PurchaseHistory> getHistoryByCompany(UUID adminId, UUID companyId) {
+        if (companyId == null) {
+            throw new IllegalArgumentException("Company ID is required");
+        }
         validateAdmin(adminId);
         return purchaseDomainService.getHistoryByCompany(companyId);
     }
 
-    public List<PurchaseHistory> getPurchaseHistoryForMember(UUID userId) {
-        return purchaseDomainService.getPurchaseHistoryForMember(userId);
+    public List<PurchaseHistory> getPurchaseHistoryForMember(UUID memberId) {
+        if (memberId == null) {
+            throw new IllegalArgumentException("Member ID is required");
+        }
+
+        if (!purchaseDomainService.memberExists(memberId)) {
+            throw new IllegalArgumentException("Member does not exist");
+        }
+
+        if (!purchaseDomainService.isMember(memberId)) {
+            throw new IllegalArgumentException("User is not a member");
+        }
+
+        if (!purchaseDomainService.isMemberLoggedIn(memberId)) {
+            throw new IllegalArgumentException("Member is not logged in");
+        }
+
+        return purchaseDomainService.getPurchaseHistoryForMember(memberId);
     }
     public ActivePurchase viewActivePurchase(UUID activePurchaseId)
     {
@@ -152,6 +198,26 @@ public class PurchaseService {
         } catch (DomainException e) {
             throw new IllegalStateException("Couldn't update active purchase");
         }
+    }
+
+    public List<PurchaseHistory> getEventPurchaseHistoryForOwner(String ownerName, UUID eventId) {
+        if (ownerName == null) {
+            throw new IllegalArgumentException("Owner ID is required");
+        }
+
+        if (eventId == null) {
+            throw new IllegalArgumentException("Event ID is required");
+        }
+
+        if (!purchaseDomainService.eventExists(eventId)) {
+            throw new IllegalArgumentException("Event does not exist");
+        }
+
+        if (!purchaseDomainService.isCompanyOwnerOfEvent(ownerName, eventId)) {
+            throw new IllegalArgumentException("User is not authorized to view event purchase history");
+        }
+
+        return purchaseDomainService.getHistoryByEvent(eventId);
     }
 
 }

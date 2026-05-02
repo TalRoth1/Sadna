@@ -51,7 +51,7 @@ public class RolesDomainService {
         // notificationService.notifyCompanyClosed(...)
     }
 
-    public void removeCompanyMemberAsAdmin(String adminUsername, UUID companyId, String usernameToRemove) {
+    public void removeCompanyMemberAsAdmin(String adminUsername, String usernameToRemove) {
         if (adminUsername == null || adminUsername.isBlank()) {
             throw new IllegalArgumentException("Admin username is required");
         }
