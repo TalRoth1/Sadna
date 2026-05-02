@@ -9,6 +9,7 @@ import org.example.DomainLayer.UserAggregate.UserRole;
 import org.example.DomainLayer.UserAggregate.UserStatus;
 
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import org.example.ApplicationLayer.PaymentDetails;
 import org.example.DomainLayer.ActivePurchaseAggregate.IPaymentGateway;
@@ -104,9 +105,14 @@ public class PurchaseDomainService {
     {
         ActivePurchase activePurchase = purchaseRepository.findByID(activePurchaseID);
         if (activePurchase == null)
-            throw new DomainException("לא נמצאה הזמנה פעילה להשלמת רכישה");
+            throw new DomainException("Active Purchase Not Found");
         else if (activePurchase.isExpired(LocalDateTime.now()))
-            throw new DomainException("ההזמנה שרצינו להשלים פגת תוקף");
+            throw new DomainException("The Active Purchase Has Expired");
+        else if (!checkLastUpdate(activePurchase))
+        {
+            cancelActivePurchase(activePurchaseID);
+            throw new DomainException("Purchase canceled due to inactivity");
+        }
 
         Event event = eventRepository.getById(activePurchase.getEventID());
 
@@ -141,7 +147,7 @@ public class PurchaseDomainService {
             boolean paymentSucceeded = paymentGateway.pay(activePurchase.getUserID(), finalPrice, paymentDetails);
 
             if (!paymentSucceeded)
-                throw new DomainException("התשלום נכשל");
+                throw new DomainException("Payment failed");
 
             try {
                 ticketingGateway.issueTickets(activePurchase.getUserID(), activePurchase.getEventID(), activePurchase.getTicketIDs().keySet());
@@ -204,7 +210,12 @@ public class PurchaseDomainService {
     {
         ActivePurchase activePurchase = purchaseRepository.findByID(activePurchaseID);
         if (activePurchase == null) {
-            throw new DomainException("לא נמצאה הזמנה פעילה");
+            throw new DomainException("Active Purchase Not Found");
+        }
+        else if (!checkLastUpdate(activePurchase))
+        {
+            cancelActivePurchase(activePurchaseID);
+            throw new DomainException("Purchase canceled due to inactivity");
         }
 
         Event event = eventRepository.getById(activePurchase.getEventID());
@@ -214,7 +225,7 @@ public class PurchaseDomainService {
             if (activePurchase.isExpired(LocalDateTime.now())) {
                 event.releaseTickets(activePurchase.getTicketIDs());
                 purchaseRepository.deleteByID(activePurchaseID);
-                throw new DomainException("פג תוקף ההזמנה הפעילה");
+                throw new DomainException("Active Purchase Expired");
             }
 
             Map<UUID, Float> oldTickets = activePurchase.getTicketIDs();
@@ -230,10 +241,12 @@ public class PurchaseDomainService {
 
                 activePurchase.replaceTickets(newTicketPrices);
                 purchaseRepository.save(activePurchase);
+                activePurchase.update();
             }
             catch (DomainException | IllegalStateException e) {
                 List<UUID> oldticketsId = new ArrayList<>(oldTickets.keySet());
                 event.reserveSittingTickets(oldticketsId);
+                activePurchase.update();
                 throw e;
             }
         }
@@ -242,7 +255,12 @@ public class PurchaseDomainService {
     {
         ActivePurchase activePurchase = purchaseRepository.findByID(activePurchaseId);
         if (activePurchase == null) {
-            throw new DomainException("לא נמצאה הזמנה פעילה");
+            throw new DomainException("Active Purchase Not Found");
+        }
+        if (!checkLastUpdate(activePurchase))
+        {
+            cancelActivePurchase(activePurchaseId);
+            throw new DomainException("Purchase canceled due to inactivity");
         }
 
         Event event = eventRepository.getById(activePurchase.getEventID());
@@ -252,7 +270,7 @@ public class PurchaseDomainService {
             if (activePurchase.isExpired(LocalDateTime.now())) {
                 event.releaseTickets(activePurchase.getTicketIDs());
                 purchaseRepository.deleteByID(activePurchaseId);
-                throw new DomainException("פג תוקף ההזמנה הפעילה");
+                throw new DomainException("Active Purchase Expired");
             }
 
             Map<UUID, Float> oldTickets = activePurchase.getTicketIDs();
@@ -268,10 +286,12 @@ public class PurchaseDomainService {
 
                 activePurchase.replaceTickets(newTicketPrices);
                 purchaseRepository.save(activePurchase);
+                activePurchase.update();
             }
             catch (DomainException | IllegalStateException e) {
                 List<UUID> oldticketsId = new ArrayList<>(oldTickets.keySet());
                 event.reserveSittingTickets(oldticketsId);
+                activePurchase.update();
                 throw e;
             }
         }
@@ -282,7 +302,7 @@ public class PurchaseDomainService {
     {
         ActivePurchase activePurchase = purchaseRepository.findByID(activePurchaseId);
         if (activePurchase == null) {
-            throw new DomainException("לא נמצאה הזמנה פעילה");
+            throw new DomainException("Active Purchase Not Found");
         }
 
         Event event = eventRepository.getById(activePurchase.getEventID());
@@ -298,8 +318,13 @@ public class PurchaseDomainService {
     {
         ActivePurchase activePurchase = purchaseRepository.findByID(activePurchaseId);
         if (activePurchase == null) {
-            throw new DomainException("לא נמצאה הזמנה פעילה");
+            throw new DomainException("Active Purchase Not Found");
         }
+        else if(!checkLastUpdate(activePurchase))
+        {
+            cancelActivePurchase(activePurchaseId);
+            throw new DomainException("Purchase canceled due to inactivity");
+        }        
 
         Event event = eventRepository.getById(activePurchase.getEventID());
 
@@ -309,9 +334,13 @@ public class PurchaseDomainService {
             {
                 event.releaseTickets(activePurchase.getTicketIDs());
                 purchaseRepository.deleteByID(activePurchaseId);
-                throw new DomainException("פג תוקף ההזמנה שברצוננו לצפות");
+                throw new DomainException("Active Purchase Expired");
             }
-            else return activePurchase;
+            else
+            {
+                activePurchase.update();
+                return activePurchase;
+            }
         }
     }
 
@@ -354,5 +383,9 @@ public class PurchaseDomainService {
         }
 
         return company.isOwner(ownerName);
+    }
+    public boolean checkLastUpdate(ActivePurchase activePurchase)
+    {
+        return ChronoUnit.MINUTES.between(LocalDateTime.now(), activePurchase.getLastUpdate()) <= activePurchase.getMaxWaitTime();
     }
 }
