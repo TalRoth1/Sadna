@@ -181,6 +181,20 @@ public class RolesDomainService {
         company.removeDiscount(discountId);
     }
 
+    public void changeManagerPermissions(String ownerUsername, UUID companyId, String managerUsername, Set<CompanyPermission> newPremissions) {
+        if (ownerUsername == null || ownerUsername.isBlank()) {
+            throw new IllegalArgumentException("Owner username is required");
+        }
+
+        if (managerUsername == null || managerUsername.isBlank()) {
+            throw new IllegalArgumentException("Manager username is required");
+        }
+        Company company = companyRepository.findByID(companyId).get();
+        if (company == null)
+            throw new IllegalArgumentException("Company not found");
+        company.changeManagerPermissions(ownerUsername, managerUsername, newPremissions);
+    }
+    
     public void rateCompany(UUID userID, UUID companyID, int rating) {
         Company company = companyRepository.findByID(companyID).get();
 

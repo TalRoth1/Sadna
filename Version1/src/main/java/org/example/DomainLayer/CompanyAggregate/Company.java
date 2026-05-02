@@ -169,6 +169,7 @@ public Company(String founderUsername, String name) {
         members.put(appointeeUsername, newManager);
         return true;
     }
+
     public boolean appointNewOwner(String appointeeUsername, String appointerUsername)
     {
         if (!isCompanyMember(appointerUsername) || !(members.get(appointerUsername) instanceof CompanyOwner))
@@ -195,6 +196,24 @@ public Company(String founderUsername, String name) {
         CompanyOwner newOwner = new CompanyOwner(appointeeUsername, (CompanyOwner) members.get(appointerUsername));
         members.put(appointeeUsername, newOwner);
         return true;
+    }
+
+    public void changeManagerPermissions(String ownerUsername, String managerUsername, Set<CompanyPermission> newPermissions)
+    {
+        if (!isCompanyMember(ownerUsername) || !(members.get(ownerUsername) instanceof CompanyOwner))
+        {
+            throw new IllegalArgumentException("The user changing the permissions is not a company owner and therefore cannot change manager permissions");
+        }
+        if (!isCompanyMember(managerUsername) || !(members.get(managerUsername) instanceof CompanyManager))
+        {
+            throw new IllegalArgumentException("The user whose permissions are being changed is not a company manager and therefore cannot have his/her permissions changed");
+        }
+        CompanyManager manager = (CompanyManager) members.get(managerUsername);
+        if (!manager.isSubordinateOf(ownerUsername))
+        {
+            throw new IllegalArgumentException("The manager whose permissions are being changed is not a subordinate of the owner changing the permissions and therefore cannot have his/her permissions changed by him/her");
+        }
+        manager.setNewPremissions(newPermissions);
     }
 
     public boolean hasPremision(String username, CompanyPermission premision, UUID eventId)

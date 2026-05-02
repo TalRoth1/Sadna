@@ -5,11 +5,15 @@ import java.util.Set;
 import java.util.UUID;
 
 public class CompanyManager extends ICompanyMember {
-    private final Set<CompanyPermission> premissions;
+    private Set<CompanyPermission> premissions;
 
     public CompanyManager(String username, CompanyOwner Appointer, Set<CompanyPermission> premissions) {
         super(username, Appointer);
         this.premissions = new HashSet<>(premissions);
+    }
+
+    public void setNewPremissions(Set<CompanyPermission> newPremissions) {
+        this.premissions = new HashSet<>(newPremissions);
     }
 
     public Set<CompanyPermission> getPremissions() {

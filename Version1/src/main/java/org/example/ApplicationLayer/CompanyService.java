@@ -131,4 +131,15 @@ public class CompanyService {
             //TODO: Handle the domain exception appropriately
         }
     }
+
+    public void changeManagerPermissions(String ownerUsername, UUID companyId, String managerUsername, Set<CompanyPermission> newPremissions) {
+        if (ownerUsername == null || ownerUsername.isBlank()) {
+            throw new IllegalArgumentException("Owner username is required");
+        }
+
+        if (managerUsername == null || managerUsername.isBlank()) {
+            throw new IllegalArgumentException("Manager username is required");
+        }
+        rolesDomainService.changeManagerPermissions(ownerUsername, companyId, managerUsername, newPremissions);
+    }
 }
