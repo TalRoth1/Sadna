@@ -291,4 +291,10 @@ public class PurchaseDomainService {
         }
         return activePurchase;
     }
+    public void setPaymentGateway(IPaymentGateway paymentGateway) {
+        this.paymentGateway = paymentGateway;
+    }
+    public void setTicketingGateway(ITicketingGateway ticketingGateway) {
+        this.ticketingGateway = ticketingGateway;
+    }
 }

@@ -1,12 +1,16 @@
 package org.example.ApplicationLayer;
 
+import net.bytebuddy.dynamic.TypeResolutionStrategy;
 import org.example.DomainLayer.*;
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
+import org.example.DomainLayer.ActivePurchaseAggregate.IPaymentGateway;
+import org.example.DomainLayer.ActivePurchaseAggregate.ITicketingGateway;
 import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.DomainLayer.EventAggregate.*;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.example.DomainLayer.UserAggregate.User;
 import org.junit.Test;
+import org.w3c.dom.DOMException;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -280,37 +284,272 @@ public class PurchaseServiceTest
 
 
     //בדיקות רגילות
+    @Test
     public void selectStandingTickets_success()
     {
+        TestSetup setup = createSetup();
 
+        UUID eventId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID companyId = UUID.randomUUID();
+        UUID ticketId = UUID.randomUUID();
+        UUID areaID = UUID.randomUUID();
+
+        Event event = new Event(eventId, companyId, LocalDateTime.now(), "dssdsd", "sdsdsd", "sdsd", EventStatus.ACTIVE);
+        event.getLayout().addArea(new StandingArea(areaID, 100f));
+        event.addTicket(new StandingTicket(ticketId, eventId, areaID, 100f));
+
+        setup.inMemoryEventRepository.save(event);
+
+        User user = new User(userId, "hello", "hello", "hello", 20);
+        setup.innMemoryUserRepository.add(user);
+
+        setup.purchaseService.selectStandingTickets(eventId, 1, areaID, userId, false);
+
+        ActivePurchase activePurchase = setup.inMemoryPurchaseRepository.findByUserID(userId);
+        assertNotNull(activePurchase);
+        assertEquals(event.getEventId(), activePurchase.getEventID());
+        assertTrue(activePurchase.getTicketIDs().containsKey(ticketId));
+        assertEquals(TicketStatus.RESERVED, event.getTicket(ticketId).getStatus());
     }
+    @Test
     public void selectStandingTickets_failure()
     {
+        TestSetup setup = createSetup();
 
+        UUID eventId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID companyId = UUID.randomUUID();
+        UUID ticketId = UUID.randomUUID();
+        UUID areaID = UUID.randomUUID();
+
+        Event event = new Event(eventId, companyId, LocalDateTime.now(), "dssdsd", "sdsdsd", "sdsd", EventStatus.ACTIVE);
+        event.getLayout().addArea(new StandingArea(areaID, 100f));
+        event.addTicket(new StandingTicket(ticketId, eventId, areaID, 100f));
+
+        setup.inMemoryEventRepository.save(event);
+
+        User user = new User(userId, "hello", "hello", "hello", 20);
+        setup.innMemoryUserRepository.add(user);
+
+        assertThrows(IllegalStateException.class, () -> setup.purchaseService.selectStandingTickets(eventId, 2, areaID, userId, false));
+        ActivePurchase activePurchase = setup.inMemoryPurchaseRepository.findByUserID(userId);
+        assertNull(activePurchase);
     }
+    @Test
     public void completePurchase_success()
     {
+        TestSetup setup = createSetup();
+
+        UUID eventId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID companyId = UUID.randomUUID();
+        UUID ticketId = UUID.randomUUID();
+        UUID areaID = UUID.randomUUID();
+
+        Event event = new Event(eventId, companyId, LocalDateTime.now(), "dssdsd", "sdsdsd", "sdsd", EventStatus.ACTIVE);
+        event.getLayout().addArea(new StandingArea(areaID, 100f));
+        event.addTicket(new StandingTicket(ticketId, eventId, areaID, 100f));
+
+        IPaymentGateway paymentGateway = new IPaymentGateway() {
+            @Override
+            public boolean pay(UUID userID, float amount, PaymentDetails paymentDetails) {
+                return true;
+            }
+        };
+        ITicketingGateway ticketingGateway = new ITicketingGateway() {
+            @Override
+            public void issueTickets(UUID userId, UUID eventId, Set<UUID> ticketIds) {
+
+            }
+        };
+
+        setup.purchaseDomainService.setPaymentGateway(paymentGateway);
+        setup.purchaseDomainService.setTicketingGateway(ticketingGateway);
+
+
+
+        setup.inMemoryEventRepository.save(event);
+
+        User user = new User(userId, "hello", "hello", "hello", 20);
+        setup.innMemoryUserRepository.add(user);
+
+        setup.purchaseService.selectStandingTickets(eventId, 1, areaID, userId, false);
+        ActivePurchase activePurchase = setup.inMemoryPurchaseRepository.findByUserID(userId);
+
+        setup.purchaseService.completePurchase(activePurchase.getActivePurchaseId(), new PaymentDetails(), null);
+
+        assertNull(setup.inMemoryPurchaseRepository.findByID(activePurchase.getActivePurchaseId()));
+
+        Ticket ticket = event.getTicket(ticketId);
+        assertEquals(TicketStatus.SOLD, ticket.getStatus());
 
     }
+    @Test
     public void completePurchase_failure()
     {
+        TestSetup setup = createSetup();
 
+        UUID eventId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID companyId = UUID.randomUUID();
+        UUID ticketId = UUID.randomUUID();
+        UUID areaID = UUID.randomUUID();
+
+        Event event = new Event(eventId, companyId, LocalDateTime.now(), "dssdsd", "sdsdsd", "sdsd", EventStatus.ACTIVE);
+        event.getLayout().addArea(new StandingArea(areaID, 100f));
+        event.addTicket(new StandingTicket(ticketId, eventId, areaID, 100f));
+
+        IPaymentGateway paymentGateway = new IPaymentGateway() {
+            @Override
+            public boolean pay(UUID userID, float amount, PaymentDetails paymentDetails) {
+                return false;
+            }
+        };
+        ITicketingGateway ticketingGateway = new ITicketingGateway() {
+            @Override
+            public void issueTickets(UUID userId, UUID eventId, Set<UUID> ticketIds) {
+
+            }
+        };
+
+        setup.purchaseDomainService.setPaymentGateway(paymentGateway);
+        setup.purchaseDomainService.setTicketingGateway(ticketingGateway);
+
+        setup.inMemoryEventRepository.save(event);
+
+        User user = new User(userId, "hello", "hello", "hello", 20);
+        setup.innMemoryUserRepository.add(user);
+
+        setup.purchaseService.selectStandingTickets(eventId, 1, areaID, userId, false);
+        ActivePurchase activePurchase = setup.inMemoryPurchaseRepository.findByUserID(userId);
+
+        assertThrows(IllegalStateException.class, () -> setup.purchaseService.completePurchase(activePurchase.getActivePurchaseId(), new PaymentDetails(), null));
     }
+    @Test
     public void cancelPurchase_success()
     {
+        TestSetup setup = createSetup();
 
+        UUID eventId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID companyId = UUID.randomUUID();
+        UUID ticketId = UUID.randomUUID();
+        UUID areaID = UUID.randomUUID();
+
+        Event event = new Event(eventId, companyId, LocalDateTime.now(), "loc", "artist", "type", EventStatus.ACTIVE);
+        event.getLayout().addArea(new SittingArea(areaID, 100f));
+        event.addTicket(new SittingTicket(ticketId, eventId, areaID, 100f, 1, 1));
+
+        setup.inMemoryEventRepository.save(event);
+        setup.innMemoryUserRepository.add(new User(userId, "user", "email", "pass", 20));
+
+        setup.queueManager.requestSelectionAccess(userId, eventId);
+
+        setup.purchaseService.selectSittingTickets(eventId, List.of(ticketId), userId, false);
+
+        ActivePurchase activePurchase = setup.inMemoryPurchaseRepository.findByUserID(userId);
+        assertNotNull(activePurchase);
+        assertEquals(TicketStatus.RESERVED, event.getTicket(ticketId).getStatus());
+
+        setup.purchaseService.cancelActivePurchase(activePurchase.getActivePurchaseId());
+
+        assertNull(setup.inMemoryPurchaseRepository.findByID(activePurchase.getActivePurchaseId()));
+        assertEquals(TicketStatus.AVAILABLE, event.getTicket(ticketId).getStatus());
     }
+    @Test
     public void cancelPurchase_failure()
     {
+        TestSetup setup = createSetup();
 
+        UUID nonExistingId = UUID.randomUUID();
+
+        assertThrows(IllegalStateException.class, () ->
+                setup.purchaseService.cancelActivePurchase(nonExistingId)
+        );
     }
+    @Test
     public void updateActivePurchase_success()
     {
+        TestSetup setup = createSetup();
 
+        UUID eventId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID companyId = UUID.randomUUID();
+        UUID areaID = UUID.randomUUID();
+
+        UUID oldTicketId = UUID.randomUUID();
+        UUID newTicketId = UUID.randomUUID();
+
+        Event event = new Event(eventId, companyId, LocalDateTime.now(), "loc", "artist", "type", EventStatus.ACTIVE);
+        event.getLayout().addArea(new SittingArea(areaID, 100f));
+        event.addTicket(new SittingTicket(oldTicketId, eventId, areaID, 100f, 1, 1));
+        event.addTicket(new SittingTicket(newTicketId, eventId, areaID, 100f, 2, 1));
+
+        setup.inMemoryEventRepository.save(event);
+        setup.innMemoryUserRepository.add(new User(userId, "user", "email", "pass", 20));
+
+        setup.queueManager.requestSelectionAccess(userId, eventId);
+        setup.purchaseService.selectSittingTickets(eventId, List.of(oldTicketId), userId, false);
+
+        ActivePurchase purchase = setup.inMemoryPurchaseRepository.findByUserID(userId);
+
+        setup.purchaseService.updateActivePurchaseSittingTickets(
+                purchase.getActivePurchaseId(),
+                List.of(newTicketId)
+        );
+
+        ActivePurchase updated = setup.inMemoryPurchaseRepository.findByID(purchase.getActivePurchaseId());
+
+        assertFalse(updated.getTicketIDs().containsKey(oldTicketId));
+        assertTrue(updated.getTicketIDs().containsKey(newTicketId));
+
+        assertEquals(TicketStatus.AVAILABLE, event.getTicket(oldTicketId).getStatus());
+        assertEquals(TicketStatus.RESERVED, event.getTicket(newTicketId).getStatus());
     }
+    @Test
     public void updateActivePurchase_failure()
     {
+        TestSetup setup = createSetup();
 
+        UUID eventId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID companyId = UUID.randomUUID();
+        UUID areaID = UUID.randomUUID();
+
+        UUID oldTicketId = UUID.randomUUID();
+        UUID newTicketId = UUID.randomUUID();
+
+        Event event = new Event(eventId, companyId, LocalDateTime.now(), "loc", "artist", "type", EventStatus.ACTIVE);
+        event.getLayout().addArea(new SittingArea(areaID, 100f));
+        event.addTicket(new SittingTicket(oldTicketId, eventId, areaID, 100f, 1, 1));
+        event.addTicket(new SittingTicket(newTicketId, eventId, areaID, 100f, 2, 1));
+
+        setup.inMemoryEventRepository.save(event);
+        setup.innMemoryUserRepository.add(new User(userId, "user", "email", "pass", 20));
+
+        setup.queueManager.requestSelectionAccess(userId, eventId);
+        setup.purchaseService.selectSittingTickets(eventId, List.of(oldTicketId), userId, false);
+
+        ActivePurchase purchase = setup.inMemoryPurchaseRepository.findByUserID(userId);
+
+        // גורמים לכרטיס החדש להיות תפוס
+        event.getTicket(newTicketId).reserve();
+
+        assertThrows(IllegalStateException.class, () ->
+                setup.purchaseService.updateActivePurchaseSittingTickets(
+                        purchase.getActivePurchaseId(),
+                        List.of(newTicketId)
+                )
+        );
+
+        ActivePurchase unchanged = setup.inMemoryPurchaseRepository.findByID(purchase.getActivePurchaseId());
+
+        assertTrue(unchanged.getTicketIDs().containsKey(oldTicketId));
+        assertFalse(unchanged.getTicketIDs().containsKey(newTicketId));
+
+        assertEquals(TicketStatus.RESERVED, event.getTicket(oldTicketId).getStatus());
+        assertEquals(TicketStatus.RESERVED, event.getTicket(newTicketId).getStatus());
     }
 
     private static class InMemoryPurchaseRepository implements IPurchaseRepository
