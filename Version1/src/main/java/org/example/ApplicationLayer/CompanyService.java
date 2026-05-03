@@ -146,4 +146,11 @@ public class CompanyService {
         }
         rolesDomainService.changeManagerPermissions(ownerUsername, companyId, managerUsername, newPremissions);
     }
+
+    public String getCompanyHierarchyMermaid(UUID companyId, String requesterUsername) {
+        if (requesterUsername == null || requesterUsername.isBlank()) {
+            throw new IllegalArgumentException("Requester username is required");
+        }
+        return rolesDomainService.getCompanyHierarchyMermaid(companyId, requesterUsername);
+    }
 }
