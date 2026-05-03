@@ -1,21 +1,21 @@
 package org.example.DomainLayer.LotteryAggregate;
 
-import org.example.DomainLayer.DomainException;
-
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.ArrayList;
-import java.util.List;
+
+import org.example.DomainLayer.DomainException;
 
 public class PuchaseLottery {
 
-    private final String lotteryId;
-    private final String eventId;
+    private final UUID lotteryId;
+    private final UUID eventId;
     private final LocalDateTime registrationOpen;
     private final LocalDateTime registrationClose;
     private final Set<String> registeredUsers;
@@ -26,15 +26,15 @@ public class PuchaseLottery {
     private final Map<String, LocalDateTime> winnerCodeExpiry;
 
     
-    public PuchaseLottery(String lotteryId,
-                          String eventId,
+    public PuchaseLottery(UUID lotteryId,
+                          UUID eventId,
                           LocalDateTime registrationOpen,
                           LocalDateTime registrationClose) {
-        if (lotteryId == null || lotteryId.isBlank()) {
-            throw new DomainException("Lottery id cannot be empty");
+        if (lotteryId == null) {
+            throw new DomainException("Lottery id cannot be null");
         }
-        if (eventId == null || eventId.isBlank()) {
-            throw new DomainException("Event id cannot be empty");
+        if (eventId == null) {
+            throw new DomainException("Event id cannot be null");
         }
         if (registrationOpen == null || registrationClose == null) {
             throw new DomainException("Registration dates cannot be null");
@@ -54,11 +54,11 @@ public class PuchaseLottery {
         this.winnerCodeExpiry = new HashMap<>();
     }
 
-    public String getLotteryId() {
+    public UUID getLotteryId() {
         return lotteryId;
     }
 
-    public String getEventId() {
+    public UUID getEventId() {
         return eventId;
     }
 
@@ -200,8 +200,16 @@ public class PuchaseLottery {
             throw new DomainException("No tickets available for lottery");
         }
 
+        if (registeredUsers.isEmpty()) {
+            throw new DomainException("No registered users to draw from");
+        }
+
         if (codeExpiry == null) {
             throw new DomainException("Code expiry cannot be null");
+        }
+
+        if (!winnerUsers.isEmpty()) {
+            throw new DomainException("Winners have already been drawn for this lottery");
         }
 
         List<String> candidates = new ArrayList<>(registeredUsers);

@@ -1,25 +1,25 @@
 package org.example.DomainLayer;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+import org.example.ApplicationLayer.PaymentDetails;
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
+import org.example.DomainLayer.ActivePurchaseAggregate.IPaymentGateway;
+import org.example.DomainLayer.ActivePurchaseAggregate.ITicketingGateway;
+import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.DomainLayer.EventAggregate.Event;
+import org.example.DomainLayer.LotteryAggregate.PuchaseLottery;
+import org.example.DomainLayer.PolicyAggregate.DiscountPolicy;
 import org.example.DomainLayer.PurchaseHistoryAggregate.Payment;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.example.DomainLayer.UserAggregate.User;
 import org.example.DomainLayer.UserAggregate.UserRole;
 import org.example.DomainLayer.UserAggregate.UserStatus;
-
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import org.example.ApplicationLayer.PaymentDetails;
-import org.example.DomainLayer.ActivePurchaseAggregate.IPaymentGateway;
-import org.example.DomainLayer.ActivePurchaseAggregate.ITicketingGateway;
-import org.example.DomainLayer.CompanyAggregate.Company;
-import org.example.DomainLayer.PolicyAggregate.DiscountPolicy;
-
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
 
 public class PurchaseDomainService {
     private final IHistoryRepository historyRepository;
@@ -27,6 +27,7 @@ public class PurchaseDomainService {
     private final IPurchaseRepository purchaseRepository;
     private final ICompanyRepository companyRepository;
     private final IUserRepository userRepository;
+    private final ILotteryRepository lotteryRepository;
 
     IPaymentGateway paymentGateway;
     ITicketingGateway ticketingGateway;
@@ -36,12 +37,14 @@ public class PurchaseDomainService {
                                  IEventRepository eventRepository,
                                  IPurchaseRepository purchaseRepository,
                                  ICompanyRepository companyRepository,
-                                 IUserRepository userRepository) {
+                                 IUserRepository userRepository,
+                                 ILotteryRepository lotteryRepository) {
         this.historyRepository = historyRepository;
         this.eventRepository = eventRepository;
         this.purchaseRepository = purchaseRepository;
         this.companyRepository = companyRepository;
         this.userRepository = userRepository;
+        this.lotteryRepository = lotteryRepository;
     }
 
     public void addPurchaseToHistory(UUID userId, List<UUID> ticketIds, UUID eventId, Payment payment) {
@@ -354,5 +357,68 @@ public class PurchaseDomainService {
         }
 
         return company.isOwner(ownerName);
+    }
+
+
+    public void registerToLottery(UUID eventId, UUID memberId, int ticketAmount) {
+        if (eventId == null || memberId == null) {
+            throw new DomainException("Event ID and member ID are required");
+        }
+
+        if (ticketAmount <= 0) {
+            throw new DomainException("Ticket amount must be greater than zero");
+        }
+
+        if (!memberExists(memberId)) {
+            throw new DomainException("Member does not exist");
+        }
+
+        if (!isMember(memberId)) {
+            throw new DomainException("User is not a member");
+        }
+
+        if (!isMemberLoggedIn(memberId)) {
+            throw new DomainException("Member is not logged in");
+        }
+
+        Event event = eventRepository.getById(eventId);
+        if (event == null) {
+            throw new DomainException("Event does not exist");
+        }
+
+        PuchaseLottery lottery = lotteryRepository.findByEventID(eventId);
+        if (lottery == null) {
+            throw new DomainException("Lottery does not exist for this event");
+        }
+
+        lottery.registerMember(memberId.toString(), ticketAmount, LocalDateTime.now());
+
+        lotteryRepository.save(lottery);
+    }
+
+    public void drawLotteryForEvent(UUID eventId, LocalDateTime codeExpiry) {
+        if (eventId == null) {
+            throw new DomainException("Event ID is required");
+        }
+
+        if (codeExpiry == null) {
+            throw new DomainException("Code expiry is required");
+        }
+
+        Event event = eventRepository.getById(eventId);
+        if (event == null) {
+            throw new DomainException("Event does not exist");
+        }
+
+        PuchaseLottery lottery = lotteryRepository.findByEventID(eventId);
+        if (lottery == null) {
+            throw new DomainException("Lottery does not exist for this event");
+        }
+
+        int availableTickets = event.getTicketsView().size();
+
+        lottery.drawWinners(availableTickets, codeExpiry);
+
+        lotteryRepository.save(lottery);
     }
 }

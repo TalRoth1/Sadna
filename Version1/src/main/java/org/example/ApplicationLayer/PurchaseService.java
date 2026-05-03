@@ -1,12 +1,13 @@
 package org.example.ApplicationLayer;
 
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
+
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 import org.example.DomainLayer.DomainException;
 import org.example.DomainLayer.PurchaseDomainService;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
-
-import java.util.List;
-import java.util.UUID;
 
 public class PurchaseService {
     private final PurchaseDomainService purchaseDomainService;
@@ -219,5 +220,39 @@ public class PurchaseService {
 
         return purchaseDomainService.getHistoryByEvent(eventId);
     }
+    public void registerToLottery(UUID eventId, UUID memberId, int ticketAmount) {
+        if (eventId == null) {
+            throw new IllegalArgumentException("Event ID is required");
+        }
 
+        if (memberId == null) {
+            throw new IllegalArgumentException("Member ID is required");
+        }
+
+        if (ticketAmount <= 0) {
+            throw new IllegalArgumentException("Ticket amount must be greater than zero");
+        }
+
+        try {
+            purchaseDomainService.registerToLottery(eventId, memberId, ticketAmount);
+        } catch (DomainException e) {
+            throw new IllegalStateException("Couldn't register to lottery: " + e.getMessage());
+        }
+    }
+
+    public void drawLotteryForEvent(UUID eventId, LocalDateTime codeExpiry) {
+        if (eventId == null) {
+            throw new IllegalArgumentException("Event ID is required");
+        }
+
+        if (codeExpiry == null) {
+            throw new IllegalArgumentException("Code expiry is required");
+        }
+
+        try {
+            purchaseDomainService.drawLotteryForEvent(eventId, codeExpiry);
+        } catch (DomainException e) {
+            throw new IllegalStateException("Couldn't draw lottery: " + e.getMessage());
+        }
+    }
 }
