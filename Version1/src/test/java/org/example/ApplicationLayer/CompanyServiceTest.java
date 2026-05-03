@@ -1,5 +1,6 @@
 package org.example.ApplicationLayer;
 
+import org.example.DomainLayer.PurchaseDomainService;
 import org.example.DomainLayer.RolesDomainService;
 import org.junit.Before;
 import org.junit.Test;
@@ -12,12 +13,14 @@ import static org.mockito.Mockito.*;
 public class CompanyServiceTest {
 
     private RolesDomainService rolesDomainServiceMock;
+    private PurchaseDomainService purchaseDomainServiceMock;
     private CompanyService companyService;
 
     @Before
     public void setUp() {
         rolesDomainServiceMock = mock(RolesDomainService.class);
-        companyService = new CompanyService(rolesDomainServiceMock);
+        purchaseDomainServiceMock = mock(PurchaseDomainService.class);
+        companyService = new CompanyService(rolesDomainServiceMock, purchaseDomainServiceMock);
     }
 
     /* Test cases for closeCompanyAsAdmin method */
