@@ -330,6 +330,7 @@ public class PurchaseServiceTest
         User user = new User(userId, "hello", "hello", "hello", 20);
         setup.innMemoryUserRepository.add(user);
 
+        //יש רק ticket אחד ב-event ואנחנו מנסים לקנות 2
         assertThrows(IllegalStateException.class, () -> setup.purchaseService.selectStandingTickets(eventId, 2, areaID, userId, false));
         ActivePurchase activePurchase = setup.inMemoryPurchaseRepository.findByUserID(userId);
         assertNull(activePurchase);
