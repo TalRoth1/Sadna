@@ -305,15 +305,17 @@ public Company(String founderUsername, String name) {
 
     public void addPurchasePolicy(Optional<Float> age, Optional<Integer> minTicket, Optional<Integer> maxTicket, Optional<Boolean> allowLoneSeat)
     {
-        if(Optional.ofNullable(age).isPresent())
-            this.purchasePolicy.addRule(new AgeRule(age.get()));
-        if(Optional.ofNullable(minTicket).isPresent())
-            this.purchasePolicy.addRule(new MinTicketRule(minTicket.get()));
-        if(Optional.ofNullable(maxTicket).isPresent())
-            this.purchasePolicy.addRule(new MaxTicketRule(maxTicket.get()));
-        if(Optional.ofNullable(allowLoneSeat).isPresent())
-            this.purchasePolicy.addRule(new LoneSeatRule(allowLoneSeat.get()));
-
+    if (age != null && age.isPresent()) 
+        this.purchasePolicy.addRule(new AgeRule(age.get()));
+        
+    if (minTicket != null && minTicket.isPresent()) 
+        this.purchasePolicy.addRule(new MinTicketRule(minTicket.get()));
+        
+    if (maxTicket != null && maxTicket.isPresent()) 
+        this.purchasePolicy.addRule(new MaxTicketRule(maxTicket.get()));
+        
+    if (allowLoneSeat != null && allowLoneSeat.isPresent()) 
+        this.purchasePolicy.addRule(new LoneSeatRule(allowLoneSeat.get()));
     }
 
     public void deletePurchaseRule(boolean age, boolean minTicket, boolean maxTicket, boolean allowLoneSeat)

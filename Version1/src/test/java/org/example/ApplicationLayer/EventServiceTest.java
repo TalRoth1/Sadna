@@ -1,12 +1,150 @@
 package org.example.ApplicationLayer;
 
+import org.example.DomainLayer.EventAggregate.Event;
+import org.example.DomainLayer.EventAggregate.EventStatus;
+import org.example.DomainLayer.EventManagementDomainService;
+import org.example.DomainLayer.ICompanyRepository;
+import org.example.DomainLayer.IEventRepository;
+import org.example.DomainLayer.IHistoryRepository;
+import org.example.DomainLayer.PolicyAggregate.AgeRule;
+import org.example.DomainLayer.PolicyAggregate.LoneSeatRule;
+import org.example.DomainLayer.PolicyAggregate.OvertDiscount;
+import org.junit.Before;
 import org.junit.Test;
-import static org.junit.Assert.*;
+import org.junit.runner.RunWith;
+import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnitRunner;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.Optional;
+import java.util.UUID;
+
+import static org.junit.Assert.*;
+import static org.mockito.Mockito.*;
+
+@RunWith(MockitoJUnitRunner.class)
 public class EventServiceTest {
 
+    @Mock
+    private IEventRepository eventRepositoryMock;
+    @Mock
+    private ICompanyRepository companyRepositoryMock;
+    @Mock
+    private IHistoryRepository historyRepositoryMock;
+
+    private EventService eventService;
+    private EventManagementDomainService eventManagementDomainService;
+
+    @Before
+    public void setUp() {
+        // Using real Domain Service logic to track state changes in the Event object
+        eventManagementDomainService = new EventManagementDomainService(
+                eventRepositoryMock, 
+                historyRepositoryMock, 
+                companyRepositoryMock
+        );
+        eventService = new EventService(eventManagementDomainService);
+    }
+
+    private Event createTestEvent() {
+        return new Event(
+            UUID.randomUUID(), 
+            UUID.randomUUID(), 
+            LocalDateTime.now().plusDays(10), 
+            "Tel Aviv", 
+            "Artist Name", 
+            "Concert", 
+            EventStatus.ACTIVE
+        );
+    }
+
     @Test
-    public void testAddUser() {
-        assertTrue(true);
+    public void testAddPolicyRule_ActuallyPersistsInEvent() {
+        // Arrange
+        Event realEvent = createTestEvent();
+        UUID eventId = realEvent.getEventId();
+        when(eventRepositoryMock.getById(eventId)).thenReturn(Optional.of(realEvent).get());
+
+        // Act
+        eventService.addPolicyRule(eventId, Optional.of(18.0f), Optional.empty(), Optional.empty(), Optional.of(true));
+
+        // Assert
+        var rules = realEvent.getPurchasePolicy().getRulesView();
+        assertEquals("Should have 2 rules added", 2, rules.size());
+        assertTrue(rules.stream().anyMatch(r -> r instanceof AgeRule));
+        assertTrue(rules.stream().anyMatch(r -> r instanceof LoneSeatRule));
+    }
+
+    @Test
+    public void testAddMultiplePolicyRules_ReplacementLogic() {
+        // Arrange
+        Event realEvent = createTestEvent();
+        UUID eventId = realEvent.getEventId();
+        when(eventRepositoryMock.getById(eventId)).thenReturn(Optional.of(realEvent).get());
+
+        // Act: Add 18+, then update to 21+
+        eventService.addPolicyRule(eventId, Optional.of(18.0f), Optional.empty(), Optional.empty(), Optional.empty());
+        eventService.addPolicyRule(eventId, Optional.of(21.0f), Optional.empty(), Optional.empty(), Optional.empty());
+
+        // Assert
+        var rules = realEvent.getPurchasePolicy().getRulesView();
+        long ageRuleCount = rules.stream().filter(r -> r instanceof AgeRule).count();
+        
+        assertEquals("Should only have one AgeRule", 1, ageRuleCount);
+        assertEquals(21.0f, ((AgeRule)rules.get(0)).getMinAge(), 0.01);
+    }
+
+    @Test
+    public void testDeleteSpecificPolicyRules() {
+        // Arrange
+        Event realEvent = createTestEvent();
+        UUID eventId = realEvent.getEventId();
+        // Setup initial state with two rules
+        realEvent.addPurchasePolicy(Optional.of(18.0f), Optional.empty(), Optional.empty(), Optional.of(false));
+        when(eventRepositoryMock.getById(eventId)).thenReturn(Optional.of(realEvent).get());
+
+        // Act: Delete AgeRule, keep LoneSeatRule
+        eventService.deletePolicyRule(eventId, true, false, false, false);
+
+        // Assert
+        var rules = realEvent.getPurchasePolicy().getRulesView();
+        assertEquals("Should have 1 rule remaining", 1, rules.size());
+        assertTrue("Remaining rule should be LoneSeatRule", rules.get(0) instanceof LoneSeatRule);
+    }
+
+    @Test
+    public void testAddOvertDiscount_VerifyStatePersistence() {
+        // Arrange
+        Event realEvent = createTestEvent();
+        UUID eventId = realEvent.getEventId();
+        when(eventRepositoryMock.getById(eventId)).thenReturn(Optional.of(realEvent).get());
+
+        // Act
+        eventService.addOvertDiscount(eventId, LocalDate.now(), LocalDate.now().plusDays(7), 20.0f);
+
+        // Assert
+        var discounts = realEvent.getDiscountPolicy().gDiscountRules();
+        assertFalse("Discount list should not be empty", discounts.isEmpty());
+        assertTrue("Discount should be OvertDiscount type", discounts.get(0) instanceof OvertDiscount);
+    }
+
+    @Test
+    public void testRemoveDiscount_VerifyRemovalByID() {
+        // Arrange
+        Event realEvent = createTestEvent();
+        UUID eventId = realEvent.getEventId();
+        when(eventRepositoryMock.getById(eventId)).thenReturn(Optional.of(realEvent).get());
+
+        // Add a discount to get an ID
+        realEvent.addOvertDiscount(LocalDate.now(), LocalDate.now().plusDays(7), 20.0f);
+        UUID discountId = realEvent.getDiscountPolicy().gDiscountRules().get(0).getId();
+
+        // Act
+        eventService.removeDiscount(eventId, discountId);
+
+        // Assert
+        assertTrue("Discount list should be empty after removal", 
+                    realEvent.getDiscountPolicy().gDiscountRules().isEmpty());
     }
 }

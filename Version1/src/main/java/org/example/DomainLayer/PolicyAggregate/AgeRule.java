@@ -16,4 +16,9 @@ public class AgeRule implements IPurchaseRule {
     {
         return user.getAge() >= this.minAge;
     }
+
+    public float getMinAge()
+    {
+        return this.minAge;
+    }
 }
