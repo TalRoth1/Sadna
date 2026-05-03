@@ -6,7 +6,6 @@ import org.example.DomainLayer.PurchaseDomainService;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 
 import java.util.List;
-import java.util.Queue;
 import java.util.UUID;
 
 public class PurchaseService {
@@ -27,7 +26,7 @@ public class PurchaseService {
     {
         QueueAccessResult result = queueManager.requestSelectionAccess(userId, eventId);
         if (!result.isAllowed())
-            throw new IllegalStateException("User is waiting in queue. Position: " + result.getPosition() + "/" + result.getQueueSize());
+            throw new IllegalStateException("User is waiting in queue. Position: " + result.getUserPositionInQueue() + "/" + result.getQueueSize());
     }
 
     public void selectSittingTickets(UUID eventID, List<UUID> ticketIDs, UUID userID, boolean isConfirmedAge)
@@ -45,7 +44,7 @@ public class PurchaseService {
             purchaseDomainService.selectSittingTickets(eventID, ticketIDs, userID, isConfirmedAge);
 
             //רק אם נוצר active purchase אז אנחנו מסירים מהמשתמש את ההרשאה לבחור
-            queueManager.consumeAccess(userID, eventID);
+            queueManager.finishAccess(userID, eventID);
             queueManager.releaseBatch(eventID, 1);
 
         } catch (DomainException e) {
@@ -69,7 +68,7 @@ public class PurchaseService {
             purchaseDomainService.selectStandingTickets(eventID, amount, userID, areaID, isConfirmedAge);
 
             //רק אם נוצר active purchase אז אנחנו מסירים מהמשתמש את ההרשאה לבחור
-            queueManager.consumeAccess(userID, eventID);
+            queueManager.finishAccess(userID, eventID);
             queueManager.releaseBatch(eventID, 1);
         }
         catch (DomainException e)

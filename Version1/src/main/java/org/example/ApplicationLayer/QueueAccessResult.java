@@ -2,14 +2,14 @@ package org.example.ApplicationLayer;
 
 public class QueueAccessResult
 {
-    private final boolean allowed;
-    private final int position;
-    private final int queueSize;
+    private boolean allowed;
+    private int userPositionInQueue;
+    private int queueSize;
 
-    public QueueAccessResult(boolean allowed, int position, int queueSize)
+    public QueueAccessResult(boolean allowed, int userPositionInQueue, int queueSize)
     {
         this.allowed = allowed;
-        this.position = position;
+        this.userPositionInQueue = userPositionInQueue;
         this.queueSize = queueSize;
     }
 
@@ -17,20 +17,20 @@ public class QueueAccessResult
     {
         return new QueueAccessResult(true, 0, 0);
     }
-    public static QueueAccessResult waiting(int position, int queueSize)
+    public static QueueAccessResult waiting(int userPositionInQueue, int queueSize)
     {
-        return new QueueAccessResult(false, position, queueSize);
+        return new QueueAccessResult(false, userPositionInQueue, queueSize);
     }
     public boolean isAllowed()
     {
-        return allowed;
+        return this.allowed;
     }
-    public int getPosition()
+    public int getUserPositionInQueue()
     {
-        return position;
+        return this.userPositionInQueue;
     }
     public int getQueueSize()
     {
-        return queueSize;
+        return this.queueSize;
     }
 }

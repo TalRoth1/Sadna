@@ -1,6 +1,5 @@
 package org.example.ApplicationLayer;
 
-import net.bytebuddy.dynamic.TypeResolutionStrategy;
 import org.example.DomainLayer.*;
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 import org.example.DomainLayer.ActivePurchaseAggregate.IPaymentGateway;
@@ -10,7 +9,6 @@ import org.example.DomainLayer.EventAggregate.*;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.example.DomainLayer.UserAggregate.User;
 import org.junit.Test;
-import org.w3c.dom.DOMException;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -200,12 +198,12 @@ public class PurchaseServiceTest
         setup.queueManager.requestSelectionAccess(userId, eventId);
 
         //נוודא שיש לו גישה
-        assertTrue(setup.queueManager.hasAccess(userId, eventId));
+        assertTrue(setup.queueManager.hasSelectAccess(userId, eventId));
 
         //הוא בחר כרטיס ולכן סיים את הזכות שלו לבחור
         setup.purchaseService.selectSittingTickets(eventId, List.of(ticketId), userId, false);
 
-        assertFalse(setup.queueManager.hasAccess(userId, eventId));
+        assertFalse(setup.queueManager.hasSelectAccess(userId, eventId));
     }
 
     @Test
@@ -238,7 +236,7 @@ public class PurchaseServiceTest
         );
 
         //אבל עדיין יש לו הרשאה
-        assertTrue(setup.queueManager.hasAccess(userId, eventId));
+        assertTrue(setup.queueManager.hasSelectAccess(userId, eventId));
     }
 
     @Test
@@ -279,7 +277,7 @@ public class PurchaseServiceTest
         //הכרטיס אמור להיות עדיין פנוי
         assertEquals(TicketStatus.AVAILABLE, event.getTicket(ticketId).getStatus());
         //והמיקום של המשתמש השני הוא ב-1
-        assertEquals(1, setup.queueManager.getPosition(user2, eventId));
+        assertEquals(1, setup.queueManager.getPositionInQueue(user2, eventId));
     }
 
 
