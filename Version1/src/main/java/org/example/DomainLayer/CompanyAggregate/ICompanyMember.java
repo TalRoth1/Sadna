@@ -21,6 +21,8 @@ public abstract class ICompanyMember {
         return eventsIds;
     }
 
+    public abstract List<UUID> getEventsUnderMe();
+
     public ICompanyMember(String username, CompanyOwner Appointer) {
         this.username = username;
         this.Appointer = Appointer;

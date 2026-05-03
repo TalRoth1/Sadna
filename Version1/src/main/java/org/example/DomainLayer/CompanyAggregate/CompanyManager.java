@@ -1,6 +1,7 @@
 package org.example.DomainLayer.CompanyAggregate;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -33,5 +34,10 @@ public class CompanyManager extends ICompanyMember {
     @Override
     public boolean isInChargeOfEvent(UUID eventId) {
         return this.getEventsIds().contains(eventId);
+    }
+
+    @Override
+    public List<UUID> getEventsUnderMe() {
+        return getEventsIds();
     }
 }
