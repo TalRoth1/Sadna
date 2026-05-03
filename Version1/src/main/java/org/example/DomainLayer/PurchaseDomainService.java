@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import org.example.ApplicationLayer.PaymentDetails;
+import org.example.ApplicationLayer.dto.SalesReport;
 import org.example.DomainLayer.ActivePurchaseAggregate.IPaymentGateway;
 import org.example.DomainLayer.ActivePurchaseAggregate.ITicketingGateway;
 import org.example.DomainLayer.CompanyAggregate.Company;
@@ -21,6 +22,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 public class PurchaseDomainService {
     private final IHistoryRepository historyRepository;
@@ -387,5 +389,28 @@ public class PurchaseDomainService {
     public boolean checkLastUpdate(ActivePurchase activePurchase)
     {
         return ChronoUnit.MINUTES.between(LocalDateTime.now(), activePurchase.getLastUpdate()) <= activePurchase.getMaxWaitTime();
+    }
+
+    public SalesReport getSalesReportForOwner(String ownerUsername, UUID companyId) {
+        Company company = companyRepository.findByID(companyId).orElse(null);
+        if (company == null) {
+            throw new IllegalArgumentException("Company not found");
+        }
+        List<UUID> eventsUnderOwner = company.getEventsUnderOwner(ownerUsername);
+        List<PurchaseHistory> relevantPurchases = new ArrayList<>();
+        for (UUID eventId : eventsUnderOwner) {
+            relevantPurchases.addAll(historyRepository.getByEventId(eventId));
+        }
+
+        // Calculate total revenue
+        double totalRevenue = relevantPurchases.stream()
+                .mapToDouble(purchase -> purchase.getPayment().getTotal())
+                .sum();
+
+        List<UUID> soldTicketIds = relevantPurchases.stream()
+                .flatMap(purchase -> purchase.getTicketIds().stream())
+                .collect(Collectors.toList());
+
+        return new SalesReport(eventsUnderOwner, soldTicketIds, totalRevenue);
     }
 }
