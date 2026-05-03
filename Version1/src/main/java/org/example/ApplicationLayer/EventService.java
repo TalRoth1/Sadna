@@ -2,18 +2,106 @@ package org.example.ApplicationLayer;
 
 import org.example.DomainLayer.DomainException;
 import org.example.DomainLayer.EventManagementDomainService;
+import org.example.DomainLayer.EventAggregate.EventStatus;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.logging.Logger;
 
 public class EventService {
+    private static final Logger logger = Logger.getLogger(EventService.class.getName());
     private final EventManagementDomainService eventManagementDomainService;
 
     public EventService(EventManagementDomainService eventManagementDomainService) {
         this.eventManagementDomainService = eventManagementDomainService;
+    }
+    
+    public void addEvent(UUID eventId, UUID companyId, LocalDateTime date, String location,
+                         String artist, String type, EventStatus status) {
+        if (eventId == null) {
+            throw new IllegalArgumentException("eventId is required");
+        }
+        if (companyId == null) {
+            throw new IllegalArgumentException("companyId is required");
+        }
+        try {
+            eventManagementDomainService.addEvent(eventId, companyId, date, location, artist, type, status);
+            logger.info("Event added: " + eventId);
+        } catch (RuntimeException e) {
+            logger.severe("Error adding event " + eventId + ": " + e.getMessage());
+            throw e;
+        }
+    }
+
+    public boolean editEvent(UUID eventId, LocalDateTime date, String location,
+                             String artist, String type, EventStatus status) {
+        if (eventId == null) {
+            throw new IllegalArgumentException("eventId is required");
+        }
+        try {
+            boolean updated = eventManagementDomainService.editEvent(eventId, date, location, artist, type, status);
+            logger.info("Event edited: " + eventId);
+            return updated;
+        } catch (RuntimeException e) {
+            logger.severe("Error editing event " + eventId + ": " + e.getMessage());
+            throw e;
+        }
+    }
+
+    public boolean deleteEvent(UUID eventId) {
+        if (eventId == null) {
+            throw new IllegalArgumentException("eventId is required");
+        }
+        try {
+            boolean deleted = eventManagementDomainService.deleteEvent(eventId);
+            logger.info("Event deleted: " + eventId);
+            return deleted;
+        } catch (RuntimeException e) {
+            logger.severe("Error deleting event " + eventId + ": " + e.getMessage());
+            throw e;
+        }
+    }
+
+    public void addStandingTickets(UUID eventId, UUID areaId, int count) {
+        if (eventId == null) {
+            throw new IllegalArgumentException("eventId is required");
+        }
+        if (areaId == null) {
+            throw new IllegalArgumentException("areaId is required");
+        }
+        if (count <= 0) {
+            throw new IllegalArgumentException("count must be positive");
+        }
+        try {
+            eventManagementDomainService.addStandingTickets(eventId, areaId, count);
+            logger.info("Added " + count + " standing tickets to area " + areaId + " of event " + eventId);
+        } catch (RuntimeException e) {
+            logger.severe("Error adding standing tickets to event " + eventId + ": " + e.getMessage());
+            throw e;
+        }
+    }
+
+    public void addSittingTickets(UUID eventId, UUID areaId, int rows, int seatsPerRow) {
+        if (eventId == null) {
+            throw new IllegalArgumentException("eventId is required");
+        }
+        if (areaId == null) {
+            throw new IllegalArgumentException("areaId is required");
+        }
+        if (rows <= 0 || seatsPerRow <= 0) {
+            throw new IllegalArgumentException("rows and seatsPerRow must be positive");
+        }
+        try {
+            eventManagementDomainService.addSittingTickets(eventId, areaId, rows, seatsPerRow);
+            logger.info("Added " + (rows * seatsPerRow) + " sitting tickets to area " + areaId + " of event " + eventId);
+        } catch (RuntimeException e) {
+            logger.severe("Error adding sitting tickets to event " + eventId + ": " + e.getMessage());
+            throw e;
+        }
     }
 
     public List<PurchaseHistory> getEventPurchaseHistoryForOwner(String ownerUsername, UUID eventId) {
