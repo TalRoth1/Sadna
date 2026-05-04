@@ -167,6 +167,8 @@ public Company(String founderUsername, String name) {
         }
         CompanyManager newManager = new CompanyManager(appointeeUsername, (CompanyOwner) members.get(appointerUsername), premissions);
         members.put(appointeeUsername, newManager);
+        // Register the new manager as a subordinate of the appointer so hierarchy is consistent
+        ((CompanyOwner) members.get(appointerUsername)).addSubordinate(newManager);
         return true;
     }
 
@@ -195,6 +197,8 @@ public Company(String founderUsername, String name) {
         }
         CompanyOwner newOwner = new CompanyOwner(appointeeUsername, (CompanyOwner) members.get(appointerUsername));
         members.put(appointeeUsername, newOwner);
+        // Register the new owner as a subordinate of the appointer
+        ((CompanyOwner) members.get(appointerUsername)).addSubordinate(newOwner);
         return true;
     }
 

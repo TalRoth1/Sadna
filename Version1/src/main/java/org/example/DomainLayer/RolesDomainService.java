@@ -107,7 +107,7 @@ public class RolesDomainService {
         if (company == null)
             throw new IllegalArgumentException("Company not found");
 
-        return company.inviteNewManager(ownerUsername, ownerUsername, premissions);
+        return company.inviteNewManager(usernameToInvite, ownerUsername, premissions);
     }
 
     public UUID inviteCompanyOwner(String ownerUsername, UUID companyId, String usernameToInvite) {
@@ -123,7 +123,7 @@ public class RolesDomainService {
         if (company == null)
             throw new IllegalArgumentException("Company not found");
 
-        return company.inviteNewOwner(ownerUsername, usernameToInvite);
+        return company.inviteNewOwner(usernameToInvite, ownerUsername);
     }
 
     public void acceptCompanyInvitation(UUID invetationID, UUID companyId) {
