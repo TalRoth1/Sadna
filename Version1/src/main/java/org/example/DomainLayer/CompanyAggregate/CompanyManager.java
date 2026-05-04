@@ -1,6 +1,7 @@
 package org.example.DomainLayer.CompanyAggregate;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -46,5 +47,9 @@ public class CompanyManager extends ICompanyMember {
         if (getAppointer() != null) {
             sb.append(getAppointer().mermaidId()).append(" --> ").append(mermaidId()).append("\n");
         }
+    }
+    
+    public List<UUID> getEventsUnderMe() {
+        return getEventsIds();
     }
 }

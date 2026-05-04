@@ -398,4 +398,14 @@ public Company(String founderUsername, String name) {
     }
 
     
+    public List<UUID> getEventsUnderOwner(String ownerUsername) {
+        if (!isCompanyMember(ownerUsername)) {
+            throw new IllegalArgumentException("User is not a company member");
+        }
+        ICompanyMember member = members.get(ownerUsername);
+        if (!(member instanceof CompanyOwner)) {
+            throw new IllegalArgumentException("User is not a company owner");
+        }
+        return member.getEventsUnderMe();
+    }
 }
