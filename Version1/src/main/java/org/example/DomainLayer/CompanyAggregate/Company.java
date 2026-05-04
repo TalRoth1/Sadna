@@ -74,6 +74,10 @@ public Company(String founderUsername, String name) {
         eventIds.add(newEventId);
     }
 
+    public List<UUID> getEventIds() {
+        return List.copyOf(eventIds);
+    }
+
     public DiscountPolicy getDiscountPolicy()
     {
         return this.discountPolicy;

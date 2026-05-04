@@ -1,11 +1,17 @@
 package org.example.ApplicationLayer;
 
+import org.example.ApplicationLayer.EventDtos.AreaSummaryDto;
+import org.example.ApplicationLayer.EventDtos.CompanyCatalogDto;
+import org.example.ApplicationLayer.EventDtos.EventDetailsDto;
+import org.example.ApplicationLayer.EventDtos.EventSummaryDto;
 import org.example.DomainLayer.DomainException;
 import org.example.DomainLayer.EventManagementDomainService;
 import org.example.DomainLayer.ICompanyRepository;
 import org.example.DomainLayer.IEventRepository;
 import org.example.DomainLayer.IHistoryRepository;
+import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.DomainLayer.EventAggregate.Event;
+import org.example.DomainLayer.EventAggregate.EventSearchCriteria;
 import org.example.DomainLayer.EventAggregate.EventStatus;
 import org.example.DomainLayer.EventAggregate.SittingArea;
 import org.example.DomainLayer.EventAggregate.StandingArea;
@@ -16,10 +22,13 @@ import org.junit.Test;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -27,7 +36,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
@@ -1169,6 +1180,547 @@ public class EventServiceTest {
 
         // Assert
         assertEquals(11, event.getTotalCapacity());
+    }
+
+    // =====================================================================
+    //   Helpers for guest-facing browse + search tests
+    // =====================================================================
+
+    private Company newActiveCompany(String name) {
+        return new Company("founder-" + name, name);
+    }
+
+    private Event newEventFor(UUID companyId,
+                              String name,
+                              String artist,
+                              String type,
+                              LocalDateTime date,
+                              String location,
+                              EventStatus status,
+                              String... tags) {
+        Event e = new Event(UUID.randomUUID(), companyId, date, location, artist, type, status);
+        if (name != null) {
+            e.setName(name);
+        }
+        for (String t : tags) {
+            e.addTag(t);
+        }
+        return e;
+    }
+
+    private void addStandingArea(Event e, double price) {
+        e.getLayout().addArea(new StandingArea(UUID.randomUUID(), price));
+    }
+
+    private void addSittingArea(Event e, double price) {
+        e.getLayout().addArea(new SittingArea(UUID.randomUUID(), price));
+    }
+
+    // =====================================================================
+    //   Acceptance: browseCatalog (catalog of active companies + events)
+    // =====================================================================
+
+    @Test
+    public void GivenOneActiveCompanyWithVisibleEvents_WhenBrowseCatalog_ThenCompanyAndEventsAreReturned() {
+        Company c = newActiveCompany("Acme");
+        Event e1 = newEventFor(c.getId(), "Show A", "Artist1", "concert",
+                LocalDateTime.now().plusDays(10), "Tel Aviv", EventStatus.ACTIVE);
+        Event e2 = newEventFor(c.getId(), "Show B", "Artist2", "festival",
+                LocalDateTime.now().plusDays(20), "Haifa", EventStatus.ACTIVE);
+        when(companyRepository.getAllActive()).thenReturn(Collections.singletonList(c));
+        when(eventRepository.getAll()).thenReturn(Arrays.asList(e1, e2));
+
+        List<CompanyCatalogDto> catalog = eventService.browseCatalog();
+
+        assertEquals(1, catalog.size());
+        CompanyCatalogDto row = catalog.get(0);
+        assertEquals(c.getId(), row.companyId());
+        assertEquals("Acme", row.companyName());
+        assertEquals(2, row.events().size());
+    }
+
+    @Test
+    public void GivenNoActiveCompanies_WhenBrowseCatalog_ThenReturnsEmptyListAndDoesNotThrow() {
+        when(companyRepository.getAllActive()).thenReturn(Collections.emptyList());
+
+        List<CompanyCatalogDto> catalog = eventService.browseCatalog();
+
+        assertTrue("alt flow: empty catalog must be returned, not an exception", catalog.isEmpty());
+    }
+
+    @Test
+    public void GivenCompanyHasMixedStatusEvents_WhenBrowseCatalog_ThenOnlyActiveEventsAreIncluded() {
+        Company c = newActiveCompany("Acme");
+        Event active = newEventFor(c.getId(), "A", "Ar", "t",
+                LocalDateTime.now().plusDays(5), "Loc", EventStatus.ACTIVE);
+        Event canceled = newEventFor(c.getId(), "B", "Ar", "t",
+                LocalDateTime.now().plusDays(5), "Loc", EventStatus.CANCELED);
+        Event ended = newEventFor(c.getId(), "C", "Ar", "t",
+                LocalDateTime.now().plusDays(5), "Loc", EventStatus.ENDED);
+        when(companyRepository.getAllActive()).thenReturn(Collections.singletonList(c));
+        when(eventRepository.getAll()).thenReturn(Arrays.asList(active, canceled, ended));
+
+        List<CompanyCatalogDto> catalog = eventService.browseCatalog();
+
+        assertEquals(1, catalog.size());
+        assertEquals("only ACTIVE events should appear in the catalog",
+                1, catalog.get(0).events().size());
+        assertEquals(active.getEventId(), catalog.get(0).events().get(0).eventId());
+    }
+
+    // =====================================================================
+    //   Acceptance: getEventDetails (extended view of one event)
+    // =====================================================================
+
+    @Test
+    public void GivenExistingEventWithAreasAndPolicies_WhenGetEventDetails_ThenAllSectionsArePopulated() {
+        Event event = newRealEvent();
+        event.setName("Headline Show");
+        addStandingArea(event, 100.0);
+        addSittingArea(event, 250.0);
+        event.addPurchasePolicy(Optional.of(18f), Optional.empty(), Optional.empty(), Optional.empty());
+        event.addOvertDiscount(LocalDate.now().minusDays(1), LocalDate.now().plusDays(30), 10f);
+        when(eventRepository.getById(eventId)).thenReturn(event);
+
+        EventDetailsDto details = eventService.getEventDetails(eventId);
+
+        assertNotNull(details);
+        assertEquals(eventId, details.eventId());
+        assertEquals(companyId, details.companyId());
+        assertEquals("Headline Show", details.name());
+        assertEquals(2, details.areas().size());
+        List<String> kinds = new ArrayList<>();
+        for (AreaSummaryDto a : details.areas()) {
+            kinds.add(a.kind());
+        }
+        assertTrue(kinds.contains("STANDING"));
+        assertTrue(kinds.contains("SITTING"));
+        assertEquals(1, details.purchaseRuleNames().size());
+        assertEquals(1, details.discountRuleNames().size());
+    }
+
+    @Test
+    public void GivenUnknownEventId_WhenGetEventDetails_ThenThrowsDomainException() {
+        when(eventRepository.getById(eventId)).thenReturn(null);
+
+        assertThrows(DomainException.class, () -> eventService.getEventDetails(eventId));
+    }
+
+    @Test
+    public void GivenNullEventId_WhenGetEventDetails_ThenThrowsIllegalArgumentException() {
+        assertThrows(IllegalArgumentException.class, () -> eventService.getEventDetails(null));
+        verifyNoInteractions(eventRepository);
+    }
+
+    // =====================================================================
+    //   Acceptance: searchEvents (global search)
+    // =====================================================================
+
+    @Test
+    public void GivenAllEventsBelongToActiveCompanies_WhenSearchEventsWithEmptyCriteria_ThenAllVisibleEventsReturned() {
+        Company c = newActiveCompany("Acme");
+        Event e1 = newEventFor(c.getId(), "X", "A1", "t1",
+                LocalDateTime.now().plusDays(3), "Tel Aviv", EventStatus.ACTIVE);
+        Event e2 = newEventFor(c.getId(), "Y", "A2", "t2",
+                LocalDateTime.now().plusDays(4), "Haifa", EventStatus.ACTIVE);
+        when(eventRepository.getAll()).thenReturn(Arrays.asList(e1, e2));
+        when(companyRepository.findByID(c.getId())).thenReturn(Optional.of(c));
+
+        List<EventSummaryDto> results = eventService.searchEvents(EventSearchCriteria.empty());
+
+        assertEquals(2, results.size());
+    }
+
+    @Test
+    public void GivenEventsBelongToInactiveCompany_WhenSearchEvents_ThenThoseEventsAreExcluded() {
+        Company active = newActiveCompany("Active");
+        Company inactive = newActiveCompany("Closed");
+        inactive.AdminClose();
+        Event visibleA = newEventFor(active.getId(), "A", "Ar", "t",
+                LocalDateTime.now().plusDays(2), "Loc", EventStatus.ACTIVE);
+        Event hiddenB = newEventFor(inactive.getId(), "B", "Ar", "t",
+                LocalDateTime.now().plusDays(2), "Loc", EventStatus.ACTIVE);
+        when(eventRepository.getAll()).thenReturn(Arrays.asList(visibleA, hiddenB));
+        when(companyRepository.findByID(active.getId())).thenReturn(Optional.of(active));
+        when(companyRepository.findByID(inactive.getId())).thenReturn(Optional.of(inactive));
+
+        List<EventSummaryDto> results = eventService.searchEvents(EventSearchCriteria.empty());
+
+        assertEquals(1, results.size());
+        assertEquals(visibleA.getEventId(), results.get(0).eventId());
+    }
+
+    @Test
+    public void GivenSomeEventsAreCanceled_WhenSearchEvents_ThenOnlyActiveEventsReturned() {
+        Company c = newActiveCompany("Acme");
+        Event active = newEventFor(c.getId(), "A", "Ar", "t",
+                LocalDateTime.now().plusDays(2), "Loc", EventStatus.ACTIVE);
+        Event canceled = newEventFor(c.getId(), "B", "Ar", "t",
+                LocalDateTime.now().plusDays(2), "Loc", EventStatus.CANCELED);
+        when(eventRepository.getAll()).thenReturn(Arrays.asList(active, canceled));
+        when(companyRepository.findByID(c.getId())).thenReturn(Optional.of(c));
+
+        List<EventSummaryDto> results = eventService.searchEvents(EventSearchCriteria.empty());
+
+        assertEquals(1, results.size());
+        assertEquals(active.getEventId(), results.get(0).eventId());
+    }
+
+    @Test
+    public void GivenTextCriteria_WhenSearchEvents_ThenReturnsEventsWhereTextMatchesNameArtistTypeOrTag() {
+        Company c = newActiveCompany("Acme");
+        Event byName = newEventFor(c.getId(), "Coldplay Live", "X", "concert",
+                LocalDateTime.now().plusDays(5), "Tel Aviv", EventStatus.ACTIVE);
+        Event byArtist = newEventFor(c.getId(), "Show", "Coldplay", "concert",
+                LocalDateTime.now().plusDays(5), "Tel Aviv", EventStatus.ACTIVE);
+        Event byType = newEventFor(c.getId(), "Show", "Other", "Coldplay-tribute",
+                LocalDateTime.now().plusDays(5), "Tel Aviv", EventStatus.ACTIVE);
+        Event byTag = newEventFor(c.getId(), "Show", "Other", "concert",
+                LocalDateTime.now().plusDays(5), "Tel Aviv", EventStatus.ACTIVE, "coldplay");
+        Event noMatch = newEventFor(c.getId(), "Show", "Other", "concert",
+                LocalDateTime.now().plusDays(5), "Tel Aviv", EventStatus.ACTIVE);
+        when(eventRepository.getAll()).thenReturn(Arrays.asList(byName, byArtist, byType, byTag, noMatch));
+        when(companyRepository.findByID(c.getId())).thenReturn(Optional.of(c));
+
+        List<EventSummaryDto> results = eventService.searchEvents(
+                EventSearchCriteria.empty().withText("coldplay"));
+
+        assertEquals("name/artist/type/tag should all be searched", 4, results.size());
+    }
+
+    @Test
+    public void GivenLocationCriteria_WhenSearchEvents_ThenReturnsEventsWhoseLocationContainsItCaseInsensitive() {
+        Company c = newActiveCompany("Acme");
+        Event tlv = newEventFor(c.getId(), "X", "Ar", "t",
+                LocalDateTime.now().plusDays(1), "Tel Aviv Convention Center", EventStatus.ACTIVE);
+        Event hfa = newEventFor(c.getId(), "Y", "Ar", "t",
+                LocalDateTime.now().plusDays(1), "Haifa Park", EventStatus.ACTIVE);
+        when(eventRepository.getAll()).thenReturn(Arrays.asList(tlv, hfa));
+        when(companyRepository.findByID(c.getId())).thenReturn(Optional.of(c));
+
+        List<EventSummaryDto> results = eventService.searchEvents(
+                EventSearchCriteria.empty().withLocation("tel aviv"));
+
+        assertEquals(1, results.size());
+        assertEquals(tlv.getEventId(), results.get(0).eventId());
+    }
+
+    @Test
+    public void GivenPriceRange_WhenSearchEvents_ThenReturnsEventsWithAtLeastOneAreaInRange() {
+        Company c = newActiveCompany("Acme");
+        Event cheap = newEventFor(c.getId(), "X", "Ar", "t",
+                LocalDateTime.now().plusDays(1), "Loc", EventStatus.ACTIVE);
+        addStandingArea(cheap, 50.0);
+        Event mixed = newEventFor(c.getId(), "Y", "Ar", "t",
+                LocalDateTime.now().plusDays(1), "Loc", EventStatus.ACTIVE);
+        addStandingArea(mixed, 50.0);
+        addSittingArea(mixed, 500.0);
+        Event expensive = newEventFor(c.getId(), "Z", "Ar", "t",
+                LocalDateTime.now().plusDays(1), "Loc", EventStatus.ACTIVE);
+        addStandingArea(expensive, 1000.0);
+        when(eventRepository.getAll()).thenReturn(Arrays.asList(cheap, mixed, expensive));
+        when(companyRepository.findByID(c.getId())).thenReturn(Optional.of(c));
+
+        List<EventSummaryDto> results = eventService.searchEvents(
+                EventSearchCriteria.empty().withPriceRange(100.0, 800.0));
+
+        assertEquals("only events with an area inside [100, 800] should match", 1, results.size());
+        assertEquals(mixed.getEventId(), results.get(0).eventId());
+    }
+
+    @Test
+    public void GivenDateRange_WhenSearchEvents_ThenReturnsEventsInRange() {
+        Company c = newActiveCompany("Acme");
+        LocalDateTime now = LocalDateTime.now();
+        Event tooEarly = newEventFor(c.getId(), "E", "Ar", "t",
+                now.plusDays(1), "Loc", EventStatus.ACTIVE);
+        Event inRange = newEventFor(c.getId(), "I", "Ar", "t",
+                now.plusDays(10), "Loc", EventStatus.ACTIVE);
+        Event tooLate = newEventFor(c.getId(), "L", "Ar", "t",
+                now.plusDays(60), "Loc", EventStatus.ACTIVE);
+        when(eventRepository.getAll()).thenReturn(Arrays.asList(tooEarly, inRange, tooLate));
+        when(companyRepository.findByID(c.getId())).thenReturn(Optional.of(c));
+
+        List<EventSummaryDto> results = eventService.searchEvents(
+                EventSearchCriteria.empty().withDateRange(now.plusDays(5), now.plusDays(30)));
+
+        assertEquals(1, results.size());
+        assertEquals(inRange.getEventId(), results.get(0).eventId());
+    }
+
+    @Test
+    public void GivenMinEventRating_WhenSearchEvents_ThenLowRatedEventsAreExcluded() {
+        Company c = newActiveCompany("Acme");
+        Event low = newEventFor(c.getId(), "L", "Ar", "t",
+                LocalDateTime.now().plusDays(1), "Loc", EventStatus.ACTIVE);
+        Event high = newEventFor(c.getId(), "H", "Ar", "t",
+                LocalDateTime.now().plusDays(1), "Loc", EventStatus.ACTIVE);
+        low.addRating(UUID.randomUUID(), 2);
+        high.addRating(UUID.randomUUID(), 5);
+        when(eventRepository.getAll()).thenReturn(Arrays.asList(low, high));
+        when(companyRepository.findByID(c.getId())).thenReturn(Optional.of(c));
+
+        List<EventSummaryDto> results = eventService.searchEvents(
+                EventSearchCriteria.empty().withMinEventRating(4.0));
+
+        assertEquals(1, results.size());
+        assertEquals(high.getEventId(), results.get(0).eventId());
+    }
+
+    @Test
+    public void GivenMinCompanyRating_WhenSearchEvents_ThenEventsFromLowRatedCompaniesAreExcluded() {
+        Company low = newActiveCompany("Low");
+        Company high = newActiveCompany("High");
+        low.addRating(UUID.randomUUID(), 2);
+        high.addRating(UUID.randomUUID(), 5);
+        Event eLow = newEventFor(low.getId(), "L", "Ar", "t",
+                LocalDateTime.now().plusDays(1), "Loc", EventStatus.ACTIVE);
+        Event eHigh = newEventFor(high.getId(), "H", "Ar", "t",
+                LocalDateTime.now().plusDays(1), "Loc", EventStatus.ACTIVE);
+        when(eventRepository.getAll()).thenReturn(Arrays.asList(eLow, eHigh));
+        when(companyRepository.findByID(low.getId())).thenReturn(Optional.of(low));
+        when(companyRepository.findByID(high.getId())).thenReturn(Optional.of(high));
+
+        List<EventSummaryDto> results = eventService.searchEvents(
+                EventSearchCriteria.empty().withMinCompanyRating(4.0));
+
+        assertEquals(1, results.size());
+        assertEquals(eHigh.getEventId(), results.get(0).eventId());
+    }
+
+    @Test
+    public void GivenNoEventMatchesCriteria_WhenSearchEvents_ThenReturnsEmptyListAndDoesNotThrow() {
+        Company c = newActiveCompany("Acme");
+        Event e = newEventFor(c.getId(), "Concert", "Artist", "concert",
+                LocalDateTime.now().plusDays(5), "Tel Aviv", EventStatus.ACTIVE);
+        when(eventRepository.getAll()).thenReturn(Collections.singletonList(e));
+        when(companyRepository.findByID(c.getId())).thenReturn(Optional.of(c));
+
+        List<EventSummaryDto> results = eventService.searchEvents(
+                EventSearchCriteria.empty().withText("nonexistent-keyword"));
+
+        assertTrue("alt flow: empty list must be returned, not an exception", results.isEmpty());
+    }
+
+    @Test
+    public void GivenNullCriteria_WhenSearchEvents_ThenTreatedAsEmptyCriteria() {
+        Company c = newActiveCompany("Acme");
+        Event e = newEventFor(c.getId(), "X", "Ar", "t",
+                LocalDateTime.now().plusDays(1), "Loc", EventStatus.ACTIVE);
+        when(eventRepository.getAll()).thenReturn(Collections.singletonList(e));
+        when(companyRepository.findByID(c.getId())).thenReturn(Optional.of(c));
+
+        List<EventSummaryDto> results = eventService.searchEvents(null);
+
+        assertEquals(1, results.size());
+    }
+
+    // =====================================================================
+    //   Acceptance: searchEventsByCompany (scoped to one company)
+    // =====================================================================
+
+    @Test
+    public void GivenTwoCompaniesEachWithEvents_WhenSearchEventsByCompany_ThenOnlyTargetCompanysEventsReturned() {
+        Company a = newActiveCompany("A");
+        Company b = newActiveCompany("B");
+        Event a1 = newEventFor(a.getId(), "A1", "Ar", "t",
+                LocalDateTime.now().plusDays(1), "Loc", EventStatus.ACTIVE);
+        Event a2 = newEventFor(a.getId(), "A2", "Ar", "t",
+                LocalDateTime.now().plusDays(2), "Loc", EventStatus.ACTIVE);
+        Event b1 = newEventFor(b.getId(), "B1", "Ar", "t",
+                LocalDateTime.now().plusDays(3), "Loc", EventStatus.ACTIVE);
+        when(eventRepository.getAll()).thenReturn(Arrays.asList(a1, a2, b1));
+        when(companyRepository.findByID(a.getId())).thenReturn(Optional.of(a));
+        when(companyRepository.findByID(b.getId())).thenReturn(Optional.of(b));
+
+        List<EventSummaryDto> results = eventService.searchEventsByCompany(
+                a.getId(), EventSearchCriteria.empty());
+
+        assertEquals(2, results.size());
+        for (EventSummaryDto r : results) {
+            assertEquals("every result must belong to the requested company",
+                    a.getId(), r.companyId());
+        }
+    }
+
+    @Test
+    public void GivenCriteriaWithText_WhenSearchEventsByCompany_ThenScopedAndTextFilterBothApply() {
+        Company a = newActiveCompany("A");
+        Company b = newActiveCompany("B");
+        Event aMatch = newEventFor(a.getId(), "Coldplay", "Ar", "t",
+                LocalDateTime.now().plusDays(1), "Loc", EventStatus.ACTIVE);
+        Event aOther = newEventFor(a.getId(), "Other", "Ar", "t",
+                LocalDateTime.now().plusDays(1), "Loc", EventStatus.ACTIVE);
+        Event bMatch = newEventFor(b.getId(), "Coldplay", "Ar", "t",
+                LocalDateTime.now().plusDays(1), "Loc", EventStatus.ACTIVE);
+        when(eventRepository.getAll()).thenReturn(Arrays.asList(aMatch, aOther, bMatch));
+        when(companyRepository.findByID(a.getId())).thenReturn(Optional.of(a));
+        when(companyRepository.findByID(b.getId())).thenReturn(Optional.of(b));
+
+        List<EventSummaryDto> results = eventService.searchEventsByCompany(
+                a.getId(), EventSearchCriteria.empty().withText("coldplay"));
+
+        assertEquals(1, results.size());
+        assertEquals(aMatch.getEventId(), results.get(0).eventId());
+    }
+
+    @Test
+    public void GivenUnknownCompanyId_WhenSearchEventsByCompany_ThenReturnsEmptyListWithoutThrowing() {
+        UUID unknown = UUID.randomUUID();
+        when(eventRepository.getAll()).thenReturn(Collections.emptyList());
+
+        List<EventSummaryDto> results = eventService.searchEventsByCompany(
+                unknown, EventSearchCriteria.empty());
+
+        assertTrue(results.isEmpty());
+    }
+
+    @Test
+    public void GivenNullCompanyId_WhenSearchEventsByCompany_ThenThrowsIllegalArgumentException() {
+        assertThrows(IllegalArgumentException.class, () ->
+                eventService.searchEventsByCompany(null, EventSearchCriteria.empty()));
+        verifyNoInteractions(eventRepository);
+    }
+
+    // =====================================================================
+    //   Unit: input validation for criteria
+    // =====================================================================
+
+    @Test
+    public void GivenPriceMinGreaterThanPriceMax_WhenSearchEvents_ThenThrowsIllegalArgumentException() {
+        EventSearchCriteria bad = EventSearchCriteria.empty().withPriceRange(200.0, 100.0);
+        assertThrows(IllegalArgumentException.class, () -> eventService.searchEvents(bad));
+        verifyNoInteractions(eventRepository);
+    }
+
+    @Test
+    public void GivenNegativePriceMin_WhenSearchEvents_ThenThrowsIllegalArgumentException() {
+        EventSearchCriteria bad = EventSearchCriteria.empty().withPriceRange(-1.0, 100.0);
+        assertThrows(IllegalArgumentException.class, () -> eventService.searchEvents(bad));
+    }
+
+    @Test
+    public void GivenDateFromAfterDateTo_WhenSearchEvents_ThenThrowsIllegalArgumentException() {
+        LocalDateTime now = LocalDateTime.now();
+        EventSearchCriteria bad = EventSearchCriteria.empty()
+                .withDateRange(now.plusDays(10), now.plusDays(1));
+        assertThrows(IllegalArgumentException.class, () -> eventService.searchEvents(bad));
+    }
+
+    @Test
+    public void GivenMinEventRatingOutOfRange_WhenSearchEvents_ThenThrowsIllegalArgumentException() {
+        assertThrows(IllegalArgumentException.class, () ->
+                eventService.searchEvents(EventSearchCriteria.empty().withMinEventRating(-1.0)));
+        assertThrows(IllegalArgumentException.class, () ->
+                eventService.searchEvents(EventSearchCriteria.empty().withMinEventRating(6.0)));
+    }
+
+    @Test
+    public void GivenMinCompanyRatingOutOfRange_WhenSearchEvents_ThenThrowsIllegalArgumentException() {
+        assertThrows(IllegalArgumentException.class, () ->
+                eventService.searchEvents(EventSearchCriteria.empty().withMinCompanyRating(-0.5)));
+        assertThrows(IllegalArgumentException.class, () ->
+                eventService.searchEvents(EventSearchCriteria.empty().withMinCompanyRating(5.5)));
+    }
+
+    // =====================================================================
+    //   Unit: Event.matches predicate
+    // =====================================================================
+
+    @Test
+    public void GivenNonActiveEvent_WhenMatches_ThenReturnsFalseRegardlessOfCriteria() {
+        Event canceled = newEventFor(companyId, "X", "Ar", "t",
+                LocalDateTime.now().plusDays(1), "Loc", EventStatus.CANCELED);
+        assertFalse("non-ACTIVE event must never match",
+                canceled.matches(EventSearchCriteria.empty(), 5.0));
+    }
+
+    @Test
+    public void GivenCompanyIdCriteria_WhenMatches_ThenOnlyEventsFromThatCompanyPass() {
+        UUID otherCompany = UUID.randomUUID();
+        Event mine = newEventFor(companyId, "X", "Ar", "t",
+                LocalDateTime.now().plusDays(1), "Loc", EventStatus.ACTIVE);
+        Event theirs = newEventFor(otherCompany, "Y", "Ar", "t",
+                LocalDateTime.now().plusDays(1), "Loc", EventStatus.ACTIVE);
+        EventSearchCriteria scoped = EventSearchCriteria.empty().withCompanyId(companyId);
+        assertTrue(mine.matches(scoped, 0.0));
+        assertFalse(theirs.matches(scoped, 0.0));
+    }
+
+    // =====================================================================
+    //   Concurrency: writer adds events while readers run search
+    // =====================================================================
+
+    @Test(timeout = 15000)
+    public void GivenWritersAddingEventsAndReadersSearching_WhenRunConcurrently_ThenNoExceptionsAndFinalCountMatchesTotalWrites() throws Exception {
+        final Company company = newActiveCompany("Acme");
+        final CopyOnWriteArrayList<Event> store = new CopyOnWriteArrayList<>();
+        when(companyRepository.findByID(company.getId())).thenReturn(Optional.of(company));
+        when(eventRepository.getAll()).thenAnswer(inv -> new ArrayList<>(store));
+
+        final int writerCount = 4;
+        final int readerCount = 4;
+        final int eventsPerWriter = 25;
+        final int readsPerReader = 50;
+        final int totalThreads = writerCount + readerCount;
+
+        ExecutorService exec = Executors.newFixedThreadPool(totalThreads);
+        CountDownLatch start = new CountDownLatch(1);
+        CountDownLatch done = new CountDownLatch(totalThreads);
+        AtomicInteger errors = new AtomicInteger(0);
+
+        try {
+            for (int w = 0; w < writerCount; w++) {
+                exec.submit(() -> {
+                    try {
+                        start.await();
+                        for (int i = 0; i < eventsPerWriter; i++) {
+                            Event e = new Event(UUID.randomUUID(), company.getId(),
+                                    LocalDateTime.now().plusDays(1),
+                                    "Tel Aviv", "Artist", "concert", EventStatus.ACTIVE);
+                            store.add(e);
+                        }
+                    } catch (Throwable t) {
+                        errors.incrementAndGet();
+                    } finally {
+                        done.countDown();
+                    }
+                });
+            }
+
+            for (int r = 0; r < readerCount; r++) {
+                exec.submit(() -> {
+                    try {
+                        start.await();
+                        for (int i = 0; i < readsPerReader; i++) {
+                            List<EventSummaryDto> snapshot = eventService.searchEvents(
+                                    EventSearchCriteria.empty());
+                            for (EventSummaryDto s : snapshot) {
+                                assertEquals("every visible event must belong to the active company",
+                                        company.getId(), s.companyId());
+                            }
+                        }
+                    } catch (Throwable t) {
+                        errors.incrementAndGet();
+                    } finally {
+                        done.countDown();
+                    }
+                });
+            }
+
+            start.countDown();
+            assertTrue("threads must finish in time",
+                    done.await(10, TimeUnit.SECONDS));
+        } finally {
+            exec.shutdownNow();
+        }
+
+        assertEquals("no exceptions should be thrown by readers or writers", 0, errors.get());
+
+        List<EventSummaryDto> finalSnapshot =
+                eventService.searchEvents(EventSearchCriteria.empty());
+        assertEquals("after settling, all writes should be visible",
+                writerCount * eventsPerWriter, finalSnapshot.size());
     }
 }
 

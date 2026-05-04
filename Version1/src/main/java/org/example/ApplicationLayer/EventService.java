@@ -1,12 +1,25 @@
 package org.example.ApplicationLayer;
 
+import org.example.ApplicationLayer.EventDtos.AreaSummaryDto;
+import org.example.ApplicationLayer.EventDtos.CompanyCatalogDto;
+import org.example.ApplicationLayer.EventDtos.EventDetailsDto;
+import org.example.ApplicationLayer.EventDtos.EventSummaryDto;
 import org.example.DomainLayer.DomainException;
 import org.example.DomainLayer.EventManagementDomainService;
+import org.example.DomainLayer.CompanyAggregate.Company;
+import org.example.DomainLayer.EventAggregate.Area;
+import org.example.DomainLayer.EventAggregate.Event;
+import org.example.DomainLayer.EventAggregate.EventSearchCriteria;
 import org.example.DomainLayer.EventAggregate.EventStatus;
+import org.example.DomainLayer.EventAggregate.SittingArea;
+import org.example.DomainLayer.EventAggregate.StandingArea;
+import org.example.DomainLayer.PolicyAggregate.IDiscountRule;
+import org.example.DomainLayer.PolicyAggregate.IPurchaseRule;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -176,5 +189,152 @@ public class EventService {
         {
             //TODO
         }
+    }
+
+    public List<CompanyCatalogDto> browseCatalog() {
+        logger.info("browseCatalog requested");
+        try {
+            List<Company> active = eventManagementDomainService.getActiveCompanies();
+            List<CompanyCatalogDto> out = new ArrayList<>();
+            for (Company c : active) {
+                List<Event> events = eventManagementDomainService.getVisibleEventsForCompany(c.getId());
+                List<EventSummaryDto> summaries = new ArrayList<>();
+                for (Event e : events) {
+                    summaries.add(toSummary(e));
+                }
+                out.add(new CompanyCatalogDto(c.getId(), c.getName(), c.getRating(), summaries));
+            }
+            if (out.isEmpty()) {
+                logger.info("browseCatalog returned no active companies");
+            }
+            return out;
+        } catch (RuntimeException e) {
+            logger.severe("browseCatalog failed: " + e.getMessage());
+            throw e;
+        }
+    }
+
+    public EventDetailsDto getEventDetails(UUID eventId) {
+        if (eventId == null) {
+            throw new IllegalArgumentException("eventId is required");
+        }
+        logger.info("getEventDetails requested for event " + eventId);
+        try {
+            Event e = eventManagementDomainService.getEventForView(eventId);
+            return toDetails(e);
+        } catch (RuntimeException ex) {
+            logger.severe("getEventDetails failed for event " + eventId + ": " + ex.getMessage());
+            throw ex;
+        }
+    }
+
+    public List<EventSummaryDto> searchEvents(EventSearchCriteria criteria) {
+        EventSearchCriteria c = (criteria == null) ? EventSearchCriteria.empty() : criteria;
+        validateCriteria(c);
+        logger.info("searchEvents requested with criteria: " + c);
+        try {
+            List<Event> matches = eventManagementDomainService.searchEvents(c);
+            List<EventSummaryDto> out = new ArrayList<>();
+            for (Event e : matches) {
+                out.add(toSummary(e));
+            }
+            if (out.isEmpty()) {
+                logger.info("searchEvents returned no matches");
+            }
+            return out;
+        } catch (RuntimeException ex) {
+            logger.severe("searchEvents failed: " + ex.getMessage());
+            throw ex;
+        }
+    }
+
+    public List<EventSummaryDto> searchEventsByCompany(UUID companyId, EventSearchCriteria criteria) {
+        if (companyId == null) {
+            throw new IllegalArgumentException("companyId is required");
+        }
+        EventSearchCriteria c = (criteria == null) ? EventSearchCriteria.empty() : criteria;
+        EventSearchCriteria scoped = c.withCompanyId(companyId);
+        validateCriteria(scoped);
+        logger.info("searchEventsByCompany requested for company " + companyId + " with criteria: " + scoped);
+        try {
+            List<Event> matches = eventManagementDomainService.searchEvents(scoped);
+            List<EventSummaryDto> out = new ArrayList<>();
+            for (Event e : matches) {
+                out.add(toSummary(e));
+            }
+            if (out.isEmpty()) {
+                logger.info("searchEventsByCompany returned no matches for company " + companyId);
+            }
+            return out;
+        } catch (RuntimeException ex) {
+            logger.severe("searchEventsByCompany failed for company " + companyId + ": " + ex.getMessage());
+            throw ex;
+        }
+    }
+
+    private static void validateCriteria(EventSearchCriteria c) {
+        if (c.priceMin().isPresent() && c.priceMin().get() < 0) {
+            throw new IllegalArgumentException("priceMin must be non-negative");
+        }
+        if (c.priceMax().isPresent() && c.priceMax().get() < 0) {
+            throw new IllegalArgumentException("priceMax must be non-negative");
+        }
+        if (c.priceMin().isPresent() && c.priceMax().isPresent()
+                && c.priceMin().get() > c.priceMax().get()) {
+            throw new IllegalArgumentException("priceMin must be <= priceMax");
+        }
+        if (c.dateFrom().isPresent() && c.dateTo().isPresent()
+                && c.dateFrom().get().isAfter(c.dateTo().get())) {
+            throw new IllegalArgumentException("dateFrom must be <= dateTo");
+        }
+        if (c.minEventRating().isPresent()
+                && (c.minEventRating().get() < 0 || c.minEventRating().get() > 5)) {
+            throw new IllegalArgumentException("minEventRating must be in [0,5]");
+        }
+        if (c.minCompanyRating().isPresent()
+                && (c.minCompanyRating().get() < 0 || c.minCompanyRating().get() > 5)) {
+            throw new IllegalArgumentException("minCompanyRating must be in [0,5]");
+        }
+    }
+
+    private static EventSummaryDto toSummary(Event e) {
+        return new EventSummaryDto(
+                e.getEventId(),
+                e.getCompanyId(),
+                e.getName(),
+                e.getArtist(),
+                e.getType(),
+                e.getDate(),
+                e.getLocation(),
+                e.getRating());
+    }
+
+    private static EventDetailsDto toDetails(Event e) {
+        List<AreaSummaryDto> areas = new ArrayList<>();
+        for (Area a : e.getLayout().getAreasView()) {
+            String kind = (a instanceof StandingArea) ? "STANDING"
+                    : (a instanceof SittingArea) ? "SITTING" : "UNKNOWN";
+            areas.add(new AreaSummaryDto(a.getAreaId(), kind, a.getPrice()));
+        }
+        List<String> purchaseRules = new ArrayList<>();
+        for (IPurchaseRule r : e.getPurchasePolicy().getRulesView()) {
+            purchaseRules.add(r.getClass().getSimpleName());
+        }
+        List<String> discountRules = new ArrayList<>();
+        for (IDiscountRule r : e.getDiscountPolicy().gDiscountRules()) {
+            discountRules.add(r.getClass().getSimpleName());
+        }
+        return new EventDetailsDto(
+                e.getEventId(),
+                e.getCompanyId(),
+                e.getName(),
+                e.getArtist(),
+                e.getType(),
+                e.getDate(),
+                e.getLocation(),
+                e.getRating(),
+                areas,
+                purchaseRules,
+                discountRules);
     }
 }

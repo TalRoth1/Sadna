@@ -25,6 +25,7 @@ import java.util.UUID;
 public class Event {
 
     private final UUID eventId;
+    private String name;
     private final UUID companyId;
     private LocalDateTime date;
     private String location;
@@ -43,6 +44,7 @@ public class Event {
     public Event(UUID eventId, UUID companyId, LocalDateTime date, String location,
                    String artist, String type, EventStatus status) {
         this.eventId = eventId;
+        this.name = name;
         this.companyId = companyId;
         setDate(date);
         setLocation(location);
@@ -141,6 +143,17 @@ public class Event {
             throw new IllegalArgumentException("type required");
         }
         this.type = type.trim();
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        if (name == null || name.isBlank()) {
+            return;
+        }
+        this.name = name.trim();
     }
 
     public Layout getLayout() {
@@ -409,4 +422,75 @@ public class Event {
             }
         }
     }
+
+        /**an event is browseable/searchable only when ACTIVE. */
+        public boolean isPubliclyVisible() {
+            return status == EventStatus.ACTIVE;
+        }
+    
+        /**
+         * UC 2.3.1 / UC 2.3.2 match predicate.
+         * Returns true iff this event is publicly visible AND every set filter holds.
+         */
+        public boolean matches(EventSearchCriteria c, double companyRating) {
+            if (c == null) {
+                return isPubliclyVisible();
+            }
+            if (!isPubliclyVisible()) {
+                return false;
+            }
+            if (c.companyId().isPresent() && !c.companyId().get().equals(this.companyId)) {
+                return false;
+            }
+            if (c.text().isPresent()) {
+                String needle = c.text().get().toLowerCase();
+                boolean hit = (name != null && name.toLowerCase().contains(needle))
+                        || (artist != null && artist.toLowerCase().contains(needle))
+                        || (type != null && type.toLowerCase().contains(needle));
+                if (!hit) {
+                    for (String tag : tags) {
+                        if (tag != null && tag.toLowerCase().contains(needle)) {
+                            hit = true;
+                            break;
+                        }
+                    }
+                }
+                if (!hit) {
+                    return false;
+                }
+            }
+            if (c.location().isPresent()) {
+                if (location == null
+                        || !location.toLowerCase().contains(c.location().get().toLowerCase())) {
+                    return false;
+                }
+            }
+            if (c.priceMin().isPresent() || c.priceMax().isPresent()) {
+                double min = c.priceMin().orElse(0.0);
+                double max = c.priceMax().orElse(Double.MAX_VALUE);
+                boolean priceHit = false;
+                for (Area a : layout.getAreasView()) {
+                    if (a.getPrice() >= min && a.getPrice() <= max) {
+                        priceHit = true;
+                        break;
+                    }
+                }
+                if (!priceHit) {
+                    return false;
+                }
+            }
+            if (c.dateFrom().isPresent() && date.isBefore(c.dateFrom().get())) {
+                return false;
+            }
+            if (c.dateTo().isPresent() && date.isAfter(c.dateTo().get())) {
+                return false;
+            }
+            if (c.minEventRating().isPresent() && rating < c.minEventRating().get()) {
+                return false;
+            }
+            if (c.minCompanyRating().isPresent() && companyRating < c.minCompanyRating().get()) {
+                return false;
+            }
+            return true;
+        }
 }
