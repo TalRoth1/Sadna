@@ -71,39 +71,39 @@ public class CompanyServiceTest {
         public void testCompanyNotFound() {
                 String adminUsername = "admin";
                 UUID companyId = UUID.randomUUID();
-
                 doThrow(new IllegalArgumentException("Company does not exist"))
                                 .when(rolesDomainServiceMock)
                                 .closeCompanyAsAdmin(adminUsername, companyId);
 
+                CompanyService serviceWithMock = new CompanyService(rolesDomainServiceMock, purchaseDomainService);
                 assertThrows(IllegalArgumentException.class,
-                                () -> companyService.closeCompanyAsAdmin(adminUsername, companyId));
+                                () -> serviceWithMock.closeCompanyAsAdmin(adminUsername, companyId));
         }
 
         @Test
         public void testCompanyAlreadyClosed() {
                 String adminUsername = "admin";
                 UUID companyId = UUID.randomUUID();
-
                 doThrow(new IllegalArgumentException("Company is already closed"))
                                 .when(rolesDomainServiceMock)
                                 .closeCompanyAsAdmin(adminUsername, companyId);
 
+                CompanyService serviceWithMock = new CompanyService(rolesDomainServiceMock, purchaseDomainService);
                 assertThrows(IllegalArgumentException.class,
-                                () -> companyService.closeCompanyAsAdmin(adminUsername, companyId));
+                                () -> serviceWithMock.closeCompanyAsAdmin(adminUsername, companyId));
         }
 
         @Test
         public void testUnauthorizedCompanyClosure() {
                 String username = "regularUser";
                 UUID companyId = UUID.randomUUID();
-
                 doThrow(new IllegalArgumentException("User is not an admin"))
                                 .when(rolesDomainServiceMock)
                                 .closeCompanyAsAdmin(username, companyId);
 
+                CompanyService serviceWithMock = new CompanyService(rolesDomainServiceMock, purchaseDomainService);
                 assertThrows(IllegalArgumentException.class,
-                                () -> companyService.closeCompanyAsAdmin(username, companyId));
+                                () -> serviceWithMock.closeCompanyAsAdmin(username, companyId));
         }
 
         @Test
@@ -144,39 +144,39 @@ public class CompanyServiceTest {
         public void testUserNotFound() {
                 String adminUsername = "admin";
                 String usernameToRemove = "missingUser";
-
                 doThrow(new IllegalArgumentException("User not found"))
                                 .when(rolesDomainServiceMock)
                                 .removeCompanyMemberAsAdmin(adminUsername, usernameToRemove);
 
+                CompanyService serviceWithMock = new CompanyService(rolesDomainServiceMock, purchaseDomainService);
                 assertThrows(IllegalArgumentException.class,
-                                () -> companyService.removeCompanyMemberAsAdmin(adminUsername, usernameToRemove));
+                                () -> serviceWithMock.removeCompanyMemberAsAdmin(adminUsername, usernameToRemove));
         }
 
         @Test
         public void testUserIsNotMember() {
                 String adminUsername = "admin";
                 String usernameToRemove = "guest";
-
                 doThrow(new IllegalArgumentException("User is not a member"))
                                 .when(rolesDomainServiceMock)
                                 .removeCompanyMemberAsAdmin(adminUsername, usernameToRemove);
 
+                CompanyService serviceWithMock = new CompanyService(rolesDomainServiceMock, purchaseDomainService);
                 assertThrows(IllegalArgumentException.class,
-                                () -> companyService.removeCompanyMemberAsAdmin(adminUsername, usernameToRemove));
+                                () -> serviceWithMock.removeCompanyMemberAsAdmin(adminUsername, usernameToRemove));
         }
 
         @Test
         public void testUnauthorizedUserRemoval() {
                 String adminUsername = "regularUser";
                 String usernameToRemove = "member";
-
                 doThrow(new IllegalArgumentException("User is not system admin"))
                                 .when(rolesDomainServiceMock)
                                 .removeCompanyMemberAsAdmin(adminUsername, usernameToRemove);
 
+                CompanyService serviceWithMock = new CompanyService(rolesDomainServiceMock, purchaseDomainService);
                 assertThrows(IllegalArgumentException.class,
-                                () -> companyService.removeCompanyMemberAsAdmin(adminUsername, usernameToRemove));
+                                () -> serviceWithMock.removeCompanyMemberAsAdmin(adminUsername, usernameToRemove));
         }
 
         @Test
