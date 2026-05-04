@@ -21,6 +21,8 @@ public abstract class ICompanyMember {
         return eventsIds;
     }
 
+    public abstract List<UUID> getEventsUnderMe();
+
     public ICompanyMember(String username, CompanyOwner Appointer) {
         this.username = username;
         this.Appointer = Appointer;
@@ -56,6 +58,32 @@ public abstract class ICompanyMember {
         // Potantially here we also send a notification to the event that the manager in charge of it has changed.
         Appointer.removeSubordinate(this);
         this.setAppointer(null);
+    }
+
+    // --- Mermaid helpers ---
+    public String mermaidId() {
+        String id = getUsername();
+        if (id == null || id.isBlank()) {
+            id = "unknown" + System.identityHashCode(this);
+        }
+        return "U" + id.replaceAll("[^A-Za-z0-9_]", "_");
+    }
+
+    public void appendMermaidNode(StringBuilder sb) {
+        sb.append(mermaidId()).append("[")
+                .append('"').append(getUsername()).append('"')
+                .append("]\n");
+    }
+
+    /**
+     * Build mermaid graph lines for this member and its subordinates (if any).
+     * Default implementation just emits the node. Owners override to recurse.
+     */
+    public void buildMermaid(StringBuilder sb) {
+        appendMermaidNode(sb);
+        if (getAppointer() != null) {
+            sb.append(getAppointer().mermaidId()).append(" --> ").append(mermaidId()).append("\n");
+        }
     }
 
 }

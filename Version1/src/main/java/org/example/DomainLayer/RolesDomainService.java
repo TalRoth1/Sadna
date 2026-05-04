@@ -207,4 +207,11 @@ public class RolesDomainService {
         company.addRating(userID, rating);
         companyRepository.save(company);
     }
+
+    public String getCompanyHierarchyMermaid(UUID companyId, String requesterUsername) {
+        Company company = companyRepository.findByID(companyId).get();
+        if (company == null)
+            throw new IllegalArgumentException("Company not found");
+        return company.getHierarchyMermaid(requesterUsername);
+    }
 }

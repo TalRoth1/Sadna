@@ -7,13 +7,16 @@ import java.util.UUID;
 
 import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
 import org.example.DomainLayer.DomainException;
+import org.example.DomainLayer.PurchaseDomainService;
 import org.example.DomainLayer.RolesDomainService;
 
 public class CompanyService {
     private final RolesDomainService rolesDomainService;
+    private final PurchaseDomainService purchaseDomainService;
 
-    public CompanyService(RolesDomainService rolesDomainService) {
+    public CompanyService(RolesDomainService rolesDomainService, PurchaseDomainService purchaseDomainService) {
         this.rolesDomainService = rolesDomainService;
+        this.purchaseDomainService = purchaseDomainService;
     }
     public UUID createCompany(String founderUsername, String companyName)
     {
@@ -145,5 +148,19 @@ public class CompanyService {
             throw new IllegalArgumentException("Manager username is required");
         }
         rolesDomainService.changeManagerPermissions(ownerUsername, companyId, managerUsername, newPremissions);
+    }
+
+    public String getCompanyHierarchyMermaid(UUID companyId, String requesterUsername) {
+        if (requesterUsername == null || requesterUsername.isBlank()) {
+            throw new IllegalArgumentException("Requester username is required");
+        }
+        return rolesDomainService.getCompanyHierarchyMermaid(companyId, requesterUsername);
+    }
+    
+    public String getSalesReportForOwner(String ownerUsername, UUID companyId) {
+        if (ownerUsername == null || ownerUsername.isBlank()) {
+            throw new IllegalArgumentException("Owner username is required");
+        }
+        return purchaseDomainService.getSalesReportForOwner(ownerUsername, companyId).toString();
     }
 }

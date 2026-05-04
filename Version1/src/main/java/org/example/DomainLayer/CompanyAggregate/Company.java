@@ -380,4 +380,36 @@ public Company(String founderUsername, String name) {
         }
         return ownerNames;
     }
+
+    /**
+     * Returns the company member hierarchy in Mermaid.js flowchart (top-down) format.
+     */
+    public String getHierarchyMermaid(String username) {
+        // first we need to check if the caller is a company owner, as only company owners can view the company hierarchy
+        if (!isCompanyMember(username) || !(members.get(username) instanceof CompanyOwner)) {
+            throw new IllegalArgumentException("Only company owners can view the company hierarchy");
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append("flowchart TD\n");
+
+        if (founder != null) {
+            founder.buildMermaid(sb);
+            return sb.toString();
+        }
+
+        // if now founder is set, throw an exception, as this is an invalid state for the company
+        throw new IllegalStateException("Company founder is not set, cannot build hierarchy");
+    }
+
+    
+    public List<UUID> getEventsUnderOwner(String ownerUsername) {
+        if (!isCompanyMember(ownerUsername)) {
+            throw new IllegalArgumentException("User is not a company member");
+        }
+        ICompanyMember member = members.get(ownerUsername);
+        if (!(member instanceof CompanyOwner)) {
+            throw new IllegalArgumentException("User is not a company owner");
+        }
+        return member.getEventsUnderMe();
+    }
 }
