@@ -3,6 +3,7 @@ package org.example.ApplicationLayer;
 import org.example.DomainLayer.ICompanyRepository;
 import org.example.DomainLayer.IUserRepository;
 import org.example.DomainLayer.RolesDomainService;
+import org.example.DomainLayer.PurchaseDomainService;
 import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.DomainLayer.CompanyAggregate.CompanyManager;
 import org.example.DomainLayer.PolicyAggregate.AgeRule;
@@ -38,13 +39,15 @@ public class CompanyServiceTest {
 
         private CompanyService companyService;
         private RolesDomainService rolesDomainService;
+        private PurchaseDomainService purchaseDomainService;
 
         @Before
         public void setUp() {
                 rolesDomainServiceMock = mock(RolesDomainService.class);
                 userRepositoryMock = mock(IUserRepository.class);
+                purchaseDomainService = mock(PurchaseDomainService.class);
                 rolesDomainService = new RolesDomainService(companyRepositoryMock, userRepositoryMock);
-                companyService = new CompanyService(rolesDomainService);
+                companyService = new CompanyService(rolesDomainService, purchaseDomainService);
         }
 
         /* Test cases for closeCompanyAsAdmin method */
@@ -337,7 +340,7 @@ public class CompanyServiceTest {
         public void testCreateCompany_ValidInput_CallsDomainService() {
                 // Arrange: Create a local version of the service that uses the mock
                 // This ignores the 'rolesDomainService' created in @Before
-                CompanyService serviceWithMock = new CompanyService(rolesDomainServiceMock);
+                CompanyService serviceWithMock = new CompanyService(rolesDomainServiceMock, purchaseDomainService);
 
                 String founder = "moshiko123";
                 String companyName = "Workshop Ltd";
@@ -352,7 +355,7 @@ public class CompanyServiceTest {
         @Test(expected = IllegalArgumentException.class)
         public void testCreateCompany_NullUsername_ThrowsException() {
                 // Arrange: Using the mock-based service for consistency
-                CompanyService serviceWithMock = new CompanyService(rolesDomainServiceMock);
+                CompanyService serviceWithMock = new CompanyService(rolesDomainServiceMock, purchaseDomainService);
 
                 // Act
                 serviceWithMock.createCompany(null, "Some Company");
@@ -363,7 +366,7 @@ public class CompanyServiceTest {
         @Test(expected = IllegalArgumentException.class)
         public void testCreateCompany_EmptyUsername_ThrowsException() {
                 // Arrange
-                CompanyService serviceWithMock = new CompanyService(rolesDomainServiceMock);
+                CompanyService serviceWithMock = new CompanyService(rolesDomainServiceMock, purchaseDomainService);
 
                 // Act
                 serviceWithMock.createCompany("   ", "Some Company");
@@ -396,7 +399,7 @@ public class CompanyServiceTest {
         public void testInviteCompanyManager_NullOwner_ValidationFails() {
                 // Arrange
                 UUID companyId = UUID.randomUUID();
-                Set<CompanyPermission> perms = new HashSet<>();
+                Set<CompanyPermission> perms = new HashSet<>(); 
                 perms.add(CompanyPermission.MANAGE_POLICIES);
 
                 // Act & Assert: validation at application layer
