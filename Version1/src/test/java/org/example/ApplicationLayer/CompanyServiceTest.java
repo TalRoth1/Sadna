@@ -371,10 +371,11 @@ public class CompanyServiceTest {
                 // Assert: Handled by expected = IllegalArgumentException.class
         }
 
-        /* Tests for manager/owner invitations and permissions delegation */
+        /* Tests for manager/owner invitations and permissions — verify state changes */
+
         @Test
-        public void testInviteCompanyManager_Valid_CallsDomainService() {
-                // Arrange: real company + repository
+        public void testInviteCompanyManager_Valid_AddsManagerAfterAccept() {
+                // Arrange: real company wired to repository
                 UUID companyId = UUID.randomUUID();
                 Company realCompany = new Company("ownerUser", "TestCorp");
                 when(companyRepositoryMock.findByID(companyId)).thenReturn(Optional.of(realCompany));
@@ -383,7 +384,7 @@ public class CompanyServiceTest {
                 Set<CompanyPermission> perms = new HashSet<>();
                 perms.add(CompanyPermission.MANAGE_POLICIES);
 
-                // Act: invite then accept the invitation
+                // Act: invite and accept via application service
                 UUID invitationId = companyService.inviteCompanyManager(owner, companyId, invitee, perms);
                 companyService.acceptCompanyInvitation(invitationId, companyId);
 
@@ -392,13 +393,13 @@ public class CompanyServiceTest {
         }
 
         @Test
-        public void testInviteCompanyManager_OwnerUsernameIsNull() {
+        public void testInviteCompanyManager_NullOwner_ValidationFails() {
                 // Arrange
                 UUID companyId = UUID.randomUUID();
                 Set<CompanyPermission> perms = new HashSet<>();
                 perms.add(CompanyPermission.MANAGE_POLICIES);
 
-                // Act & Assert: should throw for null owner
+                // Act & Assert: validation at application layer
                 assertThrows(IllegalArgumentException.class,
                                 () -> companyService.inviteCompanyManager(null, companyId, "m", perms));
 
@@ -407,15 +408,15 @@ public class CompanyServiceTest {
         }
 
         @Test
-        public void testInviteCompanyOwner_Valid_CallsDomainService() {
-                // Arrange: prepare company and repository
+        public void testInviteCompanyOwner_Valid_AddsOwnerAfterAccept() {
+                // Arrange: company with founder
                 UUID companyId = UUID.randomUUID();
                 Company realCompany = new Company("ownerUser", "OwnerCorp");
                 when(companyRepositoryMock.findByID(companyId)).thenReturn(Optional.of(realCompany));
                 String owner = realCompany.getFounder().getUsername();
                 String invitee = "newOwner";
 
-                // Act: invite + accept
+                // Act: invite and accept
                 UUID invitationId = companyService.inviteCompanyOwner(owner, companyId, invitee);
                 companyService.acceptCompanyInvitation(invitationId, companyId);
 
@@ -424,21 +425,20 @@ public class CompanyServiceTest {
         }
 
         @Test
-        public void testInviteCompanyOwner_OwnerUsernameIsBlank() {
+        public void testInviteCompanyOwner_BlankOwner_ValidationFails() {
                 // Arrange
                 UUID companyId = UUID.randomUUID();
 
-                // Act & Assert: blank owner should cause validation failure
+                // Act & Assert
                 assertThrows(IllegalArgumentException.class,
                                 () -> companyService.inviteCompanyOwner(" ", companyId, "someone"));
 
-                // Assert: repository not queried
                 verifyNoInteractions(companyRepositoryMock);
         }
 
         @Test
-        public void testAcceptCompanyInvitation_Valid_DelegatesToDomainService() {
-                // Arrange: create a real company and an invitation via service
+        public void testAcceptCompanyInvitation_Valid_AddsMember() {
+                // Arrange: create company and invitation via service
                 UUID companyId = UUID.randomUUID();
                 Company realCompany = new Company("ownerUser", "InviteCorp");
                 when(companyRepositoryMock.findByID(companyId)).thenReturn(Optional.of(realCompany));
@@ -449,27 +449,27 @@ public class CompanyServiceTest {
 
                 UUID invitationId = companyService.inviteCompanyManager(owner, companyId, invitee, perms);
 
-                // Act: accept the invitation
+                // Act
                 companyService.acceptCompanyInvitation(invitationId, companyId);
 
-                // Assert: the invitee is now a member
+                // Assert
                 assertTrue(realCompany.hasMember(invitee));
         }
 
         @Test
-        public void testAcceptCompanyInvitation_DomainThrowsException_Propagates() {
-                // Arrange: repository returns empty (company missing)
+        public void testAcceptCompanyInvitation_MissingCompany_Throws() {
+                // Arrange: repository returns empty
                 UUID companyId = UUID.randomUUID();
                 UUID invitationId = UUID.randomUUID();
                 when(companyRepositoryMock.findByID(companyId)).thenReturn(Optional.empty());
 
-                // Act & Assert: missing company causes exception from domain layer
+                // Act & Assert
                 assertThrows(Exception.class,
                                 () -> companyService.acceptCompanyInvitation(invitationId, companyId));
         }
 
         @Test
-        public void testChangeManagerPermissions_Valid_CallsDomainService() {
+        public void testChangeManagerPermissions_Valid_UpdatesPermissions() {
                 // Arrange: prepare a company and add a manager under the founder
                 UUID companyId = UUID.randomUUID();
                 Company realCompany = new Company("ownerUser", "PermCorp");
@@ -488,7 +488,7 @@ public class CompanyServiceTest {
                 newPerms.add(CompanyPermission.CONFIGURE_LAYOUT);
                 companyService.changeManagerPermissions(owner, companyId, manager, newPerms);
 
-                // Assert: manager permissions updated (found under founder's subordinates)
+                // Assert: manager permissions updated
                 var subs = realCompany.getFounder().getSubordinates();
                 CompanyManager found = null;
                 for (var s : subs) {
@@ -502,64 +502,62 @@ public class CompanyServiceTest {
         }
 
         @Test
-        public void testChangeManagerPermissions_OwnerNull_Throws() {
+        public void testChangeManagerPermissions_OwnerNull_ValidationFails() {
                 // Arrange
                 UUID companyId = UUID.randomUUID();
 
-                // Act & Assert: null owner should cause validation exception
+                // Act & Assert
                 assertThrows(IllegalArgumentException.class,
                                 () -> companyService.changeManagerPermissions(null, companyId, "m", new HashSet<>()));
 
-                // Assert: repository not queried
                 verifyNoInteractions(companyRepositoryMock);
         }
 
         @Test
-        public void testChangeManagerPermissions_ManagerBlank_Throws() {
+        public void testChangeManagerPermissions_ManagerBlank_ValidationFails() {
                 // Arrange
                 UUID companyId = UUID.randomUUID();
 
-                // Act & Assert: blank manager username is invalid
-                assertThrows(IllegalArgumentException.class, () -> companyService.changeManagerPermissions("owner",
-                                companyId, " ", new HashSet<>()));
+                // Act & Assert
+                assertThrows(IllegalArgumentException.class,
+                                () -> companyService.changeManagerPermissions("owner", companyId, " ",
+                                                new HashSet<>()));
 
-                // Assert: repository not queried
                 verifyNoInteractions(companyRepositoryMock);
         }
 
         @Test
-        public void testRemoveCompanyMemberAsOwner_Valid_CallsDomainService() {
-                        // Arrange: real company with a manager under the founder
-                        UUID companyId = UUID.randomUUID();
-                        Company realCompany = new Company("ownerUser", "RemovalCorp");
-                        when(companyRepositoryMock.findByID(companyId)).thenReturn(Optional.of(realCompany));
-                        String owner = realCompany.getFounder().getUsername();
-                        String removeUser = "memberUser";
-                        Set<CompanyPermission> perms = new HashSet<>();
-                        perms.add(CompanyPermission.MANAGE_POLICIES);
-                        realCompany.appointNewManager(removeUser, owner, perms);
+        public void testRemoveCompanyMemberAsOwner_Valid_RemovesMember() {
+                // Arrange: real company with a manager under the founder
+                UUID companyId = UUID.randomUUID();
+                Company realCompany = new Company("ownerUser", "RemovalCorp");
+                when(companyRepositoryMock.findByID(companyId)).thenReturn(Optional.of(realCompany));
+                String owner = realCompany.getFounder().getUsername();
+                String removeUser = "memberUser";
+                Set<CompanyPermission> perms = new HashSet<>();
+                perms.add(CompanyPermission.MANAGE_POLICIES);
+                realCompany.appointNewManager(removeUser, owner, perms);
 
-                        // Sanity check
-                        assertTrue(realCompany.hasMember(removeUser));
+                // Sanity check
+                assertTrue(realCompany.hasMember(removeUser));
 
-                        // Act
-                        companyService.removeCompanyMemberAsOwner(owner, companyId, removeUser);
+                // Act
+                companyService.removeCompanyMemberAsOwner(owner, companyId, removeUser);
 
-                        // Assert: member removed from company
-                        assertFalse(realCompany.hasMember(removeUser));
+                // Assert
+                assertFalse(realCompany.hasMember(removeUser));
         }
 
         @Test
-        public void testRemoveCompanyMemberAsOwner_OwnerBlank_Throws() {
-                        // Arrange
-                        UUID companyId = UUID.randomUUID();
+        public void testRemoveCompanyMemberAsOwner_OwnerBlank_ValidationFails() {
+                // Arrange
+                UUID companyId = UUID.randomUUID();
 
-                        // Act & Assert: blank owner should fail validation
-                        assertThrows(IllegalArgumentException.class,
-                                        () -> companyService.removeCompanyMemberAsOwner(" ", companyId, "u"));
+                // Act & Assert
+                assertThrows(IllegalArgumentException.class,
+                                () -> companyService.removeCompanyMemberAsOwner(" ", companyId, "u"));
 
-                        // Assert: repository not queried
-                        verifyNoInteractions(companyRepositoryMock);
+                verifyNoInteractions(companyRepositoryMock);
         }
 
 }
