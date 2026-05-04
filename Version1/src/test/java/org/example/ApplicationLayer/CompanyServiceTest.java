@@ -45,6 +45,8 @@ public class CompanyServiceTest {
         public void setUp() {
                 rolesDomainServiceMock = mock(RolesDomainService.class);
                 userRepositoryMock = mock(IUserRepository.class);
+                // Treat "admin" as a system admin for tests that exercise admin flows
+                
                 purchaseDomainService = mock(PurchaseDomainService.class);
                 rolesDomainService = new RolesDomainService(companyRepositoryMock, userRepositoryMock);
                 companyService = new CompanyService(rolesDomainService, purchaseDomainService);
@@ -52,7 +54,7 @@ public class CompanyServiceTest {
 
         /* Test cases for closeCompanyAsAdmin method */
         @Test
-        public void testSuccessfulCompanyClosure() {
+        public void testSuccessfulCompanyClosureAsAdmin() {
                 String adminUsername = "admin";
                 UUID companyId = UUID.randomUUID();
 
@@ -122,7 +124,7 @@ public class CompanyServiceTest {
         /* Test cases for removeCompanyMemberAsAdmin method */
 
         @Test
-        public void testSuccessfulUserRemoval() {
+        public void testSuccessfulUserRemovalAsAdmin() {
                 String adminUsername = "admin";
                 String usernameToRemove = "member";
 
