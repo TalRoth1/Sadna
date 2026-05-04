@@ -175,6 +175,7 @@ public class EventService {
         catch (DomainException e)
         {
             //TODO
+            throw e;
         }
     }
 }

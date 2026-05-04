@@ -179,7 +179,7 @@ public class Event {
         return Map.copyOf(ticketsById);
     }
 
-    public void addTicket(Ticket ticket) {
+    public synchronized void addTicket(Ticket ticket) {
         if (ticket == null) {
             throw new IllegalArgumentException("ticket must not be null");
         }

@@ -4,6 +4,7 @@ import org.example.DomainLayer.PurchaseDomainService;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.Mock;
 
 import java.util.List;
 import java.util.UUID;
@@ -14,11 +15,15 @@ import static org.mockito.Mockito.*;
 public class PurchaseServiceTest {
     private PurchaseDomainService purchaseDomainServiceMock;
     private PurchaseService purchaseService;
+    
+    @Mock
+    private QueueManager queueManagerMock;
 
     @Before
     public void setUp() {
+        queueManagerMock = mock(QueueManager.class);
         purchaseDomainServiceMock = mock(PurchaseDomainService.class);
-        purchaseService = new PurchaseService(purchaseDomainServiceMock);
+        purchaseService = new PurchaseService(purchaseDomainServiceMock, queueManagerMock);
     }
 
     /* Tests for viewing purchase history by filter */
@@ -282,8 +287,4 @@ public class PurchaseServiceTest {
 
         assertEquals(expected, result);
     }
-
-
-
-
 }
