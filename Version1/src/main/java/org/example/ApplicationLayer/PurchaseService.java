@@ -75,8 +75,6 @@ public class PurchaseService {
         if (filterType == null || filterType.isBlank()) {
             throw new IllegalArgumentException("Filter type is required");
         }
-        validateAdmin(adminId);
-
         return switch (filterType.toLowerCase()) {
             case "user" -> getHistoryByUser(adminId, filterId);
             case "event" -> getHistoryByEvent(adminId, filterId);
