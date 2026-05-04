@@ -15,11 +15,11 @@ public class CompanyService {
     public CompanyService(RolesDomainService rolesDomainService) {
         this.rolesDomainService = rolesDomainService;
     }
-    public void createCompany(String founderUsername, String companyName)
+    public UUID createCompany(String founderUsername, String companyName)
     {
         if (founderUsername == null || founderUsername.isBlank()) 
             throw new IllegalArgumentException("founder username is required");
-        rolesDomainService.createCompany(founderUsername, companyName);
+        return rolesDomainService.createCompany(founderUsername, companyName);
     }
 
     public void closeCompanyAsAdmin(String adminUsername, UUID companyId) {
@@ -30,12 +30,12 @@ public class CompanyService {
         rolesDomainService.closeCompanyAsAdmin(adminUsername, companyId);
     }
 
-    public void inviteCompanyManager(String ownerUsername, UUID companyId, String usernameToInvite, Set<CompanyPermission> premissions) {
+    public UUID inviteCompanyManager(String ownerUsername, UUID companyId, String usernameToInvite, Set<CompanyPermission> premissions) {
         if (ownerUsername == null || ownerUsername.isBlank()) {
             throw new IllegalArgumentException("Owner username is required");
         }
 
-        rolesDomainService.inviteCompanyManager(ownerUsername, companyId, usernameToInvite, premissions);
+        return rolesDomainService.inviteCompanyManager(ownerUsername, companyId, usernameToInvite, premissions);
     }
 
     public void removeCompanyMemberAsOwner(String ownerUsername, UUID companyId, String usernameToRemove) {
@@ -46,12 +46,12 @@ public class CompanyService {
         rolesDomainService.removeCompanyMemberAsOwner(ownerUsername, companyId, usernameToRemove);
     }
 
-    public void inviteCompanyOwner(String ownerUsername, UUID companyId, String usernameToInvite) {
+    public UUID inviteCompanyOwner(String ownerUsername, UUID companyId, String usernameToInvite) {
         if (ownerUsername == null || ownerUsername.isBlank()) {
             throw new IllegalArgumentException("Owner username is required");
         }
 
-        rolesDomainService.inviteCompanyOwner(ownerUsername, companyId, usernameToInvite);
+        return rolesDomainService.inviteCompanyOwner(ownerUsername, companyId, usernameToInvite);
     }
 
     public void acceptCompanyInvitation(UUID invetationID, UUID companyId) {

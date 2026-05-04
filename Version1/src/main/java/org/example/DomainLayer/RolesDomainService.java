@@ -19,8 +19,8 @@ public class RolesDomainService {
         this.userRepository = userRepository;
     }
 
-    public void createCompany(String founderUsername, String companyName) {
-        companyRepository.createCompany(founderUsername, companyName);
+    public UUID createCompany(String founderUsername, String companyName) {
+        return companyRepository.createCompany(founderUsername, companyName);
     }
 
     public void closeCompanyAsAdmin(String adminUsername, UUID companyId) {
@@ -94,7 +94,7 @@ public class RolesDomainService {
         company.removeMemberAsOwner(usernameToRemove, ownerUsername);
     }
 
-    public void inviteCompanyManager(String ownerUsername, UUID companyId, String usernameToInvite, Set<CompanyPermission> premissions) {
+    public UUID inviteCompanyManager(String ownerUsername, UUID companyId, String usernameToInvite, Set<CompanyPermission> premissions) {
         if (ownerUsername == null || ownerUsername.isBlank()) {
             throw new IllegalArgumentException("Owner username is required");
         }
@@ -107,10 +107,10 @@ public class RolesDomainService {
         if (company == null)
             throw new IllegalArgumentException("Company not found");
 
-        company.inviteNewManager(ownerUsername, ownerUsername, premissions);
+        return company.inviteNewManager(ownerUsername, ownerUsername, premissions);
     }
 
-    public void inviteCompanyOwner(String ownerUsername, UUID companyId, String usernameToInvite) {
+    public UUID inviteCompanyOwner(String ownerUsername, UUID companyId, String usernameToInvite) {
         if (ownerUsername == null || ownerUsername.isBlank()) {
             throw new IllegalArgumentException("Owner username is required");
         }
@@ -123,7 +123,7 @@ public class RolesDomainService {
         if (company == null)
             throw new IllegalArgumentException("Company not found");
 
-        company.inviteNewOwner(ownerUsername, usernameToInvite);
+        return company.inviteNewOwner(ownerUsername, usernameToInvite);
     }
 
     public void acceptCompanyInvitation(UUID invetationID, UUID companyId) {

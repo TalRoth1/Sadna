@@ -100,7 +100,7 @@ public Company(String founderUsername, String name) {
         return members.containsKey(username);
     }
 
-    public boolean inviteNewOwner(String appointeeUsername, String appointerUsername)
+    public UUID inviteNewOwner(String appointeeUsername, String appointerUsername)
     {
         if (!isCompanyMember(appointerUsername) || !(members.get(appointerUsername) instanceof CompanyOwner))
         {
@@ -119,10 +119,10 @@ public Company(String founderUsername, String name) {
         }
         Invitation invitation = new OwnerInvetation(appointerUsername, appointeeUsername, id);
         invitations.put(invitation.getId(), invitation);
-        return true;
+        return invitation.getId();
     }
 
-    public boolean inviteNewManager(String appointeeUsername, String appointerUsername, Set<CompanyPermission> premissions)
+    public UUID inviteNewManager(String appointeeUsername, String appointerUsername, Set<CompanyPermission> premissions)
     {
         if (!isCompanyMember(appointerUsername) || !(members.get(appointerUsername) instanceof CompanyOwner))
         {
@@ -134,7 +134,7 @@ public Company(String founderUsername, String name) {
         }
         Invitation invitation = new ManagerInvetation(appointerUsername, appointeeUsername, id, premissions);
         invitations.put(invitation.getId(), invitation);
-        return true;
+        return invitation.getId();
     }
 
     public boolean acceptInvitation(UUID invitationId)
