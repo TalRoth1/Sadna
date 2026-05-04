@@ -46,7 +46,7 @@ public class CompanyServiceTest {
                 rolesDomainServiceMock = mock(RolesDomainService.class);
                 userRepositoryMock = mock(IUserRepository.class);
                 // Treat "admin" as a system admin for tests that exercise admin flows
-                
+
                 purchaseDomainService = mock(PurchaseDomainService.class);
                 rolesDomainService = new RolesDomainService(companyRepositoryMock, userRepositoryMock);
                 companyService = new CompanyService(rolesDomainService, purchaseDomainService);
@@ -58,7 +58,10 @@ public class CompanyServiceTest {
                 String adminUsername = "admin";
                 UUID companyId = UUID.randomUUID();
 
-                companyService.closeCompanyAsAdmin(adminUsername, companyId);
+                // Use the mock-wired service
+                CompanyService serviceWithMock = new CompanyService(rolesDomainServiceMock, purchaseDomainService);
+
+                serviceWithMock.closeCompanyAsAdmin(adminUsername, companyId);
 
                 verify(rolesDomainServiceMock, times(1))
                                 .closeCompanyAsAdmin(adminUsername, companyId);
@@ -128,7 +131,10 @@ public class CompanyServiceTest {
                 String adminUsername = "admin";
                 String usernameToRemove = "member";
 
-                companyService.removeCompanyMemberAsAdmin(adminUsername, usernameToRemove);
+                // Use the mock-wired service
+                CompanyService serviceWithMock = new CompanyService(rolesDomainServiceMock, purchaseDomainService);
+
+                serviceWithMock.removeCompanyMemberAsAdmin(adminUsername, usernameToRemove);
 
                 verify(rolesDomainServiceMock, times(1))
                                 .removeCompanyMemberAsAdmin(adminUsername, usernameToRemove);
@@ -401,7 +407,7 @@ public class CompanyServiceTest {
         public void testInviteCompanyManager_NullOwner_ValidationFails() {
                 // Arrange
                 UUID companyId = UUID.randomUUID();
-                Set<CompanyPermission> perms = new HashSet<>(); 
+                Set<CompanyPermission> perms = new HashSet<>();
                 perms.add(CompanyPermission.MANAGE_POLICIES);
 
                 // Act & Assert: validation at application layer
