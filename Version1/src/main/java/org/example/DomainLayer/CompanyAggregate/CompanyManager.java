@@ -34,4 +34,17 @@ public class CompanyManager extends ICompanyMember {
     public boolean isInChargeOfEvent(UUID eventId) {
         return this.getEventsIds().contains(eventId);
     }
+
+    @Override
+    public void buildMermaid(StringBuilder sb) {
+        sb.append(mermaidId()).append("[");
+        sb.append('"').append(getUsername());
+        if (premissions != null && !premissions.isEmpty()) {
+            sb.append("\\nPerms:").append(premissions.toString());
+        }
+        sb.append('"').append("]\n");
+        if (getAppointer() != null) {
+            sb.append(getAppointer().mermaidId()).append(" --> ").append(mermaidId()).append("\n");
+        }
+    }
 }

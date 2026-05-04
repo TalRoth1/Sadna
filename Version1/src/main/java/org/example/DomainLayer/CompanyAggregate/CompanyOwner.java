@@ -52,4 +52,12 @@ public class CompanyOwner extends ICompanyMember {
         }
         return false;
     }
+
+    @Override
+    public void buildMermaid(StringBuilder sb) {
+        appendMermaidNode(sb);
+        for (ICompanyMember subordinate : subordinates) {
+            subordinate.buildMermaid(sb);
+        }
+    }
 }

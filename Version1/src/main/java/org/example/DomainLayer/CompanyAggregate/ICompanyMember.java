@@ -58,4 +58,30 @@ public abstract class ICompanyMember {
         this.setAppointer(null);
     }
 
+    // --- Mermaid helpers ---
+    public String mermaidId() {
+        String id = getUsername();
+        if (id == null || id.isBlank()) {
+            id = "unknown" + System.identityHashCode(this);
+        }
+        return "U" + id.replaceAll("[^A-Za-z0-9_]", "_");
+    }
+
+    public void appendMermaidNode(StringBuilder sb) {
+        sb.append(mermaidId()).append("[")
+                .append('"').append(getUsername()).append('"')
+                .append("]\n");
+    }
+
+    /**
+     * Build mermaid graph lines for this member and its subordinates (if any).
+     * Default implementation just emits the node. Owners override to recurse.
+     */
+    public void buildMermaid(StringBuilder sb) {
+        appendMermaidNode(sb);
+        if (getAppointer() != null) {
+            sb.append(getAppointer().mermaidId()).append(" --> ").append(mermaidId()).append("\n");
+        }
+    }
+
 }
