@@ -154,6 +154,7 @@ public class EventServiceTest {
                     realEvent.getDiscountPolicy().gDiscountRules().isEmpty());
     }
 
+    @Test
     public void eventRate_success()
     {
         UUID user1 = UUID.randomUUID();
