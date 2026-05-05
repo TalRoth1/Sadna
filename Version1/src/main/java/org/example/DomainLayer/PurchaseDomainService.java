@@ -1,26 +1,29 @@
 package org.example.DomainLayer;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+import org.example.ApplicationLayer.PaymentDetails;
+import org.example.ApplicationLayer.dto.SalesReport;
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
+import org.example.DomainLayer.ActivePurchaseAggregate.IPaymentGateway;
+import org.example.DomainLayer.ActivePurchaseAggregate.ITicketingGateway;
+import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.DomainLayer.EventAggregate.Event;
+import org.example.DomainLayer.LotteryAggregate.PuchaseLottery;
+import org.example.DomainLayer.PolicyAggregate.DiscountPolicy;
 import org.example.DomainLayer.PurchaseHistoryAggregate.Payment;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.example.DomainLayer.UserAggregate.User;
 import org.example.DomainLayer.UserAggregate.UserRole;
 import org.example.DomainLayer.UserAggregate.UserStatus;
 
-import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import org.example.ApplicationLayer.PaymentDetails;
-import org.example.DomainLayer.ActivePurchaseAggregate.IPaymentGateway;
-import org.example.DomainLayer.ActivePurchaseAggregate.ITicketingGateway;
-import org.example.DomainLayer.CompanyAggregate.Company;
-import org.example.DomainLayer.PolicyAggregate.DiscountPolicy;
-
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.stream.Collectors;
 
 public class PurchaseDomainService {
     private final IHistoryRepository historyRepository;
@@ -28,6 +31,7 @@ public class PurchaseDomainService {
     private final IPurchaseRepository purchaseRepository;
     private final ICompanyRepository companyRepository;
     private final IUserRepository userRepository;
+    private final ILotteryRepository lotteryRepository;
 
     IPaymentGateway paymentGateway;
     ITicketingGateway ticketingGateway;
@@ -37,12 +41,14 @@ public class PurchaseDomainService {
                                  IEventRepository eventRepository,
                                  IPurchaseRepository purchaseRepository,
                                  ICompanyRepository companyRepository,
-                                 IUserRepository userRepository) {
+                                 IUserRepository userRepository,
+                                 ILotteryRepository lotteryRepository) {
         this.historyRepository = historyRepository;
         this.eventRepository = eventRepository;
         this.purchaseRepository = purchaseRepository;
         this.companyRepository = companyRepository;
         this.userRepository = userRepository;
+        this.lotteryRepository = lotteryRepository;
     }
 
     public void addPurchaseToHistory(UUID userId, List<UUID> ticketIds, UUID eventId, Payment payment) {
@@ -53,16 +59,14 @@ public class PurchaseDomainService {
         historyRepository.add(purchaseHistory);
     }
 
-    public void selectSittingTickets(UUID eventID, List<UUID> ticketIDs, UUID userID, boolean guestAgeConfirmed)
-    {
+    public void selectSittingTickets(UUID eventID, List<UUID> ticketIDs, UUID userID, boolean guestAgeConfirmed) {
         ensureUserHasNoOtherActivePurchases(userID);
         Event event = eventRepository.getById(eventID);
 
-        synchronized (event)
-        {
+        synchronized (event) {
             event.reserveSittingTickets(ticketIDs);
-
             LinkedHashMap<UUID, Float> ticketBasePrices = new LinkedHashMap<>();
+
             for (UUID ticketId : ticketIDs) {
                 ticketBasePrices.put(ticketId, event.getTicket(ticketId).getPrice());
             }
@@ -76,13 +80,11 @@ public class PurchaseDomainService {
     }
 
 
-    public void selectStandingTickets(UUID eventID, int amount, UUID userID, UUID areaID, boolean guestAgeConfirmed)
-    {
+    public void selectStandingTickets(UUID eventID, int amount, UUID userID, UUID areaID, boolean guestAgeConfirmed) {
         ensureUserHasNoOtherActivePurchases(userID);
         Event event = eventRepository.getById(eventID);
 
-        synchronized (event)
-        {
+        synchronized (event) {
 
             List<UUID> reservedTicketIDs = event.reserveStandingTickets(amount, areaID);
 
@@ -101,8 +103,7 @@ public class PurchaseDomainService {
 
     }
 
-    public void completePurchase(UUID activePurchaseID, PaymentDetails paymentDetails, String couponCode)
-    {
+    public void completePurchase(UUID activePurchaseID, PaymentDetails paymentDetails, String couponCode) {
         ActivePurchase activePurchase = purchaseRepository.findByID(activePurchaseID);
         if (activePurchase == null)
             throw new DomainException("Active Purchase Not Found");
@@ -116,12 +117,10 @@ public class PurchaseDomainService {
 
         Event event = eventRepository.getById(activePurchase.getEventID());
 
-        synchronized (event)
-        {
+        synchronized (event) {
             User user = userRepository.getUser(activePurchase.getUserID()).get();
 
-            try
-            {
+            try {
                 if (event.getPurchasePolicy() != null) {
                     event.getPurchasePolicy().validate(activePurchase, user, event);
                 }
@@ -130,9 +129,7 @@ public class PurchaseDomainService {
                     Company eventCompany = companyRepository.findByID(event.getCompanyId()).get();
                     eventCompany.getPurchasePolicy().validate(activePurchase, user, event);
                 }
-            }
-            catch (DomainException e)
-            {
+            } catch (DomainException e) {
                 event.releaseTickets(activePurchase.getTicketIDs());
                 throw e;
             }
@@ -151,9 +148,7 @@ public class PurchaseDomainService {
 
             try {
                 ticketingGateway.issueTickets(activePurchase.getUserID(), activePurchase.getEventID(), activePurchase.getTicketIDs().keySet());
-            }
-            catch (DomainException e)
-            {
+            } catch (DomainException e) {
                 event.releaseTickets(activePurchase.getTicketIDs());
                 throw e;
             }
@@ -206,8 +201,7 @@ public class PurchaseDomainService {
             throw new DomainException("Cannot start a new purchase while there is another active purcahse in the system");
     }
 
-    public void updateActivePurchaseSittingTickets(UUID activePurchaseID, List<UUID> newTicketIDs)
-    {
+    public void updateActivePurchaseSittingTickets(UUID activePurchaseID, List<UUID> newTicketIDs) {
         ActivePurchase activePurchase = purchaseRepository.findByID(activePurchaseID);
         if (activePurchase == null) {
             throw new DomainException("Active Purchase Not Found");
@@ -220,8 +214,7 @@ public class PurchaseDomainService {
 
         Event event = eventRepository.getById(activePurchase.getEventID());
 
-        synchronized (event)
-        {
+        synchronized (event) {
             if (activePurchase.isExpired(LocalDateTime.now())) {
                 event.releaseTickets(activePurchase.getTicketIDs());
                 purchaseRepository.deleteByID(activePurchaseID);
@@ -251,8 +244,8 @@ public class PurchaseDomainService {
             }
         }
     }
-    public void updateActivePurchaseStandingTickets(UUID activePurchaseId, int newAmount, UUID areaId)
-    {
+
+    public void updateActivePurchaseStandingTickets(UUID activePurchaseId, int newAmount, UUID areaId) {
         ActivePurchase activePurchase = purchaseRepository.findByID(activePurchaseId);
         if (activePurchase == null) {
             throw new DomainException("Active Purchase Not Found");
@@ -265,8 +258,7 @@ public class PurchaseDomainService {
 
         Event event = eventRepository.getById(activePurchase.getEventID());
 
-        synchronized (event)
-        {
+        synchronized (event) {
             if (activePurchase.isExpired(LocalDateTime.now())) {
                 event.releaseTickets(activePurchase.getTicketIDs());
                 purchaseRepository.deleteByID(activePurchaseId);
@@ -298,8 +290,7 @@ public class PurchaseDomainService {
     }
 
 
-    public void cancelActivePurchase(UUID activePurchaseId)
-    {
+    public void cancelActivePurchase(UUID activePurchaseId) {
         ActivePurchase activePurchase = purchaseRepository.findByID(activePurchaseId);
         if (activePurchase == null) {
             throw new DomainException("Active Purchase Not Found");
@@ -307,15 +298,13 @@ public class PurchaseDomainService {
 
         Event event = eventRepository.getById(activePurchase.getEventID());
 
-        synchronized (event)
-        {
+        synchronized (event) {
             event.releaseTickets(activePurchase.getTicketIDs());
             purchaseRepository.deleteByID(activePurchaseId);
         }
     }
 
-    public ActivePurchase viewActivePurchase(UUID activePurchaseId)
-    {
+    public ActivePurchase viewActivePurchase(UUID activePurchaseId) {
         ActivePurchase activePurchase = purchaseRepository.findByID(activePurchaseId);
         if (activePurchase == null) {
             throw new DomainException("Active Purchase Not Found");
@@ -342,6 +331,12 @@ public class PurchaseDomainService {
                 return activePurchase;
             }
         }
+    }
+    public void setPaymentGateway(IPaymentGateway paymentGateway) {
+        this.paymentGateway = paymentGateway;
+    }
+    public void setTicketingGateway(ITicketingGateway ticketingGateway) {
+        this.ticketingGateway = ticketingGateway;
     }
 
     public boolean validateAdmin(UUID adminId) {
@@ -384,8 +379,94 @@ public class PurchaseDomainService {
 
         return company.isOwner(ownerName);
     }
+
     public boolean checkLastUpdate(ActivePurchase activePurchase)
     {
         return ChronoUnit.MINUTES.between(LocalDateTime.now(), activePurchase.getLastUpdate()) <= activePurchase.getMaxWaitTime();
+    }
+
+    public void registerToLottery(UUID eventId, UUID memberId, int ticketAmount) {
+        if (eventId == null || memberId == null) {
+            throw new DomainException("Event ID and member ID are required");
+        }
+
+        if (ticketAmount <= 0) {
+            throw new DomainException("Ticket amount must be greater than zero");
+        }
+
+        if (!memberExists(memberId)) {
+            throw new DomainException("Member does not exist");
+        }
+
+        if (!isMember(memberId)) {
+            throw new DomainException("User is not a member");
+        }
+
+        if (!isMemberLoggedIn(memberId)) {
+            throw new DomainException("Member is not logged in");
+        }
+
+        Event event = eventRepository.getById(eventId);
+        if (event == null) {
+            throw new DomainException("Event does not exist");
+        }
+
+        PuchaseLottery lottery = lotteryRepository.findByEventID(eventId);
+        if (lottery == null) {
+            throw new DomainException("Lottery does not exist for this event");
+        }
+
+        lottery.registerMember(memberId.toString(), ticketAmount, LocalDateTime.now());
+
+        lotteryRepository.save(lottery);
+    }
+
+    public void drawLotteryForEvent(UUID eventId, LocalDateTime codeExpiry) {
+        if (eventId == null) {
+            throw new DomainException("Event ID is required");
+        }
+
+        if (codeExpiry == null) {
+            throw new DomainException("Code expiry is required");
+        }
+
+        Event event = eventRepository.getById(eventId);
+        if (event == null) {
+            throw new DomainException("Event does not exist");
+        }
+
+        PuchaseLottery lottery = lotteryRepository.findByEventID(eventId);
+        if (lottery == null) {
+            throw new DomainException("Lottery does not exist for this event");
+        }
+
+        int availableTickets = event.getTicketsView().size();
+
+        lottery.drawWinners(availableTickets, codeExpiry);
+
+        lotteryRepository.save(lottery);
+    }
+    
+    public SalesReport getSalesReportForOwner(String ownerUsername, UUID companyId) {
+        Company company = companyRepository.findByID(companyId).orElse(null);
+        if (company == null) {
+            throw new IllegalArgumentException("Company not found");
+        }
+        List<UUID> eventsUnderOwner = company.getEventsUnderOwner(ownerUsername);
+        List<PurchaseHistory> relevantPurchases = new ArrayList<>();
+        for (UUID eventId : eventsUnderOwner) {
+            relevantPurchases.addAll(historyRepository.getByEventId(eventId));
+        }
+
+        // Calculate total revenue
+        double totalRevenue = relevantPurchases.stream()
+                .mapToDouble(purchase -> purchase.getPayment().getTotal())
+                .sum();
+
+        List<UUID> soldTicketIds = relevantPurchases.stream()
+                .flatMap(purchase -> purchase.getTicketIds().stream())
+                .collect(Collectors.toList());
+
+        return new SalesReport(eventsUnderOwner, soldTicketIds, totalRevenue);
     }
 }

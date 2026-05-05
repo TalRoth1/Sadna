@@ -53,9 +53,10 @@ public class CompanyRepository implements ICompanyRepository {
     }
 
      @Override
-     public void createCompany(String founderUsername, String companyName) {
+     public UUID createCompany(String founderUsername, String companyName) {
         Company newCompany = new Company(founderUsername, companyName);
         companies.put(newCompany.getId(), newCompany);
+        return newCompany.getId();
      }
 
     @Override

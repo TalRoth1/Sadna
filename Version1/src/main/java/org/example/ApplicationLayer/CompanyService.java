@@ -7,19 +7,22 @@ import java.util.UUID;
 
 import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
 import org.example.DomainLayer.DomainException;
+import org.example.DomainLayer.PurchaseDomainService;
 import org.example.DomainLayer.RolesDomainService;
 
 public class CompanyService {
     private final RolesDomainService rolesDomainService;
+    private final PurchaseDomainService purchaseDomainService;
 
-    public CompanyService(RolesDomainService rolesDomainService) {
+    public CompanyService(RolesDomainService rolesDomainService, PurchaseDomainService purchaseDomainService) {
         this.rolesDomainService = rolesDomainService;
+        this.purchaseDomainService = purchaseDomainService;
     }
-    public void createCompany(String founderUsername, String companyName)
+    public UUID createCompany(String founderUsername, String companyName)
     {
         if (founderUsername == null || founderUsername.isBlank()) 
             throw new IllegalArgumentException("founder username is required");
-        rolesDomainService.createCompany(founderUsername, companyName);
+        return rolesDomainService.createCompany(founderUsername, companyName);
     }
 
     public void closeCompanyAsAdmin(String adminUsername, UUID companyId) {
@@ -30,12 +33,12 @@ public class CompanyService {
         rolesDomainService.closeCompanyAsAdmin(adminUsername, companyId);
     }
 
-    public void inviteCompanyManager(String ownerUsername, UUID companyId, String usernameToInvite, Set<CompanyPermission> premissions) {
+    public UUID inviteCompanyManager(String ownerUsername, UUID companyId, String usernameToInvite, Set<CompanyPermission> premissions) {
         if (ownerUsername == null || ownerUsername.isBlank()) {
             throw new IllegalArgumentException("Owner username is required");
         }
 
-        rolesDomainService.inviteCompanyManager(ownerUsername, companyId, usernameToInvite, premissions);
+        return rolesDomainService.inviteCompanyManager(ownerUsername, companyId, usernameToInvite, premissions);
     }
 
     public void removeCompanyMemberAsOwner(String ownerUsername, UUID companyId, String usernameToRemove) {
@@ -46,19 +49,19 @@ public class CompanyService {
         rolesDomainService.removeCompanyMemberAsOwner(ownerUsername, companyId, usernameToRemove);
     }
 
-    public void inviteCompanyOwner(String ownerUsername, UUID companyId, String usernameToInvite) {
+    public UUID inviteCompanyOwner(String ownerUsername, UUID companyId, String usernameToInvite) {
         if (ownerUsername == null || ownerUsername.isBlank()) {
             throw new IllegalArgumentException("Owner username is required");
         }
 
-        rolesDomainService.inviteCompanyOwner(ownerUsername, companyId, usernameToInvite);
+        return rolesDomainService.inviteCompanyOwner(ownerUsername, companyId, usernameToInvite);
     }
 
     public void acceptCompanyInvitation(UUID invetationID, UUID companyId) {
          rolesDomainService.acceptCompanyInvitation(invetationID, companyId);
     }
     
-    public void addPolicyRule(UUID companyId, Optional<Float> age, Optional<Integer> minTicket, Optional<Integer> maxTicket, Optional<Boolean> allowLoneSeat)
+    public void addPolicyRule(String username,UUID companyId, Optional<Float> age, Optional<Integer> minTicket, Optional<Integer> maxTicket, Optional<Boolean> allowLoneSeat)
     {
         if (age.isPresent() && age.get() < 0)
             throw new IllegalArgumentException("Age must be a non negative number");
@@ -66,12 +69,12 @@ public class CompanyService {
             throw new IllegalArgumentException("Minimum ticket amount must be a non negative integer");
         if (maxTicket.isPresent() && maxTicket.get() < 0)
             throw new IllegalArgumentException("maximum ticket amount must be a non negative integer");
-        rolesDomainService.addPurchasePolicy(companyId, age, minTicket, maxTicket, allowLoneSeat);
+        rolesDomainService.addPurchasePolicy(username, companyId, age, minTicket, maxTicket, allowLoneSeat);
     }
     
-    public void deletePolicyRule(UUID companyId, boolean age, boolean minTicket, boolean maxTicket, boolean allowLoneSeat)
+    public void deletePolicyRule(String username ,UUID companyId, boolean age, boolean minTicket, boolean maxTicket, boolean allowLoneSeat)
     {
-        rolesDomainService.deletePurchasePolicy(companyId, age, minTicket, maxTicket, allowLoneSeat);
+        rolesDomainService.deletePurchasePolicy(username, companyId, age, minTicket, maxTicket, allowLoneSeat);
     }
 
     public void removeCompanyMemberAsAdmin(String adminUsername, String usernameToRemove) {
@@ -86,16 +89,16 @@ public class CompanyService {
         rolesDomainService.removeCompanyMemberAsAdmin(adminUsername, usernameToRemove);
     }
 
-    public void addOvertDiscount(UUID companyId ,LocalDate fromDate, LocalDate toDate, float discountPrecent)
+    public void addOvertDiscount(String username ,UUID companyId ,LocalDate fromDate, LocalDate toDate, float discountPrecent)
     {
         if(toDate.isBefore(LocalDate.now()))
             throw new IllegalArgumentException("toDate is before today");
         if(discountPrecent > 100.0f || discountPrecent < 0.0f)
             throw new IllegalArgumentException("Discount precent must be between 0 and 100");
-        rolesDomainService.addOvertDiscount(companyId, fromDate, toDate, discountPrecent);
+        rolesDomainService.addOvertDiscount(username ,companyId, fromDate, toDate, discountPrecent);
     }
 
-    public void addConditionalDiscount(UUID companyId ,LocalDate fromDate, LocalDate toDate, float discountPrecent, int requiredTickets, int appliedTickets)
+    public void addConditionalDiscount(String username, UUID companyId ,LocalDate fromDate, LocalDate toDate, float discountPrecent, int requiredTickets, int appliedTickets)
     {
         if(toDate.isBefore(LocalDate.now()))
             throw new IllegalArgumentException("toDate is before today");
@@ -105,21 +108,21 @@ public class CompanyService {
             throw new IllegalArgumentException("Required tickets must be non negative integers");
         if(appliedTickets < 0 )
             throw new IllegalArgumentException("Applied tickets must be non negative integers");
-        rolesDomainService.addConditionalDiscount(companyId, fromDate, toDate, discountPrecent, requiredTickets, appliedTickets);
+        rolesDomainService.addConditionalDiscount(username, companyId, fromDate, toDate, discountPrecent, requiredTickets, appliedTickets);
     }
 
-    public void addCouponCode(UUID companyId, LocalDate fromDate, LocalDate toDate, float discountPrecent, String code)
+    public void addCouponCode(String username, UUID companyId, LocalDate fromDate, LocalDate toDate, float discountPrecent, String code)
     {
         if(toDate.isBefore(LocalDate.now()))
             throw new IllegalArgumentException("toDate is before today");
         if(discountPrecent > 100.0f || discountPrecent < 0.0f)
             throw new IllegalArgumentException("Discount precent must be between 0 and 100");
-        rolesDomainService.addCouponCode(companyId, fromDate, toDate, discountPrecent, code);
+        rolesDomainService.addCouponCode(username, companyId, fromDate, toDate, discountPrecent, code);
     }
     
-    public void removeDiscount(UUID companyId, UUID discountId)
+    public void removeDiscount(String username, UUID companyId, UUID discountId)
     {
-        rolesDomainService.removeDiscount(companyId, discountId);
+        rolesDomainService.removeDiscount(username, companyId, discountId);
     }
 
     public void rateCompany(UUID userID, UUID companyID, int rating)
@@ -145,5 +148,19 @@ public class CompanyService {
             throw new IllegalArgumentException("Manager username is required");
         }
         rolesDomainService.changeManagerPermissions(ownerUsername, companyId, managerUsername, newPremissions);
+    }
+
+    public String getCompanyHierarchyMermaid(UUID companyId, String requesterUsername) {
+        if (requesterUsername == null || requesterUsername.isBlank()) {
+            throw new IllegalArgumentException("Requester username is required");
+        }
+        return rolesDomainService.getCompanyHierarchyMermaid(companyId, requesterUsername);
+    }
+    
+    public String getSalesReportForOwner(String ownerUsername, UUID companyId) {
+        if (ownerUsername == null || ownerUsername.isBlank()) {
+            throw new IllegalArgumentException("Owner username is required");
+        }
+        return purchaseDomainService.getSalesReportForOwner(ownerUsername, companyId).toString();
     }
 }

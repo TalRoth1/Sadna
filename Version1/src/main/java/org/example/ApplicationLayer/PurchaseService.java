@@ -1,18 +1,22 @@
 package org.example.ApplicationLayer;
 
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
+
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 import org.example.DomainLayer.DomainException;
 import org.example.DomainLayer.PurchaseDomainService;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 
-import java.util.List;
-import java.util.UUID;
-
 public class PurchaseService {
     private final PurchaseDomainService purchaseDomainService;
 
-    public PurchaseService(PurchaseDomainService purchaseDomainService) {
+    private final QueueManager queueManager;
+
+    public PurchaseService(PurchaseDomainService purchaseDomainService, QueueManager queueManager) {
         this.purchaseDomainService = purchaseDomainService;
+        this.queueManager = queueManager;
     }
 
     private void validateAdmin(UUID adminId) {
@@ -24,6 +28,13 @@ public class PurchaseService {
         }
     }
 
+    private void validateQueueAccess(UUID userId, UUID eventId)
+    {
+        QueueAccessResult result = queueManager.requestSelectionAccess(userId, eventId);
+        if (!result.isAllowed())
+            throw new IllegalStateException("User is waiting in queue. Position: " + result.getUserPositionInQueue() + "/" + result.getQueueSize());
+    }
+
     public void selectSittingTickets(UUID eventID, List<UUID> ticketIDs, UUID userID, boolean isConfirmedAge)
     {
         if (ticketIDs == null || ticketIDs.isEmpty()) {
@@ -33,12 +44,45 @@ public class PurchaseService {
             throw new IllegalArgumentException("User ID is required");
         }
 
+        validateQueueAccess(userID, eventID);
+
         try {
             purchaseDomainService.selectSittingTickets(eventID, ticketIDs, userID, isConfirmedAge);
+
+            //רק אם נוצר active purchase אז אנחנו מסירים מהמשתמש את ההרשאה לבחור
+            queueManager.finishAccess(userID, eventID);
+            queueManager.releaseBatch(eventID, 1);
+
         } catch (DomainException e) {
             throw new IllegalStateException("couldn't select the sitting tickts");
         }
     }
+
+    public void selectStandingTickets(UUID eventID, int amount, UUID areaID, UUID userID, boolean isConfirmedAge)
+    {
+        if (amount <= 0) {
+            throw new IllegalArgumentException("Amount must be greater than zero");
+        }
+        if (userID == null) {
+            throw new IllegalArgumentException("User ID is required");
+        }
+
+        validateQueueAccess(userID, eventID);
+
+        try
+        {
+            purchaseDomainService.selectStandingTickets(eventID, amount, userID, areaID, isConfirmedAge);
+
+            //רק אם נוצר active purchase אז אנחנו מסירים מהמשתמש את ההרשאה לבחור
+            queueManager.finishAccess(userID, eventID);
+            queueManager.releaseBatch(eventID, 1);
+        }
+        catch (DomainException e)
+        {
+            throw new IllegalStateException("couldn't select the standing tickts");
+        }
+    }
+
     public void completePurchase(UUID activePurchaseID, PaymentDetails paymentDetails, String couponCode)
     {
         if (activePurchaseID == null) {
@@ -75,8 +119,6 @@ public class PurchaseService {
         if (filterType == null || filterType.isBlank()) {
             throw new IllegalArgumentException("Filter type is required");
         }
-        validateAdmin(adminId);
-
         return switch (filterType.toLowerCase()) {
             case "user" -> getHistoryByUser(adminId, filterId);
             case "event" -> getHistoryByEvent(adminId, filterId);
@@ -86,24 +128,6 @@ public class PurchaseService {
         };
     }
 
-    public void selectStandingTickets(UUID eventID, int amount, UUID areaID, UUID userID, boolean isConfirmedAge)
-    {
-        if (amount <= 0) {
-            throw new IllegalArgumentException("Amount must be greater than zero");
-        }
-        if (userID == null) {
-            throw new IllegalArgumentException("User ID is required");
-        }
-
-        try 
-        {
-            purchaseDomainService.selectStandingTickets(eventID, amount, userID, areaID, isConfirmedAge);
-        } 
-        catch (DomainException e) 
-        {
-            throw new IllegalStateException("couldn't select the standing tickts");
-        }
-    }
 
     public List<PurchaseHistory> getHistoryByEvent(UUID adminId, UUID eventId) {
         if (eventId == null) {
@@ -219,5 +243,39 @@ public class PurchaseService {
 
         return purchaseDomainService.getHistoryByEvent(eventId);
     }
+    public void registerToLottery(UUID eventId, UUID memberId, int ticketAmount) {
+        if (eventId == null) {
+            throw new IllegalArgumentException("Event ID is required");
+        }
 
+        if (memberId == null) {
+            throw new IllegalArgumentException("Member ID is required");
+        }
+
+        if (ticketAmount <= 0) {
+            throw new IllegalArgumentException("Ticket amount must be greater than zero");
+        }
+
+        try {
+            purchaseDomainService.registerToLottery(eventId, memberId, ticketAmount);
+        } catch (DomainException e) {
+            throw new IllegalStateException("Couldn't register to lottery: " + e.getMessage());
+        }
+    }
+
+    public void drawLotteryForEvent(UUID eventId, LocalDateTime codeExpiry) {
+        if (eventId == null) {
+            throw new IllegalArgumentException("Event ID is required");
+        }
+
+        if (codeExpiry == null) {
+            throw new IllegalArgumentException("Code expiry is required");
+        }
+
+        try {
+            purchaseDomainService.drawLotteryForEvent(eventId, codeExpiry);
+        } catch (DomainException e) {
+            throw new IllegalStateException("Couldn't draw lottery: " + e.getMessage());
+        }
+    }
 }

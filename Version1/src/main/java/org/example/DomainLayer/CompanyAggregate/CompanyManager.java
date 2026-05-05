@@ -1,6 +1,7 @@
 package org.example.DomainLayer.CompanyAggregate;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -33,5 +34,22 @@ public class CompanyManager extends ICompanyMember {
     @Override
     public boolean isInChargeOfEvent(UUID eventId) {
         return this.getEventsIds().contains(eventId);
+    }
+
+    @Override
+    public void buildMermaid(StringBuilder sb) {
+        sb.append(mermaidId()).append("[");
+        sb.append('"').append(getUsername());
+        if (premissions != null && !premissions.isEmpty()) {
+            sb.append("\\nPerms:").append(premissions.toString());
+        }
+        sb.append('"').append("]\n");
+        if (getAppointer() != null) {
+            sb.append(getAppointer().mermaidId()).append(" --> ").append(mermaidId()).append("\n");
+        }
+    }
+    
+    public List<UUID> getEventsUnderMe() {
+        return getEventsIds();
     }
 }

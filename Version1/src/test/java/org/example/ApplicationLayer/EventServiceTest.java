@@ -1,10 +1,7 @@
 package org.example.ApplicationLayer;
 
-import org.example.ApplicationLayer.EventDtos.AreaSummaryDto;
-import org.example.ApplicationLayer.EventDtos.CompanyCatalogDto;
-import org.example.ApplicationLayer.EventDtos.EventDetailsDto;
-import org.example.ApplicationLayer.EventDtos.EventSummaryDto;
-import org.example.DomainLayer.DomainException;
+import org.example.DomainLayer.EventAggregate.Event;
+import org.example.DomainLayer.EventAggregate.EventStatus;
 import org.example.DomainLayer.EventManagementDomainService;
 import org.example.DomainLayer.ICompanyRepository;
 import org.example.DomainLayer.IEventRepository;
@@ -37,12 +34,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -106,13 +97,14 @@ public class EventServiceTest {
 
     private Event newRealEvent() {
         return new Event(
-                eventId,
-                companyId,
-                LocalDateTime.now().plusDays(30),
-                "Tel Aviv",
-                "Some Artist",
-                "concert",
-                EventStatus.ACTIVE);
+            UUID.randomUUID(), 
+            companyId, 
+            LocalDateTime.now().plusDays(10), 
+            "Tel Aviv", 
+            "Artist Name", 
+            "Concert", 
+            EventStatus.ACTIVE
+        );
     }
 
     private Company newActiveCompany(String name) {
@@ -282,23 +274,22 @@ public class EventServiceTest {
     // =====================================================================
 
     @Test
-    public void GivenAuthorizedOwnerAndExistingEvent_WhenGetEventPurchaseHistoryForOwner_ThenReturnsHistoryFromRepository() {
+    public void testAddPolicyRule_ActuallyPersistsInEvent() {
         // Arrange
-        Event event = newRealEvent();
-        List<PurchaseHistory> expected = Collections.emptyList();
-        when(eventRepository.getById(eventId)).thenReturn(event);
-        when(companyRepository.isOwner(ownerUsername, companyId)).thenReturn(true);
-        when(historyRepository.getByEventId(eventId)).thenReturn(expected);
+        Company company = new Company("founderUsername", "testComp");
+        Event realEvent = createTestEvent(company.getId());
+        UUID eventId = realEvent.getEventId();
+        when(eventRepositoryMock.getById(eventId)).thenReturn(realEvent);
+        when(companyRepositoryMock.findByID(company.getId())).thenReturn(Optional.ofNullable(company));
 
         // Act
-        List<PurchaseHistory> actual =
-                eventService.getEventPurchaseHistoryForOwner(ownerUsername, eventId);
+        eventService.addPolicyRule("founderUsername", company.getId(), eventId, Optional.of(18.0f), Optional.empty(), Optional.empty(), Optional.of(true));
 
         // Assert
-        assertSame("service must return the exact list from the repository", expected, actual);
-        verify(eventRepository).getById(eventId);
-        verify(companyRepository).isOwner(ownerUsername, companyId);
-        verify(historyRepository).getByEventId(eventId);
+        var rules = realEvent.getPurchasePolicy().getRulesView();
+        assertEquals("Should have 2 rules added", 2, rules.size());
+        assertTrue(rules.stream().anyMatch(r -> r instanceof AgeRule));
+        assertTrue(rules.stream().anyMatch(r -> r instanceof LoneSeatRule));
     }
 
     @Test
@@ -405,21 +396,50 @@ public class EventServiceTest {
     }
 
     @Test
-    public void GivenMinTicketIsZero_WhenAddPolicyRule_ThenServiceAcceptsItAndDelegates() {
-        Event event = newRealEvent();
-        when(eventRepository.getById(eventId)).thenReturn(event);
+    public void eventRate_success()
+    {
+        UUID user1 = UUID.randomUUID();
+        UUID user2 = UUID.randomUUID();
 
-        eventService.addPolicyRule(eventId,
-                Optional.of(18f), Optional.of(0), Optional.of(5), Optional.of(true));
+        UUID eventID = UUID.randomUUID();
 
-        assertEquals(4, event.getPurchasePolicy().getRulesView().size());
-        verify(eventRepository).getById(eventId);
+        Event event = new Event(eventID, UUID.randomUUID(), LocalDateTime.now(), "sdsdsdsd", "sdsdsdsd", "sdsdsdsd", EventStatus.ACTIVE);
+
+        InMemoryEventRepository eventRepository = new InMemoryEventRepository();
+        eventRepository.save(event);
+
+        EventManagementDomainService eventManagementDomainService = new EventManagementDomainService(eventRepository, null, null);
+        EventService eventService = new EventService(eventManagementDomainService);
+
+        eventService.rateEvent(user1, eventID, 5);
+        eventService.rateEvent(user2, eventID, 1);
+
+        assertTrue(3 == event.getRating());
+    }
+    @Test
+    public void eventRate_samePerson_thenItFails()
+    {
+        UUID user1 = UUID.randomUUID();
+
+        UUID eventID = UUID.randomUUID();
+
+        Event event = new Event(eventID, UUID.randomUUID(), LocalDateTime.now(), "sdsdsdsd", "sdsdsdsd", "sdsdsdsd", EventStatus.ACTIVE);
+
+        InMemoryEventRepository eventRepository = new InMemoryEventRepository();
+        eventRepository.save(event);
+
+        EventManagementDomainService eventManagementDomainService = new EventManagementDomainService(eventRepository, null, null);
+        EventService eventService = new EventService(eventManagementDomainService);
+
+        eventService.rateEvent(user1, eventID, 5);
+        assertThrows(DomainException.class, () -> eventService.rateEvent(user1, eventID, 1));
+
+        assertTrue(5 == event.getRating());
     }
 
-    @Test
-    public void GivenMaxTicketIsZero_WhenAddPolicyRule_ThenServiceAcceptsItAndDelegates() {
-        Event event = newRealEvent();
-        when(eventRepository.getById(eventId)).thenReturn(event);
+    private static class InMemoryEventRepository implements IEventRepository
+    {
+        Map<UUID, Event> eventsByID = new LinkedHashMap<>();
 
         eventService.addPolicyRule(eventId,
                 Optional.of(18f), Optional.of(1), Optional.of(0), Optional.of(true));

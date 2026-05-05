@@ -1,9 +1,9 @@
 package org.example.ApplicationLayer;
 
-import org.example.ApplicationLayer.EventDtos.AreaSummaryDto;
-import org.example.ApplicationLayer.EventDtos.CompanyCatalogDto;
-import org.example.ApplicationLayer.EventDtos.EventDetailsDto;
-import org.example.ApplicationLayer.EventDtos.EventSummaryDto;
+import org.example.ApplicationLayer.dto.EventDtos.AreaSummaryDto;
+import org.example.ApplicationLayer.dto.EventDtos.CompanyCatalogDto;
+import org.example.ApplicationLayer.dto.EventDtos.EventDetailsDto;
+import org.example.ApplicationLayer.dto.EventDtos.EventSummaryDto;
 import org.example.DomainLayer.DomainException;
 import org.example.DomainLayer.EventManagementDomainService;
 import org.example.DomainLayer.CompanyAggregate.Company;
@@ -125,7 +125,7 @@ public class EventService {
         return eventManagementDomainService.getEventPurchaseHistory(ownerUsername, eventId);
     }
 
-    public void addPolicyRule(UUID eventId, Optional<Float> age, Optional<Integer> minTicket, Optional<Integer> maxTicket, Optional<Boolean> allowLoneSeat)
+    public void addPolicyRule(String username, UUID companyId, UUID eventId, Optional<Float> age, Optional<Integer> minTicket, Optional<Integer> maxTicket, Optional<Boolean> allowLoneSeat)
     {
         if (age.isPresent() && age.get() < 0)
             throw new IllegalArgumentException("Age must be a non negative number");
@@ -133,24 +133,24 @@ public class EventService {
             throw new IllegalArgumentException("Minimum ticket amount must be a non negative integer");
         if (maxTicket.isPresent() && maxTicket.get() < 0)
             throw new IllegalArgumentException("maximum ticket amount must be a non negative integer");
-        eventManagementDomainService.addPurchasePolicy(eventId, age, minTicket, maxTicket, allowLoneSeat);
+        eventManagementDomainService.addPurchasePolicy(username, companyId, eventId, age, minTicket, maxTicket, allowLoneSeat);
     }
     
-    public void deletePolicyRule(UUID eventId, boolean age, boolean minTicket, boolean maxTicket, boolean allowLoneSeat)
+    public void deletePolicyRule(String username, UUID companyId, UUID eventId, boolean age, boolean minTicket, boolean maxTicket, boolean allowLoneSeat)
     {
-        eventManagementDomainService.deletePurchasePolicy(eventId, age, minTicket, maxTicket, allowLoneSeat);
+        eventManagementDomainService.deletePurchasePolicy(username, companyId, eventId, age, minTicket, maxTicket, allowLoneSeat);
     }
 
-    public void addOvertDiscount(UUID eventId ,LocalDate fromDate, LocalDate toDate, float discountPrecent)
+    public void addOvertDiscount(String username, UUID companyId, UUID eventId ,LocalDate fromDate, LocalDate toDate, float discountPrecent)
     {
         if(toDate.isBefore(LocalDate.now()))
             throw new IllegalArgumentException("toDate is before today");
         if(discountPrecent > 100.0f || discountPrecent < 0.0f)
             throw new IllegalArgumentException("Discount precent must be between 0 and 100");
-        eventManagementDomainService.addOvertDiscount(eventId, fromDate, toDate, discountPrecent);
+        eventManagementDomainService.addOvertDiscount(username, companyId, eventId, fromDate, toDate, discountPrecent);
     }
 
-    public void addConditionalDiscount(UUID eventId ,LocalDate fromDate, LocalDate toDate, float discountPrecent, int requiredTickets, int appliedTickets)
+    public void addConditionalDiscount(String username, UUID comapnyId, UUID eventId ,LocalDate fromDate, LocalDate toDate, float discountPrecent, int requiredTickets, int appliedTickets)
     {
         if(toDate.isBefore(LocalDate.now()))
             throw new IllegalArgumentException("toDate is before today");
@@ -160,21 +160,21 @@ public class EventService {
             throw new IllegalArgumentException("Required tickets must be non negative integers");
         if(appliedTickets < 0 )
             throw new IllegalArgumentException("Applied tickets must be non negative integers");
-        eventManagementDomainService.addConditionalDiscount(eventId, fromDate, toDate, discountPrecent, requiredTickets, appliedTickets);
+        eventManagementDomainService.addConditionalDiscount(username, comapnyId, eventId, fromDate, toDate, discountPrecent, requiredTickets, appliedTickets);
     }
 
-    public void addCouponCode(UUID eventId, LocalDate fromDate, LocalDate toDate, float discountPrecent, String code)
+    public void addCouponCode(String username, UUID companyId,UUID eventId, LocalDate fromDate, LocalDate toDate, float discountPrecent, String code)
     {
         if(toDate.isBefore(LocalDate.now()))
             throw new IllegalArgumentException("toDate is before today");
         if(discountPrecent > 100.0f || discountPrecent < 0.0f)
             throw new IllegalArgumentException("Discount precent must be between 0 and 100");
-        eventManagementDomainService.addCouponCode(eventId, fromDate, toDate, discountPrecent, code);
+        eventManagementDomainService.addCouponCode(username, companyId, eventId, fromDate, toDate, discountPrecent, code);
     }
     
-    public void removeDiscount(UUID eventId, UUID discountId)
+    public void removeDiscount(String username, UUID compnayId, UUID eventId, UUID discountId)
     {
-        eventManagementDomainService.removeDiscount(eventId, discountId);
+        eventManagementDomainService.removeDiscount(username, compnayId, eventId, discountId);
     }
 
     public void rateEvent(UUID userID, UUID eventID, int rating)
@@ -188,6 +188,7 @@ public class EventService {
         catch (DomainException e)
         {
             //TODO
+            throw e;
         }
     }
 

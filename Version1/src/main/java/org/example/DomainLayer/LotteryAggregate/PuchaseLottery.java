@@ -1,37 +1,40 @@
 package org.example.DomainLayer.LotteryAggregate;
 
-import org.example.DomainLayer.DomainException;
-
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import org.example.DomainLayer.DomainException;
+
 public class PuchaseLottery {
 
-    private final String lotteryId;
-    private final String eventId;
+    private final UUID lotteryId;
+    private final UUID eventId;
     private final LocalDateTime registrationOpen;
     private final LocalDateTime registrationClose;
     private final Set<String> registeredUsers;
+    private final Map<String, Integer> requestedTicketAmounts;
     private final Set<String> winnerUsers;
     // add accessor for winnerUsers if needed--------------------
     private final Map<String, String> winnerAccessCodes;
     private final Map<String, LocalDateTime> winnerCodeExpiry;
 
     
-    public PuchaseLottery(String lotteryId,
-                          String eventId,
+    public PuchaseLottery(UUID lotteryId,
+                          UUID eventId,
                           LocalDateTime registrationOpen,
                           LocalDateTime registrationClose) {
-        if (lotteryId == null || lotteryId.isBlank()) {
-            throw new DomainException("Lottery id cannot be empty");
+        if (lotteryId == null) {
+            throw new DomainException("Lottery id cannot be null");
         }
-        if (eventId == null || eventId.isBlank()) {
-            throw new DomainException("Event id cannot be empty");
+        if (eventId == null) {
+            throw new DomainException("Event id cannot be null");
         }
         if (registrationOpen == null || registrationClose == null) {
             throw new DomainException("Registration dates cannot be null");
@@ -45,16 +48,17 @@ public class PuchaseLottery {
         this.registrationOpen = registrationOpen;
         this.registrationClose = registrationClose;
         this.registeredUsers = new HashSet<>();
+        this.requestedTicketAmounts = new HashMap<>();
         this.winnerUsers = new HashSet<>();
         this.winnerAccessCodes = new HashMap<>();
         this.winnerCodeExpiry = new HashMap<>();
     }
 
-    public String getLotteryId() {
+    public UUID getLotteryId() {
         return lotteryId;
     }
 
-    public String getEventId() {
+    public UUID getEventId() {
         return eventId;
     }
 
@@ -87,9 +91,12 @@ public class PuchaseLottery {
         return registeredUsers.contains(memberId);
     }
 
-    public void registerMember(String memberId, LocalDateTime now) {
+    public void registerMember(String memberId,int ticketAmount, LocalDateTime now) {
         if (memberId == null || memberId.isBlank()) {
             throw new DomainException("Member id cannot be empty");
+        }
+        if (ticketAmount <= 0) {
+            throw new DomainException("Ticket amount must be greater than zero");
         }
 
         if (!isRegistrationOpen(now)) {
@@ -101,6 +108,24 @@ public class PuchaseLottery {
         }
 
         registeredUsers.add(memberId);
+        requestedTicketAmounts.put(memberId, ticketAmount);
+    }
+
+    public int getRequestedTicketAmount(String memberId) {
+        if (memberId == null || memberId.isBlank()) {
+            throw new DomainException("Member id cannot be empty");
+        }
+
+        if (!registeredUsers.contains(memberId)) {
+            throw new DomainException("Member is not registered to this lottery");
+        }
+
+        return requestedTicketAmounts.getOrDefault(memberId, 0);
+    }
+
+
+    public Map<String, Integer> getAllRequestedTicketAmounts() {
+        return Collections.unmodifiableMap(requestedTicketAmounts);
     }
 
     public boolean isWinner(String memberId) {
@@ -168,5 +193,42 @@ public class PuchaseLottery {
         LocalDateTime expiry = winnerCodeExpiry.get(memberId);
 
         return accessCode.equals(validCode) && now.isBefore(expiry);
+    }
+
+    public void drawWinners(int availableTickets, LocalDateTime codeExpiry) {
+        if (availableTickets <= 0) {
+            throw new DomainException("No tickets available for lottery");
+        }
+
+        if (registeredUsers.isEmpty()) {
+            throw new DomainException("No registered users to draw from");
+        }
+
+        if (codeExpiry == null) {
+            throw new DomainException("Code expiry cannot be null");
+        }
+
+        if (!winnerUsers.isEmpty()) {
+            throw new DomainException("Winners have already been drawn for this lottery");
+        }
+
+        List<String> candidates = new ArrayList<>(registeredUsers);
+        Collections.shuffle(candidates);
+
+        int remainingTickets = availableTickets;
+
+        for (String memberId : candidates) {
+            int requestedAmount = requestedTicketAmounts.get(memberId);
+
+            if (requestedAmount <= remainingTickets) {
+                winnerUsers.add(memberId);
+                generateWinnerAccessCode(memberId, codeExpiry);
+                remainingTickets -= requestedAmount;
+            }
+
+            if (remainingTickets == 0) {
+                break;
+            }
+        }
     }
 }

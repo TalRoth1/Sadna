@@ -52,4 +52,20 @@ public class CompanyOwner extends ICompanyMember {
         }
         return false;
     }
+
+    @Override
+    public void buildMermaid(StringBuilder sb) {
+        appendMermaidNode(sb);
+        for (ICompanyMember subordinate : subordinates) {
+            subordinate.buildMermaid(sb);
+        }
+    }
+    
+    public List<UUID> getEventsUnderMe() {
+        List<UUID> eventsUnderMe = new ArrayList<>(getEventsIds());
+        for (ICompanyMember subordinate : subordinates) {
+            eventsUnderMe.addAll(subordinate.getEventsUnderMe());
+        }
+        return eventsUnderMe;
+    }
 }
