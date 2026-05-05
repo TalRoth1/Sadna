@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report-3.0.xsd" version="3.0" name="org.example.ApplicationLayer.PurchaseServiceLotteryTest" time="0.21" tests="18" errors="0" skipped="0" failures="0">
+<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report-3.0.xsd" version="3.0" name="org.example.ApplicationLayer.PurchaseServiceLotteryTest" time="0.138" tests="13" errors="0" skipped="0" failures="0">
   <properties>
     <property name="java.specification.version" value="17"/>
     <property name="sun.cpu.isalist" value="amd64"/>
@@ -16,7 +16,7 @@
     <property name="user.country" value="US"/>
     <property name="sun.java.launcher" value="SUN_STANDARD"/>
     <property name="sun.boot.library.path" value="C:\Program Files\Java\jdk-17\bin"/>
-    <property name="sun.java.command" value="C:\Users\naama\AppData\Local\Temp\surefire15585006894297772624\surefirebooter-20260503125801898_3.jar C:\Users\naama\AppData\Local\Temp\surefire15585006894297772624 2026-05-03T12-58-01_644-jvmRun1 surefire-20260503125801898_1tmp surefire_0-20260503125801898_2tmp"/>
+    <property name="sun.java.command" value="C:\Users\naama\AppData\Local\Temp\surefire7647256239590242615\surefirebooter-20260505114620590_3.jar C:\Users\naama\AppData\Local\Temp\surefire7647256239590242615 2026-05-05T11-46-20_413-jvmRun1 surefire-20260505114620590_1tmp surefire_0-20260505114620590_2tmp"/>
     <property name="jdk.debug" value="release"/>
     <property name="test" value="org.example.ApplicationLayer.PurchaseServiceLotteryTest"/>
     <property name="surefire.test.class.path" value="C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\target\test-classes;C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\target\classes;C:\Users\naama\.m2\repository\junit\junit\4.13.2\junit-4.13.2.jar;C:\Users\naama\.m2\repository\org\hamcrest\hamcrest-core\1.3\hamcrest-core-1.3.jar;C:\Users\naama\.m2\repository\org\mockito\mockito-core\5.11.0\mockito-core-5.11.0.jar;C:\Users\naama\.m2\repository\net\bytebuddy\byte-buddy\1.14.12\byte-buddy-1.14.12.jar;C:\Users\naama\.m2\repository\net\bytebuddy\byte-buddy-agent\1.14.12\byte-buddy-agent-1.14.12.jar;C:\Users\naama\.m2\repository\org\objenesis\objenesis\3.3\objenesis-3.3.jar;"/>
@@ -32,7 +32,7 @@
     <property name="line.separator" value="&#10;"/>
     <property name="java.vm.specification.vendor" value="Oracle Corporation"/>
     <property name="java.specification.name" value="Java Platform API Specification"/>
-    <property name="surefire.real.class.path" value="C:\Users\naama\AppData\Local\Temp\surefire15585006894297772624\surefirebooter-20260503125801898_3.jar"/>
+    <property name="surefire.real.class.path" value="C:\Users\naama\AppData\Local\Temp\surefire7647256239590242615\surefirebooter-20260505114620590_3.jar"/>
     <property name="user.script" value=""/>
     <property name="sun.management.compiler" value="HotSpot 64-Bit Tiered Compilers"/>
     <property name="java.runtime.version" value="17.0.12+8-LTS-286"/>
@@ -59,22 +59,17 @@
     <property name="sun.io.unicode.encoding" value="UnicodeLittle"/>
     <property name="java.class.version" value="61.0"/>
   </properties>
-  <testcase name="GivenValidMemberAndTicketAmount_WhenRegisterMember_ThenMemberIsRegisteredAndAmountSaved" classname="org.example.ApplicationLayer.PurchaseServiceLotteryTest" time="0.111"/>
-  <testcase name="GivenRegisteredMembers_WhenGetAllRequestedTicketAmounts_ThenReturnCorrectAmounts" classname="org.example.ApplicationLayer.PurchaseServiceLotteryTest" time="0.0"/>
-  <testcase name="GivenNoAvailableTickets_WhenDrawWinners_ThenThrowDomainException" classname="org.example.ApplicationLayer.PurchaseServiceLotteryTest" time="0.0"/>
-  <testcase name="GivenWinnerWithExpiredAccessCode_WhenValidateAccessCode_ThenCannotBuyTicket" classname="org.example.ApplicationLayer.PurchaseServiceLotteryTest" time="0.001"/>
-  <testcase name="GivenDuplicateMember_WhenRegisterMemberTwice_ThenThrowDomainException" classname="org.example.ApplicationLayer.PurchaseServiceLotteryTest" time="0.001"/>
-  <testcase name="GivenClosedRegistration_WhenRegisterMember_ThenThrowDomainException" classname="org.example.ApplicationLayer.PurchaseServiceLotteryTest" time="0.001"/>
-  <testcase name="GivenWinnerWithValidAccessCode_WhenValidateAccessCode_ThenCanBuyTicket" classname="org.example.ApplicationLayer.PurchaseServiceLotteryTest" time="0.002"/>
-  <testcase name="GivenLotteryAlreadyDrawn_WhenDrawWinnersAgain_ThenThrowDomainException" classname="org.example.ApplicationLayer.PurchaseServiceLotteryTest" time="0.001"/>
-  <testcase name="GivenEnoughTickets_WhenDrawWinners_ThenWinnersAreSelectedAndAccessCodesGenerated" classname="org.example.ApplicationLayer.PurchaseServiceLotteryTest" time="0.001"/>
-  <testcase name="GivenUnregisteredMember_WhenGetRequestedTicketAmount_ThenThrowDomainException" classname="org.example.ApplicationLayer.PurchaseServiceLotteryTest" time="0.001"/>
-  <testcase name="GivenBlankMemberId_WhenRegisterMember_ThenThrowDomainException" classname="org.example.ApplicationLayer.PurchaseServiceLotteryTest" time="0.002"/>
-  <testcase name="GivenInvalidTicketAmount_WhenRegisterMember_ThenThrowDomainException" classname="org.example.ApplicationLayer.PurchaseServiceLotteryTest" time="0.001"/>
-  <testcase name="GivenWrongAccessCode_WhenValidateAccessCode_ThenCannotBuyTicket" classname="org.example.ApplicationLayer.PurchaseServiceLotteryTest" time="0.0"/>
-  <testcase name="GivenNonWinner_WhenValidateAccessCode_ThenCannotBuyTicket" classname="org.example.ApplicationLayer.PurchaseServiceLotteryTest" time="0.001"/>
-  <testcase name="GivenUnregisteredMember_WhenAddWinner_ThenThrowDomainException" classname="org.example.ApplicationLayer.PurchaseServiceLotteryTest" time="0.0"/>
-  <testcase name="GivenLimitedTickets_WhenDrawWinners_ThenTotalWinningRequestedTicketsDoesNotExceedAvailableTickets" classname="org.example.ApplicationLayer.PurchaseServiceLotteryTest" time="0.002"/>
-  <testcase name="GivenNoRegisteredMembers_WhenDrawWinners_ThenThrowDomainException" classname="org.example.ApplicationLayer.PurchaseServiceLotteryTest" time="0.0"/>
-  <testcase name="GivenNullCodeExpiry_WhenDrawWinners_ThenThrowDomainException" classname="org.example.ApplicationLayer.PurchaseServiceLotteryTest" time="0.001"/>
+  <testcase name="LotteryRegistrationUserNotFound" classname="org.example.ApplicationLayer.PurchaseServiceLotteryTest" time="0.075"/>
+  <testcase name="SuccessfulLotteryRegistration" classname="org.example.ApplicationLayer.PurchaseServiceLotteryTest" time="0.0"/>
+  <testcase name="DrawLotteryWithoutRegisteredMembersShouldFail" classname="org.example.ApplicationLayer.PurchaseServiceLotteryTest" time="0.0"/>
+  <testcase name="DrawLotteryWithNoAvailableTicketsShouldFail" classname="org.example.ApplicationLayer.PurchaseServiceLotteryTest" time="0.0"/>
+  <testcase name="ClosedLotteryRegistrationShouldFail" classname="org.example.ApplicationLayer.PurchaseServiceLotteryTest" time="0.0"/>
+  <testcase name="WrongAccessCodeShouldNotBeValid" classname="org.example.ApplicationLayer.PurchaseServiceLotteryTest" time="0.0"/>
+  <testcase name="ExpiredAccessCodeShouldNotBeValid" classname="org.example.ApplicationLayer.PurchaseServiceLotteryTest" time="0.0"/>
+  <testcase name="UnsuccessfulLotteryResult" classname="org.example.ApplicationLayer.PurchaseServiceLotteryTest" time="0.0"/>
+  <testcase name="InvalidTicketAmountShouldFail" classname="org.example.ApplicationLayer.PurchaseServiceLotteryTest" time="0.001"/>
+  <testcase name="DrawLotteryShouldNotExceedAvailableTickets" classname="org.example.ApplicationLayer.PurchaseServiceLotteryTest" time="0.001"/>
+  <testcase name="WinnerCanUseValidAccessCode" classname="org.example.ApplicationLayer.PurchaseServiceLotteryTest" time="0.0"/>
+  <testcase name="DrawLotteryTwiceShouldFail" classname="org.example.ApplicationLayer.PurchaseServiceLotteryTest" time="0.001"/>
+  <testcase name="DuplicateLotteryRegistration" classname="org.example.ApplicationLayer.PurchaseServiceLotteryTest" time="0.001"/>
 </testsuite>
