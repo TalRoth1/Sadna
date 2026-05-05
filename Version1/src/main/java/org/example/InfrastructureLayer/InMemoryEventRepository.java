@@ -1,5 +1,6 @@
 package org.example.InfrastructureLayer;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,8 +39,7 @@ public class InMemoryEventRepository implements IEventRepository {
     }
 
     @Override
-    public List<Event> getAll() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getAll'");
+    public synchronized List<Event> getAll() {
+        return new ArrayList<>(eventsById.values());
     }
 }

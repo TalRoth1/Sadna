@@ -5,7 +5,9 @@ import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
 import org.example.DomainLayer.EventAggregate.Event;
 import org.example.DomainLayer.EventAggregate.EventStatus;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
-
+import java.util.ArrayList;
+import org.example.DomainLayer.CompanyAggregate.Company;
+import org.example.DomainLayer.EventAggregate.EventSearchCriteria;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -192,5 +194,52 @@ public class EventManagementDomainService {
         event.addSittingTickets(areaId, rows, seatsPerRow);
         eventRepository.save(event);
     }
+
+        //list all currently active production companies.
+        public List<Company> getActiveCompanies() {
+            return companyRepository.getAllActive();
+        }
+    
+        /** publicly-visible events of a given company (used to build the catalog). */
+        public List<Event> getVisibleEventsForCompany(UUID companyId) {
+            if (companyId == null) {
+                throw new DomainException("companyId is required");
+            }
+            List<Event> out = new ArrayList<>();
+            for (Event e : eventRepository.getAll()) {
+                if (companyId.equals(e.getCompanyId()) && e.isPubliclyVisible()) {
+                    out.add(e);
+                }
+            }
+            return out;
+        }
+    
+        //fetch a single event for read-only display.
+        public Event getEventForView(UUID eventId) {
+            if (eventId == null) {
+                throw new DomainException("eventId is required");
+            }
+            Event event = eventRepository.getById(eventId);
+            if (event == null) {
+                throw new DomainException("Event not found");
+            }
+            return event;
+        }
+
+        /** UC filter events by criteria (companyId is just one optional filter). */
+        public List<Event> searchEvents(EventSearchCriteria criteria) {
+            EventSearchCriteria c = (criteria == null) ? EventSearchCriteria.empty() : criteria;
+            List<Event> out = new ArrayList<>();
+            for (Event e : eventRepository.getAll()) {
+                Optional<Company> co = companyRepository.findByID(e.getCompanyId());
+                if (co.isEmpty() || !co.get().isActive()) {
+                    continue;
+                }
+                if (e.matches(c, co.get().getRating())) {
+                    out.add(e);
+                }
+            }
+            return out;
+        }
 
 }
