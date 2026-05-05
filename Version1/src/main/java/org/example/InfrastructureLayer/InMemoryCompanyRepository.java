@@ -29,7 +29,7 @@ public class InMemoryCompanyRepository implements ICompanyRepository {
     }
 
     @Override
-    public void createCompany(String founderUsername, String companyName) {
+    public UUID createCompany(String founderUsername, String companyName) {
         // TODO Auto-generated method stub
         throw new UnsupportedOperationException("Unimplemented method 'createCompany'");
     }

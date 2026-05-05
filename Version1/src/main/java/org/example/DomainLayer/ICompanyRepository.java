@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface ICompanyRepository {
-    void createCompany(String founderUsername, String companyName);
+    UUID createCompany(String founderUsername, String companyName);
     Optional<Company> findByID(UUID companyId);
     boolean isOwner(String username, UUID companyId);
     void save(Company company);

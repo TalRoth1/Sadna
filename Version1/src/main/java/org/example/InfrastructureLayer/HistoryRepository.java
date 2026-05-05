@@ -25,13 +25,13 @@ public class HistoryRepository implements IHistoryRepository{
 
     public List<PurchaseHistory> getByUserId(UUID userId) {
         return historyList.stream()
-                .filter(h -> h.getUserId() == userId)
+                .filter(h -> h.getUserId().equals(userId))
                 .collect(Collectors.toList());
     }
 
     public List<PurchaseHistory> getByEventId(UUID eventId) {
         return historyList.stream()
-                .filter(h -> h.getEventId() == eventId)
+                .filter(h -> h.getEventId().equals(eventId))
                 .collect(Collectors.toList());
     }
 }

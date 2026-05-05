@@ -100,7 +100,14 @@ public Company(String founderUsername, String name) {
         return members.containsKey(username);
     }
 
-    public boolean inviteNewOwner(String appointeeUsername, String appointerUsername)
+    public ICompanyMember getMember(String username)
+    {
+        if (isCompanyMember(username))
+            return members.get(username);
+        else return null;
+    }
+
+    public UUID inviteNewOwner(String appointeeUsername, String appointerUsername)
     {
         if (!isCompanyMember(appointerUsername) || !(members.get(appointerUsername) instanceof CompanyOwner))
         {
@@ -119,10 +126,10 @@ public Company(String founderUsername, String name) {
         }
         Invitation invitation = new OwnerInvetation(appointerUsername, appointeeUsername, id);
         invitations.put(invitation.getId(), invitation);
-        return true;
+        return invitation.getId();
     }
 
-    public boolean inviteNewManager(String appointeeUsername, String appointerUsername, Set<CompanyPermission> premissions)
+    public UUID inviteNewManager(String appointeeUsername, String appointerUsername, Set<CompanyPermission> premissions)
     {
         if (!isCompanyMember(appointerUsername) || !(members.get(appointerUsername) instanceof CompanyOwner))
         {
@@ -134,7 +141,7 @@ public Company(String founderUsername, String name) {
         }
         Invitation invitation = new ManagerInvetation(appointerUsername, appointeeUsername, id, premissions);
         invitations.put(invitation.getId(), invitation);
-        return true;
+        return invitation.getId();
     }
 
     public boolean acceptInvitation(UUID invitationId)
@@ -167,6 +174,8 @@ public Company(String founderUsername, String name) {
         }
         CompanyManager newManager = new CompanyManager(appointeeUsername, (CompanyOwner) members.get(appointerUsername), premissions);
         members.put(appointeeUsername, newManager);
+        // Register the new manager as a subordinate of the appointer so hierarchy is consistent
+        ((CompanyOwner) members.get(appointerUsername)).addSubordinate(newManager);
         return true;
     }
 
@@ -195,6 +204,8 @@ public Company(String founderUsername, String name) {
         }
         CompanyOwner newOwner = new CompanyOwner(appointeeUsername, (CompanyOwner) members.get(appointerUsername));
         members.put(appointeeUsername, newOwner);
+        // Register the new owner as a subordinate of the appointer
+        ((CompanyOwner) members.get(appointerUsername)).addSubordinate(newOwner);
         return true;
     }
 
@@ -305,15 +316,17 @@ public Company(String founderUsername, String name) {
 
     public void addPurchasePolicy(Optional<Float> age, Optional<Integer> minTicket, Optional<Integer> maxTicket, Optional<Boolean> allowLoneSeat)
     {
-        if(Optional.ofNullable(age).isPresent())
-            this.purchasePolicy.addRule(new AgeRule(age.get()));
-        if(Optional.ofNullable(minTicket).isPresent())
-            this.purchasePolicy.addRule(new MinTicketRule(minTicket.get()));
-        if(Optional.ofNullable(maxTicket).isPresent())
-            this.purchasePolicy.addRule(new MaxTicketRule(maxTicket.get()));
-        if(Optional.ofNullable(allowLoneSeat).isPresent())
-            this.purchasePolicy.addRule(new LoneSeatRule(allowLoneSeat.get()));
-
+    if (age != null && age.isPresent()) 
+        this.purchasePolicy.addRule(new AgeRule(age.get()));
+        
+    if (minTicket != null && minTicket.isPresent()) 
+        this.purchasePolicy.addRule(new MinTicketRule(minTicket.get()));
+        
+    if (maxTicket != null && maxTicket.isPresent()) 
+        this.purchasePolicy.addRule(new MaxTicketRule(maxTicket.get()));
+        
+    if (allowLoneSeat != null && allowLoneSeat.isPresent()) 
+        this.purchasePolicy.addRule(new LoneSeatRule(allowLoneSeat.get()));
     }
 
     public void deletePurchaseRule(boolean age, boolean minTicket, boolean maxTicket, boolean allowLoneSeat)
@@ -373,5 +386,37 @@ public Company(String founderUsername, String name) {
             }
         }
         return ownerNames;
+    }
+
+    /**
+     * Returns the company member hierarchy in Mermaid.js flowchart (top-down) format.
+     */
+    public String getHierarchyMermaid(String username) {
+        // first we need to check if the caller is a company owner, as only company owners can view the company hierarchy
+        if (!isCompanyMember(username) || !(members.get(username) instanceof CompanyOwner)) {
+            throw new IllegalArgumentException("Only company owners can view the company hierarchy");
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append("flowchart TD\n");
+
+        if (founder != null) {
+            founder.buildMermaid(sb);
+            return sb.toString();
+        }
+
+        // if now founder is set, throw an exception, as this is an invalid state for the company
+        throw new IllegalStateException("Company founder is not set, cannot build hierarchy");
+    }
+
+    
+    public List<UUID> getEventsUnderOwner(String ownerUsername) {
+        if (!isCompanyMember(ownerUsername)) {
+            throw new IllegalArgumentException("User is not a company member");
+        }
+        ICompanyMember member = members.get(ownerUsername);
+        if (!(member instanceof CompanyOwner)) {
+            throw new IllegalArgumentException("User is not a company owner");
+        }
+        return member.getEventsUnderMe();
     }
 }
