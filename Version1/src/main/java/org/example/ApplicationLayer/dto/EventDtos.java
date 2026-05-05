@@ -1,4 +1,4 @@
-package org.example.ApplicationLayer;
+package org.example.ApplicationLayer.dto;
 
 import java.time.LocalDateTime;
 import java.util.List;
