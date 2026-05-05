@@ -49,7 +49,7 @@ public class EventManagementDomainService {
         Company company = companyRepository.findByID(companyId).get();
         if (company == null)
             throw new IllegalArgumentException("Company not found");
-        if (company.hasPremision(username, CompanyPermission.MANAGE_POLICIES, eventId))
+        if (!company.hasPremision(username, CompanyPermission.MANAGE_POLICIES, eventId))
             throw new IllegalArgumentException("User has no permissions to change event policies");
         event.addPurchasePolicy(age, minTicket, maxTicket, allowLoneSeat);
     }
@@ -62,7 +62,7 @@ public class EventManagementDomainService {
         Company company = companyRepository.findByID(companyId).get();
         if (company == null)
             throw new IllegalArgumentException("Company not found");
-        if (company.hasPremision(username, CompanyPermission.MANAGE_POLICIES, eventId))
+        if (!company.hasPremision(username, CompanyPermission.MANAGE_POLICIES, eventId))
             throw new IllegalArgumentException("User has no permissions to change event policies");
         event.deletePurchaseRule(age, minTicket, maxTicket, allowLoneSeat);
     }
@@ -75,7 +75,7 @@ public class EventManagementDomainService {
         Company company = companyRepository.findByID(companyId).get();
         if (company == null)
             throw new IllegalArgumentException("Company not found");
-        if (company.hasPremision(username, CompanyPermission.MANAGE_POLICIES, eventId))
+        if (!company.hasPremision(username, CompanyPermission.MANAGE_POLICIES, eventId))
             throw new IllegalArgumentException("User has no permissions to change event policies");
         event.addOvertDiscount(fromDate, toDate, discountPrecent);
     }
@@ -88,7 +88,7 @@ public class EventManagementDomainService {
         Company company = companyRepository.findByID(companyId).get();
         if (company == null)
             throw new IllegalArgumentException("Company not found");
-        if (company.hasPremision(username, CompanyPermission.MANAGE_POLICIES, eventId))
+        if (!company.hasPremision(username, CompanyPermission.MANAGE_POLICIES, eventId))
             throw new IllegalArgumentException("User has no permissions to change event policies");
         event.addConditionalDiscount(fromDate, toDate, discountPrecent, requiredTickets, appliedTickets);
     }
@@ -101,7 +101,7 @@ public class EventManagementDomainService {
         Company company = companyRepository.findByID(companyId).get();
         if (company == null)
             throw new IllegalArgumentException("Company not found");
-        if (company.hasPremision(username, CompanyPermission.MANAGE_POLICIES, eventId))
+        if (!company.hasPremision(username, CompanyPermission.MANAGE_POLICIES, eventId))
             throw new IllegalArgumentException("User has no permissions to change event policies");
         event.addCouponCode(fromDate, toDate, discountPrecent, code);
     }
@@ -114,7 +114,7 @@ public class EventManagementDomainService {
         Company company = companyRepository.findByID(companyId).get();
         if (company == null)
             throw new IllegalArgumentException("Company not found");
-        if (company.hasPremision(username, CompanyPermission.MANAGE_POLICIES, eventId))
+        if (!company.hasPremision(username, CompanyPermission.MANAGE_POLICIES, eventId))
             throw new IllegalArgumentException("User has no permissions to change event policies");
         event.removeDiscount(discountId); 
     }

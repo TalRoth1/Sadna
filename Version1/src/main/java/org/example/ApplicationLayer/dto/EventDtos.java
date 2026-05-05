@@ -1,11 +1,13 @@
-package org.example.ApplicationLayer;
+package org.example.ApplicationLayer.dto;
+
+import org.example.DomainLayer.EventAggregate.EventStatus;
+import org.example.DomainLayer.EventAggregate.TicketStatus;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
-import org.example.DomainLayer.EventAggregate.EventStatus;
-import org.example.DomainLayer.EventAggregate.TicketStatus;
+
 
 
  // Read/write models for EventService.

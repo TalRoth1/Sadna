@@ -1,7 +1,10 @@
 package org.example.ApplicationLayer;
 
-import org.example.DomainLayer.EventAggregate.Event;
-import org.example.DomainLayer.EventAggregate.EventStatus;
+import org.example.ApplicationLayer.dto.EventDtos.AreaSummaryDto;
+import org.example.ApplicationLayer.dto.EventDtos.CompanyCatalogDto;
+import org.example.ApplicationLayer.dto.EventDtos.EventDetailsDto;
+import org.example.ApplicationLayer.dto.EventDtos.EventSummaryDto;
+import org.example.DomainLayer.DomainException;
 import org.example.DomainLayer.EventManagementDomainService;
 import org.example.DomainLayer.ICompanyRepository;
 import org.example.DomainLayer.IEventRepository;
@@ -34,6 +37,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -63,6 +72,7 @@ public class EventServiceTest {
 
     @Before
     public void setUp() {
+        // Using real Domain Service logic to track state changes in the Event object
         // Using real Domain Service logic to track state changes in the Event object
         eventManagementDomainService = new EventManagementDomainService(
                 eventRepository, 
@@ -97,18 +107,30 @@ public class EventServiceTest {
 
     private Event newRealEvent() {
         return new Event(
-            UUID.randomUUID(), 
-            companyId, 
-            LocalDateTime.now().plusDays(10), 
-            "Tel Aviv", 
-            "Artist Name", 
-            "Concert", 
-            EventStatus.ACTIVE
-        );
+                eventId,
+                companyId,
+                LocalDateTime.now().plusDays(30),
+                "Tel Aviv",
+                "Some Artist",
+                "concert",
+                EventStatus.ACTIVE);
     }
 
     private Company newActiveCompany(String name) {
         return new Company("founder-" + name, name);
+    }
+
+    /**
+     * Returns a fresh real {@link Company} where {@code founderUsername} is the
+     * founder and {@code eventId} is registered under the founder's ownership.
+     * That makes {@code company.hasPremision(founderUsername, MANAGE_POLICIES, eventId)}
+     * return {@code true}, which is the path the auth-protected operations
+     * ({@code addPolicyRule}, {@code addOvertDiscount}, etc.) require to proceed.
+     */
+    private Company authorizedCompany(String founderUsername, UUID eventId) {
+        Company c = new Company(founderUsername, "TestCompany");
+        c.getFounder().getEventsIds().add(eventId);
+        return c;
     }
 
     private Event newEventFor(UUID companyId, String name, String artist, String type, 
@@ -138,12 +160,15 @@ public class EventServiceTest {
     @Test
     public void testAddPolicyRule_ActuallyPersistsInEvent() {
         // Arrange
-        Event realEvent = createTestEvent(UUID.randomUUID());
+        UUID localCompanyId = UUID.randomUUID();
+        Event realEvent = createTestEvent(localCompanyId);
         UUID eventId = realEvent.getEventId();
-        when(eventRepository.getById(eventId)).thenReturn(Optional.of(realEvent).get());
+        when(eventRepository.getById(eventId)).thenReturn(realEvent);
+        when(companyRepository.findByID(localCompanyId)).thenReturn(Optional.of(authorizedCompany("founderUsername", eventId)));
 
         // Act
-        eventService.addPolicyRule(eventId, Optional.of(18.0f), Optional.empty(), Optional.empty(), Optional.of(true));
+        eventService.addPolicyRule("founderUsername", localCompanyId, eventId,
+                Optional.of(18.0f), Optional.empty(), Optional.empty(), Optional.of(true));
 
         // Assert
         var rules = realEvent.getPurchasePolicy().getRulesView();
@@ -155,13 +180,17 @@ public class EventServiceTest {
     @Test
     public void testAddMultiplePolicyRules_ReplacementLogic() {
         // Arrange
-        Event realEvent = createTestEvent(UUID.randomUUID());
+        UUID localCompanyId = UUID.randomUUID();
+        Event realEvent = createTestEvent(localCompanyId);
         UUID eventId = realEvent.getEventId();
-        when(eventRepository.getById(eventId)).thenReturn(Optional.of(realEvent).get());
+        when(eventRepository.getById(eventId)).thenReturn(realEvent);
+        when(companyRepository.findByID(localCompanyId)).thenReturn(Optional.of(authorizedCompany("founderUsername", eventId)));
 
         // Act: Add 18+, then update to 21+
-        eventService.addPolicyRule(eventId, Optional.of(18.0f), Optional.empty(), Optional.empty(), Optional.empty());
-        eventService.addPolicyRule(eventId, Optional.of(21.0f), Optional.empty(), Optional.empty(), Optional.empty());
+        eventService.addPolicyRule("founderUsername", localCompanyId, eventId,
+                Optional.of(18.0f), Optional.empty(), Optional.empty(), Optional.empty());
+        eventService.addPolicyRule("founderUsername", localCompanyId, eventId,
+                Optional.of(21.0f), Optional.empty(), Optional.empty(), Optional.empty());
 
         // Assert
         var rules = realEvent.getPurchasePolicy().getRulesView();
@@ -174,14 +203,16 @@ public class EventServiceTest {
     @Test
     public void testDeleteSpecificPolicyRules() {
         // Arrange
-        Event realEvent = createTestEvent(UUID.randomUUID());
+        UUID localCompanyId = UUID.randomUUID();
+        Event realEvent = createTestEvent(localCompanyId);
         UUID eventId = realEvent.getEventId();
         // Setup initial state with two rules
         realEvent.addPurchasePolicy(Optional.of(18.0f), Optional.empty(), Optional.empty(), Optional.of(false));
-        when(eventRepository.getById(eventId)).thenReturn(Optional.of(realEvent).get());
+        when(eventRepository.getById(eventId)).thenReturn(realEvent);
+        when(companyRepository.findByID(localCompanyId)).thenReturn(Optional.of(authorizedCompany("founderUsername", eventId)));
 
         // Act: Delete AgeRule, keep LoneSeatRule
-        eventService.deletePolicyRule(eventId, true, false, false, false);
+        eventService.deletePolicyRule("founderUsername", localCompanyId, eventId, true, false, false, false);
 
         // Assert
         var rules = realEvent.getPurchasePolicy().getRulesView();
@@ -192,12 +223,15 @@ public class EventServiceTest {
     @Test
     public void testAddOvertDiscount_VerifyStatePersistence() {
         // Arrange
-        Event realEvent = createTestEvent(UUID.randomUUID());
+        UUID localCompanyId = UUID.randomUUID();
+        Event realEvent = createTestEvent(localCompanyId);
         UUID eventId = realEvent.getEventId();
-        when(eventRepository.getById(eventId)).thenReturn(Optional.of(realEvent).get());
+        when(eventRepository.getById(eventId)).thenReturn(realEvent);
+        when(companyRepository.findByID(localCompanyId)).thenReturn(Optional.of(authorizedCompany("founderUsername", eventId)));
 
         // Act
-        eventService.addOvertDiscount(eventId, LocalDate.now(), LocalDate.now().plusDays(7), 20.0f);
+        eventService.addOvertDiscount("founderUsername", localCompanyId, eventId,
+                LocalDate.now(), LocalDate.now().plusDays(7), 20.0f);
 
         // Assert
         var discounts = realEvent.getDiscountPolicy().gDiscountRules();
@@ -208,16 +242,18 @@ public class EventServiceTest {
     @Test
     public void testRemoveDiscount_VerifyRemovalByID() {
         // Arrange
-        Event realEvent = createTestEvent(UUID.randomUUID());
+        UUID localCompanyId = UUID.randomUUID();
+        Event realEvent = createTestEvent(localCompanyId);
         UUID eventId = realEvent.getEventId();
-        when(eventRepository.getById(eventId)).thenReturn(Optional.of(realEvent).get());
+        when(eventRepository.getById(eventId)).thenReturn(realEvent);
+        when(companyRepository.findByID(localCompanyId)).thenReturn(Optional.of(authorizedCompany("founderUsername", eventId)));
 
         // Add a discount to get an ID
         realEvent.addOvertDiscount(LocalDate.now(), LocalDate.now().plusDays(7), 20.0f);
-        UUID discountId = realEvent.getDiscountPolicy().gDiscountRules().get(0).getId();
+        UUID localDiscountId = realEvent.getDiscountPolicy().gDiscountRules().get(0).getId();
 
         // Act
-        eventService.removeDiscount(eventId, discountId);
+        eventService.removeDiscount("founderUsername", localCompanyId, eventId, localDiscountId);
 
         // Assert
         assertTrue("Discount list should be empty after removal", 
@@ -258,14 +294,7 @@ public class EventServiceTest {
         EventService eventService = new EventService(eventManagementDomainService);
 
         eventService.rateEvent(user1, eventID, 5);
-        // EventService swallows DomainException on duplicate rating, so the second
-        // call must complete normally and the original rating must remain unchanged.
-        try {
-            eventService.rateEvent(user1, eventID, 1);
-        } catch (Throwable t) {
-            fail("expected no exception to escape the service, but got: " + t);
-        }
-
+        assertThrows(DomainException.class, () -> eventService.rateEvent(user1, eventID, 1));
         assertTrue(5 == event.getRating());
     }
 
@@ -274,22 +303,23 @@ public class EventServiceTest {
     // =====================================================================
 
     @Test
-    public void testAddPolicyRule_ActuallyPersistsInEvent() {
+    public void GivenAuthorizedOwnerAndExistingEvent_WhenGetEventPurchaseHistoryForOwner_ThenReturnsHistoryFromRepository() {
         // Arrange
-        Company company = new Company("founderUsername", "testComp");
-        Event realEvent = createTestEvent(company.getId());
-        UUID eventId = realEvent.getEventId();
-        when(eventRepositoryMock.getById(eventId)).thenReturn(realEvent);
-        when(companyRepositoryMock.findByID(company.getId())).thenReturn(Optional.ofNullable(company));
+        Event event = newRealEvent();
+        List<PurchaseHistory> expected = Collections.emptyList();
+        when(eventRepository.getById(eventId)).thenReturn(event);
+        when(companyRepository.isOwner(ownerUsername, companyId)).thenReturn(true);
+        when(historyRepository.getByEventId(eventId)).thenReturn(expected);
 
         // Act
-        eventService.addPolicyRule("founderUsername", company.getId(), eventId, Optional.of(18.0f), Optional.empty(), Optional.empty(), Optional.of(true));
+        List<PurchaseHistory> actual =
+                eventService.getEventPurchaseHistoryForOwner(ownerUsername, eventId);
 
         // Assert
-        var rules = realEvent.getPurchasePolicy().getRulesView();
-        assertEquals("Should have 2 rules added", 2, rules.size());
-        assertTrue(rules.stream().anyMatch(r -> r instanceof AgeRule));
-        assertTrue(rules.stream().anyMatch(r -> r instanceof LoneSeatRule));
+        assertSame("service must return the exact list from the repository", expected, actual);
+        verify(eventRepository).getById(eventId);
+        verify(companyRepository).isOwner(ownerUsername, companyId);
+        verify(historyRepository).getByEventId(eventId);
     }
 
     @Test
@@ -348,8 +378,9 @@ public class EventServiceTest {
     public void GivenAllOptionalsPresentAndValid_WhenAddPolicyRule_ThenAllFourRulesAreAddedToTheEventPolicy() {
         Event event = newRealEvent();
         when(eventRepository.getById(eventId)).thenReturn(event);
+        when(companyRepository.findByID(companyId)).thenReturn(Optional.of(authorizedCompany(ownerUsername, eventId)));
 
-        eventService.addPolicyRule(eventId,
+        eventService.addPolicyRule(ownerUsername, companyId, eventId,
                 Optional.of(18f), Optional.of(1), Optional.of(5), Optional.of(true));
 
         assertEquals("expected one rule per provided optional",
@@ -361,8 +392,9 @@ public class EventServiceTest {
     public void GivenAllOptionalsEmpty_WhenAddPolicyRule_ThenNoRuleIsAddedToTheEventPolicy() {
         Event event = newRealEvent();
         when(eventRepository.getById(eventId)).thenReturn(event);
+        when(companyRepository.findByID(companyId)).thenReturn(Optional.of(authorizedCompany(ownerUsername, eventId)));
 
-        eventService.addPolicyRule(eventId,
+        eventService.addPolicyRule(ownerUsername, companyId, eventId,
                 Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty());
 
         assertEquals("an empty optional means 'no rule for this field'",
@@ -374,8 +406,9 @@ public class EventServiceTest {
     public void GivenOnlyAgeIsPresent_WhenAddPolicyRule_ThenExactlyTheAgeRuleIsAdded() {
         Event event = newRealEvent();
         when(eventRepository.getById(eventId)).thenReturn(event);
+        when(companyRepository.findByID(companyId)).thenReturn(Optional.of(authorizedCompany(ownerUsername, eventId)));
 
-        eventService.addPolicyRule(eventId,
+        eventService.addPolicyRule(ownerUsername, companyId, eventId,
                 Optional.of(21f), Optional.empty(), Optional.empty(), Optional.empty());
 
         assertEquals("only the age rule must be added when other optionals are empty",
@@ -387,8 +420,9 @@ public class EventServiceTest {
     public void GivenAgeIsZero_WhenAddPolicyRule_ThenServiceAcceptsItAndDelegates() {
         Event event = newRealEvent();
         when(eventRepository.getById(eventId)).thenReturn(event);
+        when(companyRepository.findByID(companyId)).thenReturn(Optional.of(authorizedCompany(ownerUsername, eventId)));
 
-        eventService.addPolicyRule(eventId,
+        eventService.addPolicyRule(ownerUsername, companyId, eventId,
                 Optional.of(0f), Optional.of(1), Optional.of(5), Optional.of(true));
 
         assertEquals(4, event.getPurchasePolicy().getRulesView().size());
@@ -396,52 +430,25 @@ public class EventServiceTest {
     }
 
     @Test
-    public void eventRate_success()
-    {
-        UUID user1 = UUID.randomUUID();
-        UUID user2 = UUID.randomUUID();
+    public void GivenMinTicketIsZero_WhenAddPolicyRule_ThenServiceAcceptsItAndDelegates() {
+        Event event = newRealEvent();
+        when(eventRepository.getById(eventId)).thenReturn(event);
+        when(companyRepository.findByID(companyId)).thenReturn(Optional.of(authorizedCompany(ownerUsername, eventId)));
 
-        UUID eventID = UUID.randomUUID();
+        eventService.addPolicyRule(ownerUsername, companyId, eventId,
+                Optional.of(18f), Optional.of(0), Optional.of(5), Optional.of(true));
 
-        Event event = new Event(eventID, UUID.randomUUID(), LocalDateTime.now(), "sdsdsdsd", "sdsdsdsd", "sdsdsdsd", EventStatus.ACTIVE);
-
-        InMemoryEventRepository eventRepository = new InMemoryEventRepository();
-        eventRepository.save(event);
-
-        EventManagementDomainService eventManagementDomainService = new EventManagementDomainService(eventRepository, null, null);
-        EventService eventService = new EventService(eventManagementDomainService);
-
-        eventService.rateEvent(user1, eventID, 5);
-        eventService.rateEvent(user2, eventID, 1);
-
-        assertTrue(3 == event.getRating());
+        assertEquals(4, event.getPurchasePolicy().getRulesView().size());
+        verify(eventRepository).getById(eventId);
     }
+
     @Test
-    public void eventRate_samePerson_thenItFails()
-    {
-        UUID user1 = UUID.randomUUID();
+    public void GivenMaxTicketIsZero_WhenAddPolicyRule_ThenServiceAcceptsItAndDelegates() {
+        Event event = newRealEvent();
+        when(eventRepository.getById(eventId)).thenReturn(event);
+        when(companyRepository.findByID(companyId)).thenReturn(Optional.of(authorizedCompany(ownerUsername, eventId)));
 
-        UUID eventID = UUID.randomUUID();
-
-        Event event = new Event(eventID, UUID.randomUUID(), LocalDateTime.now(), "sdsdsdsd", "sdsdsdsd", "sdsdsdsd", EventStatus.ACTIVE);
-
-        InMemoryEventRepository eventRepository = new InMemoryEventRepository();
-        eventRepository.save(event);
-
-        EventManagementDomainService eventManagementDomainService = new EventManagementDomainService(eventRepository, null, null);
-        EventService eventService = new EventService(eventManagementDomainService);
-
-        eventService.rateEvent(user1, eventID, 5);
-        assertThrows(DomainException.class, () -> eventService.rateEvent(user1, eventID, 1));
-
-        assertTrue(5 == event.getRating());
-    }
-
-    private static class InMemoryEventRepository implements IEventRepository
-    {
-        Map<UUID, Event> eventsByID = new LinkedHashMap<>();
-
-        eventService.addPolicyRule(eventId,
+        eventService.addPolicyRule(ownerUsername, companyId, eventId,
                 Optional.of(18f), Optional.of(1), Optional.of(0), Optional.of(true));
 
         assertEquals(4, event.getPurchasePolicy().getRulesView().size());
@@ -451,7 +458,7 @@ public class EventServiceTest {
     @Test
     public void GivenNegativeAge_WhenAddPolicyRule_ThenThrowsIllegalArgumentExceptionAtServiceLayer() {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> eventService.addPolicyRule(eventId,
+                () -> eventService.addPolicyRule(ownerUsername, companyId, eventId,
                         Optional.of(-1f), Optional.empty(), Optional.empty(), Optional.empty()));
         assertTrue(ex.getMessage().toLowerCase().contains("age"));
         verifyNoInteractions(eventRepository);
@@ -460,7 +467,7 @@ public class EventServiceTest {
     @Test
     public void GivenNegativeMinTicket_WhenAddPolicyRule_ThenThrowsIllegalArgumentExceptionAtServiceLayer() {
         assertThrows(IllegalArgumentException.class,
-                () -> eventService.addPolicyRule(eventId,
+                () -> eventService.addPolicyRule(ownerUsername, companyId, eventId,
                         Optional.empty(), Optional.of(-1), Optional.empty(), Optional.empty()));
         verifyNoInteractions(eventRepository);
     }
@@ -468,7 +475,7 @@ public class EventServiceTest {
     @Test
     public void GivenNegativeMaxTicket_WhenAddPolicyRule_ThenThrowsIllegalArgumentExceptionAtServiceLayer() {
         assertThrows(IllegalArgumentException.class,
-                () -> eventService.addPolicyRule(eventId,
+                () -> eventService.addPolicyRule(ownerUsername, companyId, eventId,
                         Optional.empty(), Optional.empty(), Optional.of(-1), Optional.empty()));
         verifyNoInteractions(eventRepository);
     }
@@ -478,7 +485,7 @@ public class EventServiceTest {
         when(eventRepository.getById(eventId)).thenReturn(null);
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> eventService.addPolicyRule(eventId,
+                () -> eventService.addPolicyRule(ownerUsername, companyId, eventId,
                         Optional.of(18f), Optional.of(1), Optional.of(5), Optional.of(true)));
         assertEquals("Event not found", ex.getMessage());
         verify(eventRepository).getById(eventId);
@@ -491,8 +498,9 @@ public class EventServiceTest {
         assertEquals("precondition: 4 rules pre-populated",
                 4, event.getPurchasePolicy().getRulesView().size());
         when(eventRepository.getById(eventId)).thenReturn(event);
+        when(companyRepository.findByID(companyId)).thenReturn(Optional.of(authorizedCompany(ownerUsername, eventId)));
 
-        eventService.deletePolicyRule(eventId, true, true, true, true);
+        eventService.deletePolicyRule(ownerUsername, companyId, eventId, true, true, true, true);
 
         assertEquals(0, event.getPurchasePolicy().getRulesView().size());
         verify(eventRepository).getById(eventId);
@@ -503,8 +511,9 @@ public class EventServiceTest {
         Event event = newRealEvent();
         event.addPurchasePolicy(Optional.of(18f), Optional.of(1), Optional.of(5), Optional.of(true));
         when(eventRepository.getById(eventId)).thenReturn(event);
+        when(companyRepository.findByID(companyId)).thenReturn(Optional.of(authorizedCompany(ownerUsername, eventId)));
 
-        eventService.deletePolicyRule(eventId, false, false, false, false);
+        eventService.deletePolicyRule(ownerUsername, companyId, eventId, false, false, false, false);
 
         assertEquals(4, event.getPurchasePolicy().getRulesView().size());
         verify(eventRepository).getById(eventId);
@@ -515,8 +524,9 @@ public class EventServiceTest {
         Event event = newRealEvent();
         event.addPurchasePolicy(Optional.of(18f), Optional.of(1), Optional.of(5), Optional.of(true));
         when(eventRepository.getById(eventId)).thenReturn(event);
+        when(companyRepository.findByID(companyId)).thenReturn(Optional.of(authorizedCompany(ownerUsername, eventId)));
 
-        eventService.deletePolicyRule(eventId, true, false, true, false);
+        eventService.deletePolicyRule(ownerUsername, companyId, eventId, true, false, true, false);
 
         assertEquals(2, event.getPurchasePolicy().getRulesView().size());
         verify(eventRepository).getById(eventId);
@@ -527,7 +537,7 @@ public class EventServiceTest {
         when(eventRepository.getById(eventId)).thenReturn(null);
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> eventService.deletePolicyRule(eventId, true, true, true, true));
+                () -> eventService.deletePolicyRule(ownerUsername, companyId, eventId, true, true, true, true));
         assertEquals("Event not found", ex.getMessage());
     }
 
@@ -535,10 +545,11 @@ public class EventServiceTest {
     public void GivenValidDatesAndDiscount_WhenAddOvertDiscount_ThenDiscountRuleIsAddedToEvent() {
         Event event = newRealEvent();
         when(eventRepository.getById(eventId)).thenReturn(event);
+        when(companyRepository.findByID(companyId)).thenReturn(Optional.of(authorizedCompany(ownerUsername, eventId)));
         LocalDate from = LocalDate.now();
         LocalDate to = LocalDate.now().plusDays(7);
 
-        eventService.addOvertDiscount(eventId, from, to, 10f);
+        eventService.addOvertDiscount(ownerUsername, companyId, eventId, from, to, 10f);
 
         assertEquals(1, event.getDiscountPolicy().gDiscountRules().size());
         verify(eventRepository).getById(eventId);
@@ -547,7 +558,7 @@ public class EventServiceTest {
     @Test
     public void GivenToDateInPast_WhenAddOvertDiscount_ThenThrowsIllegalArgumentExceptionAtServiceLayer() {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> eventService.addOvertDiscount(eventId,
+                () -> eventService.addOvertDiscount(ownerUsername, companyId, eventId,
                         LocalDate.now().minusDays(10), LocalDate.now().minusDays(1), 10f));
         assertTrue(ex.getMessage().toLowerCase().contains("todate"));
         verifyNoInteractions(eventRepository);
@@ -556,7 +567,7 @@ public class EventServiceTest {
     @Test
     public void GivenDiscountAboveHundred_WhenAddOvertDiscount_ThenThrowsIllegalArgumentExceptionAtServiceLayer() {
         assertThrows(IllegalArgumentException.class,
-                () -> eventService.addOvertDiscount(eventId,
+                () -> eventService.addOvertDiscount(ownerUsername, companyId, eventId,
                         LocalDate.now(), LocalDate.now().plusDays(7), 100.01f));
         verifyNoInteractions(eventRepository);
     }
@@ -564,7 +575,7 @@ public class EventServiceTest {
     @Test
     public void GivenNegativeDiscount_WhenAddOvertDiscount_ThenThrowsIllegalArgumentExceptionAtServiceLayer() {
         assertThrows(IllegalArgumentException.class,
-                () -> eventService.addOvertDiscount(eventId,
+                () -> eventService.addOvertDiscount(ownerUsername, companyId, eventId,
                         LocalDate.now(), LocalDate.now().plusDays(7), -0.01f));
         verifyNoInteractions(eventRepository);
     }
@@ -573,8 +584,10 @@ public class EventServiceTest {
     public void GivenDiscountIsZero_WhenAddOvertDiscount_ThenDiscountRuleIsStillAdded() {
         Event event = newRealEvent();
         when(eventRepository.getById(eventId)).thenReturn(event);
+        when(companyRepository.findByID(companyId)).thenReturn(Optional.of(authorizedCompany(ownerUsername, eventId)));
 
-        eventService.addOvertDiscount(eventId, LocalDate.now(), LocalDate.now().plusDays(7), 0f);
+        eventService.addOvertDiscount(ownerUsername, companyId, eventId,
+                LocalDate.now(), LocalDate.now().plusDays(7), 0f);
 
         assertEquals(1, event.getDiscountPolicy().gDiscountRules().size());
     }
@@ -583,8 +596,10 @@ public class EventServiceTest {
     public void GivenDiscountIsHundred_WhenAddOvertDiscount_ThenDiscountRuleIsStillAdded() {
         Event event = newRealEvent();
         when(eventRepository.getById(eventId)).thenReturn(event);
+        when(companyRepository.findByID(companyId)).thenReturn(Optional.of(authorizedCompany(ownerUsername, eventId)));
 
-        eventService.addOvertDiscount(eventId, LocalDate.now(), LocalDate.now().plusDays(7), 100f);
+        eventService.addOvertDiscount(ownerUsername, companyId, eventId,
+                LocalDate.now(), LocalDate.now().plusDays(7), 100f);
 
         assertEquals(1, event.getDiscountPolicy().gDiscountRules().size());
     }
@@ -593,9 +608,10 @@ public class EventServiceTest {
     public void GivenToDateIsToday_WhenAddOvertDiscount_ThenDiscountRuleIsAdded() {
         Event event = newRealEvent();
         when(eventRepository.getById(eventId)).thenReturn(event);
+        when(companyRepository.findByID(companyId)).thenReturn(Optional.of(authorizedCompany(ownerUsername, eventId)));
         LocalDate today = LocalDate.now();
 
-        eventService.addOvertDiscount(eventId, today.minusDays(1), today, 10f);
+        eventService.addOvertDiscount(ownerUsername, companyId, eventId, today.minusDays(1), today, 10f);
 
         assertEquals(1, event.getDiscountPolicy().gDiscountRules().size());
     }
@@ -605,7 +621,7 @@ public class EventServiceTest {
         when(eventRepository.getById(eventId)).thenReturn(null);
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> eventService.addOvertDiscount(eventId,
+                () -> eventService.addOvertDiscount(ownerUsername, companyId, eventId,
                         LocalDate.now(), LocalDate.now().plusDays(7), 10f));
         assertEquals("Event not found", ex.getMessage());
     }
@@ -614,8 +630,9 @@ public class EventServiceTest {
     public void GivenValidParameters_WhenAddConditionalDiscount_ThenDiscountRuleIsAddedToEvent() {
         Event event = newRealEvent();
         when(eventRepository.getById(eventId)).thenReturn(event);
+        when(companyRepository.findByID(companyId)).thenReturn(Optional.of(authorizedCompany(ownerUsername, eventId)));
 
-        eventService.addConditionalDiscount(eventId,
+        eventService.addConditionalDiscount(ownerUsername, companyId, eventId,
                 LocalDate.now(), LocalDate.now().plusDays(7), 10f, 3, 2);
 
         assertEquals(1, event.getDiscountPolicy().gDiscountRules().size());
@@ -625,7 +642,7 @@ public class EventServiceTest {
     @Test
     public void GivenToDateInPast_WhenAddConditionalDiscount_ThenThrowsIllegalArgumentExceptionAtServiceLayer() {
         assertThrows(IllegalArgumentException.class,
-                () -> eventService.addConditionalDiscount(eventId,
+                () -> eventService.addConditionalDiscount(ownerUsername, companyId, eventId,
                         LocalDate.now().minusDays(10), LocalDate.now().minusDays(1), 10f, 3, 2));
         verifyNoInteractions(eventRepository);
     }
@@ -633,7 +650,7 @@ public class EventServiceTest {
     @Test
     public void GivenDiscountAboveHundred_WhenAddConditionalDiscount_ThenThrowsIllegalArgumentExceptionAtServiceLayer() {
         assertThrows(IllegalArgumentException.class,
-                () -> eventService.addConditionalDiscount(eventId,
+                () -> eventService.addConditionalDiscount(ownerUsername, companyId, eventId,
                         LocalDate.now(), LocalDate.now().plusDays(7), 150f, 3, 2));
         verifyNoInteractions(eventRepository);
     }
@@ -641,7 +658,7 @@ public class EventServiceTest {
     @Test
     public void GivenNegativeDiscount_WhenAddConditionalDiscount_ThenThrowsIllegalArgumentExceptionAtServiceLayer() {
         assertThrows(IllegalArgumentException.class,
-                () -> eventService.addConditionalDiscount(eventId,
+                () -> eventService.addConditionalDiscount(ownerUsername, companyId, eventId,
                         LocalDate.now(), LocalDate.now().plusDays(7), -1f, 3, 2));
         verifyNoInteractions(eventRepository);
     }
@@ -649,7 +666,7 @@ public class EventServiceTest {
     @Test
     public void GivenNegativeRequiredTickets_WhenAddConditionalDiscount_ThenThrowsIllegalArgumentExceptionAtServiceLayer() {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> eventService.addConditionalDiscount(eventId,
+                () -> eventService.addConditionalDiscount(ownerUsername, companyId, eventId,
                         LocalDate.now(), LocalDate.now().plusDays(7), 10f, -1, 2));
         assertTrue(ex.getMessage().toLowerCase().contains("required"));
         verifyNoInteractions(eventRepository);
@@ -658,7 +675,7 @@ public class EventServiceTest {
     @Test
     public void GivenNegativeAppliedTickets_WhenAddConditionalDiscount_ThenThrowsIllegalArgumentExceptionAtServiceLayer() {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> eventService.addConditionalDiscount(eventId,
+                () -> eventService.addConditionalDiscount(ownerUsername, companyId, eventId,
                         LocalDate.now(), LocalDate.now().plusDays(7), 10f, 3, -1));
         assertTrue(ex.getMessage().toLowerCase().contains("applied"));
         verifyNoInteractions(eventRepository);
@@ -668,8 +685,9 @@ public class EventServiceTest {
     public void GivenZeroRequiredAndAppliedTickets_WhenAddConditionalDiscount_ThenDiscountRuleIsAdded() {
         Event event = newRealEvent();
         when(eventRepository.getById(eventId)).thenReturn(event);
+        when(companyRepository.findByID(companyId)).thenReturn(Optional.of(authorizedCompany(ownerUsername, eventId)));
 
-        eventService.addConditionalDiscount(eventId,
+        eventService.addConditionalDiscount(ownerUsername, companyId, eventId,
                 LocalDate.now(), LocalDate.now().plusDays(7), 10f, 0, 0);
 
         assertEquals(1, event.getDiscountPolicy().gDiscountRules().size());
@@ -680,7 +698,7 @@ public class EventServiceTest {
         when(eventRepository.getById(eventId)).thenReturn(null);
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> eventService.addConditionalDiscount(eventId,
+                () -> eventService.addConditionalDiscount(ownerUsername, companyId, eventId,
                         LocalDate.now(), LocalDate.now().plusDays(7), 10f, 3, 2));
         assertEquals("Event not found", ex.getMessage());
     }
@@ -689,8 +707,9 @@ public class EventServiceTest {
     public void GivenValidParameters_WhenAddCouponCode_ThenCouponRuleIsAddedToEvent() {
         Event event = newRealEvent();
         when(eventRepository.getById(eventId)).thenReturn(event);
+        when(companyRepository.findByID(companyId)).thenReturn(Optional.of(authorizedCompany(ownerUsername, eventId)));
 
-        eventService.addCouponCode(eventId,
+        eventService.addCouponCode(ownerUsername, companyId, eventId,
                 LocalDate.now(), LocalDate.now().plusDays(7), 25f, "SUMMER25");
 
         assertEquals(1, event.getDiscountPolicy().gDiscountRules().size());
@@ -700,7 +719,7 @@ public class EventServiceTest {
     @Test
     public void GivenToDateInPast_WhenAddCouponCode_ThenThrowsIllegalArgumentExceptionAtServiceLayer() {
         assertThrows(IllegalArgumentException.class,
-                () -> eventService.addCouponCode(eventId,
+                () -> eventService.addCouponCode(ownerUsername, companyId, eventId,
                         LocalDate.now().minusDays(10), LocalDate.now().minusDays(1), 25f, "SUMMER25"));
         verifyNoInteractions(eventRepository);
     }
@@ -708,7 +727,7 @@ public class EventServiceTest {
     @Test
     public void GivenDiscountAboveHundred_WhenAddCouponCode_ThenThrowsIllegalArgumentExceptionAtServiceLayer() {
         assertThrows(IllegalArgumentException.class,
-                () -> eventService.addCouponCode(eventId,
+                () -> eventService.addCouponCode(ownerUsername, companyId, eventId,
                         LocalDate.now(), LocalDate.now().plusDays(7), 200f, "SUMMER25"));
         verifyNoInteractions(eventRepository);
     }
@@ -716,7 +735,7 @@ public class EventServiceTest {
     @Test
     public void GivenNegativeDiscount_WhenAddCouponCode_ThenThrowsIllegalArgumentExceptionAtServiceLayer() {
         assertThrows(IllegalArgumentException.class,
-                () -> eventService.addCouponCode(eventId,
+                () -> eventService.addCouponCode(ownerUsername, companyId, eventId,
                         LocalDate.now(), LocalDate.now().plusDays(7), -1f, "SUMMER25"));
         verifyNoInteractions(eventRepository);
     }
@@ -726,7 +745,7 @@ public class EventServiceTest {
         when(eventRepository.getById(eventId)).thenReturn(null);
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> eventService.addCouponCode(eventId,
+                () -> eventService.addCouponCode(ownerUsername, companyId, eventId,
                         LocalDate.now(), LocalDate.now().plusDays(7), 25f, "SUMMER25"));
         assertEquals("Event not found", ex.getMessage());
     }
@@ -740,8 +759,9 @@ public class EventServiceTest {
         IDiscountRule existing = event.getDiscountPolicy().gDiscountRules().get(0);
         UUID realDiscountId = existing.getId();
         when(eventRepository.getById(eventId)).thenReturn(event);
+        when(companyRepository.findByID(companyId)).thenReturn(Optional.of(authorizedCompany(ownerUsername, eventId)));
 
-        eventService.removeDiscount(eventId, realDiscountId);
+        eventService.removeDiscount(ownerUsername, companyId, eventId, realDiscountId);
 
         assertEquals(0, event.getDiscountPolicy().gDiscountRules().size());
         verify(eventRepository).getById(eventId);
@@ -752,8 +772,9 @@ public class EventServiceTest {
         Event event = newRealEvent();
         event.addOvertDiscount(LocalDate.now(), LocalDate.now().plusDays(7), 10f);
         when(eventRepository.getById(eventId)).thenReturn(event);
+        when(companyRepository.findByID(companyId)).thenReturn(Optional.of(authorizedCompany(ownerUsername, eventId)));
 
-        eventService.removeDiscount(eventId, UUID.randomUUID());
+        eventService.removeDiscount(ownerUsername, companyId, eventId, UUID.randomUUID());
 
         assertEquals(1, event.getDiscountPolicy().gDiscountRules().size());
         verify(eventRepository).getById(eventId);
@@ -764,7 +785,7 @@ public class EventServiceTest {
         when(eventRepository.getById(eventId)).thenReturn(null);
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> eventService.removeDiscount(eventId, discountId));
+                () -> eventService.removeDiscount(ownerUsername, companyId, eventId, discountId));
         assertEquals("Event not found", ex.getMessage());
     }
 
@@ -818,16 +839,12 @@ public class EventServiceTest {
     }
 
     @Test
-    public void GivenUserHasAlreadyRatedTheEvent_WhenRateEvent_ThenDomainExceptionIsSwallowedBySerivce() {
+    public void GivenUserHasAlreadyRatedTheEvent_WhenRateEvent_ThenDomainExceptionPropagates() {
         Event event = newRealEvent();
         event.addRating(userId, 3);
         when(eventRepository.getById(eventId)).thenReturn(event);
 
-        try {
-            eventService.rateEvent(userId, eventId, 5);
-        } catch (Throwable t) {
-            fail("expected no exception to escape the service, but got: " + t);
-        }
+        assertThrows(DomainException.class, () -> eventService.rateEvent(userId, eventId, 5));
 
         assertEquals("rating must remain the original value",
                 3.0, event.getRating(), 0.0001);
@@ -835,14 +852,10 @@ public class EventServiceTest {
     }
 
     @Test
-    public void GivenEventDoesNotExist_WhenRateEvent_ThenDomainExceptionIsSwallowedBySerivce() {
+    public void GivenEventDoesNotExist_WhenRateEvent_ThenDomainExceptionPropagates() {
         when(eventRepository.getById(eventId)).thenReturn(null);
 
-        try {
-            eventService.rateEvent(userId, eventId, 4);
-        } catch (Throwable t) {
-            fail("expected no exception to escape the service, but got: " + t);
-        }
+        assertThrows(DomainException.class, () -> eventService.rateEvent(userId, eventId, 4));
 
         verify(eventRepository, never()).save(any(Event.class));
     }
@@ -961,6 +974,7 @@ public class EventServiceTest {
         int threads = 20;
         Event event = newRealEvent();
         when(eventRepository.getById(eventId)).thenReturn(event);
+        when(companyRepository.findByID(companyId)).thenReturn(Optional.of(authorizedCompany(ownerUsername, eventId)));
 
         ExecutorService executor = Executors.newFixedThreadPool(threads);
         CountDownLatch start = new CountDownLatch(1);
@@ -973,7 +987,7 @@ public class EventServiceTest {
             executor.submit(() -> {
                 try {
                     start.await();
-                    eventService.addOvertDiscount(eventId, from, to, 15f);
+                    eventService.addOvertDiscount(ownerUsername, companyId, eventId, from, to, 15f);
                 } catch (InterruptedException ignored) {
                     Thread.currentThread().interrupt();
                 } catch (Throwable t) {
