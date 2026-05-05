@@ -1,4 +1,0 @@
--------------------------------------------------------------------------------
-Test set: org.example.ApplicationLayer.UserServiceTest
--------------------------------------------------------------------------------
-Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.609 s -- in org.example.ApplicationLayer.UserServiceTest

@@ -15,17 +15,26 @@ import org.example.DomainLayer.EventAggregate.EventSearchCriteria;
 import org.example.DomainLayer.EventAggregate.EventStatus;
 import org.example.DomainLayer.EventAggregate.SittingArea;
 import org.example.DomainLayer.EventAggregate.StandingArea;
+import org.example.DomainLayer.PolicyAggregate.AgeRule;
 import org.example.DomainLayer.PolicyAggregate.IDiscountRule;
+import org.example.DomainLayer.PolicyAggregate.LoneSeatRule;
+import org.example.DomainLayer.PolicyAggregate.OvertDiscount;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
+import org.example.InfrastructureLayer.InMemoryEventRepository;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnitRunner;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -35,53 +44,26 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.atLeast;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
-/**
- * Unit tests for {@link EventService} (JUnit 4 + Mockito).
- *
- * Following the same style as UserServiceTest: only INTERFACES are mocked
- * ({@link IEventRepository}, {@link IHistoryRepository}, {@link ICompanyRepository}),
- * which lets Mockito use JDK proxies and avoids the Java-25 / inline-mock-maker
- * agent issue that prevents mocking concrete classes.
- *
- * The application service ({@link EventService}) and the domain service
- * ({@link EventManagementDomainService}) and the {@link Event} aggregate are
- * REAL instances. Tests assert:
- *   1. Service-level input validation (exception type and that nothing reaches the repository).
- *   2. Correct delegation (the right repository methods are called with the right args).
- *   3. Effects observable on the real {@link Event} aggregate (e.g. policy/discount rule was added).
- *   4. Exception translation/propagation/swallowing across the layers.
- *   5. Concurrency invariants under contention.
- *
- * Naming: Given<Condition>_When<Method>_Then<Expected>
- * Pattern: Arrange / Act / Assert.
- */
+@RunWith(MockitoJUnitRunner.class)
 public class EventServiceTest {
 
+    // --- Mocks ---
+    @Mock
     private IEventRepository eventRepository;
-    private IHistoryRepository historyRepository;
+    @Mock
     private ICompanyRepository companyRepository;
+    @Mock
+    private IHistoryRepository historyRepository;
 
-    private EventManagementDomainService eventManagementDomainService;
+    // --- Services ---
     private EventService eventService;
+    private EventManagementDomainService eventManagementDomainService;
 
+    // --- Test Data Fields ---
     private UUID eventId;
     private UUID userId;
     private UUID companyId;
@@ -90,14 +72,15 @@ public class EventServiceTest {
 
     @Before
     public void setUp() {
-        eventRepository = mock(IEventRepository.class);
-        historyRepository = mock(IHistoryRepository.class);
-        companyRepository = mock(ICompanyRepository.class);
-
+        // Using real Domain Service logic to track state changes in the Event object
         eventManagementDomainService = new EventManagementDomainService(
-                eventRepository, historyRepository, companyRepository);
+                eventRepository, 
+                historyRepository, 
+                companyRepository
+        );
         eventService = new EventService(eventManagementDomainService);
 
+        // Fields from the second test file
         eventId = UUID.randomUUID();
         userId = UUID.randomUUID();
         companyId = UUID.randomUUID();
@@ -105,7 +88,22 @@ public class EventServiceTest {
         ownerUsername = "owner-user";
     }
 
-    /** Builds a real, valid Event used in happy-path scenarios. */
+    // =====================================================================
+    //                   Helper Methods
+    // =====================================================================
+
+    private Event createTestEvent(UUID companyId) {
+        return new Event(
+            UUID.randomUUID(), 
+            companyId, 
+            LocalDateTime.now().plusDays(10), 
+            "Tel Aviv", 
+            "Artist Name", 
+            "Concert", 
+            EventStatus.ACTIVE
+        );
+    }
+
     private Event newRealEvent() {
         return new Event(
                 eventId,
@@ -117,11 +115,172 @@ public class EventServiceTest {
                 EventStatus.ACTIVE);
     }
 
+    private Company newActiveCompany(String name) {
+        return new Company("founder-" + name, name);
+    }
+
+    private Event newEventFor(UUID companyId, String name, String artist, String type, 
+                              LocalDateTime date, String location, EventStatus status, String... tags) {
+        Event e = new Event(UUID.randomUUID(), companyId, date, location, artist, type, status);
+        if (name != null) {
+            e.setName(name);
+        }
+        for (String t : tags) {
+            e.addTag(t);
+        }
+        return e;
+    }
+
+    private void addStandingArea(Event e, double price) {
+        e.getLayout().addArea(new StandingArea(UUID.randomUUID(), price));
+    }
+
+    private void addSittingArea(Event e, double price) {
+        e.getLayout().addArea(new SittingArea(UUID.randomUUID(), price));
+    }
+
     // =====================================================================
-    //                  getEventPurchaseHistoryForOwner
+    //                   Tests from Original File
     // =====================================================================
 
-    /** Returns the list produced by the history repository unchanged. */
+    @Test
+    public void testAddPolicyRule_ActuallyPersistsInEvent() {
+        // Arrange
+        Event realEvent = createTestEvent(UUID.randomUUID());
+        UUID eventId = realEvent.getEventId();
+        when(eventRepository.getById(eventId)).thenReturn(Optional.of(realEvent).get());
+
+        // Act
+        eventService.addPolicyRule(eventId, Optional.of(18.0f), Optional.empty(), Optional.empty(), Optional.of(true));
+
+        // Assert
+        var rules = realEvent.getPurchasePolicy().getRulesView();
+        assertEquals("Should have 2 rules added", 2, rules.size());
+        assertTrue(rules.stream().anyMatch(r -> r instanceof AgeRule));
+        assertTrue(rules.stream().anyMatch(r -> r instanceof LoneSeatRule));
+    }
+
+    @Test
+    public void testAddMultiplePolicyRules_ReplacementLogic() {
+        // Arrange
+        Event realEvent = createTestEvent(UUID.randomUUID());
+        UUID eventId = realEvent.getEventId();
+        when(eventRepository.getById(eventId)).thenReturn(Optional.of(realEvent).get());
+
+        // Act: Add 18+, then update to 21+
+        eventService.addPolicyRule(eventId, Optional.of(18.0f), Optional.empty(), Optional.empty(), Optional.empty());
+        eventService.addPolicyRule(eventId, Optional.of(21.0f), Optional.empty(), Optional.empty(), Optional.empty());
+
+        // Assert
+        var rules = realEvent.getPurchasePolicy().getRulesView();
+        long ageRuleCount = rules.stream().filter(r -> r instanceof AgeRule).count();
+        
+        assertEquals("Should only have one AgeRule", 1, ageRuleCount);
+        assertEquals(21.0f, ((AgeRule)rules.get(0)).getMinAge(), 0.01);
+    }
+
+    @Test
+    public void testDeleteSpecificPolicyRules() {
+        // Arrange
+        Event realEvent = createTestEvent(UUID.randomUUID());
+        UUID eventId = realEvent.getEventId();
+        // Setup initial state with two rules
+        realEvent.addPurchasePolicy(Optional.of(18.0f), Optional.empty(), Optional.empty(), Optional.of(false));
+        when(eventRepository.getById(eventId)).thenReturn(Optional.of(realEvent).get());
+
+        // Act: Delete AgeRule, keep LoneSeatRule
+        eventService.deletePolicyRule(eventId, true, false, false, false);
+
+        // Assert
+        var rules = realEvent.getPurchasePolicy().getRulesView();
+        assertEquals("Should have 1 rule remaining", 1, rules.size());
+        assertTrue("Remaining rule should be LoneSeatRule", rules.get(0) instanceof LoneSeatRule);
+    }
+
+    @Test
+    public void testAddOvertDiscount_VerifyStatePersistence() {
+        // Arrange
+        Event realEvent = createTestEvent(UUID.randomUUID());
+        UUID eventId = realEvent.getEventId();
+        when(eventRepository.getById(eventId)).thenReturn(Optional.of(realEvent).get());
+
+        // Act
+        eventService.addOvertDiscount(eventId, LocalDate.now(), LocalDate.now().plusDays(7), 20.0f);
+
+        // Assert
+        var discounts = realEvent.getDiscountPolicy().gDiscountRules();
+        assertFalse("Discount list should not be empty", discounts.isEmpty());
+        assertTrue("Discount should be OvertDiscount type", discounts.get(0) instanceof OvertDiscount);
+    }
+
+    @Test
+    public void testRemoveDiscount_VerifyRemovalByID() {
+        // Arrange
+        Event realEvent = createTestEvent(UUID.randomUUID());
+        UUID eventId = realEvent.getEventId();
+        when(eventRepository.getById(eventId)).thenReturn(Optional.of(realEvent).get());
+
+        // Add a discount to get an ID
+        realEvent.addOvertDiscount(LocalDate.now(), LocalDate.now().plusDays(7), 20.0f);
+        UUID discountId = realEvent.getDiscountPolicy().gDiscountRules().get(0).getId();
+
+        // Act
+        eventService.removeDiscount(eventId, discountId);
+
+        // Assert
+        assertTrue("Discount list should be empty after removal", 
+                    realEvent.getDiscountPolicy().gDiscountRules().isEmpty());
+    }
+
+    @Test
+    public void eventRate_success()
+    {
+        UUID user1 = UUID.randomUUID();
+        UUID user2 = UUID.randomUUID();
+        UUID eventID = UUID.randomUUID();
+        Event event = new Event(eventID, UUID.randomUUID(), LocalDateTime.now(), "sdsdsdsd", "sdsdsdsd", "sdsdsdsd", EventStatus.ACTIVE);
+
+        InMemoryEventRepository eventRepository = new InMemoryEventRepository();
+        eventRepository.save(event);
+
+        EventManagementDomainService eventManagementDomainService = new EventManagementDomainService(eventRepository, null, null);
+        EventService eventService = new EventService(eventManagementDomainService);
+
+        eventService.rateEvent(user1, eventID, 5);
+        eventService.rateEvent(user2, eventID, 1);
+
+        assertTrue(3 == event.getRating());
+    }
+
+    @Test
+    public void eventRate_samePerson_thenItFails()
+    {
+        UUID user1 = UUID.randomUUID();
+        UUID eventID = UUID.randomUUID();
+        Event event = new Event(eventID, UUID.randomUUID(), LocalDateTime.now(), "sdsdsdsd", "sdsdsdsd", "sdsdsdsd", EventStatus.ACTIVE);
+
+        InMemoryEventRepository eventRepository = new InMemoryEventRepository();
+        eventRepository.save(event);
+
+        EventManagementDomainService eventManagementDomainService = new EventManagementDomainService(eventRepository, null, null);
+        EventService eventService = new EventService(eventManagementDomainService);
+
+        eventService.rateEvent(user1, eventID, 5);
+        // EventService swallows DomainException on duplicate rating, so the second
+        // call must complete normally and the original rating must remain unchanged.
+        try {
+            eventService.rateEvent(user1, eventID, 1);
+        } catch (Throwable t) {
+            fail("expected no exception to escape the service, but got: " + t);
+        }
+
+        assertTrue(5 == event.getRating());
+    }
+
+    // =====================================================================
+    //                   Tests from New File
+    // =====================================================================
+
     @Test
     public void GivenAuthorizedOwnerAndExistingEvent_WhenGetEventPurchaseHistoryForOwner_ThenReturnsHistoryFromRepository() {
         // Arrange
@@ -144,7 +303,6 @@ public class EventServiceTest {
 
     @Test
     public void GivenNullOwnerUsername_WhenGetEventPurchaseHistoryForOwner_ThenThrowsIllegalArgumentException() {
-        // Arrange / Act / Assert
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> eventService.getEventPurchaseHistoryForOwner(null, eventId));
         assertTrue("message should reference the offending parameter",
@@ -174,10 +332,8 @@ public class EventServiceTest {
 
     @Test
     public void GivenEventDoesNotExist_WhenGetEventPurchaseHistoryForOwner_ThenThrowsDomainException() {
-        // Arrange
         when(eventRepository.getById(eventId)).thenReturn(null);
 
-        // Act / Assert
         DomainException ex = assertThrows(DomainException.class,
                 () -> eventService.getEventPurchaseHistoryForOwner(ownerUsername, eventId));
         assertEquals("Event not found", ex.getMessage());
@@ -186,12 +342,10 @@ public class EventServiceTest {
 
     @Test
     public void GivenUserIsNotOwnerOfEventCompany_WhenGetEventPurchaseHistoryForOwner_ThenThrowsDomainException() {
-        // Arrange
         Event event = newRealEvent();
         when(eventRepository.getById(eventId)).thenReturn(event);
         when(companyRepository.isOwner(ownerUsername, companyId)).thenReturn(false);
 
-        // Act / Assert
         DomainException ex = assertThrows(DomainException.class,
                 () -> eventService.getEventPurchaseHistoryForOwner(ownerUsername, eventId));
         assertTrue("message should mention authorization",
@@ -199,21 +353,14 @@ public class EventServiceTest {
         verify(historyRepository, never()).getByEventId(any(UUID.class));
     }
 
-    // =====================================================================
-    //                            addPolicyRule
-    // =====================================================================
-
     @Test
     public void GivenAllOptionalsPresentAndValid_WhenAddPolicyRule_ThenAllFourRulesAreAddedToTheEventPolicy() {
-        // Arrange
         Event event = newRealEvent();
         when(eventRepository.getById(eventId)).thenReturn(event);
 
-        // Act
         eventService.addPolicyRule(eventId,
                 Optional.of(18f), Optional.of(1), Optional.of(5), Optional.of(true));
 
-        // Assert
         assertEquals("expected one rule per provided optional",
                 4, event.getPurchasePolicy().getRulesView().size());
         verify(eventRepository).getById(eventId);
@@ -221,15 +368,12 @@ public class EventServiceTest {
 
     @Test
     public void GivenAllOptionalsEmpty_WhenAddPolicyRule_ThenNoRuleIsAddedToTheEventPolicy() {
-        // Arrange
         Event event = newRealEvent();
         when(eventRepository.getById(eventId)).thenReturn(event);
 
-        // Act
         eventService.addPolicyRule(eventId,
                 Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty());
 
-        // Assert
         assertEquals("an empty optional means 'no rule for this field'",
                 0, event.getPurchasePolicy().getRulesView().size());
         verify(eventRepository).getById(eventId);
@@ -237,15 +381,12 @@ public class EventServiceTest {
 
     @Test
     public void GivenOnlyAgeIsPresent_WhenAddPolicyRule_ThenExactlyTheAgeRuleIsAdded() {
-        // Arrange
         Event event = newRealEvent();
         when(eventRepository.getById(eventId)).thenReturn(event);
 
-        // Act
         eventService.addPolicyRule(eventId,
                 Optional.of(21f), Optional.empty(), Optional.empty(), Optional.empty());
 
-        // Assert
         assertEquals("only the age rule must be added when other optionals are empty",
                 1, event.getPurchasePolicy().getRulesView().size());
         verify(eventRepository).getById(eventId);
@@ -253,15 +394,12 @@ public class EventServiceTest {
 
     @Test
     public void GivenAgeIsZero_WhenAddPolicyRule_ThenServiceAcceptsItAndDelegates() {
-        // Arrange
         Event event = newRealEvent();
         when(eventRepository.getById(eventId)).thenReturn(event);
 
-        // Act
         eventService.addPolicyRule(eventId,
                 Optional.of(0f), Optional.of(1), Optional.of(5), Optional.of(true));
 
-        // Assert
         assertEquals(4, event.getPurchasePolicy().getRulesView().size());
         verify(eventRepository).getById(eventId);
     }
@@ -317,10 +455,8 @@ public class EventServiceTest {
 
     @Test
     public void GivenEventDoesNotExist_WhenAddPolicyRule_ThenDomainThrowsIllegalArgumentException() {
-        // Arrange
         when(eventRepository.getById(eventId)).thenReturn(null);
 
-        // Act / Assert
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> eventService.addPolicyRule(eventId,
                         Optional.of(18f), Optional.of(1), Optional.of(5), Optional.of(true)));
@@ -328,53 +464,40 @@ public class EventServiceTest {
         verify(eventRepository).getById(eventId);
     }
 
-    // =====================================================================
-    //                          deletePolicyRule
-    // =====================================================================
-
     @Test
     public void GivenAllFourFlagsTrueAndAllRulesPresent_WhenDeletePolicyRule_ThenAllRulesAreRemoved() {
-        // Arrange
         Event event = newRealEvent();
         event.addPurchasePolicy(Optional.of(18f), Optional.of(1), Optional.of(5), Optional.of(true));
         assertEquals("precondition: 4 rules pre-populated",
                 4, event.getPurchasePolicy().getRulesView().size());
         when(eventRepository.getById(eventId)).thenReturn(event);
 
-        // Act
         eventService.deletePolicyRule(eventId, true, true, true, true);
 
-        // Assert
         assertEquals(0, event.getPurchasePolicy().getRulesView().size());
         verify(eventRepository).getById(eventId);
     }
 
     @Test
     public void GivenAllFlagsFalse_WhenDeletePolicyRule_ThenNoRuleIsRemoved() {
-        // Arrange
         Event event = newRealEvent();
         event.addPurchasePolicy(Optional.of(18f), Optional.of(1), Optional.of(5), Optional.of(true));
         when(eventRepository.getById(eventId)).thenReturn(event);
 
-        // Act
         eventService.deletePolicyRule(eventId, false, false, false, false);
 
-        // Assert
         assertEquals(4, event.getPurchasePolicy().getRulesView().size());
         verify(eventRepository).getById(eventId);
     }
 
     @Test
     public void GivenMixedFlags_WhenDeletePolicyRule_ThenExactlyTheSelectedRulesAreRemoved() {
-        // Arrange
         Event event = newRealEvent();
         event.addPurchasePolicy(Optional.of(18f), Optional.of(1), Optional.of(5), Optional.of(true));
         when(eventRepository.getById(eventId)).thenReturn(event);
 
-        // Act: remove age and maxTicket only
         eventService.deletePolicyRule(eventId, true, false, true, false);
 
-        // Assert: 2 rules left (minTicket + loneSeat)
         assertEquals(2, event.getPurchasePolicy().getRulesView().size());
         verify(eventRepository).getById(eventId);
     }
@@ -388,22 +511,15 @@ public class EventServiceTest {
         assertEquals("Event not found", ex.getMessage());
     }
 
-    // =====================================================================
-    //                          addOvertDiscount
-    // =====================================================================
-
     @Test
     public void GivenValidDatesAndDiscount_WhenAddOvertDiscount_ThenDiscountRuleIsAddedToEvent() {
-        // Arrange
         Event event = newRealEvent();
         when(eventRepository.getById(eventId)).thenReturn(event);
         LocalDate from = LocalDate.now();
         LocalDate to = LocalDate.now().plusDays(7);
 
-        // Act
         eventService.addOvertDiscount(eventId, from, to, 10f);
 
-        // Assert
         assertEquals(1, event.getDiscountPolicy().gDiscountRules().size());
         verify(eventRepository).getById(eventId);
     }
@@ -473,10 +589,6 @@ public class EventServiceTest {
                         LocalDate.now(), LocalDate.now().plusDays(7), 10f));
         assertEquals("Event not found", ex.getMessage());
     }
-
-    // =====================================================================
-    //                       addConditionalDiscount
-    // =====================================================================
 
     @Test
     public void GivenValidParameters_WhenAddConditionalDiscount_ThenDiscountRuleIsAddedToEvent() {
@@ -553,10 +665,6 @@ public class EventServiceTest {
         assertEquals("Event not found", ex.getMessage());
     }
 
-    // =====================================================================
-    //                            addCouponCode
-    // =====================================================================
-
     @Test
     public void GivenValidParameters_WhenAddCouponCode_ThenCouponRuleIsAddedToEvent() {
         Event event = newRealEvent();
@@ -603,13 +711,8 @@ public class EventServiceTest {
         assertEquals("Event not found", ex.getMessage());
     }
 
-    // =====================================================================
-    //                            removeDiscount
-    // =====================================================================
-
     @Test
     public void GivenExistingDiscountId_WhenRemoveDiscount_ThenDiscountIsRemovedFromEvent() {
-        // Arrange
         Event event = newRealEvent();
         event.addOvertDiscount(LocalDate.now(), LocalDate.now().plusDays(7), 10f);
         assertEquals("precondition: 1 discount pre-populated",
@@ -618,25 +721,20 @@ public class EventServiceTest {
         UUID realDiscountId = existing.getId();
         when(eventRepository.getById(eventId)).thenReturn(event);
 
-        // Act
         eventService.removeDiscount(eventId, realDiscountId);
 
-        // Assert
         assertEquals(0, event.getDiscountPolicy().gDiscountRules().size());
         verify(eventRepository).getById(eventId);
     }
 
     @Test
     public void GivenUnknownDiscountId_WhenRemoveDiscount_ThenNoRuleIsRemoved() {
-        // Arrange
         Event event = newRealEvent();
         event.addOvertDiscount(LocalDate.now(), LocalDate.now().plusDays(7), 10f);
         when(eventRepository.getById(eventId)).thenReturn(event);
 
-        // Act
         eventService.removeDiscount(eventId, UUID.randomUUID());
 
-        // Assert
         assertEquals(1, event.getDiscountPolicy().gDiscountRules().size());
         verify(eventRepository).getById(eventId);
     }
@@ -650,20 +748,13 @@ public class EventServiceTest {
         assertEquals("Event not found", ex.getMessage());
     }
 
-    // =====================================================================
-    //                              rateEvent
-    // =====================================================================
-
     @Test
     public void GivenValidRating_WhenRateEvent_ThenEventRatingIsUpdatedAndEventIsSaved() {
-        // Arrange
         Event event = newRealEvent();
         when(eventRepository.getById(eventId)).thenReturn(event);
 
-        // Act
         eventService.rateEvent(userId, eventId, 4);
 
-        // Assert
         assertEquals("event rating must reflect the single rating submitted",
                 4.0, event.getRating(), 0.0001);
         verify(eventRepository).save(event);
@@ -706,75 +797,51 @@ public class EventServiceTest {
         verifyNoInteractions(eventRepository);
     }
 
-    /** Domain raises {@code DomainException} on duplicate rating; the service swallows it (current TODO behavior). */
     @Test
     public void GivenUserHasAlreadyRatedTheEvent_WhenRateEvent_ThenDomainExceptionIsSwallowedBySerivce() {
-        // Arrange
         Event event = newRealEvent();
         event.addRating(userId, 3);
         when(eventRepository.getById(eventId)).thenReturn(event);
 
-        // Act
         try {
             eventService.rateEvent(userId, eventId, 5);
         } catch (Throwable t) {
             fail("expected no exception to escape the service, but got: " + t);
         }
 
-        // Assert: rating did not change because the domain rejected the duplicate
         assertEquals("rating must remain the original value",
                 3.0, event.getRating(), 0.0001);
         verify(eventRepository, never()).save(event);
     }
 
-    /** Event-not-found also raises a {@code DomainException} from the domain — service swallows it. */
     @Test
     public void GivenEventDoesNotExist_WhenRateEvent_ThenDomainExceptionIsSwallowedBySerivce() {
-        // Arrange
         when(eventRepository.getById(eventId)).thenReturn(null);
 
-        // Act
         try {
             eventService.rateEvent(userId, eventId, 4);
         } catch (Throwable t) {
             fail("expected no exception to escape the service, but got: " + t);
         }
 
-        // Assert
         verify(eventRepository, never()).save(any(Event.class));
     }
 
     @Test
     public void GivenSaveThrowsRuntimeException_WhenRateEvent_ThenExceptionPropagates() {
-        // Arrange
         Event event = newRealEvent();
         when(eventRepository.getById(eventId)).thenReturn(event);
         doThrow(new RuntimeException("DB down"))
                 .when(eventRepository).save(event);
 
-        // Act / Assert: only DomainException is caught; other RuntimeExceptions must propagate.
         RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> eventService.rateEvent(userId, eventId, 4));
         assertEquals("DB down", ex.getMessage());
     }
 
-    // =====================================================================
-    //                          Concurrency Tests
-    // =====================================================================
-
-    /**
-     * Bombards {@code rateEvent} with many valid concurrent calls, each from a distinct user.
-     * Integrity invariants:
-     *   - No call surfaces a caller-visible exception.
-     *   - Every legitimate request reaches the repository
-     *     ({@code eventRepository.save} called {@code threads * callsPerThread} times).
-     *   - The aggregate ratings count grows by exactly {@code threads * callsPerThread}
-     *     because {@link Event#addRating} is synchronized.
-     */
     @Test
     public void GivenManyConcurrentValidRatingsFromDistinctUsers_WhenRateEvent_ThenAllAreAcceptedAndPersisted()
             throws InterruptedException {
-        // Arrange
         int threads = 16;
         int callsPerThread = 25;
         int expectedTotal = threads * callsPerThread;
@@ -806,12 +873,10 @@ public class EventServiceTest {
             });
         }
 
-        // Act
         start.countDown();
         boolean completed = done.await(15, TimeUnit.SECONDS);
         executor.shutdownNow();
 
-        // Assert
         assertTrue("concurrent rating did not complete in time", completed);
         assertEquals("no caller-visible exception is expected for valid ratings",
                 0, leakedFailures.get());
@@ -820,17 +885,9 @@ public class EventServiceTest {
                 4.0, event.getRating(), 0.0001);
     }
 
-    /**
-     * Concurrent mix of valid (rating=3) and invalid (rating=99) requests.
-     * Integrity invariants under contention:
-     *   - Every invalid rating MUST throw IllegalArgumentException to the caller.
-     *   - Invalid ratings MUST NEVER reach the repository.
-     *   - Every valid rating MUST be persisted exactly once.
-     */
     @Test
     public void GivenMixedValidAndInvalidConcurrentRatings_WhenRateEvent_ThenInvariantsHold()
             throws InterruptedException {
-        // Arrange
         int threads = 32;
         int validCount = threads / 2;
 
@@ -864,12 +921,10 @@ public class EventServiceTest {
             });
         }
 
-        // Act
         start.countDown();
         boolean completed = done.await(10, TimeUnit.SECONDS);
         executor.shutdownNow();
 
-        // Assert
         assertTrue("mixed concurrent rating did not complete in time", completed);
         assertEquals("no exception other than IllegalArgumentException must escape the service",
                 0, unexpectedFailures.get());
@@ -880,17 +935,9 @@ public class EventServiceTest {
                 0.0, event.getRating(), 0.0001);
     }
 
-    /**
-     * Bombards a delegating policy operation. The application service is
-     * stateless, so the integrity invariant we assert is that every issued
-     * request reaches the repository (Mockito's interaction recording is
-     * thread-safe). The underlying domain {@code ArrayList} is not thread-safe;
-     * that is a domain-layer concern outside the application-service scope.
-     */
     @Test
     public void GivenManyConcurrentDiscountRegistrations_WhenAddOvertDiscount_ThenEveryRequestReachesTheRepository()
             throws InterruptedException {
-        // Arrange
         int threads = 20;
         Event event = newRealEvent();
         when(eventRepository.getById(eventId)).thenReturn(event);
@@ -917,38 +964,26 @@ public class EventServiceTest {
             });
         }
 
-        // Act
         start.countDown();
         boolean completed = done.await(10, TimeUnit.SECONDS);
         executor.shutdownNow();
 
-        // Assert
         assertTrue("concurrent discount registration did not complete in time", completed);
         assertEquals("the application service must not raise an exception of its own",
                 0, leakedFailures.get());
         verify(eventRepository, times(threads)).getById(eventId);
-        // Application-layer invariant: every call delegates. Final ArrayList size is a
-        // domain-layer concern (ArrayList is not thread-safe), so we only sanity-check
-        // that AT LEAST one rule made it in.
         assertTrue("at least one discount rule must be present after the storm",
                 event.getDiscountPolicy().gDiscountRules().size() >= 1);
         verify(eventRepository, atLeast(1)).getById(eventId);
     }
 
-    // =====================================================================
-    //                                addEvent
-    // =====================================================================
-
     @Test
     public void GivenValidArgs_WhenAddEvent_ThenEventIsSavedToRepository() {
-        // Arrange
         when(eventRepository.getById(eventId)).thenReturn(null);
 
-        // Act
         eventService.addEvent(eventId, companyId, LocalDateTime.now().plusDays(10),
                 "Tel Aviv", "Some Artist", "concert", EventStatus.ACTIVE);
 
-        // Assert
         verify(eventRepository).getById(eventId);
         verify(eventRepository).save(any(Event.class));
     }
@@ -971,32 +1006,23 @@ public class EventServiceTest {
 
     @Test
     public void GivenEventAlreadyExists_WhenAddEvent_ThenThrowsDomainException() {
-        // Arrange
         when(eventRepository.getById(eventId)).thenReturn(newRealEvent());
 
-        // Act / Assert
         assertThrows(DomainException.class,
                 () -> eventService.addEvent(eventId, companyId, LocalDateTime.now().plusDays(10),
                         "Tel Aviv", "Some Artist", "concert", EventStatus.ACTIVE));
         verify(eventRepository, never()).save(any(Event.class));
     }
 
-    // =====================================================================
-    //                                editEvent
-    // =====================================================================
-
     @Test
     public void GivenExistingEventAndAllFields_WhenEditEvent_ThenFieldsAreUpdatedAndReturnsTrue() {
-        // Arrange
         Event event = newRealEvent();
         when(eventRepository.getById(eventId)).thenReturn(event);
         LocalDateTime newDate = LocalDateTime.now().plusDays(60);
 
-        // Act
         boolean result = eventService.editEvent(eventId, newDate, "Haifa",
                 "New Artist", "festival", EventStatus.CANCELED);
 
-        // Assert
         assertTrue("editEvent must return true on success", result);
         assertEquals(newDate, event.getDate());
         assertEquals("Haifa", event.getLocation());
@@ -1008,15 +1034,12 @@ public class EventServiceTest {
 
     @Test
     public void GivenAllNullFieldsExceptId_WhenEditEvent_ThenEventIsUnchangedAndReturnsTrue() {
-        // Arrange
         Event event = newRealEvent();
         String originalLocation = event.getLocation();
         when(eventRepository.getById(eventId)).thenReturn(event);
 
-        // Act
         boolean result = eventService.editEvent(eventId, null, null, null, null, null);
 
-        // Assert
         assertTrue(result);
         assertEquals(originalLocation, event.getLocation());
         verify(eventRepository).save(event);
@@ -1037,19 +1060,12 @@ public class EventServiceTest {
         verify(eventRepository, never()).save(any(Event.class));
     }
 
-    // =====================================================================
-    //                               deleteEvent
-    // =====================================================================
-
     @Test
     public void GivenExistingEvent_WhenDeleteEvent_ThenRepositoryDeleteIsCalledAndReturnsTrue() {
-        // Arrange
         when(eventRepository.getById(eventId)).thenReturn(newRealEvent());
 
-        // Act
         boolean result = eventService.deleteEvent(eventId);
 
-        // Assert
         assertTrue(result);
         verify(eventRepository).delete(eventId);
     }
@@ -1068,22 +1084,15 @@ public class EventServiceTest {
         verify(eventRepository, never()).delete(any(UUID.class));
     }
 
-    // =====================================================================
-    //                          addStandingTickets
-    // =====================================================================
-
     @Test
     public void GivenStandingAreaAndPositiveCount_WhenAddStandingTickets_ThenTicketsAreAddedToEvent() {
-        // Arrange
         Event event = newRealEvent();
         UUID areaId = UUID.randomUUID();
         event.getLayout().addArea(new StandingArea(areaId, 50.0));
         when(eventRepository.getById(eventId)).thenReturn(event);
 
-        // Act
         eventService.addStandingTickets(eventId, areaId, 10);
 
-        // Assert
         assertEquals(10, event.getTotalCapacity());
         verify(eventRepository).save(event);
     }
@@ -1104,33 +1113,24 @@ public class EventServiceTest {
 
     @Test
     public void GivenAreaIsSittingArea_WhenAddStandingTickets_ThenThrowsIllegalArgumentException() {
-        // Arrange
         Event event = newRealEvent();
         UUID areaId = UUID.randomUUID();
         event.getLayout().addArea(new SittingArea(areaId, 100.0));
         when(eventRepository.getById(eventId)).thenReturn(event);
 
-        // Act / Assert
         assertThrows(IllegalArgumentException.class,
                 () -> eventService.addStandingTickets(eventId, areaId, 3));
     }
 
-    // =====================================================================
-    //                           addSittingTickets
-    // =====================================================================
-
     @Test
     public void GivenSittingAreaAndPositiveDimensions_WhenAddSittingTickets_ThenAllSeatsAreCreated() {
-        // Arrange
         Event event = newRealEvent();
         UUID areaId = UUID.randomUUID();
         event.getLayout().addArea(new SittingArea(areaId, 100.0));
         when(eventRepository.getById(eventId)).thenReturn(event);
 
-        // Act
         eventService.addSittingTickets(eventId, areaId, 3, 4);
 
-        // Assert
         assertEquals("expected rows*seatsPerRow tickets", 12, event.getTotalCapacity());
         verify(eventRepository).save(event);
     }
@@ -1144,20 +1144,14 @@ public class EventServiceTest {
 
     @Test
     public void GivenAreaIsStandingArea_WhenAddSittingTickets_ThenThrowsIllegalArgumentException() {
-        // Arrange
         Event event = newRealEvent();
         UUID areaId = UUID.randomUUID();
         event.getLayout().addArea(new StandingArea(areaId, 50.0));
         when(eventRepository.getById(eventId)).thenReturn(event);
 
-        // Act / Assert
         assertThrows(IllegalArgumentException.class,
                 () -> eventService.addSittingTickets(eventId, areaId, 2, 2));
     }
-
-    // =====================================================================
-    //                            getTotalCapacity
-    // =====================================================================
 
     @Test
     public void GivenFreshEvent_WhenGetTotalCapacity_ThenReturnsZero() {
@@ -1167,58 +1161,17 @@ public class EventServiceTest {
 
     @Test
     public void GivenStandingAndSittingTicketsAdded_WhenGetTotalCapacity_ThenReturnsSumOfTickets() {
-        // Arrange
         Event event = newRealEvent();
         UUID standingAreaId = UUID.randomUUID();
         UUID sittingAreaId = UUID.randomUUID();
         event.getLayout().addArea(new StandingArea(standingAreaId, 50.0));
         event.getLayout().addArea(new SittingArea(sittingAreaId, 100.0));
 
-        // Act
         event.addStandingTickets(standingAreaId, 5);
         event.addSittingTickets(sittingAreaId, 2, 3);
 
-        // Assert
         assertEquals(11, event.getTotalCapacity());
     }
-
-    // =====================================================================
-    //   Helpers for guest-facing browse + search tests
-    // =====================================================================
-
-    private Company newActiveCompany(String name) {
-        return new Company("founder-" + name, name);
-    }
-
-    private Event newEventFor(UUID companyId,
-                              String name,
-                              String artist,
-                              String type,
-                              LocalDateTime date,
-                              String location,
-                              EventStatus status,
-                              String... tags) {
-        Event e = new Event(UUID.randomUUID(), companyId, date, location, artist, type, status);
-        if (name != null) {
-            e.setName(name);
-        }
-        for (String t : tags) {
-            e.addTag(t);
-        }
-        return e;
-    }
-
-    private void addStandingArea(Event e, double price) {
-        e.getLayout().addArea(new StandingArea(UUID.randomUUID(), price));
-    }
-
-    private void addSittingArea(Event e, double price) {
-        e.getLayout().addArea(new SittingArea(UUID.randomUUID(), price));
-    }
-
-    // =====================================================================
-    //   Acceptance: browseCatalog (catalog of active companies + events)
-    // =====================================================================
 
     @Test
     public void GivenOneActiveCompanyWithVisibleEvents_WhenBrowseCatalog_ThenCompanyAndEventsAreReturned() {
@@ -1268,10 +1221,6 @@ public class EventServiceTest {
         assertEquals(active.getEventId(), catalog.get(0).events().get(0).eventId());
     }
 
-    // =====================================================================
-    //   Acceptance: getEventDetails (extended view of one event)
-    // =====================================================================
-
     @Test
     public void GivenExistingEventWithAreasAndPolicies_WhenGetEventDetails_ThenAllSectionsArePopulated() {
         Event event = newRealEvent();
@@ -1311,10 +1260,6 @@ public class EventServiceTest {
         assertThrows(IllegalArgumentException.class, () -> eventService.getEventDetails(null));
         verifyNoInteractions(eventRepository);
     }
-
-    // =====================================================================
-    //   Acceptance: searchEvents (global search)
-    // =====================================================================
 
     @Test
     public void GivenAllEventsBelongToActiveCompanies_WhenSearchEventsWithEmptyCriteria_ThenAllVisibleEventsReturned() {
@@ -1515,10 +1460,6 @@ public class EventServiceTest {
         assertEquals(1, results.size());
     }
 
-    // =====================================================================
-    //   Acceptance: searchEventsByCompany (scoped to one company)
-    // =====================================================================
-
     @Test
     public void GivenTwoCompaniesEachWithEvents_WhenSearchEventsByCompany_ThenOnlyTargetCompanysEventsReturned() {
         Company a = newActiveCompany("A");
@@ -1582,10 +1523,6 @@ public class EventServiceTest {
         verifyNoInteractions(eventRepository);
     }
 
-    // =====================================================================
-    //   Unit: input validation for criteria
-    // =====================================================================
-
     @Test
     public void GivenPriceMinGreaterThanPriceMax_WhenSearchEvents_ThenThrowsIllegalArgumentException() {
         EventSearchCriteria bad = EventSearchCriteria.empty().withPriceRange(200.0, 100.0);
@@ -1623,10 +1560,6 @@ public class EventServiceTest {
                 eventService.searchEvents(EventSearchCriteria.empty().withMinCompanyRating(5.5)));
     }
 
-    // =====================================================================
-    //   Unit: Event.matches predicate
-    // =====================================================================
-
     @Test
     public void GivenNonActiveEvent_WhenMatches_ThenReturnsFalseRegardlessOfCriteria() {
         Event canceled = newEventFor(companyId, "X", "Ar", "t",
@@ -1646,10 +1579,6 @@ public class EventServiceTest {
         assertTrue(mine.matches(scoped, 0.0));
         assertFalse(theirs.matches(scoped, 0.0));
     }
-
-    // =====================================================================
-    //   Concurrency: writer adds events while readers run search
-    // =====================================================================
 
     @Test(timeout = 15000)
     public void GivenWritersAddingEventsAndReadersSearching_WhenRunConcurrently_ThenNoExceptionsAndFinalCountMatchesTotalWrites() throws Exception {
@@ -1723,4 +1652,3 @@ public class EventServiceTest {
                 writerCount * eventsPerWriter, finalSnapshot.size());
     }
 }
-
