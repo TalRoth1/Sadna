@@ -44,7 +44,6 @@ public class Event {
     public Event(UUID eventId, UUID companyId, LocalDateTime date, String location,
                    String artist, String type, EventStatus status) {
         this.eventId = eventId;
-        this.name = name;
         this.companyId = companyId;
         setDate(date);
         setLocation(location);
