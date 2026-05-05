@@ -7,7 +7,11 @@ import java.util.Set;
 import java.util.UUID;
 
 import org.example.DomainLayer.CompanyAggregate.Company;
+import org.example.DomainLayer.CompanyAggregate.CompanyFounder;
+import org.example.DomainLayer.CompanyAggregate.CompanyManager;
+import org.example.DomainLayer.CompanyAggregate.CompanyOwner;
 import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
+import org.example.DomainLayer.CompanyAggregate.ICompanyMember;
 
 public class RolesDomainService {
 
@@ -135,49 +139,79 @@ public class RolesDomainService {
         company.acceptInvitation(invetationID);
     }
 
-    public void addPurchasePolicy(UUID companyId, Optional<Float> age, Optional<Integer> minTicket,
+    public void addPurchasePolicy(String username ,UUID companyId,Optional<Float> age, Optional<Integer> minTicket,
             Optional<Integer> maxTicket, Optional<Boolean> allowLoneSeat) {
         Company company = companyRepository.findByID(companyId).get();
         if (company == null)
             throw new IllegalArgumentException("Company not found");
+        ICompanyMember user = company.getMember(username);
+        if(!(user instanceof CompanyManager && ((CompanyManager)user).hasPremission(CompanyPermission.MANAGE_POLICIES)) && !(user instanceof CompanyOwner) && !(user instanceof CompanyFounder))
+        {
+            throw new IllegalArgumentException("User has no permission to change company policies");
+        }
         company.addPurchasePolicy(age, minTicket, maxTicket, allowLoneSeat);
     }
 
-    public void deletePurchasePolicy(UUID companyId, boolean age, boolean minTicket, boolean maxTicket,
+    public void deletePurchasePolicy(String username ,UUID companyId, boolean age, boolean minTicket, boolean maxTicket,
             boolean allowLoneSeat) {
         Company company = companyRepository.findByID(companyId).get();
         if (company == null)
             throw new IllegalArgumentException("Company not found");
+        ICompanyMember user = company.getMember(username);
+        if(!(user instanceof CompanyManager && ((CompanyManager)user).hasPremission(CompanyPermission.MANAGE_POLICIES)) && !(user instanceof CompanyOwner) && !(user instanceof CompanyFounder))
+        {
+            throw new IllegalArgumentException("User has no permission to change company policies");
+        }
         company.deletePurchaseRule(age, minTicket, maxTicket, allowLoneSeat);
     }
 
-    public void addOvertDiscount(UUID companyId, LocalDate fromDate, LocalDate toDate, float discountPrecent) {
+    public void addOvertDiscount(String username,UUID companyId, LocalDate fromDate, LocalDate toDate, float discountPrecent) {
         Company company = companyRepository.findByID(companyId).get();
         if (company == null)
             throw new IllegalArgumentException("Company not found");
+        ICompanyMember user = company.getMember(username);
+        if(!(user instanceof CompanyManager && ((CompanyManager)user).hasPremission(CompanyPermission.MANAGE_POLICIES)) && !(user instanceof CompanyOwner) && !(user instanceof CompanyFounder))
+        {
+            throw new IllegalArgumentException("User has no permission to change company policies");
+        }
         company.addOvertDiscount(fromDate, toDate, discountPrecent);
     }
 
-    public void addConditionalDiscount(UUID companyId, LocalDate fromDate, LocalDate toDate, float discountPrecent,
+    public void addConditionalDiscount(String username ,UUID companyId, LocalDate fromDate, LocalDate toDate, float discountPrecent,
             int requiredTickets, int appliedTickets) {
         Company company = companyRepository.findByID(companyId).get();
         if (company == null)
             throw new IllegalArgumentException("Company not found");
+        ICompanyMember user = company.getMember(username);
+        if(!(user instanceof CompanyManager && ((CompanyManager)user).hasPremission(CompanyPermission.MANAGE_POLICIES)) && !(user instanceof CompanyOwner) && !(user instanceof CompanyFounder))
+        {
+            throw new IllegalArgumentException("User has no permission to change company policies");
+        }
         company.addConditionalDiscount(fromDate, toDate, discountPrecent, requiredTickets, appliedTickets);
     }
 
-    public void addCouponCode(UUID companyId, LocalDate fromDate, LocalDate toDate, float discountPrecent,
+    public void addCouponCode(String username ,UUID companyId, LocalDate fromDate, LocalDate toDate, float discountPrecent,
             String code) {
         Company company = companyRepository.findByID(companyId).get();
         if (company == null)
             throw new IllegalArgumentException("Company not found");
+        ICompanyMember user = company.getMember(username);
+        if(!(user instanceof CompanyManager && ((CompanyManager)user).hasPremission(CompanyPermission.MANAGE_POLICIES)) && !(user instanceof CompanyOwner) && !(user instanceof CompanyFounder))
+        {
+            throw new IllegalArgumentException("User has no permission to change company policies");
+        }
         company.addCouponCode(fromDate, toDate, discountPrecent, code);
     }
 
-    public void removeDiscount(UUID companyId, UUID discountId) {
+    public void removeDiscount(String username, UUID companyId, UUID discountId) {
         Company company = companyRepository.findByID(companyId).get();
         if (company == null)
             throw new IllegalArgumentException("Company not found");
+        ICompanyMember user = company.getMember(username);
+        if(!(user instanceof CompanyManager && ((CompanyManager)user).hasPremission(CompanyPermission.MANAGE_POLICIES)) && !(user instanceof CompanyOwner) && !(user instanceof CompanyFounder))
+        {
+            throw new IllegalArgumentException("User has no permission to change company policies");
+        }
         company.removeDiscount(discountId);
     }
 

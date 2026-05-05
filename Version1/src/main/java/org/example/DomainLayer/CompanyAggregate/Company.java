@@ -100,6 +100,13 @@ public Company(String founderUsername, String name) {
         return members.containsKey(username);
     }
 
+    public ICompanyMember getMember(String username)
+    {
+        if (isCompanyMember(username))
+            return members.get(username);
+        else return null;
+    }
+
     public UUID inviteNewOwner(String appointeeUsername, String appointerUsername)
     {
         if (!isCompanyMember(appointerUsername) || !(members.get(appointerUsername) instanceof CompanyOwner))

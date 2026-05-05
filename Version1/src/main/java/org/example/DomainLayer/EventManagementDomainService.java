@@ -1,5 +1,7 @@
 package org.example.DomainLayer;
 
+import org.example.DomainLayer.CompanyAggregate.Company;
+import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
 import org.example.DomainLayer.EventAggregate.Event;
 import org.example.DomainLayer.EventAggregate.EventStatus;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
@@ -38,51 +40,81 @@ public class EventManagementDomainService {
         return historyRepository.getByEventId(eventId);
     }
     
-    public void addPurchasePolicy(UUID eventId, Optional<Float> age, Optional<Integer> minTicket, Optional<Integer> maxTicket, Optional<Boolean> allowLoneSeat)
+    public void addPurchasePolicy(String username, UUID companyId ,UUID eventId, Optional<Float> age, Optional<Integer> minTicket, Optional<Integer> maxTicket, Optional<Boolean> allowLoneSeat)
     {
         Event event = eventRepository.getById(eventId);
         if (event == null)
             throw new IllegalArgumentException("Event not found");
+        Company company = companyRepository.findByID(companyId).get();
+        if (company == null)
+            throw new IllegalArgumentException("Company not found");
+        if (company.hasPremision(username, CompanyPermission.MANAGE_POLICIES, eventId))
+            throw new IllegalArgumentException("User has no permissions to change event policies");
         event.addPurchasePolicy(age, minTicket, maxTicket, allowLoneSeat);
     }
 
-    public void deletePurchasePolicy(UUID eventId, boolean age, boolean minTicket, boolean maxTicket, boolean allowLoneSeat)
+    public void deletePurchasePolicy(String username, UUID companyId, UUID eventId, boolean age, boolean minTicket, boolean maxTicket, boolean allowLoneSeat)
     {
         Event event = eventRepository.getById(eventId);
         if (event == null)
             throw new IllegalArgumentException("Event not found");
+        Company company = companyRepository.findByID(companyId).get();
+        if (company == null)
+            throw new IllegalArgumentException("Company not found");
+        if (company.hasPremision(username, CompanyPermission.MANAGE_POLICIES, eventId))
+            throw new IllegalArgumentException("User has no permissions to change event policies");
         event.deletePurchaseRule(age, minTicket, maxTicket, allowLoneSeat);
     }
 
-    public void addOvertDiscount(UUID eventId, LocalDate fromDate, LocalDate toDate, float discountPrecent)
+    public void addOvertDiscount(String username, UUID companyId, UUID eventId, LocalDate fromDate, LocalDate toDate, float discountPrecent)
     {
         Event event = eventRepository.getById(eventId);
         if (event == null)
             throw new IllegalArgumentException("Event not found");
+        Company company = companyRepository.findByID(companyId).get();
+        if (company == null)
+            throw new IllegalArgumentException("Company not found");
+        if (company.hasPremision(username, CompanyPermission.MANAGE_POLICIES, eventId))
+            throw new IllegalArgumentException("User has no permissions to change event policies");
         event.addOvertDiscount(fromDate, toDate, discountPrecent);
     }
 
-    public void addConditionalDiscount(UUID eventId, LocalDate fromDate, LocalDate toDate, float discountPrecent, int requiredTickets, int appliedTickets)
+    public void addConditionalDiscount(String username, UUID companyId, UUID eventId, LocalDate fromDate, LocalDate toDate, float discountPrecent, int requiredTickets, int appliedTickets)
     {
         Event event = eventRepository.getById(eventId);
         if (event == null)
             throw new IllegalArgumentException("Event not found");
+        Company company = companyRepository.findByID(companyId).get();
+        if (company == null)
+            throw new IllegalArgumentException("Company not found");
+        if (company.hasPremision(username, CompanyPermission.MANAGE_POLICIES, eventId))
+            throw new IllegalArgumentException("User has no permissions to change event policies");
         event.addConditionalDiscount(fromDate, toDate, discountPrecent, requiredTickets, appliedTickets);
     }
 
-    public void addCouponCode(UUID eventId, LocalDate fromDate, LocalDate toDate, float discountPrecent, String code)
+    public void addCouponCode(String username, UUID companyId, UUID eventId, LocalDate fromDate, LocalDate toDate, float discountPrecent, String code)
     {
         Event event = eventRepository.getById(eventId);
         if (event == null)
             throw new IllegalArgumentException("Event not found");
+        Company company = companyRepository.findByID(companyId).get();
+        if (company == null)
+            throw new IllegalArgumentException("Company not found");
+        if (company.hasPremision(username, CompanyPermission.MANAGE_POLICIES, eventId))
+            throw new IllegalArgumentException("User has no permissions to change event policies");
         event.addCouponCode(fromDate, toDate, discountPrecent, code);
     }
 
-    public void removeDiscount(UUID eventId, UUID discountId)
+    public void removeDiscount(String username, UUID companyId, UUID eventId, UUID discountId)
     {
         Event event = eventRepository.getById(eventId);
         if (event == null)
             throw new IllegalArgumentException("Event not found");
+        Company company = companyRepository.findByID(companyId).get();
+        if (company == null)
+            throw new IllegalArgumentException("Company not found");
+        if (company.hasPremision(username, CompanyPermission.MANAGE_POLICIES, eventId))
+            throw new IllegalArgumentException("User has no permissions to change event policies");
         event.removeDiscount(discountId); 
     }
     

@@ -6,6 +6,7 @@ import org.example.DomainLayer.EventManagementDomainService;
 import org.example.DomainLayer.ICompanyRepository;
 import org.example.DomainLayer.IEventRepository;
 import org.example.DomainLayer.IHistoryRepository;
+import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.DomainLayer.PolicyAggregate.AgeRule;
 import org.example.DomainLayer.PolicyAggregate.LoneSeatRule;
 import org.example.DomainLayer.PolicyAggregate.OvertDiscount;
@@ -53,10 +54,10 @@ public class EventServiceTest {
         eventService = new EventService(eventManagementDomainService);
     }
 
-    private Event createTestEvent() {
+    private Event createTestEvent(UUID companyId) {
         return new Event(
             UUID.randomUUID(), 
-            UUID.randomUUID(), 
+            companyId, 
             LocalDateTime.now().plusDays(10), 
             "Tel Aviv", 
             "Artist Name", 
@@ -68,12 +69,14 @@ public class EventServiceTest {
     @Test
     public void testAddPolicyRule_ActuallyPersistsInEvent() {
         // Arrange
-        Event realEvent = createTestEvent();
+        Company company = new Company("founderUsername", "testComp");
+        Event realEvent = createTestEvent(company.getId());
         UUID eventId = realEvent.getEventId();
-        when(eventRepositoryMock.getById(eventId)).thenReturn(Optional.of(realEvent).get());
+        when(eventRepositoryMock.getById(eventId)).thenReturn(realEvent);
+        when(companyRepositoryMock.findByID(company.getId())).thenReturn(Optional.ofNullable(company));
 
         // Act
-        eventService.addPolicyRule(eventId, Optional.of(18.0f), Optional.empty(), Optional.empty(), Optional.of(true));
+        eventService.addPolicyRule("founderUsername", company.getId(), eventId, Optional.of(18.0f), Optional.empty(), Optional.empty(), Optional.of(true));
 
         // Assert
         var rules = realEvent.getPurchasePolicy().getRulesView();
@@ -85,13 +88,15 @@ public class EventServiceTest {
     @Test
     public void testAddMultiplePolicyRules_ReplacementLogic() {
         // Arrange
-        Event realEvent = createTestEvent();
+        Company company = new Company("founderUsername", "testComp");
+        Event realEvent = createTestEvent(company.getId());
         UUID eventId = realEvent.getEventId();
-        when(eventRepositoryMock.getById(eventId)).thenReturn(Optional.of(realEvent).get());
+        when(eventRepositoryMock.getById(eventId)).thenReturn(realEvent);
+        when(companyRepositoryMock.findByID(company.getId())).thenReturn(Optional.ofNullable(company));
 
         // Act: Add 18+, then update to 21+
-        eventService.addPolicyRule(eventId, Optional.of(18.0f), Optional.empty(), Optional.empty(), Optional.empty());
-        eventService.addPolicyRule(eventId, Optional.of(21.0f), Optional.empty(), Optional.empty(), Optional.empty());
+        eventService.addPolicyRule("founderUsername", company.getId(), eventId, Optional.of(18.0f), Optional.empty(), Optional.empty(), Optional.empty());
+        eventService.addPolicyRule("founderUsername", company.getId(), eventId, Optional.of(21.0f), Optional.empty(), Optional.empty(), Optional.empty());
 
         // Assert
         var rules = realEvent.getPurchasePolicy().getRulesView();
@@ -104,14 +109,16 @@ public class EventServiceTest {
     @Test
     public void testDeleteSpecificPolicyRules() {
         // Arrange
-        Event realEvent = createTestEvent();
+        Company company = new Company("founderUsername", "testComp");
+        Event realEvent = createTestEvent(company.getId());
         UUID eventId = realEvent.getEventId();
+        when(eventRepositoryMock.getById(eventId)).thenReturn(realEvent);
+        when(companyRepositoryMock.findByID(company.getId())).thenReturn(Optional.ofNullable(company));
         // Setup initial state with two rules
         realEvent.addPurchasePolicy(Optional.of(18.0f), Optional.empty(), Optional.empty(), Optional.of(false));
-        when(eventRepositoryMock.getById(eventId)).thenReturn(Optional.of(realEvent).get());
 
         // Act: Delete AgeRule, keep LoneSeatRule
-        eventService.deletePolicyRule(eventId, true, false, false, false);
+        eventService.deletePolicyRule("founderUsername", company.getId(), eventId, true, false, false, false);
 
         // Assert
         var rules = realEvent.getPurchasePolicy().getRulesView();
@@ -122,12 +129,14 @@ public class EventServiceTest {
     @Test
     public void testAddOvertDiscount_VerifyStatePersistence() {
         // Arrange
-        Event realEvent = createTestEvent();
+        Company company = new Company("founderUsername", "testComp");
+        Event realEvent = createTestEvent(company.getId());
         UUID eventId = realEvent.getEventId();
-        when(eventRepositoryMock.getById(eventId)).thenReturn(Optional.of(realEvent).get());
+        when(eventRepositoryMock.getById(eventId)).thenReturn(realEvent);
+        when(companyRepositoryMock.findByID(company.getId())).thenReturn(Optional.ofNullable(company));
 
         // Act
-        eventService.addOvertDiscount(eventId, LocalDate.now(), LocalDate.now().plusDays(7), 20.0f);
+        eventService.addOvertDiscount("founderUsername", company.getId(), eventId, LocalDate.now(), LocalDate.now().plusDays(7), 20.0f);
 
         // Assert
         var discounts = realEvent.getDiscountPolicy().gDiscountRules();
@@ -138,16 +147,18 @@ public class EventServiceTest {
     @Test
     public void testRemoveDiscount_VerifyRemovalByID() {
         // Arrange
-        Event realEvent = createTestEvent();
+        Company company = new Company("founderUsername", "testComp");
+        Event realEvent = createTestEvent(company.getId());
         UUID eventId = realEvent.getEventId();
-        when(eventRepositoryMock.getById(eventId)).thenReturn(Optional.of(realEvent).get());
+        when(eventRepositoryMock.getById(eventId)).thenReturn(realEvent);
+        when(companyRepositoryMock.findByID(company.getId())).thenReturn(Optional.ofNullable(company));
 
         // Add a discount to get an ID
         realEvent.addOvertDiscount(LocalDate.now(), LocalDate.now().plusDays(7), 20.0f);
         UUID discountId = realEvent.getDiscountPolicy().gDiscountRules().get(0).getId();
 
         // Act
-        eventService.removeDiscount(eventId, discountId);
+        eventService.removeDiscount("founderUsername", company.getId(), eventId, discountId);
 
         // Assert
         assertTrue("Discount list should be empty after removal", 

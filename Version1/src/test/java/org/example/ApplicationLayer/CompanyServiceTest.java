@@ -223,7 +223,7 @@ public class CompanyServiceTest {
                 Optional<Float> ageLimit = Optional.of(18.0f);
 
                 // Act
-                companyService.addPolicyRule(companyId, ageLimit, Optional.empty(), Optional.empty(), Optional.empty());
+                companyService.addPolicyRule("founderUser", companyId, ageLimit, Optional.empty(), Optional.empty(), Optional.empty());
 
                 // Assert - Checking that the rule was added to the real object's list
                 var rules = realCompany.getPurchasePolicy().getRulesView();
@@ -239,9 +239,9 @@ public class CompanyServiceTest {
                 when(companyRepositoryMock.findByID(companyId)).thenReturn(Optional.of(realCompany));
 
                 // Act: Add an age rule, then update it with a new value
-                companyService.addPolicyRule(companyId, Optional.of(18.0f), Optional.empty(), Optional.empty(),
+                companyService.addPolicyRule("founderUser", companyId, Optional.of(18.0f), Optional.empty(), Optional.empty(),
                                 Optional.empty());
-                companyService.addPolicyRule(companyId, Optional.of(21.0f), Optional.empty(), Optional.empty(),
+                companyService.addPolicyRule("founderUser", companyId, Optional.of(21.0f), Optional.empty(), Optional.empty(),
                                 Optional.empty());
 
                 // Assert: Since your PurchasePolicy.addRule uses removeIf(existingRule ->
@@ -266,7 +266,7 @@ public class CompanyServiceTest {
                 float discountAmount = 15.5f;
 
                 // Act
-                companyService.addOvertDiscount(companyId, startDate, endDate, discountAmount);
+                companyService.addOvertDiscount("founderUser",companyId, startDate, endDate, discountAmount);
 
                 // Assert
                 var discounts = realCompany.getDiscountPolicy().gDiscountRules();
@@ -286,7 +286,7 @@ public class CompanyServiceTest {
                 when(companyRepositoryMock.findByID(companyId)).thenReturn(Optional.of(realCompany));
 
                 // Act: Delete only the Age Rule, keep the Lone Seat Rule
-                companyService.deletePolicyRule(companyId, true, false, false, false);
+                companyService.deletePolicyRule("founderUser", companyId, true, false, false, false);
 
                 // Assert
                 var rules = realCompany.getPurchasePolicy().getRulesView();
@@ -303,7 +303,7 @@ public class CompanyServiceTest {
                 when(companyRepositoryMock.findByID(companyId)).thenReturn(Optional.of(realCompany));
 
                 // Act: Pass empty optionals for everything
-                companyService.addPolicyRule(companyId, Optional.empty(), Optional.empty(), Optional.empty(),
+                companyService.addPolicyRule("founderUser", companyId, Optional.empty(), Optional.empty(), Optional.empty(),
                                 Optional.empty());
 
                 // Assert
@@ -321,8 +321,8 @@ public class CompanyServiceTest {
                 when(companyRepositoryMock.findByID(companyId)).thenReturn(Optional.of(realCompany));
 
                 // 1. Add two different discounts
-                companyService.addOvertDiscount(companyId, LocalDate.now(), LocalDate.now().plusDays(5), 10.0f);
-                companyService.addOvertDiscount(companyId, LocalDate.now(), LocalDate.now().plusDays(10), 20.0f);
+                companyService.addOvertDiscount("founderUser", companyId, LocalDate.now(), LocalDate.now().plusDays(5), 10.0f);
+                companyService.addOvertDiscount("founderUser", companyId, LocalDate.now(), LocalDate.now().plusDays(10), 20.0f);
 
                 // 2. Retrieve the rules to get the specific ID of the first one
                 var discounts = realCompany.getDiscountPolicy().gDiscountRules();
@@ -332,7 +332,7 @@ public class CompanyServiceTest {
                 // Act
                 // Assuming your CompanyService has a deleteDiscount method that takes the ID
                 // If your service uses a different signature, adjust accordingly:
-                rolesDomainService.removeDiscount(companyId, firstDiscountId);
+                rolesDomainService.removeDiscount("founderUser", companyId, firstDiscountId);
 
                 // Assert
                 var remainingDiscounts = realCompany.getDiscountPolicy().gDiscountRules();
