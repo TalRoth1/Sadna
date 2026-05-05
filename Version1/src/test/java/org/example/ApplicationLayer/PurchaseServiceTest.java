@@ -22,6 +22,7 @@ import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
 public class PurchaseServiceTest {
+
     private PurchaseDomainService purchaseDomainServiceMock;
     private PurchaseService purchaseService;
     
@@ -35,120 +36,102 @@ public class PurchaseServiceTest {
         purchaseService = new PurchaseService(purchaseDomainServiceMock, queueManagerMock);
     }
 
-    /* Tests for viewing purchase history by filter */
+    /*
+     * Admin purchase history filter tests
+     */
 
     @Test
-    public void testViewPurchaseHistoryByFilter_UserSuccess() {
+    public void getHistoryByFilter_whenFilterIsUser_returnsUserHistory() {
         UUID adminId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
 
         List<PurchaseHistory> expected = List.of(mock(PurchaseHistory.class));
+
         when(purchaseDomainServiceMock.validateAdmin(adminId)).thenReturn(true);
         when(purchaseDomainServiceMock.getHistoryByUser(userId)).thenReturn(expected);
 
         List<PurchaseHistory> result =
                 purchaseService.getHistoryByFilter(adminId, "user", userId);
 
-        assertEquals(expected, result);
+        assertSame(expected, result);
+
+        verify(purchaseDomainServiceMock).validateAdmin(adminId);
+        verify(purchaseDomainServiceMock).getHistoryByUser(userId);
+        verify(purchaseDomainServiceMock, never()).getHistoryByEvent(any());
+        verify(purchaseDomainServiceMock, never()).getHistoryByCompany(any());
+        verify(purchaseDomainServiceMock, never()).getAllHistory();
     }
 
     @Test
-    public void testViewPurchaseHistoryByFilter_EventSuccess() {
+    public void getHistoryByFilter_whenFilterIsEvent_returnsEventHistory() {
         UUID adminId = UUID.randomUUID();
         UUID eventId = UUID.randomUUID();
 
         List<PurchaseHistory> expected = List.of(mock(PurchaseHistory.class));
+
         when(purchaseDomainServiceMock.validateAdmin(adminId)).thenReturn(true);
         when(purchaseDomainServiceMock.getHistoryByEvent(eventId)).thenReturn(expected);
 
         List<PurchaseHistory> result =
                 purchaseService.getHistoryByFilter(adminId, "event", eventId);
 
-        assertEquals(expected, result);
+        assertSame(expected, result);
+
+        verify(purchaseDomainServiceMock).validateAdmin(adminId);
+        verify(purchaseDomainServiceMock).getHistoryByEvent(eventId);
+        verify(purchaseDomainServiceMock, never()).getHistoryByUser(any());
+        verify(purchaseDomainServiceMock, never()).getHistoryByCompany(any());
+        verify(purchaseDomainServiceMock, never()).getAllHistory();
     }
 
     @Test
-    public void testViewPurchaseHistoryByFilter_CompanySuccess() {
+    public void getHistoryByFilter_whenFilterIsCompany_returnsCompanyHistory() {
         UUID adminId = UUID.randomUUID();
         UUID companyId = UUID.randomUUID();
 
         List<PurchaseHistory> expected = List.of(mock(PurchaseHistory.class));
+
         when(purchaseDomainServiceMock.validateAdmin(adminId)).thenReturn(true);
         when(purchaseDomainServiceMock.getHistoryByCompany(companyId)).thenReturn(expected);
 
         List<PurchaseHistory> result =
                 purchaseService.getHistoryByFilter(adminId, "company", companyId);
 
-        assertEquals(expected, result);
+        assertSame(expected, result);
+
+        verify(purchaseDomainServiceMock).validateAdmin(adminId);
+        verify(purchaseDomainServiceMock).getHistoryByCompany(companyId);
+        verify(purchaseDomainServiceMock, never()).getHistoryByUser(any());
+        verify(purchaseDomainServiceMock, never()).getHistoryByEvent(any());
+        verify(purchaseDomainServiceMock, never()).getAllHistory();
     }
 
     @Test
-    public void testViewPurchaseHistoryByFilter_AllSuccess() {
+    public void getHistoryByFilter_whenFilterIsAll_returnsAllHistory() {
         UUID adminId = UUID.randomUUID();
 
-        List<PurchaseHistory> expected = List.of(mock(PurchaseHistory.class));
+        List<PurchaseHistory> expected = List.of(
+                mock(PurchaseHistory.class),
+                mock(PurchaseHistory.class)
+        );
+
         when(purchaseDomainServiceMock.validateAdmin(adminId)).thenReturn(true);
         when(purchaseDomainServiceMock.getAllHistory()).thenReturn(expected);
 
         List<PurchaseHistory> result =
                 purchaseService.getHistoryByFilter(adminId, "all", null);
 
-        assertEquals(expected, result);
+        assertSame(expected, result);
+
+        verify(purchaseDomainServiceMock).validateAdmin(adminId);
+        verify(purchaseDomainServiceMock).getAllHistory();
+        verify(purchaseDomainServiceMock, never()).getHistoryByUser(any());
+        verify(purchaseDomainServiceMock, never()).getHistoryByEvent(any());
+        verify(purchaseDomainServiceMock, never()).getHistoryByCompany(any());
     }
 
     @Test
-    public void testViewPurchaseHistoryByFilter_NullFilterType() {
-        UUID adminId = UUID.randomUUID();
-
-        when(purchaseDomainServiceMock.validateAdmin(adminId)).thenReturn(true);
-
-        assertThrows(IllegalArgumentException.class, () ->
-                purchaseService.getHistoryByFilter(adminId, null, UUID.randomUUID())
-        );
-    }
-
-    @Test
-    public void testViewPurchaseHistoryByFilter_BlankFilterType() {
-        UUID adminId = UUID.randomUUID();
-
-        when(purchaseDomainServiceMock.validateAdmin(adminId)).thenReturn(true);
-
-        assertThrows(IllegalArgumentException.class, () ->
-                purchaseService.getHistoryByFilter(adminId, " ", UUID.randomUUID())
-        );
-    }
-
-    @Test
-    public void testViewPurchaseHistoryByFilter_UserMissingFilterId() {
-        UUID adminId = UUID.randomUUID();
-
-        when(purchaseDomainServiceMock.validateAdmin(adminId)).thenReturn(true);
-
-        assertThrows(IllegalArgumentException.class, () ->
-                purchaseService.getHistoryByFilter(adminId, "user", null)
-        );
-    }
-
-    @Test
-    public void testViewPurchaseHistoryByFilter_InvalidFilterType() {
-        UUID adminId = UUID.randomUUID();
-
-        when(purchaseDomainServiceMock.validateAdmin(adminId)).thenReturn(true);
-
-        assertThrows(IllegalArgumentException.class, () ->
-                purchaseService.getHistoryByFilter(adminId, "invalid", UUID.randomUUID())
-        );
-    }
-
-    @Test
-    public void testViewPurchaseHistoryByFilter_UnauthorizedUser() {
-        assertThrows(IllegalArgumentException.class, () ->
-                purchaseService.getHistoryByFilter(null, "user", UUID.randomUUID())
-        );
-    }
-
-    @Test
-    public void testViewPurchaseHistoryByFilter_EmptyResult() {
+    public void getHistoryByFilter_whenUserHistoryIsEmpty_returnsEmptyList() {
         UUID adminId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
 
@@ -159,12 +142,143 @@ public class PurchaseServiceTest {
                 purchaseService.getHistoryByFilter(adminId, "user", userId);
 
         assertTrue(result.isEmpty());
+
+        verify(purchaseDomainServiceMock).validateAdmin(adminId);
+        verify(purchaseDomainServiceMock).getHistoryByUser(userId);
     }
 
-    /* Tests for viewing purchase history for member */
+    /*
+     * Admin purchase history
+     */
 
     @Test
-    public void testSuccessfulViewPurchaseHistory() {
+    public void getHistoryByFilter_whenAdminIdIsNull_throwsExceptionAndDoesNotFetchHistory() {
+        assertThrows(IllegalArgumentException.class, () ->
+                purchaseService.getHistoryByFilter(null, "user", UUID.randomUUID())
+        );
+
+        verify(purchaseDomainServiceMock, never()).getHistoryByUser(any());
+        verify(purchaseDomainServiceMock, never()).getHistoryByEvent(any());
+        verify(purchaseDomainServiceMock, never()).getHistoryByCompany(any());
+        verify(purchaseDomainServiceMock, never()).getAllHistory();
+    }
+
+    @Test
+    public void getHistoryByFilter_whenAdminIsInvalid_throwsExceptionAndDoesNotFetchHistory() {
+        UUID adminId = UUID.randomUUID();
+
+        when(purchaseDomainServiceMock.validateAdmin(adminId)).thenReturn(false);
+
+        assertThrows(IllegalArgumentException.class, () ->
+                purchaseService.getHistoryByFilter(adminId, "user", UUID.randomUUID())
+        );
+
+        verify(purchaseDomainServiceMock).validateAdmin(adminId);
+        verify(purchaseDomainServiceMock, never()).getHistoryByUser(any());
+        verify(purchaseDomainServiceMock, never()).getHistoryByEvent(any());
+        verify(purchaseDomainServiceMock, never()).getHistoryByCompany(any());
+        verify(purchaseDomainServiceMock, never()).getAllHistory();
+    }
+
+    @Test
+    public void getHistoryByFilter_whenFilterTypeIsNull_throwsExceptionAndDoesNotFetchHistory() {
+        UUID adminId = UUID.randomUUID();
+
+        when(purchaseDomainServiceMock.validateAdmin(adminId)).thenReturn(true);
+
+        assertThrows(IllegalArgumentException.class, () ->
+                purchaseService.getHistoryByFilter(adminId, null, UUID.randomUUID())
+        );
+
+        verifyNoInteractions(purchaseDomainServiceMock);
+        verify(purchaseDomainServiceMock, never()).getHistoryByUser(any());
+        verify(purchaseDomainServiceMock, never()).getHistoryByEvent(any());
+        verify(purchaseDomainServiceMock, never()).getHistoryByCompany(any());
+        verify(purchaseDomainServiceMock, never()).getAllHistory();
+    }
+
+    @Test
+    public void getHistoryByFilter_whenFilterTypeIsBlank_throwsExceptionAndDoesNotFetchHistory() {
+        UUID adminId = UUID.randomUUID();
+
+        when(purchaseDomainServiceMock.validateAdmin(adminId)).thenReturn(true);
+
+        assertThrows(IllegalArgumentException.class, () ->
+                purchaseService.getHistoryByFilter(adminId, " ", UUID.randomUUID())
+        );
+
+        verifyNoInteractions(purchaseDomainServiceMock);
+        verify(purchaseDomainServiceMock, never()).getHistoryByUser(any());
+        verify(purchaseDomainServiceMock, never()).getHistoryByEvent(any());
+        verify(purchaseDomainServiceMock, never()).getHistoryByCompany(any());
+        verify(purchaseDomainServiceMock, never()).getAllHistory();
+    }
+
+    @Test
+    public void getHistoryByFilter_whenFilterTypeIsInvalid_throwsExceptionAndDoesNotFetchHistory() {
+        UUID adminId = UUID.randomUUID();
+
+        when(purchaseDomainServiceMock.validateAdmin(adminId)).thenReturn(true);
+
+        assertThrows(IllegalArgumentException.class, () ->
+                purchaseService.getHistoryByFilter(adminId, "invalid", UUID.randomUUID())
+        );
+
+        verifyNoInteractions(purchaseDomainServiceMock);
+        verify(purchaseDomainServiceMock, never()).getHistoryByUser(any());
+        verify(purchaseDomainServiceMock, never()).getHistoryByEvent(any());
+        verify(purchaseDomainServiceMock, never()).getHistoryByCompany(any());
+        verify(purchaseDomainServiceMock, never()).getAllHistory();
+    }
+
+    @Test
+    public void getHistoryByFilter_whenUserFilterIdIsNull_throwsExceptionAndDoesNotFetchHistory() {
+        UUID adminId = UUID.randomUUID();
+
+        when(purchaseDomainServiceMock.validateAdmin(adminId)).thenReturn(true);
+
+        assertThrows(IllegalArgumentException.class, () ->
+                purchaseService.getHistoryByFilter(adminId, "user", null)
+        );
+
+        verify(purchaseDomainServiceMock, never()).getHistoryByUser(any());
+        verifyNoInteractions(purchaseDomainServiceMock);
+    }
+
+    @Test
+    public void getHistoryByFilter_whenEventFilterIdIsNull_throwsExceptionAndDoesNotFetchHistory() {
+        UUID adminId = UUID.randomUUID();
+
+        when(purchaseDomainServiceMock.validateAdmin(adminId)).thenReturn(true);
+
+        assertThrows(IllegalArgumentException.class, () ->
+                purchaseService.getHistoryByFilter(adminId, "event", null)
+        );
+
+        verifyNoInteractions(purchaseDomainServiceMock);
+        verify(purchaseDomainServiceMock, never()).getHistoryByEvent(any());
+    }
+
+    @Test
+    public void getHistoryByFilter_whenCompanyFilterIdIsNull_throwsExceptionAndDoesNotFetchHistory() {
+        UUID adminId = UUID.randomUUID();
+
+        when(purchaseDomainServiceMock.validateAdmin(adminId)).thenReturn(true);
+
+        assertThrows(IllegalArgumentException.class, () ->
+                purchaseService.getHistoryByFilter(adminId, "company", null)
+        );
+
+        verifyNoInteractions(purchaseDomainServiceMock);
+        verify(purchaseDomainServiceMock, never()).getHistoryByCompany(any());
+    }
+
+    /*
+     * Member purchase history tests
+     */
+
+    @Test
+    public void getPurchaseHistoryForMember_whenMemberIsValidAndLoggedIn_returnsMemberHistory() {
         UUID memberId = UUID.randomUUID();
 
         List<PurchaseHistory> expected = List.of(mock(PurchaseHistory.class));
@@ -177,21 +291,16 @@ public class PurchaseServiceTest {
         List<PurchaseHistory> result =
                 purchaseService.getPurchaseHistoryForMember(memberId);
 
-        assertEquals(expected, result);
-    }
-    @Test
-    public void testPurchaseHistoryUserNotFound() {
-        UUID memberId = UUID.randomUUID();
+        assertSame(expected, result);
 
-        when(purchaseDomainServiceMock.memberExists(memberId)).thenReturn(false);
-
-        assertThrows(IllegalArgumentException.class, () ->
-                purchaseService.getPurchaseHistoryForMember(memberId)
-        );
+        verify(purchaseDomainServiceMock).memberExists(memberId);
+        verify(purchaseDomainServiceMock).isMember(memberId);
+        verify(purchaseDomainServiceMock).isMemberLoggedIn(memberId);
+        verify(purchaseDomainServiceMock).getPurchaseHistoryForMember(memberId);
     }
 
     @Test
-    public void testEmptyPurchaseHistory() {
+    public void getPurchaseHistoryForMember_whenHistoryIsEmpty_returnsEmptyList() {
         UUID memberId = UUID.randomUUID();
 
         when(purchaseDomainServiceMock.memberExists(memberId)).thenReturn(true);
@@ -206,26 +315,32 @@ public class PurchaseServiceTest {
     }
 
     @Test
-    public void testPurchaseHistoryUserNotLoggedIn() {
+    public void getPurchaseHistoryForMember_whenMemberIdIsNull_throwsExceptionAndDoesNotTouchDomain() {
+        assertThrows(IllegalArgumentException.class, () ->
+                purchaseService.getPurchaseHistoryForMember(null)
+        );
+
+        verifyNoInteractions(purchaseDomainServiceMock);
+    }
+
+    @Test
+    public void getPurchaseHistoryForMember_whenMemberDoesNotExist_throwsExceptionAndDoesNotFetchHistory() {
         UUID memberId = UUID.randomUUID();
 
-        when(purchaseDomainServiceMock.memberExists(memberId)).thenReturn(true);
-        when(purchaseDomainServiceMock.isMemberLoggedIn(memberId)).thenReturn(false);
+        when(purchaseDomainServiceMock.memberExists(memberId)).thenReturn(false);
 
         assertThrows(IllegalArgumentException.class, () ->
                 purchaseService.getPurchaseHistoryForMember(memberId)
         );
+
+        verify(purchaseDomainServiceMock).memberExists(memberId);
+        verify(purchaseDomainServiceMock, never()).isMember(any());
+        verify(purchaseDomainServiceMock, never()).isMemberLoggedIn(any());
+        verify(purchaseDomainServiceMock, never()).getPurchaseHistoryForMember(any());
     }
 
     @Test
-    public void testPurchaseHistoryMemberIdIsNull() {
-        assertThrows(IllegalArgumentException.class, () ->
-                purchaseService.getPurchaseHistoryForMember(null)
-        );
-    }
-
-    @Test
-    public void testPurchaseHistory_UserIsNotMember() {
+    public void getPurchaseHistoryForMember_whenUserIsNotMember_throwsExceptionAndDoesNotFetchHistory() {
         UUID userId = UUID.randomUUID();
 
         when(purchaseDomainServiceMock.memberExists(userId)).thenReturn(true);
@@ -234,12 +349,37 @@ public class PurchaseServiceTest {
         assertThrows(IllegalArgumentException.class, () ->
                 purchaseService.getPurchaseHistoryForMember(userId)
         );
+
+        verify(purchaseDomainServiceMock).memberExists(userId);
+        verify(purchaseDomainServiceMock).isMember(userId);
+        verify(purchaseDomainServiceMock, never()).isMemberLoggedIn(any());
+        verify(purchaseDomainServiceMock, never()).getPurchaseHistoryForMember(any());
     }
 
-
-    /* Tests for viewing event purchase history for owner */
     @Test
-    public void testGetEventPurchaseHistoryForOwner_Success() {
+    public void getPurchaseHistoryForMember_whenMemberIsNotLoggedIn_throwsExceptionAndDoesNotFetchHistory() {
+        UUID memberId = UUID.randomUUID();
+
+        when(purchaseDomainServiceMock.memberExists(memberId)).thenReturn(true);
+        when(purchaseDomainServiceMock.isMember(memberId)).thenReturn(true);
+        when(purchaseDomainServiceMock.isMemberLoggedIn(memberId)).thenReturn(false);
+
+        assertThrows(IllegalArgumentException.class, () ->
+                purchaseService.getPurchaseHistoryForMember(memberId)
+        );
+
+        verify(purchaseDomainServiceMock).memberExists(memberId);
+        verify(purchaseDomainServiceMock).isMember(memberId);
+        verify(purchaseDomainServiceMock).isMemberLoggedIn(memberId);
+        verify(purchaseDomainServiceMock, never()).getPurchaseHistoryForMember(any());
+    }
+
+    /*
+     * Owner event purchase history tests
+     */
+
+    @Test
+    public void getEventPurchaseHistoryForOwner_whenOwnerOwnsEvent_returnsEventHistory() {
         String ownerName = "owner";
         UUID eventId = UUID.randomUUID();
 
@@ -252,11 +392,15 @@ public class PurchaseServiceTest {
         List<PurchaseHistory> result =
                 purchaseService.getEventPurchaseHistoryForOwner(ownerName, eventId);
 
-        assertEquals(expected, result);
+        assertSame(expected, result);
+
+        verify(purchaseDomainServiceMock).eventExists(eventId);
+        verify(purchaseDomainServiceMock).isCompanyOwnerOfEvent(ownerName, eventId);
+        verify(purchaseDomainServiceMock).getHistoryByEvent(eventId);
     }
 
     @Test
-    public void testGetEventPurchaseHistoryForOwner_EventDoesNotExist() {
+    public void getEventPurchaseHistoryForOwner_whenEventDoesNotExist_throwsExceptionAndDoesNotFetchHistory() {
         String ownerName = "owner";
         UUID eventId = UUID.randomUUID();
 
@@ -265,10 +409,14 @@ public class PurchaseServiceTest {
         assertThrows(IllegalArgumentException.class, () ->
                 purchaseService.getEventPurchaseHistoryForOwner(ownerName, eventId)
         );
+
+        verify(purchaseDomainServiceMock).eventExists(eventId);
+        verify(purchaseDomainServiceMock, never()).isCompanyOwnerOfEvent(anyString(), any());
+        verify(purchaseDomainServiceMock, never()).getHistoryByEvent(any());
     }
 
     @Test
-    public void testGetEventPurchaseHistoryForOwner_UnauthorizedOwner() {
+    public void getEventPurchaseHistoryForOwner_whenOwnerDoesNotOwnEvent_throwsExceptionAndDoesNotFetchHistory() {
         String ownerName = "owner";
         UUID eventId = UUID.randomUUID();
 
@@ -278,6 +426,10 @@ public class PurchaseServiceTest {
         assertThrows(IllegalArgumentException.class, () ->
                 purchaseService.getEventPurchaseHistoryForOwner(ownerName, eventId)
         );
+
+        verify(purchaseDomainServiceMock).eventExists(eventId);
+        verify(purchaseDomainServiceMock).isCompanyOwnerOfEvent(ownerName, eventId);
+        verify(purchaseDomainServiceMock, never()).getHistoryByEvent(any());
     }
 
     @Test
