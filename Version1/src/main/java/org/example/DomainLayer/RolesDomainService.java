@@ -7,11 +7,11 @@ import java.util.Set;
 import java.util.UUID;
 
 import org.example.DomainLayer.CompanyAggregate.Company;
-import org.example.DomainLayer.CompanyAggregate.CompanyFounder;
-import org.example.DomainLayer.CompanyAggregate.CompanyManager;
-import org.example.DomainLayer.CompanyAggregate.CompanyOwner;
 import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
-import org.example.DomainLayer.CompanyAggregate.ICompanyMember;
+import org.example.DomainLayer.UserAggregate.CompanyFounder;
+import org.example.DomainLayer.UserAggregate.CompanyManager;
+import org.example.DomainLayer.UserAggregate.CompanyOwner;
+import org.example.DomainLayer.UserAggregate.ICompanyMember;
 
 public class RolesDomainService {
 

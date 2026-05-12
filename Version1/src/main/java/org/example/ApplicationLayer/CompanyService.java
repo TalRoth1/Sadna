@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.logging.Logger;
 
 import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
 import org.example.DomainLayer.DomainException;
@@ -11,6 +12,7 @@ import org.example.DomainLayer.PurchaseDomainService;
 import org.example.DomainLayer.RolesDomainService;
 
 public class CompanyService {
+    private static final Logger logger = Logger.getLogger(CompanyService.class.getName());
     private final RolesDomainService rolesDomainService;
     private final PurchaseDomainService purchaseDomainService;
 

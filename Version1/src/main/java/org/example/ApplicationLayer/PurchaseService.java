@@ -3,6 +3,7 @@ package org.example.ApplicationLayer;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.util.logging.Logger;
 
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 import org.example.DomainLayer.DomainException;
@@ -10,6 +11,7 @@ import org.example.DomainLayer.PurchaseDomainService;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 
 public class PurchaseService {
+    private static final Logger logger = Logger.getLogger(EventService.class.getName());
     private final PurchaseDomainService purchaseDomainService;
 
     private final QueueManager queueManager;

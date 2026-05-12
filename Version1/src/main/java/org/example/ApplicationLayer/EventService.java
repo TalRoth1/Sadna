@@ -13,8 +13,8 @@ import org.example.DomainLayer.EventAggregate.EventSearchCriteria;
 import org.example.DomainLayer.EventAggregate.EventStatus;
 import org.example.DomainLayer.EventAggregate.SittingArea;
 import org.example.DomainLayer.EventAggregate.StandingArea;
-import org.example.DomainLayer.PolicyAggregate.IDiscountRule;
-import org.example.DomainLayer.PolicyAggregate.IPurchaseRule;
+import org.example.DomainLayer.PolicyManagment.IDiscountRule;
+import org.example.DomainLayer.PolicyManagment.IPurchaseRule;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 
 import java.time.LocalDate;

@@ -9,17 +9,21 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
-import org.example.DomainLayer.PolicyAggregate.AgeRule;
-import org.example.DomainLayer.PolicyAggregate.ConditionalDiscount;
-import org.example.DomainLayer.PolicyAggregate.CouponCode;
 import org.example.DomainLayer.DomainException;
-import org.example.DomainLayer.PolicyAggregate.DiscountPolicy;
-import org.example.DomainLayer.PolicyAggregate.LoneSeatRule;
-import org.example.DomainLayer.PolicyAggregate.MaxTicketRule;
-import org.example.DomainLayer.PolicyAggregate.MinTicketRule;
-import org.example.DomainLayer.PolicyAggregate.OvertDiscount;
-import org.example.DomainLayer.PolicyAggregate.PurchasePolicy;
 import org.example.DomainLayer.Rating;
+import org.example.DomainLayer.PolicyManagment.AgeRule;
+import org.example.DomainLayer.PolicyManagment.ConditionalDiscount;
+import org.example.DomainLayer.PolicyManagment.CouponCode;
+import org.example.DomainLayer.PolicyManagment.DiscountPolicy;
+import org.example.DomainLayer.PolicyManagment.LoneSeatRule;
+import org.example.DomainLayer.PolicyManagment.MaxTicketRule;
+import org.example.DomainLayer.PolicyManagment.MinTicketRule;
+import org.example.DomainLayer.PolicyManagment.OvertDiscount;
+import org.example.DomainLayer.PolicyManagment.PurchasePolicy;
+import org.example.DomainLayer.UserAggregate.CompanyFounder;
+import org.example.DomainLayer.UserAggregate.CompanyManager;
+import org.example.DomainLayer.UserAggregate.CompanyOwner;
+import org.example.DomainLayer.UserAggregate.ICompanyMember;
 
 public class Company {
     private final UUID id;

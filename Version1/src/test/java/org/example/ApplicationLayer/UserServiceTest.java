@@ -3,7 +3,6 @@ package org.example.ApplicationLayer;
 import org.example.ApplicationLayer.dto.AuthResponse;
 import org.example.ApplicationLayer.dto.LoginRequest;
 import org.example.ApplicationLayer.dto.RegisterRequest;
-import org.example.DomainLayer.IAuthenticationGateway;
 import org.example.DomainLayer.IUserRepository;
 import org.example.DomainLayer.UserAggregate.User;
 import org.example.DomainLayer.UserAggregate.UserStatus;

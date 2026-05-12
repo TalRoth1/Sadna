@@ -2,8 +2,6 @@ package org.example.ApplicationLayer;
 
 import org.example.DomainLayer.*;
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
-import org.example.DomainLayer.ActivePurchaseAggregate.IPaymentGateway;
-import org.example.DomainLayer.ActivePurchaseAggregate.ITicketingGateway;
 import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.DomainLayer.EventAggregate.*;
 import org.example.DomainLayer.LotteryAggregate.PuchaseLottery;
