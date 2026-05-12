@@ -20,11 +20,25 @@ public class CompanyService {
         this.rolesDomainService = rolesDomainService;
         this.purchaseDomainService = purchaseDomainService;
     }
-    public UUID createCompany(String founderUsername, String companyName)
-    {
-        if (founderUsername == null || founderUsername.isBlank()) 
-            throw new IllegalArgumentException("founder username is required");
-        return rolesDomainService.createCompany(founderUsername, companyName);
+    public UUID createCompany(String founderUsername, String companyName) {
+        logger.info("Attempting to create company: '" + companyName + "' for founder: " + founderUsername);
+        
+        try {
+            if (founderUsername == null || founderUsername.isBlank()) {
+                String errorMsg = "Company creation failed: founder username is required";
+                logger.warning(errorMsg);
+                throw new IllegalArgumentException(errorMsg);
+            }
+
+            UUID newCompanyId = rolesDomainService.createCompany(founderUsername, companyName);
+            
+            logger.info("Successfully created company '" + companyName + "' with ID: " + newCompanyId);
+            return newCompanyId;
+
+        } catch (Exception e) {
+            logger.severe("Failed to create company '" + companyName + "'. Error: " + e.getMessage());
+            throw e;
+        }
     }
 
     public void closeCompanyAsAdmin(String adminUsername, UUID companyId) {
