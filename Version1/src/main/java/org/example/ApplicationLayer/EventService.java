@@ -125,20 +125,45 @@ public class EventService {
         return eventManagementDomainService.getEventPurchaseHistory(ownerUsername, eventId);
     }
 
-    public void addPolicyRule(String username, UUID companyId, UUID eventId, Optional<Float> age, Optional<Integer> minTicket, Optional<Integer> maxTicket, Optional<Boolean> allowLoneSeat)
-    {
-        if (age.isPresent() && age.get() < 0)
-            throw new IllegalArgumentException("Age must be a non negative number");
-        if (minTicket.isPresent() && minTicket.get() < 0)
-            throw new IllegalArgumentException("Minimum ticket amount must be a non negative integer");
-        if (maxTicket.isPresent() && maxTicket.get() < 0)
-            throw new IllegalArgumentException("maximum ticket amount must be a non negative integer");
-        eventManagementDomainService.addPurchasePolicy(username, companyId, eventId, age, minTicket, maxTicket, allowLoneSeat);
+    public void addPolicyRule(String username, UUID companyId, UUID eventId, Optional<Float> age, Optional<Integer> minTicket, Optional<Integer> maxTicket, Optional<Boolean> allowLoneSeat) {
+        logger.info("User '" + username + "' attempting to add/update policy rules for Event ID: " + eventId + " (Company ID: " + companyId + ")");
+
+        try {
+            if (age.isPresent() && age.get() < 0) {
+                logger.warning("Event policy addition failed: Invalid age (" + age.get() + ") provided by user: " + username);
+                throw new IllegalArgumentException("Age must be a non negative number");
+            }
+            if (minTicket.isPresent() && minTicket.get() < 0) {
+                logger.warning("Event policy addition failed: Invalid minTicket (" + minTicket.get() + ") provided by user: " + username);
+                throw new IllegalArgumentException("Minimum ticket amount must be a non negative integer");
+            }
+            if (maxTicket.isPresent() && maxTicket.get() < 0) {
+                logger.warning("Event policy addition failed: Invalid maxTicket (" + maxTicket.get() + ") provided by user: " + username);
+                throw new IllegalArgumentException("maximum ticket amount must be a non negative integer");
+            }
+
+            eventManagementDomainService.addPurchasePolicy(username, companyId, eventId, age, minTicket, maxTicket, allowLoneSeat);
+            
+            logger.info("Successfully updated policy rules for Event ID: " + eventId + " by user: " + username);
+
+        } catch (Exception e) {
+            logger.severe("Unexpected error adding policy rule for Event ID: " + eventId + ". Error: " + e.getMessage());
+            throw e;
+        }
     }
-    
-    public void deletePolicyRule(String username, UUID companyId, UUID eventId, boolean age, boolean minTicket, boolean maxTicket, boolean allowLoneSeat)
-    {
-        eventManagementDomainService.deletePurchasePolicy(username, companyId, eventId, age, minTicket, maxTicket, allowLoneSeat);
+
+    public void deletePolicyRule(String username, UUID companyId, UUID eventId, boolean age, boolean minTicket, boolean maxTicket, boolean allowLoneSeat) {
+        logger.info("User '" + username + "' attempting to delete specific policy rules for Event ID: " + eventId + " (Company ID: " + companyId + ")");
+
+        try {
+            eventManagementDomainService.deletePurchasePolicy(username, companyId, eventId, age, minTicket, maxTicket, allowLoneSeat);
+            
+            logger.info("Successfully deleted requested policy rules for Event ID: " + eventId + " by user: " + username);
+            
+        } catch (Exception e) {
+            logger.severe("Failed to delete policy rules for Event ID: " + eventId + " by user: " + username + ". Error: " + e.getMessage());
+            throw e;
+        }
     }
 
     public void addOvertDiscount(String username, UUID companyId, UUID eventId ,LocalDate fromDate, LocalDate toDate, float discountPrecent)

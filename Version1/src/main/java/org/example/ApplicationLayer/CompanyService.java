@@ -63,20 +63,48 @@ public class CompanyService {
          rolesDomainService.acceptCompanyInvitation(invetationID, companyId);
     }
     
-    public void addPolicyRule(String username,UUID companyId, Optional<Float> age, Optional<Integer> minTicket, Optional<Integer> maxTicket, Optional<Boolean> allowLoneSeat)
+    public void addPolicyRule(String username, UUID companyId, Optional<Float> age, Optional<Integer> minTicket, Optional<Integer> maxTicket, Optional<Boolean> allowLoneSeat)
     {
-        if (age.isPresent() && age.get() < 0)
-            throw new IllegalArgumentException("Age must be a non negative number");
-        if (minTicket.isPresent() && minTicket.get() < 0)
-            throw new IllegalArgumentException("Minimum ticket amount must be a non negative integer");
-        if (maxTicket.isPresent() && maxTicket.get() < 0)
-            throw new IllegalArgumentException("maximum ticket amount must be a non negative integer");
-        rolesDomainService.addPurchasePolicy(username, companyId, age, minTicket, maxTicket, allowLoneSeat);
+        logger.info("User '" + username + "' attempting to add/update policy rules for Company ID: " + companyId);
+
+        try {
+            // Validation Checks
+            if (age.isPresent() && age.get() < 0) {
+                logger.warning("Policy addition failed: Invalid age provided (" + age.get() + ") by user: " + username);
+                throw new IllegalArgumentException("Age must be a non negative number");
+            }
+            if (minTicket.isPresent() && minTicket.get() < 0) {
+                logger.warning("Policy addition failed: Invalid minTicket (" + minTicket.get() + ") by user: " + username);
+                throw new IllegalArgumentException("Minimum ticket amount must be a non negative integer");
+            }
+            if (maxTicket.isPresent() && maxTicket.get() < 0) {
+                logger.warning("Policy addition failed: Invalid maxTicket (" + maxTicket.get() + ") by user: " + username);
+                throw new IllegalArgumentException("maximum ticket amount must be a non negative integer");
+            }
+
+            rolesDomainService.addPurchasePolicy(username, companyId, age, minTicket, maxTicket, allowLoneSeat);
+            
+            logger.info("Successfully updated policy rules for Company ID: " + companyId + " by user: " + username);
+
+        } catch (Exception e) {
+            logger.severe("Unexpected error adding policy rule for Company ID: " + companyId + ". Error: " + e.getMessage());
+            throw e;
+        }
     }
-    
-    public void deletePolicyRule(String username ,UUID companyId, boolean age, boolean minTicket, boolean maxTicket, boolean allowLoneSeat)
+
+    public void deletePolicyRule(String username, UUID companyId, boolean age, boolean minTicket, boolean maxTicket, boolean allowLoneSeat)
     {
-        rolesDomainService.deletePurchasePolicy(username, companyId, age, minTicket, maxTicket, allowLoneSeat);
+        logger.info("User '" + username + "' attempting to delete specific policy rules for Company ID: " + companyId);
+
+        try {
+            rolesDomainService.deletePurchasePolicy(username, companyId, age, minTicket, maxTicket, allowLoneSeat);
+            
+            logger.info("Successfully deleted requested policy rules for Company ID: " + companyId + " by user: " + username);
+            
+        } catch (Exception e) {
+            logger.severe("Failed to delete policy rules for Company ID: " + companyId + " by user: " + username + ". Error: " + e.getMessage());
+            throw e;
+        }
     }
 
     public void removeCompanyMemberAsAdmin(String adminUsername, String usernameToRemove) {
