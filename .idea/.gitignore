@@ -1,3 +1,10 @@
 # Default ignored files
 /shelf/
 /workspace.xml
+Version1/target/
+**/target/
+*.class
+.idea/
+.vs/
+.vscode/
+*.slnx
