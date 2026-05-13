@@ -240,4 +240,6 @@ public class PurchaseServiceLotteryTest {
 
         assertTrue(totalWinningTickets <= availableTickets);
     }
+
+
 }

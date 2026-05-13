@@ -173,13 +173,18 @@ public class PurchaseDomainService {
         return historyRepository.getByEventId(eventId);
     }
 
+
     public List<PurchaseHistory> getHistoryByCompany(UUID companyId) {
+        if (companyId == null) {
+            throw new IllegalArgumentException("Company ID is required");
+        }
+
         List<PurchaseHistory> result = new ArrayList<>();
 
         for (PurchaseHistory history : historyRepository.getAll()) {
             Event event = eventRepository.getById(history.getEventId());
 
-            if (event != null && event.getCompanyId() == companyId) {
+            if (event != null && event.getCompanyId().equals(companyId)) {
                 result.add(history);
             }
         }
@@ -468,5 +473,10 @@ public class PurchaseDomainService {
                 .collect(Collectors.toList());
 
         return new SalesReport(eventsUnderOwner, soldTicketIds, totalRevenue);
+    }
+
+    public boolean isLotteryEvent(UUID eventID)
+    {
+        return lotteryRepository.findByEventID(eventID) != null;
     }
 }
