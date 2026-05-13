@@ -474,4 +474,9 @@ public class PurchaseDomainService {
 
         return new SalesReport(eventsUnderOwner, soldTicketIds, totalRevenue);
     }
+
+    public boolean isLotteryEvent(UUID eventID)
+    {
+        return lotteryRepository.findByEventID(eventID) != null;
+    }
 }

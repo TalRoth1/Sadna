@@ -4,6 +4,7 @@ import org.example.DomainLayer.DomainException;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.logging.Logger;
 
 public class QueueManager
 {
@@ -16,8 +17,13 @@ public class QueueManager
     //מהרגע שהיוזר יצא מהתור, כמה זמן יש לו להתחיל את הבחירה?
     private int howManyMinutesToStartSelection = 10;
 
+    private static final Logger logger = Logger.getLogger(EventService.class.getName());
+
+
     public synchronized QueueAccessResult requestSelectionAccess(UUID userId, UUID eventId)
     {
+        logger.info("Requesting selection access: userId=" + userId + ", eventId=" + eventId);
+
         ensureUserExists(userId);
         ensureEventExists(eventId);
 
@@ -29,6 +35,7 @@ public class QueueManager
 
         //אם ל-user שאנחנו ביקשנו עבורו גישה כבר יש גישה אז נחזיר allowed
         if (hasSelectAccess(userId, eventId)) {
+            logger.info("Access already granted for user " + userId + " on event " + eventId);
             return QueueAccessResult.allowed();
         }
 
@@ -36,6 +43,7 @@ public class QueueManager
 
         //אם הוא כבר בתור אז נחזיר לו את המיקום הנוכחי שלו בתור ואת העובדה שהוא מחכה
         if (currentEventQueue.contains(userId)) {
+            logger.info("User " + userId + " is already in queue for event ");
             return QueueAccessResult.waiting(
                     getPositionInQueue(userId, eventId),
                     getQueueSize(eventId)
@@ -53,12 +61,15 @@ public class QueueManager
          */
         if (allowedForEvent.size() < maxConcurrentSelectors && currentEventQueue.isEmpty()) {
             allowedForEvent.put(userId, LocalDateTime.now().plusMinutes(howManyMinutesToStartSelection));
+            logger.info("Immediate access granted to user " + userId + " for event " + eventId + " (Capacity: " + allowedForEvent.size() + "/" + maxConcurrentSelectors + ")");
             return QueueAccessResult.allowed();
         }
 
 
         //אם המשתמש לא יכול לקבל גישה ממש עכשיו, אז נכניס אותו לתור של האירוע ונחזיר שהוא מחכה
         currentEventQueue.add(userId);
+
+        logger.info("User " + userId + " added to queue for event " + eventId);
 
         return QueueAccessResult.waiting(
                 getPositionInQueue(userId, eventId),
@@ -69,6 +80,7 @@ public class QueueManager
 
     public synchronized int getPositionInQueue(UUID userId, UUID eventId)
     {
+        logger.info("Checking queue position for user: " + userId + " on event: " + eventId);
         ensureUserExists(userId);
 
         //אם אין תור בפרט נחזיר -1 כי אין דרך לחשב מיקום
@@ -82,16 +94,19 @@ public class QueueManager
 
         for (int i = 0; i < currentQueue.size(); i++) {
             if (currentQueue.get(i).equals(userId)) {
+                logger.info("User " + userId + " found in queue at position: " + i + 1);
                 return i + 1;
             }
         }
-
+        logger.warning("User " + userId + " not found in queue for event " + eventId);
         return -1;
     }
 
     //הרעיון במתודה הזאת היא לתת לכמות מסוימת של ה-users הכי מקדימה בתור הרשאה להתחיל לבחור
     public synchronized List<UUID> releaseBatch(UUID eventId, int batchSize)
     {
+        logger.info("Attempting to release a batch of " + batchSize + " users for event: " + eventId);
+
         ensureEventExists(eventId);
         removeUsersThatOutOfTime(eventId);
 
@@ -99,6 +114,7 @@ public class QueueManager
 
         //אם אין תור אז אין את מי לשחרר
         if (currentEventQueue == null || currentEventQueue.isEmpty()) {
+            logger.info("No users waiting in queue for event: " + eventId);
             return new ArrayList<>();
         }
 
@@ -127,12 +143,14 @@ public class QueueManager
             );
             releasedUsers.add(releasedUserID);
         }
-
+        logger.info("Successfully released " + releasedUsers.size() + " users from queue for event " + eventId);
         return releasedUsers;
     }
 
     //האם המשתמש כבר יצא מהתור והוא יכול להתחיל לבחור כרטיסים
     public synchronized boolean hasSelectAccess(UUID userId, UUID eventId) {
+
+        logger.info("Checking if user " + userId + " has select access for event " + eventId);
         ensureUserExists(userId);
 
         //האם יש רשימת מורשים להתחיל את הבחירה, כלומר סיימו את התור וממתינים שיתחילו
@@ -140,6 +158,7 @@ public class QueueManager
 
         //מן הסתם אם אין רשימה של selectors אז הוא לא שם
         if (allowedForEvent == null) {
+            logger.info("No active selectors list found for event " + eventId);
             return false;
         }
 
@@ -148,20 +167,26 @@ public class QueueManager
 
         //אם המשתמש עדיין בתור או בכלל לא הגיע לתור אז מן הסתם לא יהיה לו זמן סיום ליכולת הבחירה שלו
         if (expirationTime == null) {
+            logger.info("User " + userId + " does not have an active selection slot for event " + eventId);
             return false;
         }
 
         //האם הזמן שלו עדיין בתוקף?
         if (expirationTime.isBefore(LocalDateTime.now())) {
+            logger.warning("Access expired for user " + userId + " on event " + eventId + ". Expiry was at: " + expirationTime);
             allowedForEvent.remove(userId);
             return false;
         }
 
+        logger.info("User " + userId + " has valid access until: " + expirationTime);
         return true;
     }
 
     //המשתמש השתמש בהרשאה שלו, ניתן למחוק אותו מהתור של המורשים
     public synchronized void finishAccess(UUID userId, UUID eventId) {
+
+        logger.info("Finishing selection access for user: " + userId + " on event: " + eventId);
+
         ensureUserExists(userId);
 
         Map<UUID, LocalDateTime> allowedForEvent = perEventAllowedUsersToStartSelection.get(eventId);
@@ -171,6 +196,9 @@ public class QueueManager
     }
 
     public synchronized int getQueueSize(UUID eventId) {
+
+        logger.info("Checking queue size for event: " + eventId);
+
         Queue<UUID> queue = queuePerEvent.get(eventId);
 
         if (queue == null) {
