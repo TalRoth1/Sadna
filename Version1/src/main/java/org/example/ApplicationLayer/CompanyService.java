@@ -42,11 +42,29 @@ public class CompanyService {
     }
 
     public void closeCompanyAsAdmin(String adminUsername, UUID companyId) {
-        if (adminUsername == null || adminUsername.isBlank()) {
-            throw new IllegalArgumentException("Admin username is required");
-        }
+        logger.info("caller=" + adminUsername
+                + ", action=closeCompanyAsAdmin"
+                + ", target=RolesDomainService.closeCompanyAsAdmin"
+                + ", params={adminUsername=" + adminUsername + ", companyId=" + companyId + "}");
 
-        rolesDomainService.closeCompanyAsAdmin(adminUsername, companyId);
+        try {
+            if (adminUsername == null || adminUsername.isBlank()) {
+                throw new IllegalArgumentException("Admin username is required");
+            }
+
+            rolesDomainService.closeCompanyAsAdmin(adminUsername, companyId);
+
+            logger.info("action=closeCompanyAsAdmin completed successfully"
+                    + ", params={adminUsername=" + adminUsername + ", companyId=" + companyId + "}");
+
+        } catch (RuntimeException e) {
+            logger.severe("action=closeCompanyAsAdmin failed"
+                    + ", caller=" + adminUsername
+                    + ", target=RolesDomainService.closeCompanyAsAdmin"
+                    + ", params={adminUsername=" + adminUsername + ", companyId=" + companyId + "}"
+                    + ", error=" + e.getMessage());
+            throw e;
+        }
     }
 
     public UUID inviteCompanyManager(String ownerUsername, UUID companyId, String usernameToInvite, Set<CompanyPermission> premissions) {
@@ -94,17 +112,34 @@ public class CompanyService {
     }
 
     public void removeCompanyMemberAsAdmin(String adminUsername, String usernameToRemove) {
-        if (adminUsername == null || adminUsername.isBlank()) {
-            throw new IllegalArgumentException("Admin username is required");
-        }
+        logger.info("caller=" + adminUsername
+                + ", action=removeCompanyMemberAsAdmin"
+                + ", target=RolesDomainService.removeCompanyMemberAsAdmin"
+                + ", params={adminUsername=" + adminUsername + ", usernameToRemove=" + usernameToRemove + "}");
 
-        if (usernameToRemove == null || usernameToRemove.isBlank()) {
-            throw new IllegalArgumentException("Username to remove is required");
-        }
+        try {
+            if (adminUsername == null || adminUsername.isBlank()) {
+                throw new IllegalArgumentException("Admin username is required");
+            }
 
-        rolesDomainService.removeCompanyMemberAsAdmin(adminUsername, usernameToRemove);
+            if (usernameToRemove == null || usernameToRemove.isBlank()) {
+                throw new IllegalArgumentException("Username to remove is required");
+            }
+
+            rolesDomainService.removeCompanyMemberAsAdmin(adminUsername, usernameToRemove);
+
+            logger.info("action=removeCompanyMemberAsAdmin completed successfully"
+                    + ", params={adminUsername=" + adminUsername + ", usernameToRemove=" + usernameToRemove + "}");
+
+        } catch (RuntimeException e) {
+            logger.severe("action=removeCompanyMemberAsAdmin failed"
+                    + ", caller=" + adminUsername
+                    + ", target=RolesDomainService.removeCompanyMemberAsAdmin"
+                    + ", params={adminUsername=" + adminUsername + ", usernameToRemove=" + usernameToRemove + "}"
+                    + ", error=" + e.getMessage());
+            throw e;
+        }
     }
-
     public void addOvertDiscount(String username ,UUID companyId ,LocalDate fromDate, LocalDate toDate, float discountPrecent)
     {
         if(toDate.isBefore(LocalDate.now()))
