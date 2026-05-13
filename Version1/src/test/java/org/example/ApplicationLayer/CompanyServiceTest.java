@@ -34,6 +34,10 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
+import java.util.Collections;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @RunWith(MockitoJUnitRunner.class)
 public class CompanyServiceTest {
@@ -195,6 +199,60 @@ public class CompanyServiceTest {
 		CompanyService serviceWithMock = new CompanyService(rolesDomainServiceMock, purchaseDomainService);
 		assertThrows(IllegalArgumentException.class,
 				() -> serviceWithMock.removeCompanyMemberAsAdmin(adminUsername, usernameToRemove));
+	}
+
+	@Test
+	public void removeCompanyMemberAsAdmin_whenTwoAdminsRemoveSameUserConcurrently_onlyOneRemovalIsSaved()
+			throws InterruptedException {
+		Company company = mock(Company.class);
+
+		AtomicBoolean memberAssigned = new AtomicBoolean(true);
+		CountDownLatch startTogether = new CountDownLatch(1);
+
+		when(userRepositoryMock.isSystemAdmin(adminUsername)).thenReturn(true);
+
+		when(companyRepositoryMock.getCompaniesByMember(memberUsername)).thenAnswer(invocation -> {
+			if (memberAssigned.get()) {
+				return List.of(company);
+			}
+			return List.of();
+		});
+
+		doAnswer(invocation -> {
+			Thread.sleep(50);
+			memberAssigned.set(false);
+			return null;
+		}).when(company).removeMemberAsAdmin(memberUsername);
+
+		AtomicInteger successCount = new AtomicInteger(0);
+		AtomicInteger failureCount = new AtomicInteger(0);
+
+		Runnable removeTask = () -> {
+			try {
+				startTogether.await();
+				companyService.removeCompanyMemberAsAdmin(adminUsername, memberUsername);
+				successCount.incrementAndGet();
+			} catch (Exception e) {
+				failureCount.incrementAndGet();
+			}
+		};
+
+		Thread firstThread = new Thread(removeTask);
+		Thread secondThread = new Thread(removeTask);
+
+		firstThread.start();
+		secondThread.start();
+
+		startTogether.countDown();
+
+		firstThread.join();
+		secondThread.join();
+
+		assertEquals(1, successCount.get());
+		assertEquals(1, failureCount.get());
+
+		verify(company, times(1)).removeMemberAsAdmin(memberUsername);
+		verify(companyRepositoryMock, times(1)).save(company);
 	}
 
 	@Test
@@ -746,7 +804,8 @@ public class CompanyServiceTest {
 		when(userRepositoryMock.isSystemAdmin(adminUsername)).thenReturn(true);
 		when(companyRepositoryMock.findByID(companyId)).thenReturn(Optional.empty());
 
-		assertThrows(Exception.class, () -> companyService.closeCompanyAsAdmin(adminUsername, companyId));
+		assertThrows(IllegalArgumentException.class,
+				() -> companyService.closeCompanyAsAdmin(adminUsername, companyId));
 
 		verify(userRepositoryMock).isSystemAdmin(adminUsername);
 		verify(companyRepositoryMock).findByID(companyId);
@@ -767,6 +826,65 @@ public class CompanyServiceTest {
 		verify(companyRepositoryMock).findByID(companyId);
 		verify(company, never()).AdminClose();
 		verify(companyRepositoryMock, never()).save(any());
+	}
+
+	@Test
+	public void closeCompanyAsAdmin_whenCompanyIdIsNull_throwsExceptionAndDoesNotTouchRepositories() {
+		assertThrows(IllegalArgumentException.class,
+				() -> companyService.closeCompanyAsAdmin(adminUsername, null));
+
+		verifyNoInteractions(userRepositoryMock);
+		verifyNoInteractions(companyRepositoryMock);
+	}
+
+	@Test
+	public void closeCompanyAsAdmin_whenTwoAdminsCloseSameCompanyConcurrently_onlyOneCloseIsSaved()
+			throws InterruptedException {
+		Company company = mock(Company.class);
+
+		AtomicBoolean active = new AtomicBoolean(true);
+		CountDownLatch startTogether = new CountDownLatch(1);
+
+		when(userRepositoryMock.isSystemAdmin(adminUsername)).thenReturn(true);
+		when(companyRepositoryMock.findByID(companyId)).thenReturn(Optional.of(company));
+
+		when(company.isActive()).thenAnswer(invocation -> active.get());
+
+		doAnswer(invocation -> {
+			Thread.sleep(50);
+			active.set(false);
+			return null;
+		}).when(company).AdminClose();
+
+		AtomicInteger successCount = new AtomicInteger(0);
+		AtomicInteger failureCount = new AtomicInteger(0);
+
+		Runnable closeTask = () -> {
+			try {
+				startTogether.await();
+				companyService.closeCompanyAsAdmin(adminUsername, companyId);
+				successCount.incrementAndGet();
+			} catch (Exception e) {
+				failureCount.incrementAndGet();
+			}
+		};
+
+		Thread firstThread = new Thread(closeTask);
+		Thread secondThread = new Thread(closeTask);
+
+		firstThread.start();
+		secondThread.start();
+
+		startTogether.countDown();
+
+		firstThread.join();
+		secondThread.join();
+
+		assertEquals(1, successCount.get());
+		assertEquals(1, failureCount.get());
+
+		verify(company, times(1)).AdminClose();
+		verify(companyRepositoryMock, times(1)).save(company);
 	}
 
 	/*

@@ -1,0 +1,237 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report-3.0.xsd" version="3.0" name="org.example.ApplicationLayer.PurchaseServiceTest" time="0.026" tests="36" errors="0" skipped="0" failures="0">
+  <properties>
+    <property name="java.specification.version" value="21"/>
+    <property name="sun.cpu.isalist" value="amd64"/>
+    <property name="sun.jnu.encoding" value="Cp1252"/>
+    <property name="java.class.path" value="C:\Users\ofekb\IdeaProjects\Sadna\Version1\target\test-classes;C:\Users\ofekb\IdeaProjects\Sadna\Version1\target\classes;C:\Users\ofekb\.m2\repository\junit\junit\4.13.2\junit-4.13.2.jar;C:\Users\ofekb\.m2\repository\org\hamcrest\hamcrest-core\1.3\hamcrest-core-1.3.jar;C:\Users\ofekb\.m2\repository\org\mockito\mockito-core\5.11.0\mockito-core-5.11.0.jar;C:\Users\ofekb\.m2\repository\net\bytebuddy\byte-buddy\1.14.12\byte-buddy-1.14.12.jar;C:\Users\ofekb\.m2\repository\net\bytebuddy\byte-buddy-agent\1.14.12\byte-buddy-agent-1.14.12.jar;C:\Users\ofekb\.m2\repository\org\objenesis\objenesis\3.3\objenesis-3.3.jar;"/>
+    <property name="java.vm.vendor" value="Microsoft"/>
+    <property name="sun.arch.data.model" value="64"/>
+    <property name="user.variant" value=""/>
+    <property name="java.vendor.url" value="https://www.microsoft.com"/>
+    <property name="user.timezone" value="Asia/Jerusalem"/>
+    <property name="os.name" value="Windows 11"/>
+    <property name="java.vm.specification.version" value="21"/>
+    <property name="sun.java.launcher" value="SUN_STANDARD"/>
+    <property name="user.country" value="US"/>
+    <property name="sun.boot.library.path" value="C:\Users\ofekb\.jdks\ms-21.0.11\bin"/>
+    <property name="sun.java.command" value="C:\Users\ofekb\AppData\Local\Temp\surefire4983187960909957229\surefirebooter-20260513133625342_3.jar C:\Users\ofekb\AppData\Local\Temp\surefire4983187960909957229 2026-05-13T13-36-25_130-jvmRun1 surefire-20260513133625342_1tmp surefire_0-20260513133625342_2tmp"/>
+    <property name="jdk.debug" value="release"/>
+    <property name="surefire.test.class.path" value="C:\Users\ofekb\IdeaProjects\Sadna\Version1\target\test-classes;C:\Users\ofekb\IdeaProjects\Sadna\Version1\target\classes;C:\Users\ofekb\.m2\repository\junit\junit\4.13.2\junit-4.13.2.jar;C:\Users\ofekb\.m2\repository\org\hamcrest\hamcrest-core\1.3\hamcrest-core-1.3.jar;C:\Users\ofekb\.m2\repository\org\mockito\mockito-core\5.11.0\mockito-core-5.11.0.jar;C:\Users\ofekb\.m2\repository\net\bytebuddy\byte-buddy\1.14.12\byte-buddy-1.14.12.jar;C:\Users\ofekb\.m2\repository\net\bytebuddy\byte-buddy-agent\1.14.12\byte-buddy-agent-1.14.12.jar;C:\Users\ofekb\.m2\repository\org\objenesis\objenesis\3.3\objenesis-3.3.jar;"/>
+    <property name="sun.cpu.endian" value="little"/>
+    <property name="user.home" value="C:\Users\ofekb"/>
+    <property name="user.language" value="en"/>
+    <property name="java.specification.vendor" value="Oracle Corporation"/>
+    <property name="java.version.date" value="2026-04-21"/>
+    <property name="java.home" value="C:\Users\ofekb\.jdks\ms-21.0.11"/>
+    <property name="file.separator" value="\"/>
+    <property name="basedir" value="C:\Users\ofekb\IdeaProjects\Sadna\Version1"/>
+    <property name="java.vm.compressedOopsMode" value="Zero based"/>
+    <property name="line.separator" value="&#10;"/>
+    <property name="java.vm.specification.vendor" value="Oracle Corporation"/>
+    <property name="java.specification.name" value="Java Platform API Specification"/>
+    <property name="surefire.real.class.path" value="C:\Users\ofekb\AppData\Local\Temp\surefire4983187960909957229\surefirebooter-20260513133625342_3.jar"/>
+    <property name="user.script" value=""/>
+    <property name="sun.management.compiler" value="HotSpot 64-Bit Tiered Compilers"/>
+    <property name="java.runtime.version" value="21.0.11+10-LTS"/>
+    <property name="user.name" value="ofekb"/>
+    <property name="stdout.encoding" value="Cp1252"/>
+    <property name="path.separator" value=";"/>
+    <property name="os.version" value="10.0"/>
+    <property name="java.runtime.name" value="OpenJDK Runtime Environment"/>
+    <property name="file.encoding" value="UTF-8"/>
+    <property name="java.vm.name" value="OpenJDK 64-Bit Server VM"/>
+    <property name="java.vendor.version" value="Microsoft-13877171"/>
+    <property name="localRepository" value="C:\Users\ofekb\.m2\repository"/>
+    <property name="java.vendor.url.bug" value="https://github.com/microsoft/openjdk/issues"/>
+    <property name="java.io.tmpdir" value="C:\Users\ofekb\AppData\Local\Temp\"/>
+    <property name="idea.version" value="2024.1.2"/>
+    <property name="java.version" value="21.0.11"/>
+    <property name="user.dir" value="C:\Users\ofekb\IdeaProjects\Sadna\Version1"/>
+    <property name="os.arch" value="amd64"/>
+    <property name="java.vm.specification.name" value="Java Virtual Machine Specification"/>
+    <property name="sun.os.patch.level" value=""/>
+    <property name="native.encoding" value="Cp1252"/>
+    <property name="java.library.path" value="C:\Users\ofekb\.jdks\ms-21.0.11\bin;C:\WINDOWS\Sun\Java\bin;C:\WINDOWS\system32;C:\WINDOWS;C:\Program Files (x86)\Chez Scheme Version 8.4\bin\a6nt;C:\Program Files (x86)\Chez Scheme Version 8.4\bin\i3nt;C:\Program Files\Common Files\Oracle\Java\javapath;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0\;C:\WINDOWS\System32\OpenSSH\;C:\Program Files\dotnet\;C:\Program Files (x86)\Windows Kits\10\Windows Performance Toolkit\;C:\Program Files\Docker\Docker\resources\bin;C:\Program Files\nodejs\;C:\Program Files\Git\cmd;C:\Users\ofekb\AppData\Local\Programs\Python\Python313\Scripts\;C:\Users\ofekb\AppData\Local\Microsoft\WindowsApps;C:\Users\ofekb\.dotnet\tools;C:\Users\ofekb\AppData\Local\Programs\Microsoft VS Code\bin;C:\MinGW\bin;C:\Users\ofekb\AppData\Roaming\npm;C:\Users\ofekb\AppData\Local\JetBrains\Toolbox\scripts;C:\Users\ofekb\AppData\Local\Microsoft\WindowsApps;C:\Users\ofekb\Downloads\use-6.0.0\use-6.0.0\bin\use;C:\Users\ofekb\AppData\Local\Microsoft\WinGet\Packages\OCaml.opam_Microsoft.Winget.Source_8wekyb3d8bbwe;C:\Program Files\Java\jdk-17\bin;;."/>
+    <property name="java.vm.info" value="mixed mode, sharing"/>
+    <property name="stderr.encoding" value="Cp1252"/>
+    <property name="java.vendor" value="Microsoft"/>
+    <property name="java.vm.version" value="21.0.11+10-LTS"/>
+    <property name="sun.io.unicode.encoding" value="UnicodeLittle"/>
+    <property name="java.class.version" value="65.0"/>
+  </properties>
+  <testcase name="getHistoryByFilter_whenFilterTypeIsBlank_throwsExceptionAndDoesNotFetchHistory" classname="org.example.ApplicationLayer.PurchaseServiceTest" time="0.001">
+    <system-err><![CDATA[May 13, 2026 1:36:29 PM org.example.ApplicationLayer.PurchaseService getHistoryByFilter
+INFO: caller=fafa3136-3029-442e-837d-3c2933b62023, action=getHistoryByFilter, target=PurchaseDomainService, params={adminId=fafa3136-3029-442e-837d-3c2933b62023, filterType= , filterId=881fafa9-f305-4c41-b1de-25d73ec8dfa4}
+May 13, 2026 1:36:29 PM org.example.ApplicationLayer.PurchaseService getHistoryByFilter
+SEVERE: action=getHistoryByFilter failed, caller=fafa3136-3029-442e-837d-3c2933b62023, target=PurchaseDomainService, params={adminId=fafa3136-3029-442e-837d-3c2933b62023, filterType= , filterId=881fafa9-f305-4c41-b1de-25d73ec8dfa4}, error=Filter type is required
+]]></system-err>
+  </testcase>
+  <testcase name="getPurchaseHistoryForMember_whenUserIsNotMember_throwsExceptionAndDoesNotFetchHistory" classname="org.example.ApplicationLayer.PurchaseServiceTest" time="0.001">
+    <system-err><![CDATA[May 13, 2026 1:36:29 PM org.example.ApplicationLayer.PurchaseService getPurchaseHistoryForMember
+INFO: caller=cc3f6e75-1ec4-4495-a7a5-f39dfd2cb378, action=getPurchaseHistoryForMember, target=PurchaseDomainService.getPurchaseHistoryForMember, params={memberId=cc3f6e75-1ec4-4495-a7a5-f39dfd2cb378}
+May 13, 2026 1:36:29 PM org.example.ApplicationLayer.PurchaseService getPurchaseHistoryForMember
+SEVERE: action=getPurchaseHistoryForMember failed, caller=cc3f6e75-1ec4-4495-a7a5-f39dfd2cb378, target=PurchaseDomainService.getPurchaseHistoryForMember, params={memberId=cc3f6e75-1ec4-4495-a7a5-f39dfd2cb378}, error=User is not a member
+]]></system-err>
+  </testcase>
+  <testcase name="selectSittingTickets_success_consumesQueueAccess" classname="org.example.ApplicationLayer.PurchaseServiceTest" time="0.0"/>
+  <testcase name="getHistoryByFilter_whenFilterIsCompany_returnsCompanyHistory" classname="org.example.ApplicationLayer.PurchaseServiceTest" time="0.0">
+    <system-err><![CDATA[May 13, 2026 1:36:29 PM org.example.ApplicationLayer.PurchaseService getHistoryByFilter
+INFO: caller=d001dc97-54dd-4e34-9cd8-8e6897f9e571, action=getHistoryByFilter, target=PurchaseDomainService, params={adminId=d001dc97-54dd-4e34-9cd8-8e6897f9e571, filterType=company, filterId=b780e9bc-9957-4135-b560-5b115a21e810}
+May 13, 2026 1:36:29 PM org.example.ApplicationLayer.PurchaseService getHistoryByFilter
+INFO: action=getHistoryByFilter completed successfully, resultSize=1, params={adminId=d001dc97-54dd-4e34-9cd8-8e6897f9e571, filterType=company, filterId=b780e9bc-9957-4135-b560-5b115a21e810}
+]]></system-err>
+  </testcase>
+  <testcase name="completePurchase_failure" classname="org.example.ApplicationLayer.PurchaseServiceTest" time="0.0"/>
+  <testcase name="updateActivePurchase_failure" classname="org.example.ApplicationLayer.PurchaseServiceTest" time="0.0"/>
+  <testcase name="getPurchaseHistoryForMember_whenMemberIsValidAndLoggedIn_returnsMemberHistory" classname="org.example.ApplicationLayer.PurchaseServiceTest" time="0.0">
+    <system-err><![CDATA[May 13, 2026 1:36:29 PM org.example.ApplicationLayer.PurchaseService getPurchaseHistoryForMember
+INFO: caller=96bafae9-5ab8-4df6-9178-3e79332a61a0, action=getPurchaseHistoryForMember, target=PurchaseDomainService.getPurchaseHistoryForMember, params={memberId=96bafae9-5ab8-4df6-9178-3e79332a61a0}
+May 13, 2026 1:36:29 PM org.example.ApplicationLayer.PurchaseService getPurchaseHistoryForMember
+INFO: action=getPurchaseHistoryForMember completed successfully, resultSize=1, params={memberId=96bafae9-5ab8-4df6-9178-3e79332a61a0}
+]]></system-err>
+  </testcase>
+  <testcase name="cancelPurchase_success" classname="org.example.ApplicationLayer.PurchaseServiceTest" time="0.0"/>
+  <testcase name="getHistoryByFilter_whenFilterTypeIsNull_throwsExceptionAndDoesNotFetchHistory" classname="org.example.ApplicationLayer.PurchaseServiceTest" time="0.001">
+    <system-err><![CDATA[May 13, 2026 1:36:29 PM org.example.ApplicationLayer.PurchaseService getHistoryByFilter
+INFO: caller=7b0eb965-6bf9-4906-a68f-73e5a8283f2a, action=getHistoryByFilter, target=PurchaseDomainService, params={adminId=7b0eb965-6bf9-4906-a68f-73e5a8283f2a, filterType=null, filterId=9c3bb27b-4b99-49cb-b519-5582b478cb99}
+May 13, 2026 1:36:29 PM org.example.ApplicationLayer.PurchaseService getHistoryByFilter
+SEVERE: action=getHistoryByFilter failed, caller=7b0eb965-6bf9-4906-a68f-73e5a8283f2a, target=PurchaseDomainService, params={adminId=7b0eb965-6bf9-4906-a68f-73e5a8283f2a, filterType=null, filterId=9c3bb27b-4b99-49cb-b519-5582b478cb99}, error=Filter type is required
+]]></system-err>
+  </testcase>
+  <testcase name="getHistoryByFilter_whenEventFilterIdIsNull_throwsExceptionAndDoesNotFetchHistory" classname="org.example.ApplicationLayer.PurchaseServiceTest" time="0.0">
+    <system-err><![CDATA[May 13, 2026 1:36:29 PM org.example.ApplicationLayer.PurchaseService getHistoryByFilter
+INFO: caller=dc92871b-697c-4d5b-8f31-7787ea134e29, action=getHistoryByFilter, target=PurchaseDomainService, params={adminId=dc92871b-697c-4d5b-8f31-7787ea134e29, filterType=event, filterId=null}
+May 13, 2026 1:36:29 PM org.example.ApplicationLayer.PurchaseService getHistoryByFilter
+SEVERE: action=getHistoryByFilter failed, caller=dc92871b-697c-4d5b-8f31-7787ea134e29, target=PurchaseDomainService, params={adminId=dc92871b-697c-4d5b-8f31-7787ea134e29, filterType=event, filterId=null}, error=Event ID is required
+]]></system-err>
+  </testcase>
+  <testcase name="getHistoryByFilter_whenUserFilterIdIsNull_throwsExceptionAndDoesNotFetchHistory" classname="org.example.ApplicationLayer.PurchaseServiceTest" time="0.0">
+    <system-err><![CDATA[May 13, 2026 1:36:29 PM org.example.ApplicationLayer.PurchaseService getHistoryByFilter
+INFO: caller=2e7306e4-d78c-4152-947a-a102402078b7, action=getHistoryByFilter, target=PurchaseDomainService, params={adminId=2e7306e4-d78c-4152-947a-a102402078b7, filterType=user, filterId=null}
+May 13, 2026 1:36:29 PM org.example.ApplicationLayer.PurchaseService getHistoryByFilter
+SEVERE: action=getHistoryByFilter failed, caller=2e7306e4-d78c-4152-947a-a102402078b7, target=PurchaseDomainService, params={adminId=2e7306e4-d78c-4152-947a-a102402078b7, filterType=user, filterId=null}, error=User ID is required
+]]></system-err>
+  </testcase>
+  <testcase name="getPurchaseHistoryForMember_whenHistoryIsEmpty_returnsEmptyList" classname="org.example.ApplicationLayer.PurchaseServiceTest" time="0.001">
+    <system-err><![CDATA[May 13, 2026 1:36:29 PM org.example.ApplicationLayer.PurchaseService getPurchaseHistoryForMember
+INFO: caller=976237d4-d77a-46f9-9f16-b8880d35bc94, action=getPurchaseHistoryForMember, target=PurchaseDomainService.getPurchaseHistoryForMember, params={memberId=976237d4-d77a-46f9-9f16-b8880d35bc94}
+May 13, 2026 1:36:29 PM org.example.ApplicationLayer.PurchaseService getPurchaseHistoryForMember
+INFO: action=getPurchaseHistoryForMember completed successfully, resultSize=0, params={memberId=976237d4-d77a-46f9-9f16-b8880d35bc94}
+]]></system-err>
+  </testcase>
+  <testcase name="twoUsersSelectSameSittingTicket_onlyOneSucceeds" classname="org.example.ApplicationLayer.PurchaseServiceTest" time="0.0"/>
+  <testcase name="getEventPurchaseHistoryForOwner_whenOwnerOwnsEvent_returnsEventHistory" classname="org.example.ApplicationLayer.PurchaseServiceTest" time="0.0">
+    <system-err><![CDATA[May 13, 2026 1:36:29 PM org.example.ApplicationLayer.PurchaseService getEventPurchaseHistoryForOwner
+INFO: caller=owner, action=getEventPurchaseHistoryForOwner, target=PurchaseDomainService.getHistoryByEvent, params={ownerName=owner, eventId=e534bf62-afef-4fae-89a8-e0da4997aec2}
+May 13, 2026 1:36:29 PM org.example.ApplicationLayer.PurchaseService getEventPurchaseHistoryForOwner
+INFO: action=getEventPurchaseHistoryForOwner completed successfully, resultSize=1, params={ownerName=owner, eventId=e534bf62-afef-4fae-89a8-e0da4997aec2}
+]]></system-err>
+  </testcase>
+  <testcase name="cancelPurchase_failure" classname="org.example.ApplicationLayer.PurchaseServiceTest" time="0.0"/>
+  <testcase name="getHistoryByFilter_whenAdminIdIsNull_throwsExceptionAndDoesNotFetchHistory" classname="org.example.ApplicationLayer.PurchaseServiceTest" time="0.001">
+    <system-err><![CDATA[May 13, 2026 1:36:29 PM org.example.ApplicationLayer.PurchaseService getHistoryByFilter
+INFO: caller=null, action=getHistoryByFilter, target=PurchaseDomainService, params={adminId=null, filterType=user, filterId=b13550fd-1ceb-4325-8c7b-50975652e9e9}
+May 13, 2026 1:36:29 PM org.example.ApplicationLayer.PurchaseService getHistoryByFilter
+SEVERE: action=getHistoryByFilter failed, caller=null, target=PurchaseDomainService, params={adminId=null, filterType=user, filterId=b13550fd-1ceb-4325-8c7b-50975652e9e9}, error=Admin ID is required
+]]></system-err>
+  </testcase>
+  <testcase name="getHistoryByFilter_whenFilterIsUser_returnsUserHistory" classname="org.example.ApplicationLayer.PurchaseServiceTest" time="0.0">
+    <system-err><![CDATA[May 13, 2026 1:36:29 PM org.example.ApplicationLayer.PurchaseService getHistoryByFilter
+INFO: caller=e3d6ee38-a121-430b-bfd6-6c5defd74216, action=getHistoryByFilter, target=PurchaseDomainService, params={adminId=e3d6ee38-a121-430b-bfd6-6c5defd74216, filterType=user, filterId=34e52a4e-ebc4-429a-a818-9ada7e860739}
+May 13, 2026 1:36:29 PM org.example.ApplicationLayer.PurchaseService getHistoryByFilter
+INFO: action=getHistoryByFilter completed successfully, resultSize=1, params={adminId=e3d6ee38-a121-430b-bfd6-6c5defd74216, filterType=user, filterId=34e52a4e-ebc4-429a-a818-9ada7e860739}
+]]></system-err>
+  </testcase>
+  <testcase name="selectSittingTickets_whenQueueFull_throwsAndDoesNotCreatePurchase" classname="org.example.ApplicationLayer.PurchaseServiceTest" time="0.0"/>
+  <testcase name="getHistoryByFilter_whenAdminIsInvalid_throwsExceptionAndDoesNotFetchHistory" classname="org.example.ApplicationLayer.PurchaseServiceTest" time="0.001">
+    <system-err><![CDATA[May 13, 2026 1:36:29 PM org.example.ApplicationLayer.PurchaseService getHistoryByFilter
+INFO: caller=6cec1bfc-5fcc-4d89-b84b-5feebda06b77, action=getHistoryByFilter, target=PurchaseDomainService, params={adminId=6cec1bfc-5fcc-4d89-b84b-5feebda06b77, filterType=user, filterId=d24a0fbb-3aeb-47fa-9e1b-738e46bb675f}
+May 13, 2026 1:36:29 PM org.example.ApplicationLayer.PurchaseService getHistoryByFilter
+SEVERE: action=getHistoryByFilter failed, caller=6cec1bfc-5fcc-4d89-b84b-5feebda06b77, target=PurchaseDomainService, params={adminId=6cec1bfc-5fcc-4d89-b84b-5feebda06b77, filterType=user, filterId=d24a0fbb-3aeb-47fa-9e1b-738e46bb675f}, error=User is not an admin
+]]></system-err>
+  </testcase>
+  <testcase name="getHistoryByFilter_whenCompanyFilterIdIsNull_throwsExceptionAndDoesNotFetchHistory" classname="org.example.ApplicationLayer.PurchaseServiceTest" time="0.001">
+    <system-err><![CDATA[May 13, 2026 1:36:29 PM org.example.ApplicationLayer.PurchaseService getHistoryByFilter
+INFO: caller=65751e56-7b1a-422a-93ac-307f2c4c3b0e, action=getHistoryByFilter, target=PurchaseDomainService, params={adminId=65751e56-7b1a-422a-93ac-307f2c4c3b0e, filterType=company, filterId=null}
+May 13, 2026 1:36:29 PM org.example.ApplicationLayer.PurchaseService getHistoryByFilter
+SEVERE: action=getHistoryByFilter failed, caller=65751e56-7b1a-422a-93ac-307f2c4c3b0e, target=PurchaseDomainService, params={adminId=65751e56-7b1a-422a-93ac-307f2c4c3b0e, filterType=company, filterId=null}, error=Company ID is required
+]]></system-err>
+  </testcase>
+  <testcase name="testGetEventPurchaseHistoryForOwner_CancelledEventStillReturnsHistory" classname="org.example.ApplicationLayer.PurchaseServiceTest" time="0.001">
+    <system-err><![CDATA[May 13, 2026 1:36:29 PM org.example.ApplicationLayer.PurchaseService getEventPurchaseHistoryForOwner
+INFO: caller=owner, action=getEventPurchaseHistoryForOwner, target=PurchaseDomainService.getHistoryByEvent, params={ownerName=owner, eventId=1dd2fab7-6c6b-4a1e-94b8-5d0a6f095996}
+May 13, 2026 1:36:29 PM org.example.ApplicationLayer.PurchaseService getEventPurchaseHistoryForOwner
+INFO: action=getEventPurchaseHistoryForOwner completed successfully, resultSize=1, params={ownerName=owner, eventId=1dd2fab7-6c6b-4a1e-94b8-5d0a6f095996}
+]]></system-err>
+  </testcase>
+  <testcase name="getHistoryByFilter_whenUserHistoryIsEmpty_returnsEmptyList" classname="org.example.ApplicationLayer.PurchaseServiceTest" time="0.001">
+    <system-err><![CDATA[May 13, 2026 1:36:29 PM org.example.ApplicationLayer.PurchaseService getHistoryByFilter
+INFO: caller=3f7a9840-70f3-40cd-890f-4a2151b61e38, action=getHistoryByFilter, target=PurchaseDomainService, params={adminId=3f7a9840-70f3-40cd-890f-4a2151b61e38, filterType=user, filterId=980ed494-df0e-4efc-ae74-1392f6174652}
+May 13, 2026 1:36:29 PM org.example.ApplicationLayer.PurchaseService getHistoryByFilter
+INFO: action=getHistoryByFilter completed successfully, resultSize=0, params={adminId=3f7a9840-70f3-40cd-890f-4a2151b61e38, filterType=user, filterId=980ed494-df0e-4efc-ae74-1392f6174652}
+]]></system-err>
+  </testcase>
+  <testcase name="selectStandingTickets_success" classname="org.example.ApplicationLayer.PurchaseServiceTest" time="0.0"/>
+  <testcase name="getEventPurchaseHistoryForOwner_whenEventDoesNotExist_throwsExceptionAndDoesNotFetchHistory" classname="org.example.ApplicationLayer.PurchaseServiceTest" time="0.0">
+    <system-err><![CDATA[May 13, 2026 1:36:29 PM org.example.ApplicationLayer.PurchaseService getEventPurchaseHistoryForOwner
+INFO: caller=owner, action=getEventPurchaseHistoryForOwner, target=PurchaseDomainService.getHistoryByEvent, params={ownerName=owner, eventId=d513f8de-c934-4388-98cb-2dacd94e8529}
+May 13, 2026 1:36:29 PM org.example.ApplicationLayer.PurchaseService getEventPurchaseHistoryForOwner
+SEVERE: action=getEventPurchaseHistoryForOwner failed, caller=owner, target=PurchaseDomainService.getHistoryByEvent, params={ownerName=owner, eventId=d513f8de-c934-4388-98cb-2dacd94e8529}, error=Event does not exist
+]]></system-err>
+  </testcase>
+  <testcase name="getPurchaseHistoryForMember_whenMemberIdIsNull_throwsExceptionAndDoesNotTouchDomain" classname="org.example.ApplicationLayer.PurchaseServiceTest" time="0.0">
+    <system-err><![CDATA[May 13, 2026 1:36:29 PM org.example.ApplicationLayer.PurchaseService getPurchaseHistoryForMember
+INFO: caller=null, action=getPurchaseHistoryForMember, target=PurchaseDomainService.getPurchaseHistoryForMember, params={memberId=null}
+May 13, 2026 1:36:29 PM org.example.ApplicationLayer.PurchaseService getPurchaseHistoryForMember
+SEVERE: action=getPurchaseHistoryForMember failed, caller=null, target=PurchaseDomainService.getPurchaseHistoryForMember, params={memberId=null}, error=Member ID is required
+]]></system-err>
+  </testcase>
+  <testcase name="getEventPurchaseHistoryForOwner_whenOwnerDoesNotOwnEvent_throwsExceptionAndDoesNotFetchHistory" classname="org.example.ApplicationLayer.PurchaseServiceTest" time="0.002">
+    <system-err><![CDATA[May 13, 2026 1:36:29 PM org.example.ApplicationLayer.PurchaseService getEventPurchaseHistoryForOwner
+INFO: caller=owner, action=getEventPurchaseHistoryForOwner, target=PurchaseDomainService.getHistoryByEvent, params={ownerName=owner, eventId=3b147b66-8410-4a43-8df1-b06b12002aa8}
+May 13, 2026 1:36:29 PM org.example.ApplicationLayer.PurchaseService getEventPurchaseHistoryForOwner
+SEVERE: action=getEventPurchaseHistoryForOwner failed, caller=owner, target=PurchaseDomainService.getHistoryByEvent, params={ownerName=owner, eventId=3b147b66-8410-4a43-8df1-b06b12002aa8}, error=User is not authorized to view event purchase history
+]]></system-err>
+  </testcase>
+  <testcase name="selectSittingTickets_success_createPurchase" classname="org.example.ApplicationLayer.PurchaseServiceTest" time="0.0"/>
+  <testcase name="selectStandingTickets_failure" classname="org.example.ApplicationLayer.PurchaseServiceTest" time="0.0"/>
+  <testcase name="getHistoryByFilter_whenFilterTypeIsInvalid_throwsExceptionAndDoesNotFetchHistory" classname="org.example.ApplicationLayer.PurchaseServiceTest" time="0.001">
+    <system-err><![CDATA[May 13, 2026 1:36:29 PM org.example.ApplicationLayer.PurchaseService getHistoryByFilter
+INFO: caller=cd41aa67-74dd-4615-b3e8-ee35728e5f07, action=getHistoryByFilter, target=PurchaseDomainService, params={adminId=cd41aa67-74dd-4615-b3e8-ee35728e5f07, filterType=invalid, filterId=24ad4688-dc4c-4d36-aae7-2de20a14e44f}
+May 13, 2026 1:36:29 PM org.example.ApplicationLayer.PurchaseService getHistoryByFilter
+SEVERE: action=getHistoryByFilter failed, caller=cd41aa67-74dd-4615-b3e8-ee35728e5f07, target=PurchaseDomainService, params={adminId=cd41aa67-74dd-4615-b3e8-ee35728e5f07, filterType=invalid, filterId=24ad4688-dc4c-4d36-aae7-2de20a14e44f}, error=Invalid filter type
+]]></system-err>
+  </testcase>
+  <testcase name="selectSittingTickets_failure_doesNotConsumeQueueAccess" classname="org.example.ApplicationLayer.PurchaseServiceTest" time="0.0"/>
+  <testcase name="getHistoryByFilter_whenFilterIsEvent_returnsEventHistory" classname="org.example.ApplicationLayer.PurchaseServiceTest" time="0.001">
+    <system-err><![CDATA[May 13, 2026 1:36:29 PM org.example.ApplicationLayer.PurchaseService getHistoryByFilter
+INFO: caller=37616b9a-c14e-45f2-82f4-509d7b2aeaf3, action=getHistoryByFilter, target=PurchaseDomainService, params={adminId=37616b9a-c14e-45f2-82f4-509d7b2aeaf3, filterType=event, filterId=9222d0d1-16aa-475d-a206-e29cc4fb01cf}
+May 13, 2026 1:36:29 PM org.example.ApplicationLayer.PurchaseService getHistoryByFilter
+INFO: action=getHistoryByFilter completed successfully, resultSize=1, params={adminId=37616b9a-c14e-45f2-82f4-509d7b2aeaf3, filterType=event, filterId=9222d0d1-16aa-475d-a206-e29cc4fb01cf}
+]]></system-err>
+  </testcase>
+  <testcase name="completePurchase_success" classname="org.example.ApplicationLayer.PurchaseServiceTest" time="0.0"/>
+  <testcase name="getHistoryByFilter_whenFilterIsAll_returnsAllHistory" classname="org.example.ApplicationLayer.PurchaseServiceTest" time="0.0">
+    <system-err><![CDATA[May 13, 2026 1:36:29 PM org.example.ApplicationLayer.PurchaseService getHistoryByFilter
+INFO: caller=4bdd620e-0892-4557-a776-fed3b7c1ce98, action=getHistoryByFilter, target=PurchaseDomainService, params={adminId=4bdd620e-0892-4557-a776-fed3b7c1ce98, filterType=all, filterId=null}
+May 13, 2026 1:36:29 PM org.example.ApplicationLayer.PurchaseService getHistoryByFilter
+INFO: action=getHistoryByFilter completed successfully, resultSize=2, params={adminId=4bdd620e-0892-4557-a776-fed3b7c1ce98, filterType=all, filterId=null}
+]]></system-err>
+  </testcase>
+  <testcase name="updateActivePurchase_success" classname="org.example.ApplicationLayer.PurchaseServiceTest" time="0.0"/>
+  <testcase name="getPurchaseHistoryForMember_whenMemberIsNotLoggedIn_throwsExceptionAndDoesNotFetchHistory" classname="org.example.ApplicationLayer.PurchaseServiceTest" time="0.001">
+    <system-err><![CDATA[May 13, 2026 1:36:29 PM org.example.ApplicationLayer.PurchaseService getPurchaseHistoryForMember
+INFO: caller=2ef86bc5-afd0-496d-890c-1023cfea46d2, action=getPurchaseHistoryForMember, target=PurchaseDomainService.getPurchaseHistoryForMember, params={memberId=2ef86bc5-afd0-496d-890c-1023cfea46d2}
+May 13, 2026 1:36:29 PM org.example.ApplicationLayer.PurchaseService getPurchaseHistoryForMember
+SEVERE: action=getPurchaseHistoryForMember failed, caller=2ef86bc5-afd0-496d-890c-1023cfea46d2, target=PurchaseDomainService.getPurchaseHistoryForMember, params={memberId=2ef86bc5-afd0-496d-890c-1023cfea46d2}, error=Member is not logged in
+]]></system-err>
+  </testcase>
+  <testcase name="getPurchaseHistoryForMember_whenMemberDoesNotExist_throwsExceptionAndDoesNotFetchHistory" classname="org.example.ApplicationLayer.PurchaseServiceTest" time="0.0">
+    <system-err><![CDATA[May 13, 2026 1:36:29 PM org.example.ApplicationLayer.PurchaseService getPurchaseHistoryForMember
+INFO: caller=c86543e0-0c98-4c75-a3a6-1111ec32e7bb, action=getPurchaseHistoryForMember, target=PurchaseDomainService.getPurchaseHistoryForMember, params={memberId=c86543e0-0c98-4c75-a3a6-1111ec32e7bb}
+May 13, 2026 1:36:29 PM org.example.ApplicationLayer.PurchaseService getPurchaseHistoryForMember
+SEVERE: action=getPurchaseHistoryForMember failed, caller=c86543e0-0c98-4c75-a3a6-1111ec32e7bb, target=PurchaseDomainService.getPurchaseHistoryForMember, params={memberId=c86543e0-0c98-4c75-a3a6-1111ec32e7bb}, error=Member does not exist
+]]></system-err>
+  </testcase>
+</testsuite>

@@ -11,7 +11,7 @@ import org.example.DomainLayer.PurchaseDomainService;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 
 public class PurchaseService {
-    private static final Logger logger = Logger.getLogger(EventService.class.getName());
+    private static final Logger logger = Logger.getLogger(PurchaseService.class.getName());
     private final PurchaseDomainService purchaseDomainService;
 
     private final QueueManager queueManager;
@@ -118,16 +118,38 @@ public class PurchaseService {
     }
 
     public List<PurchaseHistory> getHistoryByFilter(UUID adminId, String filterType, UUID filterId) {
-        if (filterType == null || filterType.isBlank()) {
-            throw new IllegalArgumentException("Filter type is required");
+        logger.info("caller=" + adminId
+                + ", action=getHistoryByFilter"
+                + ", target=PurchaseDomainService"
+                + ", params={adminId=" + adminId + ", filterType=" + filterType + ", filterId=" + filterId + "}");
+
+        try {
+            if (filterType == null || filterType.isBlank()) {
+                throw new IllegalArgumentException("Filter type is required");
+            }
+
+            List<PurchaseHistory> result = switch (filterType.toLowerCase()) {
+                case "user" -> getHistoryByUser(adminId, filterId);
+                case "event" -> getHistoryByEvent(adminId, filterId);
+                case "company" -> getHistoryByCompany(adminId, filterId);
+                case "all" -> getAllHistory(adminId);
+                default -> throw new IllegalArgumentException("Invalid filter type");
+            };
+
+            logger.info("action=getHistoryByFilter completed successfully"
+                    + ", resultSize=" + result.size()
+                    + ", params={adminId=" + adminId + ", filterType=" + filterType + ", filterId=" + filterId + "}");
+
+            return result;
+
+        } catch (RuntimeException e) {
+            logger.severe("action=getHistoryByFilter failed"
+                    + ", caller=" + adminId
+                    + ", target=PurchaseDomainService"
+                    + ", params={adminId=" + adminId + ", filterType=" + filterType + ", filterId=" + filterId + "}"
+                    + ", error=" + e.getMessage());
+            throw e;
         }
-        return switch (filterType.toLowerCase()) {
-            case "user" -> getHistoryByUser(adminId, filterId);
-            case "event" -> getHistoryByEvent(adminId, filterId);
-            case "company" -> getHistoryByCompany(adminId, filterId);
-            case "all" -> getAllHistory(adminId);
-            default -> throw new IllegalArgumentException("Invalid filter type");
-        };
     }
 
 
@@ -148,24 +170,46 @@ public class PurchaseService {
     }
 
     public List<PurchaseHistory> getPurchaseHistoryForMember(UUID memberId) {
-        if (memberId == null) {
-            throw new IllegalArgumentException("Member ID is required");
-        }
+        logger.info("caller=" + memberId
+                + ", action=getPurchaseHistoryForMember"
+                + ", target=PurchaseDomainService.getPurchaseHistoryForMember"
+                + ", params={memberId=" + memberId + "}");
 
-        if (!purchaseDomainService.memberExists(memberId)) {
-            throw new IllegalArgumentException("Member does not exist");
-        }
+        try {
+            if (memberId == null) {
+                throw new IllegalArgumentException("Member ID is required");
+            }
 
-        if (!purchaseDomainService.isMember(memberId)) {
-            throw new IllegalArgumentException("User is not a member");
-        }
+            if (!purchaseDomainService.memberExists(memberId)) {
+                throw new IllegalArgumentException("Member does not exist");
+            }
 
-        if (!purchaseDomainService.isMemberLoggedIn(memberId)) {
-            throw new IllegalArgumentException("Member is not logged in");
-        }
+            if (!purchaseDomainService.isMember(memberId)) {
+                throw new IllegalArgumentException("User is not a member");
+            }
 
-        return purchaseDomainService.getPurchaseHistoryForMember(memberId);
+            if (!purchaseDomainService.isMemberLoggedIn(memberId)) {
+                throw new IllegalArgumentException("Member is not logged in");
+            }
+
+            List<PurchaseHistory> result = purchaseDomainService.getPurchaseHistoryForMember(memberId);
+
+            logger.info("action=getPurchaseHistoryForMember completed successfully"
+                    + ", resultSize=" + result.size()
+                    + ", params={memberId=" + memberId + "}");
+
+            return result;
+
+        } catch (RuntimeException e) {
+            logger.severe("action=getPurchaseHistoryForMember failed"
+                    + ", caller=" + memberId
+                    + ", target=PurchaseDomainService.getPurchaseHistoryForMember"
+                    + ", params={memberId=" + memberId + "}"
+                    + ", error=" + e.getMessage());
+            throw e;
+        }
     }
+
     public ActivePurchase viewActivePurchase(UUID activePurchaseId)
     {
         if (activePurchaseId == null) {
@@ -227,24 +271,46 @@ public class PurchaseService {
     }
 
     public List<PurchaseHistory> getEventPurchaseHistoryForOwner(String ownerName, UUID eventId) {
-        if (ownerName == null) {
-            throw new IllegalArgumentException("Owner ID is required");
-        }
+        logger.info("caller=" + ownerName
+                + ", action=getEventPurchaseHistoryForOwner"
+                + ", target=PurchaseDomainService.getHistoryByEvent"
+                + ", params={ownerName=" + ownerName + ", eventId=" + eventId + "}");
 
-        if (eventId == null) {
-            throw new IllegalArgumentException("Event ID is required");
-        }
+        try {
+            if (ownerName == null || ownerName.isBlank()) {
+                throw new IllegalArgumentException("Owner ID is required");
+            }
 
-        if (!purchaseDomainService.eventExists(eventId)) {
-            throw new IllegalArgumentException("Event does not exist");
-        }
+            if (eventId == null) {
+                throw new IllegalArgumentException("Event ID is required");
+            }
 
-        if (!purchaseDomainService.isCompanyOwnerOfEvent(ownerName, eventId)) {
-            throw new IllegalArgumentException("User is not authorized to view event purchase history");
-        }
+            if (!purchaseDomainService.eventExists(eventId)) {
+                throw new IllegalArgumentException("Event does not exist");
+            }
 
-        return purchaseDomainService.getHistoryByEvent(eventId);
+            if (!purchaseDomainService.isCompanyOwnerOfEvent(ownerName, eventId)) {
+                throw new IllegalArgumentException("User is not authorized to view event purchase history");
+            }
+
+            List<PurchaseHistory> result = purchaseDomainService.getHistoryByEvent(eventId);
+
+            logger.info("action=getEventPurchaseHistoryForOwner completed successfully"
+                    + ", resultSize=" + result.size()
+                    + ", params={ownerName=" + ownerName + ", eventId=" + eventId + "}");
+
+            return result;
+
+        } catch (RuntimeException e) {
+            logger.severe("action=getEventPurchaseHistoryForOwner failed"
+                    + ", caller=" + ownerName
+                    + ", target=PurchaseDomainService.getHistoryByEvent"
+                    + ", params={ownerName=" + ownerName + ", eventId=" + eventId + "}"
+                    + ", error=" + e.getMessage());
+            throw e;
+        }
     }
+
     public void registerToLottery(UUID eventId, UUID memberId, int ticketAmount) {
         if (eventId == null) {
             throw new IllegalArgumentException("Event ID is required");
