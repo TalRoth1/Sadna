@@ -39,11 +39,19 @@ public class PurchaseService {
 
     public void selectSittingTickets(UUID eventID, List<UUID> ticketIDs, UUID userID, boolean isConfirmedAge)
     {
-        if (ticketIDs == null || ticketIDs.isEmpty()) {
+        logger.info("Starting selectSittingTickets: eventID=" + eventID + ", ticketIDs=" + ticketIDs + ", userID=" + userID);
+
+        if (ticketIDs == null || ticketIDs.isEmpty())
+        {
+            logger.warning("Attempted to select tickets with null or empty list for user: " + userID);
             throw new IllegalArgumentException("Amount must be greater than zero");
         }
         if (userID == null) {
             throw new IllegalArgumentException("User ID is required");
+        }
+
+        if (purchaseDomainService.isLotteryEvent(eventID)) {
+            throw new IllegalStateException("זה אירוע המיועד להגרלה. אי אפשר לקנות ממנו כרטיסים באופן רגיל.");
         }
 
         validateQueueAccess(userID, eventID);
@@ -55,18 +63,31 @@ public class PurchaseService {
             queueManager.finishAccess(userID, eventID);
             queueManager.releaseBatch(eventID, 1);
 
-        } catch (DomainException e) {
+            logger.info("Successfully selected sitting tickets for user: " + userID);
+
+        } catch (DomainException e)
+        {
+            logger.severe("Failed to select sitting tickets for user " + userID + " on event " + eventID + ". Reason: " + e.getMessage());
             throw new IllegalStateException("couldn't select the sitting tickts");
         }
     }
 
     public void selectStandingTickets(UUID eventID, int amount, UUID areaID, UUID userID, boolean isConfirmedAge)
     {
+        logger.info("Starting selectStandingTickets: eventID=" + eventID + ", amount=" + amount + ", areaID=" + areaID + ", userID=" + userID);
+
         if (amount <= 0) {
+            logger.warning("Standing tickets selection failed: amount must be positive. User: " + userID);
             throw new IllegalArgumentException("Amount must be greater than zero");
         }
         if (userID == null) {
+            logger.warning("Standing tickets selection failed: userID is null");
             throw new IllegalArgumentException("User ID is required");
+        }
+
+        if (purchaseDomainService.isLotteryEvent(eventID)) {
+            logger.warning("Regular purchase blocked: Event " + eventID + " is restricted to lottery winners.");
+            throw new IllegalStateException("זה אירוע המיועד להגרלה. אי אפשר לקנות ממנו כרטיסים באופן רגיל.");
         }
 
         validateQueueAccess(userID, eventID);
@@ -78,16 +99,23 @@ public class PurchaseService {
             //רק אם נוצר active purchase אז אנחנו מסירים מהמשתמש את ההרשאה לבחור
             queueManager.finishAccess(userID, eventID);
             queueManager.releaseBatch(eventID, 1);
+
+            logger.info("Successfully selected standing tickets for user: " + userID + " on event: " + eventID);
         }
         catch (DomainException e)
         {
+            logger.severe("Failed to select standing tickets for user " + userID + ". Domain Error: " + e.getMessage());
             throw new IllegalStateException("couldn't select the standing tickts");
         }
     }
 
     public void completePurchase(UUID activePurchaseID, PaymentDetails paymentDetails, String couponCode)
     {
+        logger.info("Starting completePurchase: activePurchaseID=" + activePurchaseID +
+                ", couponCode=" + (couponCode != null ? couponCode : "none"));
+
         if (activePurchaseID == null) {
+            logger.warning("Purchase completion failed: activePurchaseID is null");
             throw new IllegalArgumentException("Active Purchase ID is required");
         }
         else if (paymentDetails == null) {
@@ -97,8 +125,11 @@ public class PurchaseService {
         try
         {
             purchaseDomainService.completePurchase(activePurchaseID, paymentDetails, couponCode);
+            logger.info("Purchase completed successfully for activePurchaseID: " + activePurchaseID);
         }
         catch (DomainException e) {
+            logger.severe("Critical failure in completePurchase for ID " + activePurchaseID +
+                    ". Reason: " + e.getMessage());
             throw new IllegalStateException("couldn't complete purchase");
         }
     }
@@ -168,7 +199,10 @@ public class PurchaseService {
     }
     public ActivePurchase viewActivePurchase(UUID activePurchaseId)
     {
+        logger.info("Request to view active purchase: ID=" + activePurchaseId);
+
         if (activePurchaseId == null) {
+            logger.warning("viewActivePurchase failed: provided activePurchaseId is null");
             throw new IllegalArgumentException("Active purchase ID is required");
         }
         try
@@ -177,51 +211,70 @@ public class PurchaseService {
         }
         catch (DomainException e)
         {
+            logger.severe("Failed to view active purchase " + activePurchaseId + ". Reason: " + e.getMessage());
             return null;
         }
     }
     public void cancelActivePurchase(UUID activePurchaseId)
     {
+        logger.info("Attempting to cancel active purchase: ID=" + activePurchaseId);
+
         if (activePurchaseId == null) {
             throw new IllegalArgumentException("Active purchase ID is required");
         }
         try
         {
             purchaseDomainService.cancelActivePurchase(activePurchaseId);
+
+            logger.info("Successfully cancelled active purchase: ID=" + activePurchaseId);
         }
         catch (DomainException e)
         {
+            logger.severe("Failed to cancel active purchase " + activePurchaseId + ". Reason: " + e.getMessage());
             throw new IllegalStateException("Couldn't cancel purchase");
         }
     }
     public void updateActivePurchaseSittingTickets(UUID activePurchaseId, List<UUID> newTicketIds)
     {
+        logger.info("Starting updateActivePurchaseSittingTickets: activePurchaseId=" + activePurchaseId + ", newTicketIds=" + newTicketIds);
+
         if (activePurchaseId == null) {
+            logger.warning("Update failed: activePurchaseId is null");
             throw new IllegalArgumentException("Active purchase ID is required");
         }
         if (newTicketIds == null || newTicketIds.isEmpty()) {
+            logger.warning("Update failed: newTicketIds is null or empty for purchase: " + activePurchaseId);
             throw new IllegalArgumentException("New ticket IDs are required");
         }
         try
         {
             purchaseDomainService.updateActivePurchaseSittingTickets(activePurchaseId, newTicketIds);
+            logger.info("Successfully updated sitting tickets for active purchase: " + activePurchaseId);
         }
         catch (DomainException e)
         {
+            logger.severe("Failed to update sitting tickets for purchase " + activePurchaseId + ". Reason: " + e.getMessage());
             throw new IllegalStateException("Couldn't update active purchase");
         }
     }
 
     public void updateActivePurchaseStandingTickets(UUID activePurchaseId, int newAmount, UUID areaId) {
+
+        logger.info("Starting updateActivePurchaseStandingTickets: activePurchaseId=" + activePurchaseId + ", newAmount=" + newAmount + ", areaId=" + areaId);
+
         if (activePurchaseId == null) {
+            logger.warning("Update failed: activePurchaseId is null");
             throw new IllegalArgumentException("Active purchase ID is required");
         }
         if (newAmount <= 0) {
+            logger.warning("Update failed: newAmount must be positive. Received: " + newAmount);
             throw new IllegalArgumentException("New amount must be non-negative");
         }
         try {
             purchaseDomainService.updateActivePurchaseStandingTickets(activePurchaseId, newAmount, areaId);
+            logger.info("Successfully updated standing tickets for active purchase: " + activePurchaseId);
         } catch (DomainException e) {
+            logger.severe("Failed to update standing tickets for purchase " + activePurchaseId + ". Reason: " + e.getMessage());
             throw new IllegalStateException("Couldn't update active purchase");
         }
     }
