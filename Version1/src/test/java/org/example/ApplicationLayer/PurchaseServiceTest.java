@@ -607,6 +607,8 @@ public class PurchaseServiceTest {
         assertEquals(TicketStatus.RESERVED, event.getTicket(ticketId).getStatus());
     }
 
+
+
     @Test
     public void selectSittingTickets_success_consumesQueueAccess() {
         TestSetup setup = createSetup();

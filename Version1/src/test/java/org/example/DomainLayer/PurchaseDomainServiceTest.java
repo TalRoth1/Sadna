@@ -2,8 +2,7 @@ package org.example.DomainLayer;
 
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 import org.example.DomainLayer.CompanyAggregate.Company;
-import org.example.DomainLayer.EventAggregate.Event;
-import org.example.DomainLayer.EventAggregate.EventStatus;
+import org.example.DomainLayer.EventAggregate.*;
 import org.example.DomainLayer.LotteryAggregate.PuchaseLottery;
 import org.example.DomainLayer.PurchaseHistoryAggregate.Payment;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
@@ -958,6 +957,65 @@ public class PurchaseDomainServiceTest {
         );
 
         assertTrue(ticketingWasCalled[0]);
+    }
+
+    @Test
+    public void selectSittingTickets_whenTicketIsNotAvailable_throwsException() {
+        UUID eventId = UUID.randomUUID();
+        UUID companyId = UUID.randomUUID();
+        UUID firstUserId = UUID.randomUUID();
+        UUID secondUserId = UUID.randomUUID();
+        UUID areaId = UUID.randomUUID();
+        UUID ticketId = UUID.randomUUID();
+
+        Event event = event(eventId, companyId);
+
+        event.getLayout().addArea(
+                new SittingArea(areaId, 100f)
+        );
+
+        SittingTicket ticket = new SittingTicket(
+                ticketId,
+                eventId,
+                areaId,
+                100f,
+                1,
+                1
+        );
+
+        event.addTicket(ticket);
+
+        eventRepository.save(event);
+
+        // משתמש ראשון משריין
+        purchaseDomainService.selectSittingTickets(
+                eventId,
+                List.of(ticketId),
+                firstUserId,
+                true
+        );
+
+        // משתמש שני מנסה לשריין אותו כרטיס
+        assertThrows(
+                DomainException.class,
+                () -> purchaseDomainService.selectSittingTickets(
+                        eventId,
+                        List.of(ticketId),
+                        secondUserId,
+                        true
+                )
+        );
+
+        // עדיין RESERVED
+        assertEquals(
+                TicketStatus.RESERVED,
+                event.getTicket(ticketId).getStatus()
+        );
+
+        // למשתמש השני לא נוצר active purchase
+        assertNull(
+                purchaseRepository.findByUserID(secondUserId)
+        );
     }
 
     @Test
