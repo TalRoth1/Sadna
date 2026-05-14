@@ -17,6 +17,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
@@ -958,6 +960,111 @@ public class PurchaseDomainServiceTest {
         assertTrue(ticketingWasCalled[0]);
     }
 
+    @Test
+    public void twoUsersSelectSameSittingTicket_onlyOneSucceeds() throws InterruptedException {
+        UUID eventId = UUID.randomUUID();
+        UUID companyId = UUID.randomUUID();
+        UUID areaId = UUID.randomUUID();
+        UUID ticketId = UUID.randomUUID();
+
+        UUID user1Id = UUID.randomUUID();
+        UUID user2Id = UUID.randomUUID();
+
+        Event event = event(eventId, companyId);
+
+        event.getLayout().addArea(
+                new org.example.DomainLayer.EventAggregate.SittingArea(areaId, 100f)
+        );
+
+        event.addTicket(
+                new org.example.DomainLayer.EventAggregate.SittingTicket(
+                        ticketId,
+                        eventId,
+                        areaId,
+                        100f,
+                        1,
+                        1
+                )
+        );
+
+        eventRepository.save(event);
+
+        CountDownLatch startTogether = new CountDownLatch(1);
+
+        AtomicInteger successCount = new AtomicInteger(0);
+        AtomicInteger failCount = new AtomicInteger(0);
+
+        Runnable user1Task = () -> {
+            try {
+                startTogether.await();
+
+                purchaseDomainService.selectSittingTickets(
+                        eventId,
+                        List.of(ticketId),
+                        user1Id,
+                        false
+                );
+
+                successCount.incrementAndGet();
+
+            } catch (Exception e) {
+                failCount.incrementAndGet();
+            }
+        };
+
+        Runnable user2Task = () -> {
+            try {
+                startTogether.await();
+
+                purchaseDomainService.selectSittingTickets(
+                        eventId,
+                        List.of(ticketId),
+                        user2Id,
+                        false
+                );
+
+                successCount.incrementAndGet();
+
+            } catch (Exception e) {
+                failCount.incrementAndGet();
+            }
+        };
+
+        Thread t1 = new Thread(user1Task);
+        Thread t2 = new Thread(user2Task);
+
+        t1.start();
+        t2.start();
+
+        startTogether.countDown();
+
+        t1.join();
+        t2.join();
+
+        assertEquals(1, successCount.get());
+        assertEquals(1, failCount.get());
+
+        ActivePurchase p1 = purchaseRepository.findByUserID(user1Id);
+        ActivePurchase p2 = purchaseRepository.findByUserID(user2Id);
+
+        int purchasesWithTicket = 0;
+
+        if (p1 != null && p1.getTicketIDs().containsKey(ticketId)) {
+            purchasesWithTicket++;
+        }
+
+        if (p2 != null && p2.getTicketIDs().containsKey(ticketId)) {
+            purchasesWithTicket++;
+        }
+
+        assertEquals(1, purchasesWithTicket);
+
+        assertEquals(
+                org.example.DomainLayer.EventAggregate.TicketStatus.RESERVED,
+                event.getTicket(ticketId).getStatus()
+        );
+    }
+
     private static class FakeHistoryRepository implements IHistoryRepository {
 
         private final List<PurchaseHistory> history = new ArrayList<>();
@@ -1088,6 +1195,8 @@ public class PurchaseDomainServiceTest {
             return false;
         }
     }
+
+
 
     private static class FakePurchaseRepository implements IPurchaseRepository {
 
