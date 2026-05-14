@@ -213,7 +213,7 @@ public class EventTest {
 
         event.addOvertDiscount(LocalDate.now(), LocalDate.now().plusDays(7), 20.0f);
 
-        var discounts = event.getDiscountPolicy().gDiscountRules();
+        var discounts = event.getDiscountPolicy().getDiscountRules();
         assertEquals(1, discounts.size());
         assertTrue("the registered discount must be of type OvertDiscount",
                 discounts.get(0) instanceof OvertDiscount);
@@ -226,7 +226,7 @@ public class EventTest {
         event.addConditionalDiscount(
                 LocalDate.now(), LocalDate.now().plusDays(7), 10f, 3, 2);
 
-        assertEquals(1, event.getDiscountPolicy().gDiscountRules().size());
+        assertEquals(1, event.getDiscountPolicy().getDiscountRules().size());
     }
 
     @Test
@@ -236,19 +236,19 @@ public class EventTest {
         event.addCouponCode(
                 LocalDate.now(), LocalDate.now().plusDays(7), 25f, "SUMMER25");
 
-        assertEquals(1, event.getDiscountPolicy().gDiscountRules().size());
+        assertEquals(1, event.getDiscountPolicy().getDiscountRules().size());
     }
 
     @Test
     public void GivenEventWithOvertDiscount_WhenRemoveDiscountById_ThenDiscountIsRemoved() {
         Event event = activeEvent();
         event.addOvertDiscount(LocalDate.now(), LocalDate.now().plusDays(7), 20.0f);
-        IDiscountRule existing = event.getDiscountPolicy().gDiscountRules().get(0);
+        IDiscountRule existing = event.getDiscountPolicy().getDiscountRules().get(0);
         UUID discountId = existing.getId();
 
         event.removeDiscount(discountId);
 
-        assertTrue(event.getDiscountPolicy().gDiscountRules().isEmpty());
+        assertTrue(event.getDiscountPolicy().getDiscountRules().isEmpty());
     }
 
     // ---------------------------------------------------------------------

@@ -345,7 +345,7 @@ public class CompanyServiceTest {
 		companyService.addOvertDiscount("founderUser", companyId, startDate, endDate, discountAmount);
 
 		// Assert
-		var discounts = realCompany.getDiscountPolicy().gDiscountRules();
+		var discounts = realCompany.getDiscountPolicy().getDiscountRules();
 		assertEquals("Discount rule should be added", 1, discounts.size());
 		assertTrue("Rule should be an OvertDiscount", discounts.get(0) instanceof OvertDiscount);
 	}
@@ -401,7 +401,7 @@ public class CompanyServiceTest {
 		companyService.addOvertDiscount("founderUser", companyId, LocalDate.now(), LocalDate.now().plusDays(10), 20.0f);
 
 		// 2. Retrieve the rules to get the specific ID of the first one
-		var discounts = realCompany.getDiscountPolicy().gDiscountRules();
+		var discounts = realCompany.getDiscountPolicy().getDiscountRules();
 		assertEquals("Should have 2 discounts initially", 2, discounts.size());
 		UUID firstDiscountId = discounts.get(0).getId();
 
@@ -411,7 +411,7 @@ public class CompanyServiceTest {
 		rolesDomainService.removeDiscount("founderUser", companyId, firstDiscountId);
 
 		// Assert
-		var remainingDiscounts = realCompany.getDiscountPolicy().gDiscountRules();
+		var remainingDiscounts = realCompany.getDiscountPolicy().getDiscountRules();
 		assertEquals("Should have only 1 discount left", 1, remainingDiscounts.size());
 
 		// Verify the remaining discount is NOT the one we deleted
