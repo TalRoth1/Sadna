@@ -1,13 +1,18 @@
 package org.example.DomainLayer.CompanyAggregate;
 
 import org.example.DomainLayer.PolicyManagment.AgeRule;
+import org.example.DomainLayer.PolicyManagment.ConditionalDiscount;
+import org.example.DomainLayer.PolicyManagment.CouponCode;
 import org.example.DomainLayer.PolicyManagment.LoneSeatRule;
 import org.example.DomainLayer.PolicyManagment.MaxTicketRule;
 import org.example.DomainLayer.PolicyManagment.MinTicketRule;
+import org.example.DomainLayer.PolicyManagment.OvertDiscount;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.time.LocalDate;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.junit.Assert.*;
 
@@ -92,5 +97,85 @@ public class CompanyTest {
         // Assert
         assertTrue("Policy should still be empty without throwing errors", 
                    company.getPurchasePolicy().getRulesView().isEmpty());
+    }
+    @Test
+    public void testAddOvertDiscount_PersistsCorrectly() {
+        // Arrange
+        LocalDate start = LocalDate.now();
+        LocalDate end = LocalDate.now().plusDays(5);
+        float percent = 15.0f;
+
+        // Act
+        company.addOvertDiscount(start, end, percent);
+
+        // Assert
+        var rules = company.getDiscountPolicy().getDiscountRules();
+        assertEquals("Should have 1 overt discount rule", 1, rules.size());
+        assertTrue(rules.get(0) instanceof OvertDiscount);
+        
+        OvertDiscount rule = (OvertDiscount) rules.get(0);
+        assertEquals(percent, rule.getDiscountPercent(), 0.001);
+    }
+
+    @Test
+    public void testAddConditionalDiscount_PersistsCorrectly() {
+        // Arrange
+        LocalDate start = LocalDate.now();
+        LocalDate end = LocalDate.now().plusDays(10);
+        float percent = 50.0f;
+        int required = 3;
+        int applied = 1;
+
+        // Act
+        company.addConditionalDiscount(start, end, percent, required, applied);
+
+        // Assert
+        var rules = company.getDiscountPolicy().getDiscountRules();
+        assertEquals("Should have 1 conditional discount rule", 1, rules.size());
+        assertTrue(rules.get(0) instanceof ConditionalDiscount);
+    }
+
+    @Test
+    public void testAddCouponCode_PersistsCorrectly() {
+        // Arrange
+        String code = "SUMMER2026";
+        
+        // Act
+        company.addCouponCode(LocalDate.now(), LocalDate.now().plusMonths(1), 10.0f, code);
+
+        // Assert
+        var rules = company.getDiscountPolicy().getDiscountRules();
+        assertEquals(1, rules.size());
+        assertTrue(rules.get(0) instanceof CouponCode);
+        
+        CouponCode rule = (CouponCode) rules.get(0);
+        assertEquals(code, rule.getCode());
+    }
+
+    @Test
+    public void testRemoveDiscount_SuccessfullyDeletesRule() {
+        // Arrange: Add a discount and get its generated ID
+        company.addOvertDiscount(LocalDate.now(), LocalDate.now().plusDays(1), 10.0f);
+        var rulesBefore = company.getDiscountPolicy().getDiscountRules();
+        UUID discountId = rulesBefore.get(0).getId(); // Assuming your Discount rules have getId()
+        assertEquals(1, rulesBefore.size());
+
+        // Act
+        company.removeDiscount(discountId);
+
+        // Assert
+        assertTrue("Discount policy should be empty after removal", 
+                   company.getDiscountPolicy().getDiscountRules().isEmpty());
+    }
+
+    @Test
+    public void testAddMultipleDiscounts_AccumulatesInPolicy() {
+        // Act
+        company.addOvertDiscount(LocalDate.now(), LocalDate.now().plusDays(1), 5.0f);
+        company.addCouponCode(LocalDate.now(), LocalDate.now().plusDays(1), 10.0f, "PROMO");
+
+        // Assert
+        var rules = company.getDiscountPolicy().getDiscountRules();
+        assertEquals("Policy should contain both discounts", 2, rules.size());
     }
 }

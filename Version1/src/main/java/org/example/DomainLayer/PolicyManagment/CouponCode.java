@@ -26,6 +26,11 @@ public class CouponCode implements IDiscountRule {
         return this.id;
     }
 
+    public String getCode()
+    {
+        return this.couponCode;
+    }
+
     public float apply(ActivePurchase purchase) 
     {
         if(!purchase.getCoupon().equals(couponCode) || LocalDate.now().isBefore(fromDate) || LocalDate.now().isAfter(toDate))

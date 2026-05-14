@@ -539,7 +539,7 @@ public class EventServiceTest {
     public void GivenExistingDiscountId_WhenRemoveDiscount_ThenGetEventDetailsReportsNoDiscount() {
         Event event = newRealEvent();
         event.addOvertDiscount(LocalDate.now(), LocalDate.now().plusDays(7), 10f);
-        IDiscountRule existing = event.getDiscountPolicy().gDiscountRules().get(0);
+        IDiscountRule existing = event.getDiscountPolicy().getDiscountRules().get(0);
         UUID realDiscountId = existing.getId();
         stubAuthorizedRepositories(event);
 

@@ -168,40 +168,92 @@ public class CompanyService {
             throw e;
         }
     }
-    public void addOvertDiscount(String username ,UUID companyId ,LocalDate fromDate, LocalDate toDate, float discountPrecent)
-    {
-        if(toDate.isBefore(LocalDate.now()))
-            throw new IllegalArgumentException("toDate is before today");
-        if(discountPrecent > 100.0f || discountPrecent < 0.0f)
-            throw new IllegalArgumentException("Discount precent must be between 0 and 100");
-        rolesDomainService.addOvertDiscount(username ,companyId, fromDate, toDate, discountPrecent);
+    public void addOvertDiscount(String username, UUID companyId, LocalDate fromDate, LocalDate toDate, float discountPrecent) {
+        logger.info("User '" + username + "' attempting to add Overt Discount to Company ID: " + companyId + " (" + discountPrecent + "%)");
+
+        try {
+            if (toDate.isBefore(LocalDate.now())) {
+                logger.warning("Overt Discount addition failed: toDate (" + toDate + ") is in the past. User: " + username);
+                throw new IllegalArgumentException("toDate is before today");
+            }
+            if (discountPrecent > 100.0f || discountPrecent < 0.0f) {
+                logger.warning("Overt Discount addition failed: Invalid percentage (" + discountPrecent + "). User: " + username);
+                throw new IllegalArgumentException("Discount precent must be between 0 and 100");
+            }
+
+            rolesDomainService.addOvertDiscount(username, companyId, fromDate, toDate, discountPrecent);
+            logger.info("Successfully added Overt Discount to Company ID: " + companyId + " by user: " + username);
+
+        } catch (Exception e) {
+            logger.severe("Error adding Overt Discount for Company ID: " + companyId + ". Error: " + e.getMessage());
+            throw e;
+        }
     }
 
-    public void addConditionalDiscount(String username, UUID companyId ,LocalDate fromDate, LocalDate toDate, float discountPrecent, int requiredTickets, int appliedTickets)
-    {
-        if(toDate.isBefore(LocalDate.now()))
-            throw new IllegalArgumentException("toDate is before today");
-        if(discountPrecent > 100.0f || discountPrecent < 0.0f)
-            throw new IllegalArgumentException("Discount precent must be between 0 and 100");
-        if(requiredTickets < 0 )
-            throw new IllegalArgumentException("Required tickets must be non negative integers");
-        if(appliedTickets < 0 )
-            throw new IllegalArgumentException("Applied tickets must be non negative integers");
-        rolesDomainService.addConditionalDiscount(username, companyId, fromDate, toDate, discountPrecent, requiredTickets, appliedTickets);
+    public void addConditionalDiscount(String username, UUID companyId, LocalDate fromDate, LocalDate toDate, float discountPrecent, int requiredTickets, int appliedTickets) {
+        logger.info("User '" + username + "' attempting to add Conditional Discount to Company ID: " + companyId + 
+                    " (Buy " + requiredTickets + " get " + appliedTickets + " at " + discountPrecent + "%)");
+
+        try {
+            if (toDate.isBefore(LocalDate.now())) {
+                logger.warning("Conditional Discount addition failed: toDate is in the past. User: " + username);
+                throw new IllegalArgumentException("toDate is before today");
+            }
+            if (discountPrecent > 100.0f || discountPrecent < 0.0f) {
+                logger.warning("Conditional Discount addition failed: Invalid percentage (" + discountPrecent + "). User: " + username);
+                throw new IllegalArgumentException("Discount precent must be between 0 and 100");
+            }
+            if (requiredTickets < 0) {
+                logger.warning("Conditional Discount addition failed: Negative requiredTickets. User: " + username);
+                throw new IllegalArgumentException("Required tickets must be non negative integers");
+            }
+            if (appliedTickets < 0) {
+                logger.warning("Conditional Discount addition failed: Negative appliedTickets. User: " + username);
+                throw new IllegalArgumentException("Applied tickets must be non negative integers");
+            }
+
+            rolesDomainService.addConditionalDiscount(username, companyId, fromDate, toDate, discountPrecent, requiredTickets, appliedTickets);
+            logger.info("Successfully added Conditional Discount to Company ID: " + companyId + " by user: " + username);
+
+        } catch (Exception e) {
+            logger.severe("Error adding Conditional Discount for Company ID: " + companyId + ". Error: " + e.getMessage());
+            throw e;
+        }
     }
 
-    public void addCouponCode(String username, UUID companyId, LocalDate fromDate, LocalDate toDate, float discountPrecent, String code)
-    {
-        if(toDate.isBefore(LocalDate.now()))
-            throw new IllegalArgumentException("toDate is before today");
-        if(discountPrecent > 100.0f || discountPrecent < 0.0f)
-            throw new IllegalArgumentException("Discount precent must be between 0 and 100");
-        rolesDomainService.addCouponCode(username, companyId, fromDate, toDate, discountPrecent, code);
+    public void addCouponCode(String username, UUID companyId, LocalDate fromDate, LocalDate toDate, float discountPrecent, String code) {
+        logger.info("User '" + username + "' attempting to add Coupon Code '" + code + "' to Company ID: " + companyId);
+
+        try {
+            if (toDate.isBefore(LocalDate.now())) {
+                logger.warning("Coupon addition failed: toDate is in the past. User: " + username);
+                throw new IllegalArgumentException("toDate is before today");
+            }
+            if (discountPrecent > 100.0f || discountPrecent < 0.0f) {
+                logger.warning("Coupon addition failed: Invalid percentage. User: " + username);
+                throw new IllegalArgumentException("Discount precent must be between 0 and 100");
+            }
+
+            rolesDomainService.addCouponCode(username, companyId, fromDate, toDate, discountPrecent, code);
+            logger.info("Successfully added Coupon Code '" + code + "' to Company ID: " + companyId + " by user: " + username);
+
+        } catch (Exception e) {
+            logger.severe("Error adding Coupon Code for Company ID: " + companyId + ". Error: " + e.getMessage());
+            throw e;
+        }
     }
-    
-    public void removeDiscount(String username, UUID companyId, UUID discountId)
-    {
-        rolesDomainService.removeDiscount(username, companyId, discountId);
+
+    public void removeDiscount(String username, UUID companyId, UUID discountId) {
+        logger.info("User '" + username + "' attempting to remove Discount ID: " + discountId + " from Company ID: " + companyId);
+
+        try {
+            rolesDomainService.removeDiscount(username, companyId, discountId);
+            logger.info("Successfully removed Discount ID: " + discountId + " from Company ID: " + companyId + " by user: " + username);
+
+        } catch (Exception e) {
+            logger.severe("Failed to remove Discount ID: " + discountId + ". Error: " + e.getMessage());
+            throw e;
+        }
     }
 
     public void rateCompany(UUID userID, UUID companyID, int rating)

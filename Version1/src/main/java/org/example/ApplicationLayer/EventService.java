@@ -440,7 +440,7 @@ public class EventService {
             purchaseRules.add(r.getClass().getSimpleName());
         }
         List<String> discountRules = new ArrayList<>();
-        for (IDiscountRule r : e.getDiscountPolicy().gDiscountRules()) {
+        for (IDiscountRule r : e.getDiscountPolicy().getDiscountRules()) {
             discountRules.add(r.getClass().getSimpleName());
         }
         return new EventDetailsDto(

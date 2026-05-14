@@ -25,6 +25,11 @@ public class OvertDiscount implements IDiscountRule {
         return this.id;
     }
 
+    public float getDiscountPercent()
+    {
+        return this.discountPrecent;
+    }
+
     public float apply(ActivePurchase purchase)
     {
         if (LocalDate.now().isAfter(fromDate) && LocalDate.now().isBefore(toDate))

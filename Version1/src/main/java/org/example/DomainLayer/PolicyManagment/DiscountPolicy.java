@@ -12,7 +12,7 @@ import java.util.UUID;
 public class DiscountPolicy {
     private final List<IDiscountRule> discounts = new ArrayList<IDiscountRule>();
 
-    public List<IDiscountRule> gDiscountRules()
+    public List<IDiscountRule> getDiscountRules()
     {
         return Collections.unmodifiableList(discounts);
     }
@@ -21,9 +21,8 @@ public class DiscountPolicy {
         discounts.add(Objects.requireNonNull(rule));
     }
 
-    public void removeRule(UUID id)
-    {
-        discounts.removeIf(rule -> rule.getId() == id);
+    public void removeRule(UUID id) {
+        discounts.removeIf(rule -> Objects.equals(rule.getId(), id));
     }
 
     public float applyDiscount(ActivePurchase purchase)
