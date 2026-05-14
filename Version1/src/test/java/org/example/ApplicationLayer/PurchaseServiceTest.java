@@ -523,6 +523,7 @@ public class PurchaseServiceTest {
 
     }
     @Test
+    //מקושר להערה מס' 16, שנים מנסים לרכוש את אותו הכרטיס
     public void twoUsersSelectSameSittingTicket_onlyOneSucceeds() throws InterruptedException {
         TestSetup setup = createSetup();
 
@@ -713,7 +714,7 @@ public class PurchaseServiceTest {
 
     //בדיקות רגילות
     @Test
-    public void selectStandingTickets_success()
+    public void selectStandingTickets_whenTicketsAreAvailable_createsActivePurchaseAndReservesTickets()
     {
         TestSetup setup = createSetup();
 
@@ -741,7 +742,7 @@ public class PurchaseServiceTest {
         assertEquals(TicketStatus.RESERVED, event.getTicket(ticketId).getStatus());
     }
     @Test
-    public void selectStandingTickets_failure()
+    public void selectStandingTickets_whenRequestedAmountExceedsAvailableTickets_throwsExceptionAndDoesNotCreatePurchase()
     {
         TestSetup setup = createSetup();
 
@@ -766,7 +767,7 @@ public class PurchaseServiceTest {
         assertNull(activePurchase);
     }
     @Test
-    public void completePurchase_success()
+    public void completePurchase_whenPaymentSucceeds_marksTicketsAsSoldAndRemovesActivePurchase()
     {
         TestSetup setup = createSetup();
 
@@ -815,7 +816,7 @@ public class PurchaseServiceTest {
 
     }
     @Test
-    public void completePurchase_failure()
+    public void completePurchase_whenPaymentIsRejected_throwsExceptionAndKeepsPurchaseActive()
     {
         TestSetup setup = createSetup();
 
@@ -856,7 +857,7 @@ public class PurchaseServiceTest {
         assertThrows(IllegalStateException.class, () -> setup.purchaseService.completePurchase(activePurchase.getActivePurchaseId(), new PaymentDetails(), null));
     }
     @Test
-    public void cancelPurchase_success()
+    public void cancelActivePurchase_whenPurchaseExists_releasesTicketsAndDeletesPurchase()
     {
         TestSetup setup = createSetup();
 
@@ -887,7 +888,7 @@ public class PurchaseServiceTest {
         assertEquals(TicketStatus.AVAILABLE, event.getTicket(ticketId).getStatus());
     }
     @Test
-    public void cancelPurchase_failure()
+    public void cancelActivePurchase_whenPurchaseDoesNotExist_throwsException()
     {
         TestSetup setup = createSetup();
 
@@ -898,7 +899,7 @@ public class PurchaseServiceTest {
         );
     }
     @Test
-    public void updateActivePurchase_success()
+    public void updateActivePurchaseSittingTickets_whenNewTicketsAreAvailable_replacesReservedTickets()
     {
         TestSetup setup = createSetup();
 
@@ -937,7 +938,7 @@ public class PurchaseServiceTest {
         assertEquals(TicketStatus.RESERVED, event.getTicket(newTicketId).getStatus());
     }
     @Test
-    public void updateActivePurchase_failure()
+    public void updateActivePurchaseSittingTickets_whenNewTicketIsAlreadyReserved_throwsExceptionAndKeepsOriginalTickets()
     {
         TestSetup setup = createSetup();
 
