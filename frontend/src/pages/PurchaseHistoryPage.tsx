@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getPurchaseHistory } from "../services/purchaseHistoryService";
 import type { PurchaseHistoryItem } from "../types/purchase";
+import { getCurrentUser } from "../services/currentUserService";
 
 function formatEventDate(date: string) {
     const eventDate = new Date(date);
@@ -53,7 +54,8 @@ export default function PurchaseHistoryPage() {
                 setIsLoading(true);
                 setErrorMessage("");
 
-                const purchaseHistory = await getPurchaseHistory();
+                const currentUser = await getCurrentUser();
+                const purchaseHistory = await getPurchaseHistory(currentUser.id);
                 setPurchases(purchaseHistory);
             } catch {
                 setErrorMessage("Failed to load purchase history.");
