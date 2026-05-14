@@ -157,6 +157,13 @@ public class PurchaseDomainService {
             event.sellTickets(activePurchase.getTicketIDs().keySet());
             purchaseRepository.deleteByID(activePurchaseID);
 
+            Payment payment = new Payment(finalPrice, "Valid payment");
+            addPurchaseToHistory(
+                    activePurchase.getUserID(),
+                    new ArrayList<>(activePurchase.getTicketIDs().keySet()),
+                    activePurchase.getEventID(),
+                    payment
+            );
         }
 
     }
@@ -309,6 +316,8 @@ public class PurchaseDomainService {
         }
     }
 
+
+
     public ActivePurchase viewActivePurchase(UUID activePurchaseId) {
         ActivePurchase activePurchase = purchaseRepository.findByID(activePurchaseId);
         if (activePurchase == null) {
@@ -387,7 +396,7 @@ public class PurchaseDomainService {
 
     public boolean checkLastUpdate(ActivePurchase activePurchase)
     {
-        return ChronoUnit.MINUTES.between(LocalDateTime.now(), activePurchase.getLastUpdate()) <= activePurchase.getMaxWaitTime();
+        return ChronoUnit.MINUTES.between(activePurchase.getLastUpdate(), LocalDateTime.now()) <= activePurchase.getMaxWaitTime();
     }
 
     public void registerToLottery(UUID eventId, UUID memberId, int ticketAmount) {

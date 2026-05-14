@@ -55,6 +55,89 @@ public class PurchaseDomainServiceTest {
     }
 
     @Test
+    public void completePurchase_whenPaymentFails_preservesInvariants() {
+        UUID eventId = UUID.randomUUID();
+        UUID companyId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID areaId = UUID.randomUUID();
+        UUID ticketId = UUID.randomUUID();
+
+        Event event = event(eventId, companyId);
+
+        event.getLayout().addArea(
+                new org.example.DomainLayer.EventAggregate.SittingArea(areaId, 100f)
+        );
+
+        event.addTicket(
+                new org.example.DomainLayer.EventAggregate.SittingTicket(
+                        ticketId,
+                        eventId,
+                        areaId,
+                        100f,
+                        1,
+                        1
+                )
+        );
+
+        eventRepository.save(event);
+
+        userRepository.add(
+                new User(userId, "user", "mail", "pass", 20)
+        );
+
+        purchaseDomainService.selectSittingTickets(
+                eventId,
+                List.of(ticketId),
+                userId,
+                true
+        );
+
+        ActivePurchase purchase =
+                purchaseRepository.findByUserID(userId);
+
+        final boolean[] ticketingWasCalled = {false};
+
+        purchaseDomainService.setPaymentGateway(
+                (uid, amount, details) -> false
+        );
+
+        purchaseDomainService.setTicketingGateway(
+                (uid, eid, ticketIds) -> ticketingWasCalled[0] = true
+        );
+
+        assertThrows(
+                DomainException.class,
+                () -> purchaseDomainService.completePurchase(
+                        purchase.getActivePurchaseId(),
+                        new org.example.ApplicationLayer.PaymentDetails(),
+                        null
+                )
+        );
+
+        // ticketing לא נקרא
+        assertFalse(ticketingWasCalled[0]);
+
+        // ה-active purchase עדיין קיים
+        assertNotNull(
+                purchaseRepository.findByID(
+                        purchase.getActivePurchaseId()
+                )
+        );
+
+        // הכרטיס לא נמכר
+        assertEquals(
+                org.example.DomainLayer.EventAggregate.TicketStatus.RESERVED,
+                event.getTicket(ticketId).getStatus()
+        );
+
+        // לא נוספה היסטוריה
+        assertTrue(
+                historyRepository.getByUserId(userId).isEmpty()
+        );
+    }
+
+
+    @Test
     public void getAllHistory_whenPurchasesExist_returnsAllPurchasesWithoutFiltering() {
         PurchaseHistory firstPurchase = purchase(UUID.randomUUID(), UUID.randomUUID(), 100);
         PurchaseHistory secondPurchase = purchase(UUID.randomUUID(), UUID.randomUUID(), 200);
@@ -274,6 +357,71 @@ public class PurchaseDomainServiceTest {
     }
 
     @Test
+    public void completePurchase_whenPaymentFails_doesNotCallTicketingGateway() {
+        UUID eventId = UUID.randomUUID();
+        UUID companyId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID areaId = UUID.randomUUID();
+        UUID ticketId = UUID.randomUUID();
+
+        Event event = event(eventId, companyId);
+
+        event.getLayout().addArea(
+                new org.example.DomainLayer.EventAggregate.SittingArea(areaId, 100f)
+        );
+
+        event.addTicket(
+                new org.example.DomainLayer.EventAggregate.SittingTicket(
+                        ticketId,
+                        eventId,
+                        areaId,
+                        100f,
+                        1,
+                        1
+                )
+        );
+
+        eventRepository.save(event);
+
+        userRepository.add(
+                new User(userId, "user", "mail", "pass", 20)
+        );
+
+        purchaseDomainService.selectSittingTickets(
+                eventId,
+                List.of(ticketId),
+                userId,
+                true
+        );
+
+        ActivePurchase purchase =
+                purchaseRepository.findByUserID(userId);
+
+        final boolean[] ticketingWasCalled = {false};
+
+        purchaseDomainService.setPaymentGateway(
+                (uid, amount, details) -> false
+        );
+
+        purchaseDomainService.setTicketingGateway(
+                (uid, eid, ticketIds) -> ticketingWasCalled[0] = true
+        );
+
+        assertThrows(
+                DomainException.class,
+                () -> purchaseDomainService.completePurchase(
+                        purchase.getActivePurchaseId(),
+                        new org.example.ApplicationLayer.PaymentDetails(),
+                        null
+                )
+        );
+
+        assertFalse(ticketingWasCalled[0]);
+    }
+
+
+
+    @Test
     public void isCompanyOwnerOfEvent_whenUserIsOwnerOfEventCompany_returnsTrue() {
         String ownerName = "owner";
         UUID companyId = UUID.randomUUID();
@@ -383,6 +531,433 @@ public class PurchaseDomainServiceTest {
         );
     }
 
+    @Test
+    public void selectSittingTickets_whenTicketsAreAvailable_createsActivePurchaseAndReservesTickets() {
+        UUID eventId = UUID.randomUUID();
+        UUID companyId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID areaId = UUID.randomUUID();
+        UUID ticketId = UUID.randomUUID();
+
+        Event event = event(eventId, companyId);
+        event.getLayout().addArea(new org.example.DomainLayer.EventAggregate.SittingArea(areaId, 100f));
+        event.addTicket(new org.example.DomainLayer.EventAggregate.SittingTicket(ticketId, eventId, areaId, 100f, 1, 1));
+        eventRepository.save(event);
+
+        purchaseDomainService.selectSittingTickets(eventId, List.of(ticketId), userId, true);
+
+        ActivePurchase purchase = purchaseRepository.findByUserID(userId);
+
+        assertNotNull(purchase);
+        assertEquals(eventId, purchase.getEventID());
+        assertTrue(purchase.getTicketIDs().containsKey(ticketId));
+        assertTrue(purchase.getGuestAgeConfirmed());
+        assertEquals(org.example.DomainLayer.EventAggregate.TicketStatus.RESERVED,
+                event.getTicket(ticketId).getStatus());
+    }
+
+    @Test
+    public void selectSittingTickets_whenUserAlreadyHasActivePurchase_throwsException() {
+        UUID userId = UUID.randomUUID();
+        UUID eventId = UUID.randomUUID();
+
+        ActivePurchase existingPurchase = new ActivePurchase(
+                userId,
+                eventId,
+                new LinkedHashMap<>(),
+                LocalDateTime.now().plusMinutes(10)
+        );
+
+        purchaseRepository.save(existingPurchase);
+
+        assertThrows(DomainException.class, () ->
+                purchaseDomainService.selectSittingTickets(
+                        eventId,
+                        List.of(UUID.randomUUID()),
+                        userId,
+                        false
+                )
+        );
+    }
+
+    @Test
+    public void selectStandingTickets_whenTicketsAreAvailable_createsActivePurchaseAndReservesTickets() {
+        UUID eventId = UUID.randomUUID();
+        UUID companyId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID areaId = UUID.randomUUID();
+
+        Event event = event(eventId, companyId);
+        event.getLayout().addArea(new org.example.DomainLayer.EventAggregate.StandingArea(areaId, 100f));
+        event.addStandingTickets(areaId, 2);
+        eventRepository.save(event);
+
+        purchaseDomainService.selectStandingTickets(eventId, 1, userId, areaId, false);
+
+        ActivePurchase purchase = purchaseRepository.findByUserID(userId);
+
+        assertNotNull(purchase);
+        assertEquals(eventId, purchase.getEventID());
+        assertEquals(1, purchase.getTicketIDs().size());
+        assertFalse(purchase.getGuestAgeConfirmed());
+    }
+
+
+
+    @Test
+    public void completePurchase_whenPaymentAndTicketingSucceed_sellsTicketsAndDeletesActivePurchase() {
+        UUID eventId = UUID.randomUUID();
+        UUID companyId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID areaId = UUID.randomUUID();
+        UUID ticketId = UUID.randomUUID();
+
+        Event event = event(eventId, companyId);
+        event.getLayout().addArea(new org.example.DomainLayer.EventAggregate.SittingArea(areaId, 100f));
+        event.addTicket(new org.example.DomainLayer.EventAggregate.SittingTicket(ticketId, eventId, areaId, 100f, 1, 1));
+        eventRepository.save(event);
+
+        purchaseDomainService.selectSittingTickets(eventId, List.of(ticketId), userId, true);
+        ActivePurchase purchase = purchaseRepository.findByUserID(userId);
+
+        userRepository.add(new User(userId, "user", "mail", "pass", 20));
+
+        purchaseDomainService.setPaymentGateway((uid, amount, details) -> true);
+        purchaseDomainService.setTicketingGateway((uid, eid, ticketIds) -> {});
+
+        purchaseDomainService.completePurchase(
+                purchase.getActivePurchaseId(),
+                new org.example.ApplicationLayer.PaymentDetails(),
+                null
+        );
+
+        assertNull(purchaseRepository.findByID(purchase.getActivePurchaseId()));
+        assertEquals(org.example.DomainLayer.EventAggregate.TicketStatus.SOLD,
+                event.getTicket(ticketId).getStatus());
+    }
+
+    @Test
+    public void completePurchase_whenPaymentAndTicketingSucceed_addsPurchaseToHistory() {
+        UUID eventId = UUID.randomUUID();
+        UUID companyId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID areaId = UUID.randomUUID();
+        UUID ticketId = UUID.randomUUID();
+
+        Event event = event(eventId, companyId);
+        event.getLayout().addArea(new org.example.DomainLayer.EventAggregate.SittingArea(areaId, 100f));
+        event.addTicket(new org.example.DomainLayer.EventAggregate.SittingTicket(ticketId, eventId, areaId, 100f, 1, 1));
+        eventRepository.save(event);
+
+        userRepository.add(new User(userId, "user", "mail", "pass", 20));
+
+        purchaseDomainService.selectSittingTickets(eventId, List.of(ticketId), userId, true);
+        ActivePurchase purchase = purchaseRepository.findByUserID(userId);
+
+        purchaseDomainService.setPaymentGateway((uid, amount, details) -> true);
+        purchaseDomainService.setTicketingGateway((uid, eid, ticketIds) -> {});
+
+        purchaseDomainService.completePurchase(
+                purchase.getActivePurchaseId(),
+                new org.example.ApplicationLayer.PaymentDetails(),
+                null
+        );
+
+        List<PurchaseHistory> history = historyRepository.getByUserId(userId);
+
+        assertEquals(1, history.size());
+        assertEquals(userId, history.get(0).getUserId());
+        assertEquals(eventId, history.get(0).getEventId());
+        assertTrue(history.get(0).getTicketIds().contains(ticketId));
+    }
+
+    @Test
+    public void completePurchase_whenPaymentFails_doesNotAddPurchaseToHistory() {
+        UUID eventId = UUID.randomUUID();
+        UUID companyId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID areaId = UUID.randomUUID();
+        UUID ticketId = UUID.randomUUID();
+
+        Event event = event(eventId, companyId);
+        event.getLayout().addArea(new org.example.DomainLayer.EventAggregate.SittingArea(areaId, 100f));
+        event.addTicket(new org.example.DomainLayer.EventAggregate.SittingTicket(ticketId, eventId, areaId, 100f, 1, 1));
+        eventRepository.save(event);
+
+        userRepository.add(new User(userId, "user", "mail", "pass", 20));
+
+        purchaseDomainService.selectSittingTickets(eventId, List.of(ticketId), userId, true);
+        ActivePurchase purchase = purchaseRepository.findByUserID(userId);
+
+        purchaseDomainService.setPaymentGateway((uid, amount, details) -> false);
+        purchaseDomainService.setTicketingGateway((uid, eid, ticketIds) ->
+                fail("Ticketing should not be called when payment fails")
+        );
+
+        assertThrows(DomainException.class, () ->
+                purchaseDomainService.completePurchase(
+                        purchase.getActivePurchaseId(),
+                        new org.example.ApplicationLayer.PaymentDetails(),
+                        null
+                )
+        );
+
+        assertTrue(historyRepository.getByUserId(userId).isEmpty());
+    }
+
+    @Test
+    public void completePurchase_whenTicketingFails_doesNotAddPurchaseToHistory() {
+        UUID eventId = UUID.randomUUID();
+        UUID companyId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID areaId = UUID.randomUUID();
+        UUID ticketId = UUID.randomUUID();
+
+        Event event = event(eventId, companyId);
+        event.getLayout().addArea(new org.example.DomainLayer.EventAggregate.SittingArea(areaId, 100f));
+        event.addTicket(new org.example.DomainLayer.EventAggregate.SittingTicket(ticketId, eventId, areaId, 100f, 1, 1));
+        eventRepository.save(event);
+
+        userRepository.add(new User(userId, "user", "mail", "pass", 20));
+
+        purchaseDomainService.selectSittingTickets(eventId, List.of(ticketId), userId, true);
+        ActivePurchase purchase = purchaseRepository.findByUserID(userId);
+
+        purchaseDomainService.setPaymentGateway((uid, amount, details) -> true);
+        purchaseDomainService.setTicketingGateway((uid, eid, ticketIds) -> {
+            throw new DomainException("Ticketing failed");
+        });
+
+        assertThrows(DomainException.class, () ->
+                purchaseDomainService.completePurchase(
+                        purchase.getActivePurchaseId(),
+                        new org.example.ApplicationLayer.PaymentDetails(),
+                        null
+                )
+        );
+
+        assertTrue(historyRepository.getByUserId(userId).isEmpty());
+    }
+
+    @Test
+    public void completePurchase_whenPaymentFails_throwsExceptionAndKeepsPurchaseActive() {
+        UUID eventId = UUID.randomUUID();
+        UUID companyId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID areaId = UUID.randomUUID();
+        UUID ticketId = UUID.randomUUID();
+
+        Event event = event(eventId, companyId);
+        event.getLayout().addArea(new org.example.DomainLayer.EventAggregate.SittingArea(areaId, 100f));
+        event.addTicket(new org.example.DomainLayer.EventAggregate.SittingTicket(ticketId, eventId, areaId, 100f, 1, 1));
+        eventRepository.save(event);
+
+        purchaseDomainService.selectSittingTickets(eventId, List.of(ticketId), userId, true);
+        ActivePurchase purchase = purchaseRepository.findByUserID(userId);
+
+        userRepository.add(new User(userId, "user", "mail", "pass", 20));
+
+        purchaseDomainService.setPaymentGateway((uid, amount, details) -> false);
+        purchaseDomainService.setTicketingGateway((uid, eid, ticketIds) -> fail("Ticketing should not be called when payment fails"));
+
+        assertThrows(DomainException.class, () ->
+                purchaseDomainService.completePurchase(
+                        purchase.getActivePurchaseId(),
+                        new org.example.ApplicationLayer.PaymentDetails(),
+                        null
+                )
+        );
+
+        assertNotNull(purchaseRepository.findByID(purchase.getActivePurchaseId()));
+        assertEquals(org.example.DomainLayer.EventAggregate.TicketStatus.RESERVED,
+                event.getTicket(ticketId).getStatus());
+    }
+
+    @Test
+    public void updateActivePurchaseSittingTickets_whenNewTicketAvailable_replacesTickets() {
+        UUID eventId = UUID.randomUUID();
+        UUID companyId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID areaId = UUID.randomUUID();
+
+        UUID oldTicketId = UUID.randomUUID();
+        UUID newTicketId = UUID.randomUUID();
+
+        Event event = event(eventId, companyId);
+        event.getLayout().addArea(new org.example.DomainLayer.EventAggregate.SittingArea(areaId, 100f));
+        event.addTicket(new org.example.DomainLayer.EventAggregate.SittingTicket(oldTicketId, eventId, areaId, 100f, 1, 1));
+        event.addTicket(new org.example.DomainLayer.EventAggregate.SittingTicket(newTicketId, eventId, areaId, 120f, 1, 2));
+        eventRepository.save(event);
+
+        purchaseDomainService.selectSittingTickets(eventId, List.of(oldTicketId), userId, false);
+        ActivePurchase purchase = purchaseRepository.findByUserID(userId);
+
+        purchaseDomainService.updateActivePurchaseSittingTickets(
+                purchase.getActivePurchaseId(),
+                List.of(newTicketId)
+        );
+
+        ActivePurchase updated = purchaseRepository.findByID(purchase.getActivePurchaseId());
+
+        assertFalse(updated.getTicketIDs().containsKey(oldTicketId));
+        assertTrue(updated.getTicketIDs().containsKey(newTicketId));
+        assertEquals(org.example.DomainLayer.EventAggregate.TicketStatus.AVAILABLE,
+                event.getTicket(oldTicketId).getStatus());
+        assertEquals(org.example.DomainLayer.EventAggregate.TicketStatus.RESERVED,
+                event.getTicket(newTicketId).getStatus());
+    }
+
+    @Test
+    public void updateActivePurchaseStandingTickets_whenNewAmountAvailable_replacesTickets() {
+        UUID eventId = UUID.randomUUID();
+        UUID companyId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID areaId = UUID.randomUUID();
+
+        Event event = event(eventId, companyId);
+        event.getLayout().addArea(new org.example.DomainLayer.EventAggregate.StandingArea(areaId, 100f));
+        event.addStandingTickets(areaId, 3);
+        eventRepository.save(event);
+
+        purchaseDomainService.selectStandingTickets(eventId, 1, userId, areaId, false);
+        ActivePurchase purchase = purchaseRepository.findByUserID(userId);
+
+        purchaseDomainService.updateActivePurchaseStandingTickets(
+                purchase.getActivePurchaseId(),
+                2,
+                areaId
+        );
+
+        ActivePurchase updated = purchaseRepository.findByID(purchase.getActivePurchaseId());
+
+        assertEquals(2, updated.getTicketIDs().size());
+    }
+
+    @Test
+    public void cancelActivePurchase_whenPurchaseExists_releasesTicketsAndDeletesPurchase() {
+        UUID eventId = UUID.randomUUID();
+        UUID companyId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID areaId = UUID.randomUUID();
+        UUID ticketId = UUID.randomUUID();
+
+        Event event = event(eventId, companyId);
+        event.getLayout().addArea(new org.example.DomainLayer.EventAggregate.SittingArea(areaId, 100f));
+        event.addTicket(new org.example.DomainLayer.EventAggregate.SittingTicket(ticketId, eventId, areaId, 100f, 1, 1));
+        eventRepository.save(event);
+
+        purchaseDomainService.selectSittingTickets(eventId, List.of(ticketId), userId, false);
+        ActivePurchase purchase = purchaseRepository.findByUserID(userId);
+
+        purchaseDomainService.cancelActivePurchase(purchase.getActivePurchaseId());
+
+        assertNull(purchaseRepository.findByID(purchase.getActivePurchaseId()));
+        assertEquals(org.example.DomainLayer.EventAggregate.TicketStatus.AVAILABLE,
+                event.getTicket(ticketId).getStatus());
+    }
+
+    @Test
+    public void cancelActivePurchase_whenPurchaseDoesNotExist_throwsException() {
+        assertThrows(DomainException.class, () ->
+                purchaseDomainService.cancelActivePurchase(UUID.randomUUID())
+        );
+    }
+
+    @Test
+    public void viewActivePurchase_whenPurchaseExistsAndNotExpired_returnsPurchaseAndUpdatesLastUpdate() throws InterruptedException {
+        UUID eventId = UUID.randomUUID();
+        UUID companyId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID areaId = UUID.randomUUID();
+        UUID ticketId = UUID.randomUUID();
+
+        Event event = event(eventId, companyId);
+        event.getLayout().addArea(new org.example.DomainLayer.EventAggregate.SittingArea(areaId, 100f));
+        event.addTicket(new org.example.DomainLayer.EventAggregate.SittingTicket(ticketId, eventId, areaId, 100f, 1, 1));
+        eventRepository.save(event);
+
+        purchaseDomainService.selectSittingTickets(eventId, List.of(ticketId), userId, false);
+        ActivePurchase purchase = purchaseRepository.findByUserID(userId);
+
+        LocalDateTime before = purchase.getLastUpdate();
+
+        Thread.sleep(2);
+
+        ActivePurchase result = purchaseDomainService.viewActivePurchase(purchase.getActivePurchaseId());
+
+        assertSame(purchase, result);
+        assertTrue(result.getLastUpdate().isAfter(before));
+    }
+
+    @Test
+    public void viewActivePurchase_whenPurchaseDoesNotExist_throwsException() {
+        assertThrows(DomainException.class, () ->
+                purchaseDomainService.viewActivePurchase(UUID.randomUUID())
+        );
+    }
+
+    @Test
+    public void setPaymentGateway_whenCalled_allowsCompletePurchaseToUseGateway() {
+        UUID eventId = UUID.randomUUID();
+        UUID companyId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID areaId = UUID.randomUUID();
+        UUID ticketId = UUID.randomUUID();
+
+        Event event = event(eventId, companyId);
+        event.getLayout().addArea(new org.example.DomainLayer.EventAggregate.SittingArea(areaId, 100f));
+        event.addTicket(new org.example.DomainLayer.EventAggregate.SittingTicket(ticketId, eventId, areaId, 100f, 1, 1));
+        eventRepository.save(event);
+
+        userRepository.add(new User(userId, "user", "mail", "pass", 20));
+
+        purchaseDomainService.selectSittingTickets(eventId, List.of(ticketId), userId, false);
+        ActivePurchase purchase = purchaseRepository.findByUserID(userId);
+
+        purchaseDomainService.setPaymentGateway((uid, amount, details) -> true);
+        purchaseDomainService.setTicketingGateway((uid, eid, ticketIds) -> {});
+
+        purchaseDomainService.completePurchase(
+                purchase.getActivePurchaseId(),
+                new org.example.ApplicationLayer.PaymentDetails(),
+                null
+        );
+
+        assertNull(purchaseRepository.findByID(purchase.getActivePurchaseId()));
+    }
+
+    @Test
+    public void setTicketingGateway_whenCalled_allowsCompletePurchaseToIssueTickets() {
+        UUID eventId = UUID.randomUUID();
+        UUID companyId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID areaId = UUID.randomUUID();
+        UUID ticketId = UUID.randomUUID();
+
+        Event event = event(eventId, companyId);
+        event.getLayout().addArea(new org.example.DomainLayer.EventAggregate.SittingArea(areaId, 100f));
+        event.addTicket(new org.example.DomainLayer.EventAggregate.SittingTicket(ticketId, eventId, areaId, 100f, 1, 1));
+        eventRepository.save(event);
+
+        userRepository.add(new User(userId, "user", "mail", "pass", 20));
+
+        purchaseDomainService.selectSittingTickets(eventId, List.of(ticketId), userId, false);
+        ActivePurchase purchase = purchaseRepository.findByUserID(userId);
+
+        final boolean[] ticketingWasCalled = {false};
+
+        purchaseDomainService.setPaymentGateway((uid, amount, details) -> true);
+        purchaseDomainService.setTicketingGateway((uid, eid, ticketIds) -> ticketingWasCalled[0] = true);
+
+        purchaseDomainService.completePurchase(
+                purchase.getActivePurchaseId(),
+                new org.example.ApplicationLayer.PaymentDetails(),
+                null
+        );
+
+        assertTrue(ticketingWasCalled[0]);
+    }
+
     private static class FakeHistoryRepository implements IHistoryRepository {
 
         private final List<PurchaseHistory> history = new ArrayList<>();
@@ -476,18 +1051,21 @@ public class PurchaseDomainServiceTest {
 
     private static class FakeUserRepository implements IUserRepository {
 
+        private final LinkedHashMap<UUID, User> usersById = new LinkedHashMap<>();
+
         @Override
         public void add(User user) {
+            usersById.put(user.getId(), user);
         }
 
         @Override
         public Optional<User> getUser(UUID UID) {
-            return Optional.empty();
+            return Optional.ofNullable(usersById.get(UID));
         }
 
         @Override
         public boolean exists(UUID userId) {
-            return false;
+            return usersById.containsKey(userId);
         }
 
         @Override
@@ -513,23 +1091,35 @@ public class PurchaseDomainServiceTest {
 
     private static class FakePurchaseRepository implements IPurchaseRepository {
 
+        private final LinkedHashMap<UUID, ActivePurchase> purchasesById = new LinkedHashMap<>();
+
         @Override
         public ActivePurchase findByUserID(UUID userID) {
-            return null;
+            return purchasesById.values().stream()
+                    .filter(p -> p.getUserID().equals(userID))
+                    .findFirst()
+                    .orElse(null);
         }
 
         @Override
         public ActivePurchase findByID(UUID purchaseID) {
-            return null;
+            return purchasesById.get(purchaseID);
         }
 
         @Override
         public void save(ActivePurchase activePurchase) {
+            purchasesById.put(activePurchase.getActivePurchaseId(), activePurchase);
         }
 
         @Override
         public void deleteByID(UUID activePurchaseID) {
+            purchasesById.remove(activePurchaseID);
         }
+        @Override
+        public List<ActivePurchase> findAll() {
+            return new ArrayList<>(purchasesById.values());
+        }
+
     }
 
     private static class FakeLotteryRepository implements ILotteryRepository {

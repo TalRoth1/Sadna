@@ -887,6 +887,8 @@ public class PurchaseServiceTest {
         assertNull(setup.inMemoryPurchaseRepository.findByID(activePurchase.getActivePurchaseId()));
         assertEquals(TicketStatus.AVAILABLE, event.getTicket(ticketId).getStatus());
     }
+
+
     @Test
     public void cancelActivePurchase_whenPurchaseDoesNotExist_throwsException()
     {
@@ -1028,6 +1030,83 @@ public class PurchaseServiceTest {
         assertNull(setup.inMemoryPurchaseRepository.findByUserID(userId));
     }
 
+    //סוף הטיימר, מוחקים את ה-activepurchase שפגי תוקף
+    @Test
+    public void expiredActivePurchaseCleaner_releasesTicketsAndDeletesPurchase() throws InterruptedException {
+        TestSetup setup = createSetup();
+
+        UUID eventId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID companyId = UUID.randomUUID();
+        UUID ticketId = UUID.randomUUID();
+        UUID areaId = UUID.randomUUID();
+
+        Event event = new Event(
+                eventId,
+                companyId,
+                LocalDateTime.now(),
+                "loc",
+                "artist",
+                "type",
+                EventStatus.ACTIVE
+        );
+
+        event.getLayout().addArea(new SittingArea(areaId, 100f));
+
+        SittingTicket ticket = new SittingTicket(
+                ticketId,
+                eventId,
+                areaId,
+                100f,
+                1,
+                1
+        );
+
+        event.addTicket(ticket);
+        setup.inMemoryEventRepository.save(event);
+
+        setup.innMemoryUserRepository.add(
+                new User(userId, "user", "email", "pass", 20)
+        );
+
+        ticket.reserve();
+
+        LinkedHashMap<UUID, Float> ticketPrices = new LinkedHashMap<>();
+        ticketPrices.put(ticketId, 100f);
+
+        ActivePurchase expiredPurchase = new ActivePurchase(
+                userId,
+                eventId,
+                ticketPrices,
+                LocalDateTime.now().minusSeconds(1)
+        );
+
+        setup.inMemoryPurchaseRepository.save(expiredPurchase);
+
+        assertEquals(TicketStatus.RESERVED, event.getTicket(ticketId).getStatus());
+        assertNotNull(setup.inMemoryPurchaseRepository.findByID(
+                expiredPurchase.getActivePurchaseId()
+        ));
+
+        ActivePurchaseCleaner cleaner = new ActivePurchaseCleaner(
+                setup.purchaseService,
+                setup.inMemoryPurchaseRepository
+        );
+
+        cleaner.start();
+
+        Thread.sleep(200);
+
+        cleaner.interrupt();
+        cleaner.join(1000);
+
+        assertNull(setup.inMemoryPurchaseRepository.findByID(
+                expiredPurchase.getActivePurchaseId()
+        ));
+
+        assertEquals(TicketStatus.AVAILABLE, event.getTicket(ticketId).getStatus());
+    }
+
     private static class InMemoryPurchaseRepository implements IPurchaseRepository
     {
         Map<UUID, ActivePurchase> purchasesByID = new LinkedHashMap<>();
@@ -1055,6 +1134,12 @@ public class PurchaseServiceTest {
         @Override
         public void deleteByID(UUID activePurchaseID) {
             purchasesByID.remove(activePurchaseID);
+        }
+
+        @Override
+        public List<ActivePurchase> findAll() {
+            return new ArrayList<>(purchasesByID.values());
+
         }
     }
     private static class InMemoryEventRepository implements IEventRepository
