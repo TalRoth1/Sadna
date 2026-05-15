@@ -2,8 +2,6 @@ package org.example.ApplicationLayer;
 
 import org.example.DomainLayer.*;
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
-import org.example.DomainLayer.ActivePurchaseAggregate.IPaymentGateway;
-import org.example.DomainLayer.ActivePurchaseAggregate.ITicketingGateway;
 import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.DomainLayer.EventAggregate.*;
 import org.example.DomainLayer.LotteryAggregate.PuchaseLottery;
@@ -983,6 +981,52 @@ public class PurchaseServiceTest {
         assertEquals(TicketStatus.RESERVED, event.getTicket(newTicketId).getStatus());
     }
 
+    @Test
+    public void selectSittingTickets_whenEventIsLottery_throwsExceptionAndDoesNotTouchQueue() {
+        // Arrange
+        UUID eventId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        List<UUID> ticketIds = List.of(UUID.randomUUID());
+
+        // מדמים מצב שבו ה-Domain Service מזהה שהאירוע הוא הגרלה
+        when(purchaseDomainServiceMock.isLotteryEvent(eventId)).thenReturn(true);
+
+        // Act & Assert
+        assertThrows(IllegalStateException.class, () ->
+                purchaseService.selectSittingTickets(eventId, ticketIds, userId, false)
+        );
+
+        // ולידציה של Fail-Fast: מוודאים שלא ניגשנו לתור ולא ניסינו לשריין כרטיסים בדומיין
+        verify(queueManagerMock, never()).requestSelectionAccess(any(), any());
+        verify(purchaseDomainServiceMock, never()).selectSittingTickets(any(), any(), any(), anyBoolean());
+    }
+
+    @Test
+    public void selectSittingTickets_withActiveLotteryInSystem_failsPurchase() {
+        // Arrange
+        TestSetup setup = createSetup();
+        UUID eventId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID companyId = UUID.randomUUID();
+
+        // הגדרת הגרלה במערכת לאירוע הזה
+        PuchaseLottery lottery = new PuchaseLottery(
+                UUID.randomUUID(),
+                eventId,
+                LocalDateTime.now().minusDays(1),
+                LocalDateTime.now().plusDays(1)
+        );
+        setup.inMemoryLotteryRepository.save(lottery);
+
+        // Act & Assert
+        assertThrows(IllegalStateException.class, () ->
+                setup.purchaseService.selectSittingTickets(eventId, List.of(UUID.randomUUID()), userId, false)
+        );
+
+        // וידוא שלא נוצר ActivePurchase במאגר
+        assertNull(setup.inMemoryPurchaseRepository.findByUserID(userId));
+    }
+
     private static class InMemoryPurchaseRepository implements IPurchaseRepository
     {
         Map<UUID, ActivePurchase> purchasesByID = new LinkedHashMap<>();
@@ -1125,22 +1169,20 @@ public class PurchaseServiceTest {
             return List.of();
         }
     }
-    public static class InMemoryLotteryRepository implements ILotteryRepository
-    {
+    private static class InMemoryLotteryRepository implements ILotteryRepository {
+        private final Map<UUID, PuchaseLottery> lotteriesByEvent = new HashMap<>();
 
         @Override
         public void save(PuchaseLottery lottery) {
-
+            lotteriesByEvent.put(lottery.getEventId(), lottery);
         }
 
         @Override
-        public PuchaseLottery findByID(UUID lotteryId) {
-            return null;
-        }
+        public PuchaseLottery findByID(UUID lotteryId) { return null; }
 
         @Override
         public PuchaseLottery findByEventID(UUID eventId) {
-            return null;
+            return lotteriesByEvent.get(eventId);
         }
     }
 

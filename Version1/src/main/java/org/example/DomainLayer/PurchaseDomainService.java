@@ -7,15 +7,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.example.ApplicationLayer.IPaymentGateway;
+import org.example.ApplicationLayer.ITicketingGateway;
 import org.example.ApplicationLayer.PaymentDetails;
 import org.example.ApplicationLayer.dto.SalesReport;
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
-import org.example.DomainLayer.ActivePurchaseAggregate.IPaymentGateway;
-import org.example.DomainLayer.ActivePurchaseAggregate.ITicketingGateway;
 import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.DomainLayer.EventAggregate.Event;
 import org.example.DomainLayer.LotteryAggregate.PuchaseLottery;
-import org.example.DomainLayer.PolicyAggregate.DiscountPolicy;
+import org.example.DomainLayer.PolicyManagment.DiscountPolicy;
 import org.example.DomainLayer.PurchaseHistoryAggregate.Payment;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.example.DomainLayer.UserAggregate.User;
@@ -173,13 +173,18 @@ public class PurchaseDomainService {
         return historyRepository.getByEventId(eventId);
     }
 
+
     public List<PurchaseHistory> getHistoryByCompany(UUID companyId) {
+        if (companyId == null) {
+            throw new IllegalArgumentException("Company ID is required");
+        }
+
         List<PurchaseHistory> result = new ArrayList<>();
 
         for (PurchaseHistory history : historyRepository.getAll()) {
             Event event = eventRepository.getById(history.getEventId());
 
-            if (event != null && event.getCompanyId() == companyId) {
+            if (event != null && event.getCompanyId().equals(companyId)) {
                 result.add(history);
             }
         }
@@ -468,5 +473,10 @@ public class PurchaseDomainService {
                 .collect(Collectors.toList());
 
         return new SalesReport(eventsUnderOwner, soldTicketIds, totalRevenue);
+    }
+
+    public boolean isLotteryEvent(UUID eventID)
+    {
+        return lotteryRepository.findByEventID(eventID) != null;
     }
 }

@@ -7,16 +7,21 @@ import java.util.Set;
 import java.util.UUID;
 
 import org.example.DomainLayer.CompanyAggregate.Company;
-import org.example.DomainLayer.CompanyAggregate.CompanyFounder;
-import org.example.DomainLayer.CompanyAggregate.CompanyManager;
-import org.example.DomainLayer.CompanyAggregate.CompanyOwner;
 import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
-import org.example.DomainLayer.CompanyAggregate.ICompanyMember;
+import org.example.DomainLayer.UserAggregate.CompanyFounder;
+import org.example.DomainLayer.UserAggregate.CompanyManager;
+import org.example.DomainLayer.UserAggregate.CompanyOwner;
+import org.example.DomainLayer.UserAggregate.ICompanyMember;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class RolesDomainService {
 
     private final ICompanyRepository companyRepository;
     private final IUserRepository userRepository;
+
+    private final ConcurrentHashMap<UUID, ReentrantLock> companyLocks = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, ReentrantLock> userLocks = new ConcurrentHashMap<>();
 
     public RolesDomainService(ICompanyRepository companyRepository, IUserRepository userRepository) {
         this.companyRepository = companyRepository;
@@ -28,31 +33,36 @@ public class RolesDomainService {
     }
 
     public void closeCompanyAsAdmin(String adminUsername, UUID companyId) {
-
         if (adminUsername == null || adminUsername.isBlank()) {
             throw new IllegalArgumentException("Admin username is required");
         }
 
-        if (!userRepository.isSystemAdmin(adminUsername)) {
-            throw new IllegalArgumentException("User is not system admin");
+        if (companyId == null) {
+            throw new IllegalArgumentException("Company ID is required");
         }
 
-        Company company = companyRepository.findByID(companyId).get();
+        ReentrantLock lock = companyLocks.computeIfAbsent(companyId, key -> new ReentrantLock());
+        lock.lock();
 
-        if (company == null) {
-            throw new IllegalArgumentException("Company not found");
+        try {
+            if (!userRepository.isSystemAdmin(adminUsername)) {
+                throw new IllegalArgumentException("User is not system admin");
+            }
+
+            Company company = companyRepository.findByID(companyId)
+                    .orElseThrow(() -> new IllegalArgumentException("Company not found"));
+
+            if (!company.isActive()) {
+                throw new IllegalStateException("Company already inactive");
+            }
+
+            company.AdminClose();
+            companyRepository.save(company);
+             // TODO: add notification to company members
+
+        } finally {
+            lock.unlock();
         }
-
-        if (!company.isActive()) {
-            throw new IllegalStateException("Company already inactive");
-        }
-
-        company.AdminClose();
-
-        companyRepository.save(company);
-
-        // TODO next step
-        // notificationService.notifyCompanyClosed(...)
     }
 
     public void removeCompanyMemberAsAdmin(String adminUsername, String usernameToRemove) {
@@ -64,24 +74,32 @@ public class RolesDomainService {
             throw new IllegalArgumentException("Username to remove is required");
         }
 
-        if (!userRepository.isSystemAdmin(adminUsername)) {
-            throw new IllegalArgumentException("User is not system admin");
+        ReentrantLock lock = userLocks.computeIfAbsent(usernameToRemove, key -> new ReentrantLock());
+        lock.lock();
+
+        try {
+            if (!userRepository.isSystemAdmin(adminUsername)) {
+                throw new IllegalArgumentException("User is not system admin");
+            }
+
+            List<Company> companies = companyRepository.getCompaniesByMember(usernameToRemove);
+
+            if (companies.isEmpty()) {
+                throw new IllegalArgumentException("User is not assigned to any company");
+            }
+
+            for (Company company : companies) {
+                synchronized (company) {
+                    company.removeMemberAsAdmin(usernameToRemove);
+                    companyRepository.save(company);
+                }
+            }
+            //TODO: add notification to company members
+
+        } finally {
+            lock.unlock();
         }
-
-        List<Company> companies = companyRepository.getCompaniesByMember(usernameToRemove);
-
-        if (companies.isEmpty()) {
-            throw new IllegalArgumentException("User is not assigned to any company");
-        }
-
-        for (Company company : companies) {
-            company.removeMemberAsAdmin(usernameToRemove);
-            companyRepository.save(company);
-        }
-
-        // TODO: notify user after notification mechanism is implemented
     }
-
     public void removeCompanyMemberAsOwner(String ownerUsername, UUID companyId, String usernameToRemove) {
         if (ownerUsername == null || ownerUsername.isBlank()) {
             throw new IllegalArgumentException("Owner username is required");

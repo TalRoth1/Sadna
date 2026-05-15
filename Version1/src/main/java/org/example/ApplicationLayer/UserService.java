@@ -3,14 +3,14 @@ package org.example.ApplicationLayer;
 import org.example.ApplicationLayer.dto.AuthResponse;
 import org.example.ApplicationLayer.dto.LoginRequest;
 import org.example.ApplicationLayer.dto.RegisterRequest;
-import org.example.DomainLayer.IAuthenticationGateway;
 import org.example.DomainLayer.IUserRepository;
 import org.example.DomainLayer.UserAggregate.User;
 
 import java.util.UUID;
+import java.util.logging.Logger;
 
 public class UserService{
-
+    private static final Logger logger = Logger.getLogger(EventService.class.getName());
     private final IUserRepository userRepository;
     private final IAuthenticationGateway authGateway;
 
