@@ -17,7 +17,7 @@ import type { AdminActionId } from "./types/admin";
 import "./App.css";
 
 function App(){
-    const [currentPage, setCurrentPage] = useState<AppPage>("home");
+    const [currentPage, setCurrentPage] = useState<AppPage>("event-search");
 
     function handleAdminNavigate(page: AdminActionId) {
         const adminPageByAction: Record<AdminActionId, AppPage> = {
@@ -32,17 +32,6 @@ function App(){
     }
 
     function renderPage() {
-        if (currentPage === "home") {
-            return (
-                <main className="app-page">
-                    <section className="page-header">
-                        <h1>Home</h1>
-                        <p>Welcome to the event ticket system!</p>
-                    </section>
-                </main>
-            );
-        }
-
         if (currentPage === "event-search") {
             return <EventSearchPage />;
         }

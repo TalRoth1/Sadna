@@ -3,7 +3,6 @@ import { getCurrentUser } from "../services/currentUserService";
 import { verifyPlatformAdmin } from "../services/admin/adminAuthService";
 
 export type AppPage =
-    | "home"
     | "event-search"
     | "user-tickets"
     | "purchase-history"
@@ -23,7 +22,6 @@ type NavigationMenuProps = {
 };
 
 const mainLinks: { page: AppPage; label: string }[] = [
-    { page: "home", label: "Home" },
     { page: "event-search", label: "Event Search" },
     { page: "user-tickets", label: "My Tickets" },
     { page: "purchase-history", label: "Purchase History" },
@@ -75,7 +73,7 @@ export default function NavigationMenu({
                 <button
                     type="button"
                     className="navigation-brand"
-                    onClick={() => handleNavigate("home")}
+                    onClick={() => handleNavigate("event-search")}
                 >
                     Event Tickets
                 </button>
