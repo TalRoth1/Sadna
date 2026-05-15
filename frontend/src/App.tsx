@@ -1,8 +1,8 @@
-import PurchaseHistoryPage from "./pages/PurchaseHistoryPage";
+import EventSearchPage from "./pages/EventSearch/EventSearch";
 import "./App.css";
 
 function App() {
-    return <PurchaseHistoryPage />;
+    return <EventSearchPage />;
 }
 
 export default App;
