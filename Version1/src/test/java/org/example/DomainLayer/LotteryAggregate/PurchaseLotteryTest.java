@@ -23,7 +23,7 @@ public class PurchaseLotteryTest {
     }
 
     @Test
-    void constructor_validInput_createsLottery() {
+    public void constructor_validInput_createsLottery() {
         UUID lotteryId = UUID.randomUUID();
         UUID eventId = UUID.randomUUID();
         LocalDateTime open = LocalDateTime.now();
@@ -40,7 +40,7 @@ public class PurchaseLotteryTest {
     }
 
     @Test
-    void constructor_nullLotteryId_throwsException() {
+    public void constructor_nullLotteryId_throwsException() {
         UUID eventId = UUID.randomUUID();
         LocalDateTime open = LocalDateTime.now();
         LocalDateTime close = open.plusDays(1);
@@ -51,7 +51,7 @@ public class PurchaseLotteryTest {
     }
 
     @Test
-    void constructor_closeBeforeOpen_throwsException() {
+    public void constructor_closeBeforeOpen_throwsException() {
         LocalDateTime open = LocalDateTime.now();
         LocalDateTime close = open.minusHours(1);
 
@@ -61,14 +61,14 @@ public class PurchaseLotteryTest {
     }
 
     @Test
-    void isRegistrationOpen_whenNowInsideRange_returnsTrue() {
+    public void isRegistrationOpen_whenNowInsideRange_returnsTrue() {
         PuchaseLottery lottery = createOpenLottery();
 
         assertTrue(lottery.isRegistrationOpen(LocalDateTime.now()));
     }
 
     @Test
-    void isRegistrationOpen_whenNowAfterClose_returnsFalse() {
+    public void isRegistrationOpen_whenNowAfterClose_returnsFalse() {
         LocalDateTime open = LocalDateTime.now().minusDays(2);
         LocalDateTime close = LocalDateTime.now().minusDays(1);
 
@@ -83,7 +83,7 @@ public class PurchaseLotteryTest {
     }
 
     @Test
-    void registerMember_validInput_registersMemberAndTicketAmount() {
+    public void registerMember_validInput_registersMemberAndTicketAmount() {
         PuchaseLottery lottery = createOpenLottery();
         String memberId = "member1";
 
@@ -95,7 +95,7 @@ public class PurchaseLotteryTest {
     }
 
     @Test
-    void registerMember_duplicateMember_throwsException() {
+    public void registerMember_duplicateMember_throwsException() {
         PuchaseLottery lottery = createOpenLottery();
         String memberId = "member1";
 
@@ -107,7 +107,7 @@ public class PurchaseLotteryTest {
     }
 
     @Test
-    void registerMember_ticketAmountZero_throwsException() {
+    public void registerMember_ticketAmountZero_throwsException() {
         PuchaseLottery lottery = createOpenLottery();
 
         assertThrows(DomainException.class, () ->
@@ -116,7 +116,7 @@ public class PurchaseLotteryTest {
     }
 
     @Test
-    void registerMember_whenRegistrationClosed_throwsException() {
+    public void registerMember_whenRegistrationClosed_throwsException() {
         LocalDateTime open = LocalDateTime.now().minusDays(3);
         LocalDateTime close = LocalDateTime.now().minusDays(2);
 
@@ -133,7 +133,7 @@ public class PurchaseLotteryTest {
     }
 
     @Test
-    void getRequestedTicketAmount_memberNotRegistered_throwsException() {
+    public void getRequestedTicketAmount_memberNotRegistered_throwsException() {
         PuchaseLottery lottery = createOpenLottery();
 
         assertThrows(DomainException.class, () ->
@@ -142,7 +142,7 @@ public class PurchaseLotteryTest {
     }
 
     @Test
-    void addWinner_registeredMember_addsWinner() {
+    public void addWinner_registeredMember_addsWinner() {
         PuchaseLottery lottery = createOpenLottery();
         String memberId = "member1";
 
@@ -154,7 +154,7 @@ public class PurchaseLotteryTest {
     }
 
     @Test
-    void addWinner_unregisteredMember_throwsException() {
+    public void addWinner_unregisteredMember_throwsException() {
         PuchaseLottery lottery = createOpenLottery();
 
         assertThrows(DomainException.class, () ->
@@ -163,7 +163,7 @@ public class PurchaseLotteryTest {
     }
 
     @Test
-    void generateWinnerAccessCode_winnerMember_generatesValidCode() {
+    public void generateWinnerAccessCode_winnerMember_generatesValidCode() {
         PuchaseLottery lottery = createOpenLottery();
         String memberId = "member1";
         LocalDateTime expiry = LocalDateTime.now().plusHours(1);
@@ -179,7 +179,7 @@ public class PurchaseLotteryTest {
     }
 
     @Test
-    void generateWinnerAccessCode_nonWinner_throwsException() {
+    public void generateWinnerAccessCode_nonWinner_throwsException() {
         PuchaseLottery lottery = createOpenLottery();
         String memberId = "member1";
 
@@ -191,7 +191,7 @@ public class PurchaseLotteryTest {
     }
 
     @Test
-    void isAccessCodeValid_afterExpiry_returnsFalse() {
+    public void isAccessCodeValid_afterExpiry_returnsFalse() {
         PuchaseLottery lottery = createOpenLottery();
         String memberId = "member1";
         LocalDateTime expiry = LocalDateTime.now().plusMinutes(1);
@@ -204,7 +204,7 @@ public class PurchaseLotteryTest {
     }
 
     @Test
-    void drawWinners_validInput_drawsWinnersAndGeneratesCodes() {
+    public void drawWinners_validInput_drawsWinnersAndGeneratesCodes() {
         PuchaseLottery lottery = createOpenLottery();
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime expiry = now.plusHours(1);
@@ -225,7 +225,7 @@ public class PurchaseLotteryTest {
     }
 
     @Test
-    void drawWinners_noAvailableTickets_throwsException() {
+    public void drawWinners_noAvailableTickets_throwsException() {
         PuchaseLottery lottery = createOpenLottery();
 
         lottery.registerMember("member1", 1, LocalDateTime.now());
@@ -236,7 +236,7 @@ public class PurchaseLotteryTest {
     }
 
     @Test
-    void drawWinners_noRegisteredUsers_throwsException() {
+    public void drawWinners_noRegisteredUsers_throwsException() {
         PuchaseLottery lottery = createOpenLottery();
 
         assertThrows(DomainException.class, () ->
@@ -245,7 +245,7 @@ public class PurchaseLotteryTest {
     }
 
     @Test
-    void drawWinners_calledTwice_throwsException() {
+    public void drawWinners_calledTwice_throwsException() {
         PuchaseLottery lottery = createOpenLottery();
 
         lottery.registerMember("member1", 1, LocalDateTime.now());
