@@ -14,6 +14,7 @@ import PurchaseHistoryPage from "./pages/PurchaseHistoryPage";
 import EventSearchPage from "./pages/EventSearch/EventSearch";
 import UserProfilePage from "./pages/UserProfilePage";
 import LoginPage from "./pages/LoginPage";
+import RegistrationPage from "./pages/RegistrationPage";
 
 import type { AdminActionId } from "./types/admin";
 import "./App.css";
@@ -39,7 +40,21 @@ function App(){
         }
 
         if (currentPage === "login") {
-            return <LoginPage onLoginSuccess={() => setCurrentPage("event-search")} />;
+            return (
+                <LoginPage
+                    onLoginSuccess={() => setCurrentPage("event-search")}
+                    onNavigateToRegistration={() => setCurrentPage("registration")}
+                />
+            );
+        }
+
+        if (currentPage === "registration") {
+            return (
+                <RegistrationPage
+                    onRegistrationSuccess={() => setCurrentPage("event-search")}
+                    onNavigateToLogin={() => setCurrentPage("login")}
+                />
+            );
         }
 
         if (currentPage === "purchase-history") {
