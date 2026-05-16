@@ -32,7 +32,7 @@ function PlaceholderPage({
 }
 
 function App() {
-    const [currentPage, setCurrentPage] = useState<AppPage>("home");
+    const [currentPage, setCurrentPage] = useState<AppPage>("event-search");
     const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
 
     function navigate(page: AppPage) {
@@ -66,15 +66,6 @@ function App() {
     }
 
     function renderPage() {
-        if (currentPage === "home") {
-            return (
-                <PlaceholderPage
-                    title="Home"
-                    description="Main entry point for the event ticket purchasing system."
-                />
-            );
-        }
-
         if (currentPage === "event-search") {
             return <EventSearchPage onSelectEvent={handleSelectEvent} />;
         }
