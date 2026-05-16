@@ -5,8 +5,11 @@ import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.DomainLayer.EventAggregate.*;
 import org.example.DomainLayer.LotteryAggregate.PuchaseLottery;
+import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.example.DomainLayer.UserAggregate.User;
+import org.example.InfrastructureLayer.Broadcaster;
+import org.example.InfrastructureLayer.WebSocketNotificationSender;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
@@ -17,12 +20,16 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 public class PurchaseServiceTest {
 
     private PurchaseDomainService purchaseDomainServiceMock;
     private PurchaseService purchaseService;
+    private Broadcaster broadcaster;
     
     @Mock
     private QueueManager queueManagerMock;
@@ -31,7 +38,17 @@ public class PurchaseServiceTest {
     public void setUp() {
         queueManagerMock = mock(QueueManager.class);
         purchaseDomainServiceMock = mock(PurchaseDomainService.class);
-        purchaseService = new PurchaseService(purchaseDomainServiceMock, queueManagerMock);
+        broadcaster = new Broadcaster();
+        INotifier notifier =new WebSocketNotificationSender(broadcaster);
+        NotificationService notificationService =new NotificationService(notifier);
+        EventListener eventListener =new EventListener(notificationService);
+        EventPublisher eventPublisher =new EventPublisher();
+        eventPublisher.subscribe(eventListener::handle);
+        purchaseService = new PurchaseService(
+                purchaseDomainServiceMock,
+                eventPublisher,
+                queueManagerMock
+        );
     }
 
     /*
@@ -461,6 +478,7 @@ public class PurchaseServiceTest {
         QueueManager queueManager;
         PurchaseDomainService purchaseDomainService;
         PurchaseService purchaseService;
+        Broadcaster broadcaster;
     }
 
     private TestSetup createSetup()
@@ -475,8 +493,19 @@ public class PurchaseServiceTest {
 
         setup.queueManager = new QueueManager();
         setup.purchaseDomainService = new PurchaseDomainService(setup.inMemoryHistoryRepository, setup.inMemoryEventRepository, setup.inMemoryPurchaseRepository, setup.inMemoryCompanyRepository, setup.innMemoryUserRepository, setup.inMemoryLotteryRepository);
-        setup.purchaseService = new PurchaseService(setup.purchaseDomainService, setup.queueManager);
+        setup.broadcaster = new Broadcaster();
+        INotifier notifier =new WebSocketNotificationSender(setup.broadcaster);
+        NotificationService notificationService =new NotificationService(notifier);
+        EventListener eventListener =new EventListener(notificationService);
+        EventPublisher eventPublisher =new EventPublisher();
+        eventPublisher.subscribe(eventListener::handle);
 
+        setup.purchaseService =
+                new PurchaseService(
+                        setup.purchaseDomainService,
+                        eventPublisher,
+                        setup.queueManager
+                );
         return setup;
     }
 
@@ -1272,6 +1301,58 @@ public class PurchaseServiceTest {
         public PuchaseLottery findByEventID(UUID eventId) {
             return lotteriesByEvent.get(eventId);
         }
+    }
+
+    @Test
+    public void completePurchase_success_publishesNotificationToUser() {
+        TestSetup setup = createSetup();
+
+        UUID eventId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID companyId = UUID.randomUUID();
+        UUID ticketId = UUID.randomUUID();
+        UUID areaID = UUID.randomUUID();
+
+        Event event = new Event(eventId, companyId, LocalDateTime.now(), "loc", "artist", "type", EventStatus.ACTIVE);
+        event.getLayout().addArea(new StandingArea(areaID, 100f));
+        event.addTicket(new StandingTicket(ticketId, eventId, areaID, 100f));
+
+        setup.inMemoryEventRepository.save(event);
+        setup.innMemoryUserRepository.add(new User(userId, "user", "email", "pass", 20));
+
+        setup.purchaseDomainService.setPaymentGateway(new IPaymentGateway() {
+            @Override
+            public boolean pay(UUID userID, float amount, PaymentDetails paymentDetails) {
+                return true;
+            }
+        });
+
+        setup.purchaseDomainService.setTicketingGateway(new ITicketingGateway() {
+            @Override
+            public void issueTickets(UUID userId, UUID eventId, Set<UUID> ticketIds) {
+            }
+        });
+
+        final List<String> receivedMessages = new ArrayList<>();
+
+        setup.broadcaster.register(userId.toString(), message -> {
+            receivedMessages.add(message);
+        });
+
+        setup.purchaseService.selectStandingTickets(eventId, 1, areaID, userId, false);
+
+        ActivePurchase activePurchase = setup.inMemoryPurchaseRepository.findByUserID(userId);
+
+        setup.purchaseService.completePurchase(activePurchase.getActivePurchaseId(), new PaymentDetails(), null);
+
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
+        assertEquals(1, receivedMessages.size());
+        assertEquals("Your purchase was completed successfully.", receivedMessages.get(0));
     }
 
 

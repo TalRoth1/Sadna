@@ -2,22 +2,27 @@ package org.example.ApplicationLayer;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Logger;
 
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 import org.example.DomainLayer.DomainException;
+import org.example.DomainLayer.Events.LotteryWonEvent;
+import org.example.DomainLayer.Events.PurchaseCompletedEvent;
 import org.example.DomainLayer.PurchaseDomainService;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 
 public class PurchaseService {
     private static final Logger logger = Logger.getLogger(PurchaseService.class.getName());
     private final PurchaseDomainService purchaseDomainService;
+    private final EventPublisher eventPublisher;
 
     private final QueueManager queueManager;
 
-    public PurchaseService(PurchaseDomainService purchaseDomainService, QueueManager queueManager) {
+    public PurchaseService(PurchaseDomainService purchaseDomainService, EventPublisher eventPublisher, QueueManager queueManager) {
         this.purchaseDomainService = purchaseDomainService;
+        this.eventPublisher = eventPublisher;
         this.queueManager = queueManager;
     }
 
@@ -64,6 +69,7 @@ public class PurchaseService {
             queueManager.releaseBatch(eventID, 1);
 
             logger.info("Successfully selected sitting tickets for user: " + userID);
+            eventPublisher.publish(new PurchaseCompletedEvent(userID));
 
         } catch (DomainException e)
         {
@@ -124,8 +130,11 @@ public class PurchaseService {
 
         try
         {
+            ActivePurchase activePurchase = purchaseDomainService.viewActivePurchase(activePurchaseID);
+            UUID userId = activePurchase.getUserID();
             purchaseDomainService.completePurchase(activePurchaseID, paymentDetails, couponCode);
             logger.info("Purchase completed successfully for activePurchaseID: " + activePurchaseID);
+            eventPublisher.publish(new PurchaseCompletedEvent(userId));
         }
         catch (DomainException e) {
             logger.severe("Critical failure in completePurchase for ID " + activePurchaseID +
@@ -411,9 +420,13 @@ public class PurchaseService {
         }
 
         try {
-            purchaseDomainService.drawLotteryForEvent(eventId, codeExpiry);
+            Set<String> winners = purchaseDomainService.drawLotteryForEvent(eventId, codeExpiry);
             logger.info("action=drawLotteryForEvent completed successfully"
                 + ", params={eventId=" + eventId + ", codeExpiry=" + codeExpiry + "}");
+
+            for (String winnerId : winners) {
+                eventPublisher.publish(new LotteryWonEvent(winnerId));
+            }
         } catch (DomainException e) {
             logger.severe("action=drawLotteryForEvent failed"
                 + ", caller=system/admin"
