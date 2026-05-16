@@ -374,7 +374,12 @@ public class PurchaseService {
     }
 
     public void registerToLottery(UUID eventId, UUID memberId, int ticketAmount) {
-        if (eventId == null) {
+        logger.info("caller=" + memberId
+            + ", action=registerToLottery"
+            + ", target=PurchaseDomainService.registerToLottery"
+            + ", params={eventId=" + eventId + ", memberId=" + memberId + ", ticketAmount=" + ticketAmount + "}");
+        
+            if (eventId == null) {
             throw new IllegalArgumentException("Event ID is required");
         }
 
@@ -388,12 +393,24 @@ public class PurchaseService {
 
         try {
             purchaseDomainService.registerToLottery(eventId, memberId, ticketAmount);
+            logger.info("action=registerToLottery completed successfully"
+                + ", params={eventId=" + eventId + ", memberId=" + memberId + ", ticketAmount=" + ticketAmount + "}");
         } catch (DomainException e) {
+            logger.severe("action=registerToLottery failed"
+                + ", caller=" + memberId
+                + ", target=PurchaseDomainService.registerToLottery"
+                + ", params={eventId=" + eventId + ", memberId=" + memberId + ", ticketAmount=" + ticketAmount + "}"
+                + ", error=" + e.getMessage());
             throw new IllegalStateException("Couldn't register to lottery: " + e.getMessage());
         }
     }
 
     public void drawLotteryForEvent(UUID eventId, LocalDateTime codeExpiry) {
+        logger.info("caller=system/admin"
+            + ", action=drawLotteryForEvent"
+            + ", target=PurchaseDomainService.drawLotteryForEvent"
+            + ", params={eventId=" + eventId + ", codeExpiry=" + codeExpiry + "}");
+
         if (eventId == null) {
             throw new IllegalArgumentException("Event ID is required");
         }
@@ -404,11 +421,18 @@ public class PurchaseService {
 
         try {
             Set<String> winners = purchaseDomainService.drawLotteryForEvent(eventId, codeExpiry);
+            logger.info("action=drawLotteryForEvent completed successfully"
+                + ", params={eventId=" + eventId + ", codeExpiry=" + codeExpiry + "}");
 
             for (String winnerId : winners) {
                 eventPublisher.publish(new LotteryWonEvent(winnerId));
             }
         } catch (DomainException e) {
+            logger.severe("action=drawLotteryForEvent failed"
+                + ", caller=system/admin"
+                + ", target=PurchaseDomainService.drawLotteryForEvent"
+                + ", params={eventId=" + eventId + ", codeExpiry=" + codeExpiry + "}"
+                + ", error=" + e.getMessage());
             throw new IllegalStateException("Couldn't draw lottery: " + e.getMessage());
         }
     }

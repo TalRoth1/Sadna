@@ -11,6 +11,7 @@ public class QueueManagerTest {
 
 
     @Test
+    //משתמש נכנס לתור כשיש עומס
     public void requestSelectionAccess_whenFull_ReturnsWaiting()
     {
         QueueManager queueManager = new QueueManager();
@@ -34,6 +35,7 @@ public class QueueManagerTest {
     }
 
     @Test
+    //משתמש לא צריך להיכנס לתור כשיש מקום
     public void requestSelectionAccess_whenEmpty_ReturnsAllowed()
     {
         QueueManager queueManager = new QueueManager();
@@ -68,6 +70,7 @@ public class QueueManagerTest {
     }
 
     @Test
+    //משתמש שהיה בתור מקודם לבחירת כרטיסים
     public void releaseBatch_WhenSlotAvailable_ReleasesNextUser()
     {
         QueueManager queueManager = new QueueManager();

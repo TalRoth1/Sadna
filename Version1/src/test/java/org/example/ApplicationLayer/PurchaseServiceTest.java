@@ -552,6 +552,7 @@ public class PurchaseServiceTest {
 
     }
     @Test
+    //מקושר להערה מס' 16, שנים מנסים לרכוש את אותו הכרטיס
     public void twoUsersSelectSameSittingTicket_onlyOneSucceeds() throws InterruptedException {
         TestSetup setup = createSetup();
 
@@ -634,6 +635,8 @@ public class PurchaseServiceTest {
         assertEquals(1, purchasesWithTicket);
         assertEquals(TicketStatus.RESERVED, event.getTicket(ticketId).getStatus());
     }
+
+
 
     @Test
     public void selectSittingTickets_success_consumesQueueAccess() {
@@ -742,7 +745,7 @@ public class PurchaseServiceTest {
 
     //בדיקות רגילות
     @Test
-    public void selectStandingTickets_success()
+    public void selectStandingTickets_whenTicketsAreAvailable_createsActivePurchaseAndReservesTickets()
     {
         TestSetup setup = createSetup();
 
@@ -770,7 +773,7 @@ public class PurchaseServiceTest {
         assertEquals(TicketStatus.RESERVED, event.getTicket(ticketId).getStatus());
     }
     @Test
-    public void selectStandingTickets_failure()
+    public void selectStandingTickets_whenRequestedAmountExceedsAvailableTickets_throwsExceptionAndDoesNotCreatePurchase()
     {
         TestSetup setup = createSetup();
 
@@ -795,7 +798,7 @@ public class PurchaseServiceTest {
         assertNull(activePurchase);
     }
     @Test
-    public void completePurchase_success()
+    public void completePurchase_whenPaymentSucceeds_marksTicketsAsSoldAndRemovesActivePurchase()
     {
         TestSetup setup = createSetup();
 
@@ -844,7 +847,7 @@ public class PurchaseServiceTest {
 
     }
     @Test
-    public void completePurchase_failure()
+    public void completePurchase_whenPaymentIsRejected_throwsExceptionAndKeepsPurchaseActive()
     {
         TestSetup setup = createSetup();
 
@@ -885,7 +888,7 @@ public class PurchaseServiceTest {
         assertThrows(IllegalStateException.class, () -> setup.purchaseService.completePurchase(activePurchase.getActivePurchaseId(), new PaymentDetails(), null));
     }
     @Test
-    public void cancelPurchase_success()
+    public void cancelActivePurchase_whenPurchaseExists_releasesTicketsAndDeletesPurchase()
     {
         TestSetup setup = createSetup();
 
@@ -915,8 +918,10 @@ public class PurchaseServiceTest {
         assertNull(setup.inMemoryPurchaseRepository.findByID(activePurchase.getActivePurchaseId()));
         assertEquals(TicketStatus.AVAILABLE, event.getTicket(ticketId).getStatus());
     }
+
+
     @Test
-    public void cancelPurchase_failure()
+    public void cancelActivePurchase_whenPurchaseDoesNotExist_throwsException()
     {
         TestSetup setup = createSetup();
 
@@ -927,7 +932,7 @@ public class PurchaseServiceTest {
         );
     }
     @Test
-    public void updateActivePurchase_success()
+    public void updateActivePurchaseSittingTickets_whenNewTicketsAreAvailable_replacesReservedTickets()
     {
         TestSetup setup = createSetup();
 
@@ -966,7 +971,7 @@ public class PurchaseServiceTest {
         assertEquals(TicketStatus.RESERVED, event.getTicket(newTicketId).getStatus());
     }
     @Test
-    public void updateActivePurchase_failure()
+    public void updateActivePurchaseSittingTickets_whenNewTicketIsAlreadyReserved_throwsExceptionAndKeepsOriginalTickets()
     {
         TestSetup setup = createSetup();
 
@@ -1056,6 +1061,83 @@ public class PurchaseServiceTest {
         assertNull(setup.inMemoryPurchaseRepository.findByUserID(userId));
     }
 
+    //סוף הטיימר, מוחקים את ה-activepurchase שפגי תוקף
+    @Test
+    public void expiredActivePurchaseCleaner_releasesTicketsAndDeletesPurchase() throws InterruptedException {
+        TestSetup setup = createSetup();
+
+        UUID eventId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID companyId = UUID.randomUUID();
+        UUID ticketId = UUID.randomUUID();
+        UUID areaId = UUID.randomUUID();
+
+        Event event = new Event(
+                eventId,
+                companyId,
+                LocalDateTime.now(),
+                "loc",
+                "artist",
+                "type",
+                EventStatus.ACTIVE
+        );
+
+        event.getLayout().addArea(new SittingArea(areaId, 100f));
+
+        SittingTicket ticket = new SittingTicket(
+                ticketId,
+                eventId,
+                areaId,
+                100f,
+                1,
+                1
+        );
+
+        event.addTicket(ticket);
+        setup.inMemoryEventRepository.save(event);
+
+        setup.innMemoryUserRepository.add(
+                new User(userId, "user", "email", "pass", 20)
+        );
+
+        ticket.reserve();
+
+        LinkedHashMap<UUID, Float> ticketPrices = new LinkedHashMap<>();
+        ticketPrices.put(ticketId, 100f);
+
+        ActivePurchase expiredPurchase = new ActivePurchase(
+                userId,
+                eventId,
+                ticketPrices,
+                LocalDateTime.now().minusSeconds(1)
+        );
+
+        setup.inMemoryPurchaseRepository.save(expiredPurchase);
+
+        assertEquals(TicketStatus.RESERVED, event.getTicket(ticketId).getStatus());
+        assertNotNull(setup.inMemoryPurchaseRepository.findByID(
+                expiredPurchase.getActivePurchaseId()
+        ));
+
+        ActivePurchaseCleaner cleaner = new ActivePurchaseCleaner(
+                setup.purchaseService,
+                setup.inMemoryPurchaseRepository
+        );
+
+        cleaner.start();
+
+        Thread.sleep(200);
+
+        cleaner.interrupt();
+        cleaner.join(1000);
+
+        assertNull(setup.inMemoryPurchaseRepository.findByID(
+                expiredPurchase.getActivePurchaseId()
+        ));
+
+        assertEquals(TicketStatus.AVAILABLE, event.getTicket(ticketId).getStatus());
+    }
+
     private static class InMemoryPurchaseRepository implements IPurchaseRepository
     {
         Map<UUID, ActivePurchase> purchasesByID = new LinkedHashMap<>();
@@ -1083,6 +1165,12 @@ public class PurchaseServiceTest {
         @Override
         public void deleteByID(UUID activePurchaseID) {
             purchasesByID.remove(activePurchaseID);
+        }
+
+        @Override
+        public List<ActivePurchase> findAll() {
+            return new ArrayList<>(purchasesByID.values());
+
         }
     }
     private static class InMemoryEventRepository implements IEventRepository
