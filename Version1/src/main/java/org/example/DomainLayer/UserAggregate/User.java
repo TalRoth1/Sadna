@@ -50,7 +50,7 @@ public class User {
     }
 
     // company role management
-    private boolean isCompanyMember(UUID companyId) {
+    public boolean isCompanyMember(UUID companyId) {
         return companyRoles.containsKey(companyId);
     }
 
@@ -200,17 +200,17 @@ public class User {
         return role.hasPremission(permission, eventId);
     }
 
-    private boolean isOwnerInCompany(UUID companyId) {
+    public boolean isOwnerInCompany(UUID companyId) {
         ICompanyMember role = companyRoles.get(companyId);
         return role instanceof CompanyOwner || role instanceof CompanyFounder;
     }
 
-    private boolean isManagerInCompany(UUID companyId) {
+    public boolean isManagerInCompany(UUID companyId) {
         ICompanyMember role = companyRoles.get(companyId);
         return role instanceof CompanyManager;
     }
 
-    private boolean isFounderInCompany(UUID companyId) {
+    public boolean isFounderInCompany(UUID companyId) {
         ICompanyMember role = companyRoles.get(companyId);
         return role instanceof CompanyFounder;
     }

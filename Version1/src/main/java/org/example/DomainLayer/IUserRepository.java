@@ -1,6 +1,5 @@
 package org.example.DomainLayer;
 
-import org.example.DomainLayer.UserAggregate.ICompanyMember;
 import org.example.DomainLayer.UserAggregate.User;
 
 import java.util.List;
