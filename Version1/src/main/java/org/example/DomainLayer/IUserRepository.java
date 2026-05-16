@@ -1,7 +1,9 @@
 package org.example.DomainLayer;
 
+import org.example.DomainLayer.UserAggregate.ICompanyMember;
 import org.example.DomainLayer.UserAggregate.User;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -19,4 +21,6 @@ public interface IUserRepository {
     public Optional<User> findByEmail(String email);
 
     boolean existsAdmin(UUID adminId);
+
+    public List<UUID> getCompaniesIdsByMember(String username);
 }

@@ -20,17 +20,12 @@ import org.example.DomainLayer.PolicyManagment.MaxTicketRule;
 import org.example.DomainLayer.PolicyManagment.MinTicketRule;
 import org.example.DomainLayer.PolicyManagment.OvertDiscount;
 import org.example.DomainLayer.PolicyManagment.PurchasePolicy;
-import org.example.DomainLayer.UserAggregate.CompanyFounder;
-import org.example.DomainLayer.UserAggregate.CompanyManager;
-import org.example.DomainLayer.UserAggregate.CompanyOwner;
-import org.example.DomainLayer.UserAggregate.ICompanyMember;
+
 
 public class Company {
     private final UUID id;
-    private CompanyFounder founder;
+    private String founderUsername;
     private String name; 
-    private final Map<String, ICompanyMember> members;
-    private final Map<UUID, Invitation> invitations;
     private final DiscountPolicy discountPolicy;
     private final PurchasePolicy purchasePolicy;
     private double rating;
@@ -42,11 +37,8 @@ public class Company {
 public Company(String founderUsername, String name) {
     this.id = UUID.randomUUID();
     this.name = name;
-    this.members = new HashMap<>();
-    this.invitations = new HashMap<>();
+    this.founderUsername = founderUsername;
     this.eventIds = new ArrayList<>();
-    this.founder = new CompanyFounder(founderUsername);
-    this.members.put(founderUsername, founder);
     this.discountPolicy = new DiscountPolicy();
     this.purchasePolicy = new PurchasePolicy();
     this.isActive = true;
@@ -68,9 +60,9 @@ public Company(String founderUsername, String name) {
         this.name = newName;
     }
 
-    public CompanyFounder getFounder()
+    public String getFounderUsername()
     {
-        return this.founder;
+        return this.founderUsername;
     }
 
     public void addEvent(UUID newEventId)
@@ -103,223 +95,21 @@ public Company(String founderUsername, String name) {
         this.amountRated ++; 
     }
 
-    private boolean isCompanyMember(String username)
-    {
-        return members.containsKey(username);
-    }
-
-    public ICompanyMember getMember(String username)
-    {
-        if (isCompanyMember(username))
-            return members.get(username);
-        else return null;
-    }
-
-    public UUID inviteNewOwner(String appointeeUsername, String appointerUsername)
-    {
-        if (!isCompanyMember(appointerUsername) || !(members.get(appointerUsername) instanceof CompanyOwner))
-        {
-            throw new IllegalArgumentException("The appointer is not a company owner and therefore cannot invite a new owner");
-        }
-        if (isCompanyMember(appointeeUsername))
-        {
-            if (!members.get(appointeeUsername).isSubordinateOf(appointerUsername))
-            {
-                throw new IllegalArgumentException("The appointee is a manager but is not a subordinate of the appointer and therefore cannot be appointed as an owner by him/her");
-            }
-            if (!(members.get(appointeeUsername) instanceof CompanyManager))
-            {
-                throw new IllegalArgumentException("The appointee is a company owner and cannot be appointed as an owner again");
-            }
-        }
-        Invitation invitation = new OwnerInvetation(appointerUsername, appointeeUsername, id);
-        invitations.put(invitation.getId(), invitation);
-        return invitation.getId();
-    }
-
-    public UUID inviteNewManager(String appointeeUsername, String appointerUsername, Set<CompanyPermission> premissions)
-    {
-        if (!isCompanyMember(appointerUsername) || !(members.get(appointerUsername) instanceof CompanyOwner))
-        {
-            throw new IllegalArgumentException("The appointer is not a company owner and therefore cannot invite a new manager");
-        }
-        if (isCompanyMember(appointeeUsername))
-        {
-            throw new IllegalArgumentException("The appointee is already a member of the company and therefore cannot be invited as a manager");
-        }
-        Invitation invitation = new ManagerInvetation(appointerUsername, appointeeUsername, id, premissions);
-        invitations.put(invitation.getId(), invitation);
-        return invitation.getId();
-    }
-
-    public boolean acceptInvitation(UUID invitationId)
-    {
-        if (!invitations.containsKey(invitationId))
-        {
-            throw new IllegalArgumentException("The invitation does not exist");
-        }
-        Invitation invitation = invitations.get(invitationId);
-        if (invitation instanceof OwnerInvetation ownerInvitation)
-        {
-            return appointNewOwner(ownerInvitation.getAppointeeUsername(), ownerInvitation.getAppointerUsername());
-        }
-        else if (invitation instanceof ManagerInvetation managerInvitation)
-        {
-            return appointNewManager(managerInvitation.getAppointeeUsername(), managerInvitation.getAppointerUsername(), managerInvitation.getPremissions());
-        }
-        return false;
-    }
-
-    public boolean appointNewManager(String appointeeUsername, String appointerUsername, Set<CompanyPermission> premissions)
-    {
-        if (!isCompanyMember(appointerUsername) || !(members.get(appointerUsername) instanceof CompanyOwner))
-        {
-            throw new IllegalArgumentException("The appointer is not a company owner and therefore cannot appoint a new manager");
-        }
-        if (isCompanyMember(appointeeUsername))
-        {
-            throw new IllegalArgumentException("The appointee is already a member of the company and therefore cannot be appointed as a manager");
-        }
-        CompanyManager newManager = new CompanyManager(appointeeUsername, (CompanyOwner) members.get(appointerUsername), premissions);
-        members.put(appointeeUsername, newManager);
-        // Register the new manager as a subordinate of the appointer so hierarchy is consistent
-        ((CompanyOwner) members.get(appointerUsername)).addSubordinate(newManager);
-        return true;
-    }
-
-    public boolean appointNewOwner(String appointeeUsername, String appointerUsername)
-    {
-        if (!isCompanyMember(appointerUsername) || !(members.get(appointerUsername) instanceof CompanyOwner))
-        {
-            throw new IllegalArgumentException("The appointer is not a company owner and therefore cannot appoint a new owner");
-        }
-        CompanyOwner appointer = (CompanyOwner) members.get(appointerUsername);
-        if (isCompanyMember(appointeeUsername))
-        {
-            if (!members.get(appointeeUsername).isSubordinateOf(appointerUsername))
-            {
-                throw new IllegalArgumentException("The appointee is a manager but is not a subordinate of the appointer and therefore cannot be appointed as an owner by him/her");
-            }
-            if (!(members.get(appointeeUsername) instanceof CompanyManager))
-            {
-                throw new IllegalArgumentException("The appointee is a company owner and cannot be appointed as an owner again");
-            }
-            CompanyManager appointee = (CompanyManager) members.get(appointeeUsername);
-            CompanyOwner appointeeManager = (CompanyOwner) members.get(appointee.getAppointer().getUsername());
-            appointeeManager.removeSubordinate(appointee);
-            appointer.addSubordinate(appointee);
-            return true;
-        }
-        CompanyOwner newOwner = new CompanyOwner(appointeeUsername, (CompanyOwner) members.get(appointerUsername));
-        members.put(appointeeUsername, newOwner);
-        // Register the new owner as a subordinate of the appointer
-        ((CompanyOwner) members.get(appointerUsername)).addSubordinate(newOwner);
-        return true;
-    }
-
-    public void changeManagerPermissions(String ownerUsername, String managerUsername, Set<CompanyPermission> newPermissions)
-    {
-        if (!isCompanyMember(ownerUsername) || !(members.get(ownerUsername) instanceof CompanyOwner))
-        {
-            throw new IllegalArgumentException("The user changing the permissions is not a company owner and therefore cannot change manager permissions");
-        }
-        if (!isCompanyMember(managerUsername) || !(members.get(managerUsername) instanceof CompanyManager))
-        {
-            throw new IllegalArgumentException("The user whose permissions are being changed is not a company manager and therefore cannot have his/her permissions changed");
-        }
-        CompanyManager manager = (CompanyManager) members.get(managerUsername);
-        if (!manager.isSubordinateOf(ownerUsername))
-        {
-            throw new IllegalArgumentException("The manager whose permissions are being changed is not a subordinate of the owner changing the permissions and therefore cannot have his/her permissions changed by him/her");
-        }
-        manager.setNewPremissions(newPermissions);
-    }
-
-    public boolean hasPremision(String username, CompanyPermission premision, UUID eventId)
-    {
-        if (!isCompanyMember(username))
-        {
-            return false;
-        }
-        return members.get(username).hasPremission(premision, eventId);
-    }
-
-    public boolean isOwner(String username) {
-    if (username == null || username.isBlank()) {
-        return false;
-    }
-
-    ICompanyMember member = members.get(username);
-
-    return member instanceof CompanyOwner
-            || member instanceof CompanyFounder;
-    }
-
     public boolean isActive() {
         return isActive;
     }
 
+    // assumes the members removal is handled in the domain service layer and that the company founder is not removed from the company
     public void AdminClose() {
         if (!isActive) {
             throw new IllegalStateException("Company is already inactive");
         }
 
         isActive = false;
-
-        members.entrySet().removeIf(entry ->
-                entry.getValue() instanceof CompanyOwner
-                        || entry.getValue() instanceof CompanyManager
-        );
     }
 
     public void FounderClose(String founderUsername) {
         // TODO: imlement founder close
-    }
-
-    public boolean hasMember(String username) {
-        return username != null && members.containsKey(username);
-    }
-
-    // differ from removeMemberAsOwner in the fact that the admin could remove any member of the company without any restriction, while the founder can only remove members that are under him in the company hyrarchy and he cannot remove managers that are not under him.
-    public void removeMemberAsAdmin(String username) {
-        if (username == null || username.isBlank()) {
-            throw new IllegalArgumentException("Username is required");
-        }
-        if (!members.containsKey(username)) {
-            throw new IllegalArgumentException("User is not a company member");
-        }
-        removeMember(username);
-    }
-
-    public void removeMemberAsOwner(String username, String ownerUsername) {
-        if (username == null || username.isBlank() || ownerUsername == null || ownerUsername.isBlank()) {
-            throw new IllegalArgumentException("Username and owner username are required");
-        }
-        if (!members.containsKey(username)) {
-            throw new IllegalArgumentException("User is not a company member");
-        }
-        if (!members.containsKey(ownerUsername) || !(members.get(ownerUsername) instanceof CompanyOwner)) {
-            throw new IllegalArgumentException("Owner username is not a company owner");
-        }
-        ICompanyMember memberToRemove = members.get(username);
-        if (memberToRemove instanceof CompanyManager manager) {
-            if (!manager.isSubordinateOf(ownerUsername)) {
-                throw new IllegalArgumentException("The owner can only remove managers that are under him in the company hyrarchy");
-            }
-        } else if (memberToRemove instanceof CompanyOwner owner) {
-            if (!owner.isSubordinateOf(ownerUsername)) {
-                throw new IllegalArgumentException("The owner can only remove owners that are under him in the company hyrarchy");
-            }
-        } else {
-            throw new IllegalArgumentException("The owner can only remove managers or owners");
-        }
-        removeMember(username);
-    }
-
-    private void removeMember(String username) {
-        ICompanyMember memberToRemove = members.get(username);
-        memberToRemove.removeFromCompanyHyrarchy();
-        members.remove(username);
     }
 
     public void addPurchasePolicy(Optional<Float> age, Optional<Integer> minTicket, Optional<Integer> maxTicket, Optional<Boolean> allowLoneSeat)
@@ -384,47 +174,5 @@ public Company(String founderUsername, String name) {
 
             this.rating = sum / ratingsByUsers.size();
         }
-    }
-
-    public Object getOwnerNames() {
-        List<String> ownerNames = new ArrayList<>();
-        for (ICompanyMember member : members.values()) {
-            if (member instanceof CompanyOwner) {
-                ownerNames.add(member.getUsername());
-            }
-        }
-        return ownerNames;
-    }
-
-    /**
-     * Returns the company member hierarchy in Mermaid.js flowchart (top-down) format.
-     */
-    public String getHierarchyMermaid(String username) {
-        // first we need to check if the caller is a company owner, as only company owners can view the company hierarchy
-        if (!isCompanyMember(username) || !(members.get(username) instanceof CompanyOwner)) {
-            throw new IllegalArgumentException("Only company owners can view the company hierarchy");
-        }
-        StringBuilder sb = new StringBuilder();
-        sb.append("flowchart TD\n");
-
-        if (founder != null) {
-            founder.buildMermaid(sb);
-            return sb.toString();
-        }
-
-        // if now founder is set, throw an exception, as this is an invalid state for the company
-        throw new IllegalStateException("Company founder is not set, cannot build hierarchy");
-    }
-
-    
-    public List<UUID> getEventsUnderOwner(String ownerUsername) {
-        if (!isCompanyMember(ownerUsername)) {
-            throw new IllegalArgumentException("User is not a company member");
-        }
-        ICompanyMember member = members.get(ownerUsername);
-        if (!(member instanceof CompanyOwner)) {
-            throw new IllegalArgumentException("User is not a company owner");
-        }
-        return member.getEventsUnderMe();
     }
 }

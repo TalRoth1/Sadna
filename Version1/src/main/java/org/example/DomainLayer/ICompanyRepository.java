@@ -10,9 +10,7 @@ import java.util.Optional;
 public interface ICompanyRepository {
     UUID createCompany(String founderUsername, String companyName);
     Optional<Company> findByID(UUID companyId);
-    boolean isOwner(String username, UUID companyId);
     void save(Company company);
-    List<Company> getCompaniesByMember(String username);
     /**Declared as a default method returning an empty
      *  list only so the build stays green while InMemoryCompanyRepository 
      * still exists (Step 3 will delete that class and override this method properly in CompanyRepository).*/

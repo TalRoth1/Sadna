@@ -50,6 +50,14 @@ public class CompanyManager extends ICompanyMember {
             sb.append(getAppointer().mermaidId()).append(" --> ").append(mermaidId()).append("\n");
         }
     }
+
+    @Override
+    public CompanyFounder getFounder() {
+        if (getAppointer() == null) {
+            throw new IllegalStateException("Manager without appointer cannot determine founder, invalid state");
+        }
+        return getAppointer().getFounder();
+    }
     
     public List<UUID> getEventsUnderMe() {
         return getEventsIds();

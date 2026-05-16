@@ -20,36 +20,12 @@ public class CompanyRepository implements ICompanyRepository {
     }
 
     @Override
-    public boolean isOwner(String username, UUID companyId) {
-        Company company = findByID(companyId).get();
-
-        if (company == null) {
-            return false;
-        }
-
-        return company.isOwner(username);
-    }
-
-    @Override
     public void save(Company company) {
         if (company == null) {
             throw new IllegalArgumentException("Company is required");
         }
 
         companies.put(company.getId(), company);
-    }
-
-     @Override
-    public List<Company> getCompaniesByMember(String username) {
-        List<Company> result = new ArrayList<>();
-
-        for (Company company : companies.values()) {
-            if (company.hasMember(username)) {
-                result.add(company);
-            }
-        }
-
-        return result;
     }
 
      @Override

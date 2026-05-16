@@ -5,6 +5,7 @@ import org.example.DomainLayer.AdminAggregate.Admin;
 import org.example.DomainLayer.UserAggregate.User;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -59,6 +60,16 @@ public class UserRepository implements IUserRepository {
         }
         return null;
     }
+
+    @Override
+    public List<UUID> getCompaniesIdsByMember(String username) {
+        User user = findByEmail(username).orElseThrow(() -> new IllegalArgumentException("User not found"));
+        return user.getCompanyRoles().entrySet().stream()
+                .filter(entry -> entry.getValue() != null) // Filter out entries with null roles
+                .map(Map.Entry::getKey) // Extract the company IDs
+                .toList();
+    }
+    
 
     public void addAdmin(Admin admin) {
         admins.put(admin.getId(), admin);
