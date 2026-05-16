@@ -4,6 +4,7 @@ import { verifyPlatformAdmin } from "../services/admin/adminAuthService";
 
 export type AppPage =
     | "event-search"
+    | "login"
     | "user-tickets"
     | "purchase-history"
     | "my-companies"
@@ -35,6 +36,7 @@ export default function NavigationMenu({
                                        }: NavigationMenuProps) {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isAdmin, setIsAdmin] = useState(false);
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
 
     useEffect(() => {
         async function loadUserPermissions() {
@@ -42,19 +44,24 @@ export default function NavigationMenu({
                 const currentUser = await getCurrentUser();
 
                 if (!currentUser) {
+                    setIsLoggedIn(false);
                     setIsAdmin(false);
                     return;
                 }
 
+                setIsLoggedIn(true);
+
                 const hasAdminAccess = await verifyPlatformAdmin(currentUser.id);
                 setIsAdmin(hasAdminAccess);
             } catch {
+                setIsLoggedIn(false);
                 setIsAdmin(false);
             }
         }
 
         loadUserPermissions();
-    }, []);
+    }, [currentPage]);
+
     function handleNavigate(page: AppPage) {
         onNavigate(page);
         setIsMenuOpen(false);
@@ -117,6 +124,20 @@ export default function NavigationMenu({
                             {link.label}
                         </button>
                     ))}
+
+                    {!isLoggedIn && (
+                        <>
+                            <div className="side-navigation-divider" />
+
+                            <button
+                                type="button"
+                                className={currentPage === "login" ? "active" : ""}
+                                onClick={() => handleNavigate("login")}
+                            >
+                                Login
+                            </button>
+                        </>
+                    )}
 
                     {isAdmin && (
                         <>

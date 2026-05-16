@@ -13,6 +13,7 @@ import AdminSubscribersPage from "./pages/admin/AdminSubscribersPage";
 import PurchaseHistoryPage from "./pages/PurchaseHistoryPage";
 import EventSearchPage from "./pages/EventSearch/EventSearch";
 import UserProfilePage from "./pages/UserProfilePage";
+import LoginPage from "./pages/LoginPage";
 
 import type { AdminActionId } from "./types/admin";
 import "./App.css";
@@ -35,6 +36,10 @@ function App(){
     function renderPage() {
         if (currentPage === "event-search") {
             return <EventSearchPage />;
+        }
+
+        if (currentPage === "login") {
+            return <LoginPage onLoginSuccess={() => setCurrentPage("event-search")} />;
         }
 
         if (currentPage === "purchase-history") {
