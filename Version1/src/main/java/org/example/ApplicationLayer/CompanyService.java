@@ -91,8 +91,8 @@ public class CompanyService {
         return rolesDomainService.inviteCompanyOwner(ownerUsername, companyId, usernameToInvite);
     }
 
-    public void acceptCompanyInvitation(UUID invetationID, UUID companyId) {
-         rolesDomainService.acceptCompanyInvitation(invetationID, companyId);
+    public void acceptCompanyInvitation(UUID invetationID, String username, UUID companyId) {
+        rolesDomainService.acceptCompanyInvitation(invetationID, username, companyId);
     }
     
     public void addPolicyRule(String username, UUID companyId, Optional<Float> age, Optional<Integer> minTicket, Optional<Integer> maxTicket, Optional<Boolean> allowLoneSeat)

@@ -9,6 +9,7 @@ import org.example.DomainLayer.EventManagementDomainService;
 import org.example.DomainLayer.ICompanyRepository;
 import org.example.DomainLayer.IEventRepository;
 import org.example.DomainLayer.IHistoryRepository;
+import org.example.DomainLayer.IUserRepository;
 import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.DomainLayer.EventAggregate.Event;
 import org.example.DomainLayer.EventAggregate.EventSearchCriteria;
@@ -79,6 +80,8 @@ public class EventServiceTest {
     private ICompanyRepository companyRepository;
     @Mock
     private IHistoryRepository historyRepository;
+    @Mock
+    private IUserRepository userRepository;
 
     private EventService eventService;
 
@@ -91,7 +94,7 @@ public class EventServiceTest {
     @Before
     public void setUp() {
         EventManagementDomainService eventManagementDomainService =
-                new EventManagementDomainService(eventRepository, historyRepository, companyRepository);
+                new EventManagementDomainService(eventRepository, historyRepository, companyRepository, userRepository);
         eventService = new EventService(eventManagementDomainService);
 
         eventId = UUID.randomUUID();
@@ -121,7 +124,7 @@ public class EventServiceTest {
      */
     private Company authorizedCompany(String founderUsername, UUID eventId) {
         Company c = new Company(founderUsername, "TestCompany");
-        c.getFounder().getEventsIds().add(eventId);
+        c.addEvent(eventId);
         return c;
     }
 
@@ -395,7 +398,7 @@ public class EventServiceTest {
         Event event = newRealEvent();
         List<PurchaseHistory> expected = Collections.emptyList();
         when(eventRepository.getById(eventId)).thenReturn(event);
-        when(companyRepository.isOwner(ownerUsername, companyId)).thenReturn(true);
+        when(userRepository.isCompanyOwner(ownerUsername, companyId)).thenReturn(true);
         when(historyRepository.getByEventId(eventId)).thenReturn(expected);
 
         List<PurchaseHistory> actual =
@@ -787,7 +790,7 @@ public class EventServiceTest {
     public void GivenUserIsNotOwnerOfEventCompany_WhenGetEventPurchaseHistoryForOwner_ThenDomainExceptionIsPropagated() {
         Event event = newRealEvent();
         when(eventRepository.getById(eventId)).thenReturn(event);
-        when(companyRepository.isOwner(ownerUsername, companyId)).thenReturn(false);
+        when(userRepository.isCompanyOwner(ownerUsername, companyId)).thenReturn(false);
 
         DomainException ex = assertThrows(DomainException.class,
                 () -> eventService.getEventPurchaseHistoryForOwner(ownerUsername, eventId));

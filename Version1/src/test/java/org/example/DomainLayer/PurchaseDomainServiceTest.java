@@ -2,6 +2,7 @@ package org.example.DomainLayer;
 
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 import org.example.DomainLayer.CompanyAggregate.Company;
+import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
 import org.example.DomainLayer.EventAggregate.*;
 import org.example.DomainLayer.LotteryAggregate.PuchaseLottery;
 import org.example.DomainLayer.PurchaseHistoryAggregate.Payment;
@@ -434,7 +435,7 @@ public class PurchaseDomainServiceTest {
         eventRepository.save(event);
         companyRepository.save(companyId, company);
 
-        when(company.isOwner(ownerName)).thenReturn(true);
+        when(userRepository.isCompanyOwner(ownerName, companyId)).thenReturn(true);
 
         assertTrue(purchaseDomainService.isCompanyOwnerOfEvent(ownerName, eventId));
     }
@@ -451,7 +452,7 @@ public class PurchaseDomainServiceTest {
         eventRepository.save(event);
         companyRepository.save(companyId, company);
 
-        when(company.isOwner(ownerName)).thenReturn(false);
+        when(userRepository.isCompanyOwner(ownerName, companyId)).thenReturn(false);
 
         assertFalse(purchaseDomainService.isCompanyOwnerOfEvent(ownerName, eventId));
     }
@@ -1196,21 +1197,8 @@ public class PurchaseDomainServiceTest {
         }
 
         @Override
-        public boolean isOwner(String username, UUID companyId) {
-            Company company = companiesById.get(companyId);
-            return company != null && company.isOwner(username);
-        }
-
-        @Override
         public void save(Company company) {
             companiesById.put(company.getId(), company);
-        }
-
-        @Override
-        public List<Company> getCompaniesByMember(String username) {
-            return companiesById.values().stream()
-                    .filter(company -> company.hasMember(username))
-                    .toList();
         }
     }
 
@@ -1245,11 +1233,26 @@ public class PurchaseDomainServiceTest {
 
         @Override
         public Optional<User> findByEmail(String email) {
-            return Optional.empty();
+            return usersById.values().stream().filter(u -> u.getEmail().equals(email)).findFirst();
         }
 
         @Override
         public boolean existsAdmin(UUID adminId) {
+            return false;
+        }
+
+        @Override
+        public List<UUID> getCompaniesIdsByMember(String username) {
+            return new ArrayList<>();
+        }
+
+        @Override
+        public boolean isCompanyOwner(String username, UUID companyId) {
+            return false;
+        }
+
+        @Override
+        public boolean hasPermission(String username, UUID companyId, CompanyPermission permission, UUID eventId) {
             return false;
         }
     }

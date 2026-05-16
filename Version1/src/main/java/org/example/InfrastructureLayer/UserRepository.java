@@ -2,6 +2,7 @@ package org.example.InfrastructureLayer;
 
 import org.example.DomainLayer.IUserRepository;
 import org.example.DomainLayer.AdminAggregate.Admin;
+import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
 import org.example.DomainLayer.UserAggregate.User;
 
 import java.util.HashMap;
@@ -74,6 +75,12 @@ public class UserRepository implements IUserRepository {
     public boolean isCompanyOwner(String username, UUID companyId) {
         User user = findByEmail(username).orElseThrow(() -> new IllegalArgumentException("User not found"));
         return user.isOwnerInCompany(companyId);
+    }
+
+    @Override
+    public boolean hasPermission(String username, UUID companyId, CompanyPermission permission, UUID eventId) {
+        User user = findByEmail(username).orElseThrow(() -> new IllegalArgumentException("User not found"));
+        return user.hasPremisions(companyId, permission, eventId);
     }
     
 

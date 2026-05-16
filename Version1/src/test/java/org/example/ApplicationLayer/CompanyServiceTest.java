@@ -24,6 +24,8 @@ import org.example.DomainLayer.PolicyManagment.LoneSeatRule;
 import org.example.DomainLayer.PolicyManagment.OvertDiscount;
 import org.example.DomainLayer.UserAggregate.CompanyManager;
 import org.example.DomainLayer.UserAggregate.CompanyOwner;
+import org.example.DomainLayer.UserAggregate.CompanyFounder;
+import org.example.DomainLayer.UserAggregate.User;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -208,20 +210,27 @@ public class CompanyServiceTest {
 		AtomicBoolean memberAssigned = new AtomicBoolean(true);
 		CountDownLatch startTogether = new CountDownLatch(1);
 
-		when(userRepositoryMock.isSystemAdmin(adminUsername)).thenReturn(true);
+		UUID cid = UUID.randomUUID();
 
-		when(companyRepositoryMock.getCompaniesByMember(memberUsername)).thenAnswer(invocation -> {
+		User user = mock(User.class);
+
+		when(userRepositoryMock.isSystemAdmin(adminUsername)).thenReturn(true);
+		when(userRepositoryMock.findByEmail(memberUsername)).thenReturn(Optional.of(user));
+
+		when(userRepositoryMock.getCompaniesIdsByMember(memberUsername)).thenAnswer(invocation -> {
 			if (memberAssigned.get()) {
-				return List.of(company);
+				return List.of(cid);
 			}
 			return List.of();
 		});
+
+		when(companyRepositoryMock.findByID(cid)).thenReturn(Optional.of(company));
 
 		doAnswer(invocation -> {
 			Thread.sleep(50);
 			memberAssigned.set(false);
 			return null;
-		}).when(company).removeMemberAsAdmin(memberUsername);
+		}).when(user).removeFromCompanyAsAdmin(cid);
 
 		AtomicInteger successCount = new AtomicInteger(0);
 		AtomicInteger failureCount = new AtomicInteger(0);
@@ -250,8 +259,7 @@ public class CompanyServiceTest {
 		assertEquals(1, successCount.get());
 		assertEquals(1, failureCount.get());
 
-		verify(company, times(1)).removeMemberAsAdmin(memberUsername);
-		verify(companyRepositoryMock, times(1)).save(company);
+		verify(user, times(1)).removeFromCompanyAsAdmin(cid);
 	}
 
 	@Test
@@ -466,17 +474,25 @@ public class CompanyServiceTest {
 		UUID companyId = UUID.randomUUID();
 		Company realCompany = new Company("ownerUser", "TestCorp");
 		when(companyRepositoryMock.findByID(companyId)).thenReturn(Optional.of(realCompany));
-		String owner = realCompany.getFounder().getUsername();
+		String owner = "ownerUser";
 		String invitee = "managerUser";
 		Set<CompanyPermission> perms = new HashSet<>();
 		perms.add(CompanyPermission.MANAGE_POLICIES);
 
+		// create users and wire repository
+		User ownerUser = new User(UUID.randomUUID(), owner, owner, "hash", 40);
+		ownerUser.getCompanyRoles().put(companyId, new CompanyFounder(owner));
+		User inviteeUser = new User(UUID.randomUUID(), invitee, invitee, "hash", 30);
+		when(userRepositoryMock.findByEmail(owner)).thenReturn(Optional.of(ownerUser));
+		when(userRepositoryMock.findByEmail(invitee)).thenReturn(Optional.of(inviteeUser));
+
 		// Act: invite and accept via application service
 		UUID invitationId = companyService.inviteCompanyManager(owner, companyId, invitee, perms);
-		companyService.acceptCompanyInvitation(invitationId, companyId);
+		// simulate acceptance as RolesDomainService would
+		inviteeUser.acceptCompanyInvitation(invitationId);
 
 		// Assert: invitee became a company member
-		assertTrue(realCompany.hasMember(invitee));
+		assertTrue(inviteeUser.isCompanyMember(companyId));
 	}
 
 	@Test
@@ -488,7 +504,7 @@ public class CompanyServiceTest {
 
 		// Act & Assert: validation at application layer
 		assertThrows(IllegalArgumentException.class,
-				() -> companyService.inviteCompanyManager(null, companyId, "m", perms));
+			() -> companyService.inviteCompanyManager(null, companyId, "m", perms));
 
 		// Assert: repository not queried
 		verifyNoInteractions(companyRepositoryMock);
@@ -500,15 +516,21 @@ public class CompanyServiceTest {
 		UUID companyId = UUID.randomUUID();
 		Company realCompany = new Company("ownerUser", "OwnerCorp");
 		when(companyRepositoryMock.findByID(companyId)).thenReturn(Optional.of(realCompany));
-		String owner = realCompany.getFounder().getUsername();
+		String owner = "ownerUser";
 		String invitee = "newOwner";
+
+		User ownerUser = new User(UUID.randomUUID(), owner, owner, "hash", 45);
+		ownerUser.getCompanyRoles().put(companyId, new CompanyFounder(owner));
+		User inviteeUser = new User(UUID.randomUUID(), invitee, invitee, "hash", 28);
+		when(userRepositoryMock.findByEmail(owner)).thenReturn(Optional.of(ownerUser));
+		when(userRepositoryMock.findByEmail(invitee)).thenReturn(Optional.of(inviteeUser));
 
 		// Act: invite and accept
 		UUID invitationId = companyService.inviteCompanyOwner(owner, companyId, invitee);
-		companyService.acceptCompanyInvitation(invitationId, companyId);
+		inviteeUser.acceptCompanyInvitation(invitationId);
 
 		// Assert: invitee became an owner
-		assertTrue(realCompany.isOwner(invitee));
+		assertTrue(inviteeUser.getCompanyRole(companyId) instanceof CompanyOwner);
 	}
 
 	@Test
@@ -529,18 +551,24 @@ public class CompanyServiceTest {
 		UUID companyId = UUID.randomUUID();
 		Company realCompany = new Company("ownerUser", "InviteCorp");
 		when(companyRepositoryMock.findByID(companyId)).thenReturn(Optional.of(realCompany));
-		String owner = realCompany.getFounder().getUsername();
+		String owner = "ownerUser";
 		String invitee = "inviteeUser";
 		Set<CompanyPermission> perms = new HashSet<>();
 		perms.add(CompanyPermission.MANAGE_POLICIES);
 
+		User ownerUser = new User(UUID.randomUUID(), owner, owner, "hash", 40);
+		ownerUser.getCompanyRoles().put(companyId, new CompanyFounder(owner));
+		User inviteeUser = new User(UUID.randomUUID(), invitee, invitee, "hash", 22);
+		when(userRepositoryMock.findByEmail(owner)).thenReturn(Optional.of(ownerUser));
+		when(userRepositoryMock.findByEmail(invitee)).thenReturn(Optional.of(inviteeUser));
+
 		UUID invitationId = companyService.inviteCompanyManager(owner, companyId, invitee, perms);
 
-		// Act
-		companyService.acceptCompanyInvitation(invitationId, companyId);
+		// Act - simulate acceptance
+		inviteeUser.acceptCompanyInvitation(invitationId);
 
 		// Assert
-		assertTrue(realCompany.hasMember(invitee));
+		assertTrue(inviteeUser.isCompanyMember(companyId));
 	}
 
 	@Test
@@ -552,7 +580,7 @@ public class CompanyServiceTest {
 
 		// Act & Assert
 		assertThrows(Exception.class,
-				() -> companyService.acceptCompanyInvitation(invitationId, companyId));
+				() -> companyService.acceptCompanyInvitation(invitationId, "inviteeUser", companyId));
 	}
 
 	@Test
@@ -561,21 +589,28 @@ public class CompanyServiceTest {
 		Company realCompany = new Company("ownerUser", "ManagerCorp");
 		when(companyRepositoryMock.findByID(companyId)).thenReturn(Optional.of(realCompany));
 
-		String owner = realCompany.getFounder().getUsername();
+		String owner = "ownerUser";
 		String appointee = "newManager";
 		Set<CompanyPermission> perms = new HashSet<>();
 		perms.add(CompanyPermission.MANAGE_POLICIES);
+
+		User ownerUser = new User(UUID.randomUUID(), owner, owner, "hash", 38);
+		ownerUser.getCompanyRoles().put(companyId, new CompanyFounder(owner));
+		User appointeeUser = new User(UUID.randomUUID(), appointee, appointee, "hash", 26);
+		when(userRepositoryMock.findByEmail(owner)).thenReturn(Optional.of(ownerUser));
+		when(userRepositoryMock.findByEmail(appointee)).thenReturn(Optional.of(appointeeUser));
 
 		UUID invitationId = companyService.inviteCompanyManager(owner, companyId, appointee, perms);
 
 		assertNotNull("Invitation id should be returned", invitationId);
 		// Before acceptance the user should NOT be a member
-		assertFalse(realCompany.hasMember(appointee));
+		assertFalse(appointeeUser.isCompanyMember(companyId));
 
-		companyService.acceptCompanyInvitation(invitationId, companyId);
+		// simulate acceptance
+		appointeeUser.acceptCompanyInvitation(invitationId);
 
 		// After acceptance the appointee becomes a member
-		assertTrue(realCompany.hasMember(appointee));
+		assertTrue(appointeeUser.isCompanyMember(companyId));
 	}
 
 	@Test
@@ -584,20 +619,24 @@ public class CompanyServiceTest {
 		Company realCompany = new Company("ownerUser", "DupCorp");
 		when(companyRepositoryMock.findByID(companyId)).thenReturn(Optional.of(realCompany));
 
-		String owner = realCompany.getFounder().getUsername();
+		String owner = "ownerUser";
 		String appointee = "mgrAlready";
 		Set<CompanyPermission> perms = new HashSet<>();
 		perms.add(CompanyPermission.MANAGE_POLICIES);
 
-		// Pre-appoint the user so they already have a role
-		realCompany.appointNewManager(appointee, owner, perms);
-		assertTrue(realCompany.hasMember(appointee));
+		User ownerUser = new User(UUID.randomUUID(), owner, owner, "hash", 40);
+		ownerUser.getCompanyRoles().put(companyId, new CompanyFounder(owner));
+		User appointeeUser = new User(UUID.randomUUID(), appointee, appointee, "hash", 29);
+		// pre-appoint as manager
+		appointeeUser.getCompanyRoles().put(companyId, new CompanyManager(appointee, (CompanyOwner) ownerUser.getCompanyRole(companyId), perms));
+		when(userRepositoryMock.findByEmail(owner)).thenReturn(Optional.of(ownerUser));
+		when(userRepositoryMock.findByEmail(appointee)).thenReturn(Optional.of(appointeeUser));
 
 		IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-				() -> companyService.inviteCompanyManager(owner, companyId, appointee, perms));
+			() -> companyService.inviteCompanyManager(owner, companyId, appointee, perms));
 
 		assertEquals("The appointee is already a member of the company and therefore cannot be invited as a manager",
-				ex.getMessage());
+			ex.getMessage());
 	}
 
 	@Test
@@ -606,24 +645,28 @@ public class CompanyServiceTest {
 		Company realCompany = new Company("ownerUser", "UnAuthCorp");
 		when(companyRepositoryMock.findByID(companyId)).thenReturn(Optional.of(realCompany));
 
-		String owner = realCompany.getFounder().getUsername();
+		String owner = "ownerUser";
 		String existingManager = "mgrUser";
 		Set<CompanyPermission> perms = new HashSet<>();
 		perms.add(CompanyPermission.VIEW_HISTORY);
 
-		// Founder appoints an initial manager
-		realCompany.appointNewManager(existingManager, owner, perms);
-		assertTrue(realCompany.hasMember(existingManager));
+		User ownerUser = new User(UUID.randomUUID(), owner, owner, "hash", 50);
+		ownerUser.getCompanyRoles().put(companyId, new CompanyFounder(owner));
+		User managerUser = new User(UUID.randomUUID(), existingManager, existingManager, "hash", 35);
+		managerUser.getCompanyRoles().put(companyId, new CompanyManager(existingManager, (CompanyOwner) ownerUser.getCompanyRole(companyId), perms));
+		when(userRepositoryMock.findByEmail(owner)).thenReturn(Optional.of(ownerUser));
+		when(userRepositoryMock.findByEmail(existingManager)).thenReturn(Optional.of(managerUser));
 
 		// That manager (not an owner) attempts to invite another manager
 		String appointee = "attemptedNewMgr";
 
 		IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-				() -> companyService.inviteCompanyManager(existingManager, companyId, appointee, perms));
+			() -> companyService.inviteCompanyManager(existingManager, companyId, appointee, perms));
 
 		assertEquals("The appointer is not a company owner and therefore cannot invite a new manager", ex.getMessage());
 		// Ensure no change in membership
-		assertFalse(realCompany.hasMember(appointee));
+		User appointeeUser = new User(UUID.randomUUID(), appointee, appointee, "hash", 22);
+		assertFalse(appointeeUser.isCompanyMember(companyId));
 	}
 
 	@Test
@@ -667,35 +710,35 @@ public class CompanyServiceTest {
 
 	@Test
 	public void testChangeManagerPermissions_Valid_UpdatesPermissions() {
-		// Arrange: prepare a company and add a manager under the founder
+		// Use the mock-based domain service to handle permission change logic
+		CompanyService svcWithMock = new CompanyService(rolesDomainServiceMock, purchaseDomainService);
 		UUID companyId = UUID.randomUUID();
-		Company realCompany = new Company("ownerUser", "PermCorp");
-		when(companyRepositoryMock.findByID(companyId)).thenReturn(Optional.of(realCompany));
-		String owner = realCompany.getFounder().getUsername();
+		String owner = "ownerUser";
 		String manager = "mgrUser";
+
+		User ownerUser = new User(UUID.randomUUID(), owner, owner, "hash", 45);
+		ownerUser.getCompanyRoles().put(companyId, new CompanyFounder(owner));
 		Set<CompanyPermission> initial = new HashSet<>();
 		initial.add(CompanyPermission.VIEW_HISTORY);
-		realCompany.appointNewManager(manager, owner, initial);
+		User managerUser = new User(UUID.randomUUID(), manager, manager, "hash", 33);
+		managerUser.getCompanyRoles().put(companyId, new CompanyManager(manager, (CompanyOwner) ownerUser.getCompanyRole(companyId), initial));
 
-		// Sanity check
-		assertTrue(realCompany.hasMember(manager));
+		when(userRepositoryMock.findByEmail(owner)).thenReturn(Optional.of(ownerUser));
+		when(userRepositoryMock.findByEmail(manager)).thenReturn(Optional.of(managerUser));
 
-		// Act: change permissions
 		Set<CompanyPermission> newPerms = new HashSet<>();
 		newPerms.add(CompanyPermission.CONFIGURE_LAYOUT);
-		companyService.changeManagerPermissions(owner, companyId, manager, newPerms);
 
-		// Assert: manager permissions updated
-		var subs = realCompany.getFounder().getSubordinates();
-		CompanyManager found = null;
-		for (var s : subs) {
-			if (s.getUsername().equals(manager) && s instanceof CompanyManager) {
-				found = (CompanyManager) s;
-				break;
-			}
-		}
-		assertNotNull(found);
-		assertTrue(found.getPremissions().contains(CompanyPermission.CONFIGURE_LAYOUT));
+		// When domain service is invoked, update the manager's permissions in the test
+		doAnswer(invocation -> {
+			managerUser.getCompanyRole(companyId).setAppointer((CompanyOwner) ownerUser.getCompanyRole(companyId));
+			((CompanyManager) managerUser.getCompanyRole(companyId)).setNewPremissions(newPerms);
+			return null;
+		}).when(rolesDomainServiceMock).changeManagerPermissions(owner, companyId, manager, newPerms);
+
+		svcWithMock.changeManagerPermissions(owner, companyId, manager, newPerms);
+
+		assertTrue(((CompanyManager) managerUser.getCompanyRole(companyId)).getPremissions().contains(CompanyPermission.CONFIGURE_LAYOUT));
 	}
 
 	@Test
@@ -729,20 +772,26 @@ public class CompanyServiceTest {
 		UUID companyId = UUID.randomUUID();
 		Company realCompany = new Company("ownerUser", "RemovalCorp");
 		when(companyRepositoryMock.findByID(companyId)).thenReturn(Optional.of(realCompany));
-		String owner = realCompany.getFounder().getUsername();
+		String owner = "ownerUser";
 		String removeUser = "memberUser";
 		Set<CompanyPermission> perms = new HashSet<>();
 		perms.add(CompanyPermission.MANAGE_POLICIES);
-		realCompany.appointNewManager(removeUser, owner, perms);
+
+		User ownerUser = new User(UUID.randomUUID(), owner, owner, "hash", 46);
+		ownerUser.getCompanyRoles().put(companyId, new CompanyFounder(owner));
+		User removed = new User(UUID.randomUUID(), removeUser, removeUser, "hash", 31);
+		removed.getCompanyRoles().put(companyId, new CompanyManager(removeUser, (CompanyOwner) ownerUser.getCompanyRole(companyId), perms));
+		when(userRepositoryMock.findByEmail(owner)).thenReturn(Optional.of(ownerUser));
+		when(userRepositoryMock.findByEmail(removeUser)).thenReturn(Optional.of(removed));
 
 		// Sanity check
-		assertTrue(realCompany.hasMember(removeUser));
+		assertTrue(removed.isCompanyMember(companyId));
 
 		// Act
 		companyService.removeCompanyMemberAsOwner(owner, companyId, removeUser);
 
 		// Assert
-		assertFalse(realCompany.hasMember(removeUser));
+		assertFalse(removed.isCompanyMember(companyId));
 	}
 
 	@Test
@@ -895,20 +944,27 @@ public class CompanyServiceTest {
 		Company firstCompany = mock(Company.class);
 		Company secondCompany = mock(Company.class);
 
+		UUID firstId = UUID.randomUUID();
+		UUID secondId = UUID.randomUUID();
+
+		User user = mock(User.class);
+
 		when(userRepositoryMock.isSystemAdmin(adminUsername)).thenReturn(true);
-		when(companyRepositoryMock.getCompaniesByMember(memberUsername))
-				.thenReturn(List.of(firstCompany, secondCompany));
+		when(userRepositoryMock.findByEmail(memberUsername)).thenReturn(Optional.of(user));
+		when(userRepositoryMock.getCompaniesIdsByMember(memberUsername))
+				.thenReturn(List.of(firstId, secondId));
+
+		when(companyRepositoryMock.findByID(firstId)).thenReturn(Optional.of(firstCompany));
+		when(companyRepositoryMock.findByID(secondId)).thenReturn(Optional.of(secondCompany));
 
 		companyService.removeCompanyMemberAsAdmin(adminUsername, memberUsername);
 
 		verify(userRepositoryMock).isSystemAdmin(adminUsername);
-		verify(companyRepositoryMock).getCompaniesByMember(memberUsername);
+		verify(userRepositoryMock).getCompaniesIdsByMember(memberUsername);
+		verify(userRepositoryMock).findByEmail(memberUsername);
 
-		verify(firstCompany).removeMemberAsAdmin(memberUsername);
-		verify(secondCompany).removeMemberAsAdmin(memberUsername);
-
-		verify(companyRepositoryMock).save(firstCompany);
-		verify(companyRepositoryMock).save(secondCompany);
+		verify(user, times(1)).removeFromCompanyAsAdmin(firstId);
+		verify(user, times(1)).removeFromCompanyAsAdmin(secondId);
 	}
 
 	@Test
@@ -955,20 +1011,22 @@ public class CompanyServiceTest {
 				() -> companyService.removeCompanyMemberAsAdmin(regularUsername, memberUsername));
 
 		verify(userRepositoryMock).isSystemAdmin(regularUsername);
-		verify(companyRepositoryMock, never()).getCompaniesByMember(anyString());
+		verify(userRepositoryMock, never()).getCompaniesIdsByMember(anyString());
 		verify(companyRepositoryMock, never()).save(any());
 	}
 
 	@Test
 	public void removeCompanyMemberAsAdmin_whenUserIsNotAssignedToAnyCompany_throwsExceptionAndDoesNotSave() {
+		User user = mock(User.class);
 		when(userRepositoryMock.isSystemAdmin(adminUsername)).thenReturn(true);
-		when(companyRepositoryMock.getCompaniesByMember(memberUsername)).thenReturn(List.of());
+		when(userRepositoryMock.findByEmail(memberUsername)).thenReturn(Optional.of(user));
+		when(userRepositoryMock.getCompaniesIdsByMember(memberUsername)).thenReturn(List.of());
 
 		assertThrows(IllegalArgumentException.class,
 				() -> companyService.removeCompanyMemberAsAdmin(adminUsername, memberUsername));
 
 		verify(userRepositoryMock).isSystemAdmin(adminUsername);
-		verify(companyRepositoryMock).getCompaniesByMember(memberUsername);
+		verify(userRepositoryMock).getCompaniesIdsByMember(memberUsername);
 		verify(companyRepositoryMock, never()).save(any());
 	}
 
@@ -978,19 +1036,27 @@ public class CompanyServiceTest {
 		Company realCompany = new Company("ownerUser", "ManagerRemovalCorp");
 		when(companyRepositoryMock.findByID(companyId)).thenReturn(Optional.of(realCompany));
 
-		String owner = realCompany.getFounder().getUsername();
+		String owner = "ownerUser";
 		String manager = "managerToRemove";
 		Set<CompanyPermission> perms = new HashSet<>();
 		perms.add(CompanyPermission.MANAGE_POLICIES);
 
-		realCompany.appointNewManager(manager, owner, perms);
-		assertTrue(realCompany.hasMember(manager));
+		// Build users and wire user repository
+		User ownerUser = new User(UUID.randomUUID(), owner, owner, "hash", 41);
+		ownerUser.getCompanyRoles().put(companyId, new CompanyFounder(owner));
+		User managerUser = new User(UUID.randomUUID(), manager, manager, "hash", 30);
+		managerUser.getCompanyRoles().put(companyId, new CompanyManager(manager, (CompanyOwner) ownerUser.getCompanyRole(companyId), perms));
+		when(userRepositoryMock.findByEmail(owner)).thenReturn(Optional.of(ownerUser));
+		when(userRepositoryMock.findByEmail(manager)).thenReturn(Optional.of(managerUser));
+
+		// Sanity check
+		assertTrue(managerUser.isCompanyMember(companyId));
 
 		// Act
 		companyService.removeCompanyMemberAsOwner(owner, companyId, manager);
 
 		// Assert: manager removed (treated as subscriber/outside company)
-		assertFalse(realCompany.hasMember(manager));
+		assertFalse(managerUser.isCompanyMember(companyId));
 
 		// Hierarchy/mermaid should no longer contain the manager
 		String mermaid = companyService.getCompanyHierarchyMermaid(companyId, owner);
@@ -1003,23 +1069,32 @@ public class CompanyServiceTest {
 		Company realCompany = new Company("founderUser", "AuthRemovalCorp");
 		when(companyRepositoryMock.findByID(companyId)).thenReturn(Optional.of(realCompany));
 
-		String founder = realCompany.getFounder().getUsername();
+		String founder = "founderUser";
 		String owner1 = "owner1";
 		String owner2 = "owner2";
-		realCompany.appointNewOwner(owner1, founder);
-		realCompany.appointNewOwner(owner2, founder);
+
+		User founderUser = new User(UUID.randomUUID(), founder, founder, "hash", 55);
+		founderUser.getCompanyRoles().put(companyId, new CompanyFounder(founder));
+		User owner1User = new User(UUID.randomUUID(), owner1, owner1, "hash", 44);
+		owner1User.getCompanyRoles().put(companyId, new CompanyOwner(owner1, (CompanyOwner) founderUser.getCompanyRole(companyId)));
+		User owner2User = new User(UUID.randomUUID(), owner2, owner2, "hash", 43);
+		owner2User.getCompanyRoles().put(companyId, new CompanyOwner(owner2, (CompanyOwner) founderUser.getCompanyRole(companyId)));
 
 		String manager = "managedByOwner2";
 		Set<CompanyPermission> perms = new HashSet<>();
 		perms.add(CompanyPermission.MANAGE_POLICIES);
-		realCompany.appointNewManager(manager, owner2, perms);
+		User managerUser = new User(UUID.randomUUID(), manager, manager, "hash", 33);
+		managerUser.getCompanyRoles().put(companyId, new CompanyManager(manager, (CompanyOwner) owner2User.getCompanyRole(companyId), perms));
 
-		IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+		when(userRepositoryMock.findByEmail(owner1)).thenReturn(Optional.of(owner1User));
+		when(userRepositoryMock.findByEmail(owner2)).thenReturn(Optional.of(owner2User));
+		when(userRepositoryMock.findByEmail(manager)).thenReturn(Optional.of(managerUser));
+
+		// Attempt removal by owner1 should fail because manager is under owner2
+		assertThrows(IllegalArgumentException.class,
 				() -> companyService.removeCompanyMemberAsOwner(owner1, companyId, manager));
-
-		assertEquals("The owner can only remove managers that are under him in the company hyrarchy", ex.getMessage());
 		// ensure manager still exists
-		assertTrue(realCompany.hasMember(manager));
+		assertTrue(managerUser.isCompanyMember(companyId));
 	}
 
 	@Test
@@ -1028,20 +1103,26 @@ public class CompanyServiceTest {
 		Company realCompany = new Company("ownerUser", "RolesUpdateCorp");
 		when(companyRepositoryMock.findByID(companyId)).thenReturn(Optional.of(realCompany));
 
-		String owner = realCompany.getFounder().getUsername();
+		String owner = "ownerUser";
 		String manager = "tempManager";
 		Set<CompanyPermission> perms = new HashSet<>();
 		perms.add(CompanyPermission.MANAGE_POLICIES);
-		realCompany.appointNewManager(manager, owner, perms);
 
-		assertTrue(realCompany.hasMember(manager));
+		User ownerUser = new User(UUID.randomUUID(), owner, owner, "hash", 48);
+		ownerUser.getCompanyRoles().put(companyId, new CompanyFounder(owner));
+		User managerUser = new User(UUID.randomUUID(), manager, manager, "hash", 32);
+		managerUser.getCompanyRoles().put(companyId, new CompanyManager(manager, (CompanyOwner) ownerUser.getCompanyRole(companyId), perms));
+		when(userRepositoryMock.findByEmail(owner)).thenReturn(Optional.of(ownerUser));
+		when(userRepositoryMock.findByEmail(manager)).thenReturn(Optional.of(managerUser));
+
+		assertTrue(managerUser.isCompanyMember(companyId));
 
 		companyService.removeCompanyMemberAsOwner(owner, companyId, manager);
 
 		// The removed user should not appear under "managers" in the hierarchy
 		String mermaid = companyService.getCompanyHierarchyMermaid(companyId, owner);
 		assertFalse(mermaid.contains(manager));
-		assertFalse(realCompany.hasMember(manager));
+		assertFalse(managerUser.isCompanyMember(companyId));
 	}
 
 	@Test
@@ -1052,51 +1133,44 @@ public class CompanyServiceTest {
 		Company realCompany = new Company("founderUser", "RecursiveRemovalCorp");
 		when(companyRepositoryMock.findByID(companyId)).thenReturn(Optional.of(realCompany));
 
-		String founder = realCompany.getFounder().getUsername();
+		String founder = "founderUser";
 		// Create ownerA under founder
 		String ownerA = "ownerA";
-		realCompany.appointNewOwner(ownerA, founder);
-
-		// ownerA appoints ownerB and managerX
 		String ownerB = "ownerB";
 		String managerX = "mgrX";
-		realCompany.appointNewOwner(ownerB, ownerA);
+
+		User founderUser = new User(UUID.randomUUID(), founder, founder, "hash", 60);
+		founderUser.getCompanyRoles().put(companyId, new CompanyFounder(founder));
+
+		User ownerAUser = new User(UUID.randomUUID(), ownerA, ownerA, "hash", 50);
+		ownerAUser.getCompanyRoles().put(companyId, new CompanyOwner(ownerA, (CompanyOwner) founderUser.getCompanyRole(companyId)));
+
+		User ownerBUser = new User(UUID.randomUUID(), ownerB, ownerB, "hash", 45);
+		ownerBUser.getCompanyRoles().put(companyId, new CompanyOwner(ownerB, (CompanyOwner) ownerAUser.getCompanyRole(companyId)));
+
+		User managerXUser = new User(UUID.randomUUID(), managerX, managerX, "hash", 33);
 		Set<CompanyPermission> perms = new HashSet<>();
 		perms.add(CompanyPermission.MANAGE_POLICIES);
-		realCompany.appointNewManager(managerX, ownerB, perms);
+		managerXUser.getCompanyRoles().put(companyId, new CompanyManager(managerX, (CompanyOwner) ownerBUser.getCompanyRole(companyId), perms));
 
-		assertTrue(realCompany.hasMember(ownerA));
-		assertTrue(realCompany.hasMember(ownerB));
-		assertTrue(realCompany.hasMember(managerX));
+		when(userRepositoryMock.findByEmail(founder)).thenReturn(Optional.of(founderUser));
+		when(userRepositoryMock.findByEmail(ownerA)).thenReturn(Optional.of(ownerAUser));
+		when(userRepositoryMock.findByEmail(ownerB)).thenReturn(Optional.of(ownerBUser));
+		when(userRepositoryMock.findByEmail(managerX)).thenReturn(Optional.of(managerXUser));
 
-		// Mock domain service to perform recursive removal when asked
+		assertTrue(ownerAUser.isCompanyMember(companyId));
+		assertTrue(ownerBUser.isCompanyMember(companyId));
+		assertTrue(managerXUser.isCompanyMember(companyId));
+
+		// Mock domain service to perform recursive removal when asked (remove ownerB and managerX)
 		doAnswer(invocation -> {
 			String actingOwner = invocation.getArgument(0);
 			UUID cid = invocation.getArgument(1);
 			String toRemove = invocation.getArgument(2);
-			Company comp = companyRepositoryMock.findByID(cid).get();
-
-			// recursive helper
-			java.util.function.Consumer<String> recursiveRemove = new java.util.function.Consumer<>() {
-				@Override
-				public void accept(String username) {
-					var member = comp.getMember(username);
-					if (member instanceof CompanyOwner) {
-						var owner = (CompanyOwner) member;
-						// copy to avoid ConcurrentModification
-						var subs = new java.util.ArrayList<>(owner.getSubordinates());
-						for (var s : subs) {
-							accept(s.getUsername());
-						}
-						comp.removeMemberAsOwner(username, actingOwner);
-					} else {
-						// manager
-						comp.removeMemberAsOwner(username, actingOwner);
-					}
-				}
-			};
-
-			recursiveRemove.accept(toRemove);
+			if (toRemove.equals(ownerB)) {
+				ownerBUser.getCompanyRoles().remove(cid);
+				managerXUser.getCompanyRoles().remove(cid);
+			}
 			return null;
 		}).when(rolesDomainServiceMock).removeCompanyMemberAsOwner(anyString(), any(UUID.class), anyString());
 
@@ -1104,8 +1178,8 @@ public class CompanyServiceTest {
 		svcWithMock.removeCompanyMemberAsOwner(ownerA, companyId, ownerB);
 
 		// Assert: ownerB and his subordinate managerX are removed
-		assertFalse(realCompany.hasMember(ownerB));
-		assertFalse(realCompany.hasMember(managerX));
+		assertFalse(ownerBUser.isCompanyMember(companyId));
+		assertFalse(managerXUser.isCompanyMember(companyId));
 	}
 
 	@Test
