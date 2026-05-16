@@ -11,6 +11,8 @@ import AdminSubscribersPage from "./pages/admin/AdminSubscribersPage";
 import EventDetailsPage from "./pages/EventDetails/EventDetails";
 import EventSearchPage from "./pages/EventSearch/EventSearch";
 import PurchaseHistoryPage from "./pages/PurchaseHistoryPage";
+import UserProfilePage from "./pages/UserProfilePage";
+
 import type { AdminActionId } from "./types/admin";
 import "./App.css";
 
@@ -105,12 +107,7 @@ function App() {
         }
 
         if (currentPage === "profile") {
-            return (
-                <PlaceholderPage
-                    title="Profile"
-                    description="Current user profile details."
-                />
-            );
+            return <UserProfilePage />;
         }
 
         if (currentPage === "admin-dashboard") {

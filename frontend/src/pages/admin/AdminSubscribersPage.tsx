@@ -15,6 +15,11 @@ export default function AdminSubscribersPage() {
     useEffect(() => {
         async function loadSubscribers() {
             const currentUser = await getCurrentUser();
+
+            if (!currentUser) {
+                return;
+            }
+
             const result = await getSubscribers(currentUser.id);
 
             setAdminUserId(currentUser.id);

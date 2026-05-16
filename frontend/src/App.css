@@ -467,3 +467,78 @@ textarea {
     min-width: unset;
   }
 }
+
+/* =========================
+   User Profile
+   ========================= */
+
+.profile-card {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 28px;
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+}
+
+.profile-avatar {
+  width: 88px;
+  height: 88px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #111827;
+  color: #ffffff;
+  font-size: 36px;
+  font-weight: 800;
+}
+
+.profile-details {
+  width: 100%;
+  display: grid;
+  gap: 14px;
+}
+
+.profile-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.profile-row:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.profile-row span {
+  color: #6b7280;
+  font-weight: 700;
+}
+
+.profile-row strong {
+  color: #111827;
+  text-align: right;
+}
+
+@media (max-width: 700px) {
+  .profile-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .profile-row {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .profile-row strong {
+    text-align: left;
+  }
+}

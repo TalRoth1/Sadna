@@ -9,6 +9,11 @@ export default function AdminPurchaseHistoryPage() {
     useEffect(() => {
         async function loadPurchases() {
             const currentUser = await getCurrentUser();
+
+            if (!currentUser) {
+                return;
+            }
+
             const result = await getGlobalPurchaseHistory(currentUser.id);
 
             setPurchases(result);

@@ -9,8 +9,12 @@ export default function AdminAnalyticsPage() {
     useEffect(() => {
         async function loadAnalytics() {
             const currentUser = await getCurrentUser();
-            const result = await getSystemAnalytics(currentUser.id);
 
+            if (!currentUser) {
+                return;
+            }
+
+            const result = await getSystemAnalytics(currentUser.id);
             setAnalytics(result);
         }
 

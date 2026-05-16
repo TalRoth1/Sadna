@@ -15,6 +15,11 @@ export default function AdminCompaniesPage() {
     useEffect(() => {
         async function loadCompanies() {
             const currentUser = await getCurrentUser();
+
+            if (!currentUser) {
+                return;
+            }
+
             const result = await getProductionCompanies(currentUser.id);
 
             setAdminUserId(currentUser.id);

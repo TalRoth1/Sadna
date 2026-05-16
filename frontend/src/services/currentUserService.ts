@@ -3,10 +3,15 @@ export type CurrentUser = {
     username: string;
 };
 
-// TODO: Replace mock current user with real authenticated user data once authentication/session handling is implemented.
-export async function getCurrentUser(): Promise<CurrentUser> {
+// TODO: Replace this mock implementation with the real logged-in user/session data
+// once authentication and the communication layer are implemented.
+// Return null when there is no logged-in user.
+export async function getCurrentUser(): Promise<CurrentUser | null> {
     return {
         id: "user-1",
         username: "mock-user",
     };
+
+    // To test guest state:
+    // return null;
 }
