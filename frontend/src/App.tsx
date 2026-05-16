@@ -8,6 +8,8 @@ import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import AdminPurchaseHistoryPage from "./pages/admin/AdminPurchaseHistoryPage";
 import AdminQueuesPage from "./pages/admin/AdminQueuesPage";
 import AdminSubscribersPage from "./pages/admin/AdminSubscribersPage";
+import EventDetailsPage from "./pages/EventDetails/EventDetails";
+import EventSearchPage from "./pages/EventSearch/EventSearch";
 import PurchaseHistoryPage from "./pages/PurchaseHistoryPage";
 import type { AdminActionId } from "./types/admin";
 import "./App.css";
@@ -31,6 +33,14 @@ function PlaceholderPage({
 
 function App() {
     const [currentPage, setCurrentPage] = useState<AppPage>("home");
+    const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+
+    function navigate(page: AppPage) {
+        if (page !== "event-details") {
+            setSelectedEventId(null);
+        }
+        setCurrentPage(page);
+    }
 
     function handleAdminNavigate(page: AdminActionId) {
         const adminPageByAction: Record<AdminActionId, AppPage> = {
@@ -45,6 +55,16 @@ function App() {
         setCurrentPage(adminPageByAction[page]);
     }
 
+    function handleSelectEvent(eventId: string) {
+        setSelectedEventId(eventId);
+        setCurrentPage("event-details");
+    }
+
+    function handleBackToSearch() {
+        setSelectedEventId(null);
+        setCurrentPage("event-search");
+    }
+
     function renderPage() {
         if (currentPage === "home") {
             return (
@@ -56,10 +76,17 @@ function App() {
         }
 
         if (currentPage === "event-search") {
+            return <EventSearchPage onSelectEvent={handleSelectEvent} />;
+        }
+
+        if (currentPage === "event-details") {
+            if (!selectedEventId) {
+                return <EventSearchPage onSelectEvent={handleSelectEvent} />;
+            }
             return (
-                <PlaceholderPage
-                    title="Event Search"
-                    description="Search and browse events."
+                <EventDetailsPage
+                    eventId={selectedEventId}
+                    onBackToSearch={handleBackToSearch}
                 />
             );
         }
@@ -133,7 +160,7 @@ function App() {
 
     return (
         <>
-            <NavigationMenu currentPage={currentPage} onNavigate={setCurrentPage} />
+            <NavigationMenu currentPage={currentPage} onNavigate={navigate} />
             {renderPage()}
         </>
     );
