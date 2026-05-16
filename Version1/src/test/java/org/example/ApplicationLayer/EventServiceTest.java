@@ -891,8 +891,8 @@ public class EventServiceTest {
         when(eventRepository.getById(eventId)).thenReturn(event);
         doThrow(new RuntimeException("DB down")).when(eventRepository).save(any(Event.class));
 
-        RuntimeException ex = assertThrows(RuntimeException.class,
-                () -> eventService.rateEvent(userId, eventId, 4));
+        DomainException ex = assertThrows(DomainException.class,
+            () -> eventService.rateEvent(userId, eventId, 4));
         assertEquals("DB down", ex.getMessage());
     }
 
