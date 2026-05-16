@@ -1,13 +1,15 @@
 package org.example.DomainLayer.Events;
 
-public class PurchaseCompletedEvent implements IDomainEvent {
-    private final String userId;
+import java.util.UUID;
 
-    public PurchaseCompletedEvent(String userId) {
+public class PurchaseCompletedEvent implements IDomainEvent {
+    private final UUID userId;
+
+    public PurchaseCompletedEvent(UUID userId) {
         this.userId = userId;
     }
 
-    public String getUserId() {
+    public UUID getUserId() {
         return userId;
     }
     

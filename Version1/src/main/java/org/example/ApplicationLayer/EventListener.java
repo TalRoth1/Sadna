@@ -26,7 +26,7 @@ public class EventListener {
 
         if (event instanceof PurchaseCompletedEvent purchaseCompletedEvent) {
             notificationService.notifyUser(
-                    purchaseCompletedEvent.getUserId(),
+                    purchaseCompletedEvent.getUserId().toString(),
                     "Your purchase was completed successfully."
             );
         }

@@ -1,11 +1,14 @@
 package org.example.DomainLayer;
 
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.example.ApplicationLayer.IPaymentGateway;
 import org.example.ApplicationLayer.ITicketingGateway;
@@ -21,9 +24,6 @@ import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.example.DomainLayer.UserAggregate.User;
 import org.example.DomainLayer.UserAggregate.UserRole;
 import org.example.DomainLayer.UserAggregate.UserStatus;
-
-import java.time.temporal.ChronoUnit;
-import java.util.stream.Collectors;
 
 public class PurchaseDomainService {
     private final IHistoryRepository historyRepository;
@@ -426,7 +426,7 @@ public class PurchaseDomainService {
         lotteryRepository.save(lottery);
     }
 
-    public void drawLotteryForEvent(UUID eventId, LocalDateTime codeExpiry) {
+    public Set<String> drawLotteryForEvent(UUID eventId, LocalDateTime codeExpiry) {
         if (eventId == null) {
             throw new DomainException("Event ID is required");
         }
@@ -450,7 +450,9 @@ public class PurchaseDomainService {
         lottery.drawWinners(availableTickets, codeExpiry);
 
         lotteryRepository.save(lottery);
+        return lottery.getWinnerUsers();
     }
+    
     
     public SalesReport getSalesReportForOwner(String ownerUsername, UUID companyId) {
         Company company = companyRepository.findByID(companyId).orElse(null);
