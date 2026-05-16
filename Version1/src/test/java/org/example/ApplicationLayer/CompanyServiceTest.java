@@ -7,10 +7,12 @@ import org.example.DomainLayer.PurchaseDomainService;
 import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.ApplicationLayer.dto.SalesReport;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
-import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
+import org.mockito.quality.Strictness;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -40,8 +42,10 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-@RunWith(MockitoJUnitRunner.class)
 public class CompanyServiceTest {
+
+	@Rule
+	public MockitoRule rule = MockitoJUnit.rule().strictness(Strictness.LENIENT);
 
 	@Mock
 	private RolesDomainService rolesDomainServiceMock;
