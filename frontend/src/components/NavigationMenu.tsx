@@ -6,6 +6,7 @@ export type AppPage =
     | "event-search"
     | "event-details"
     | "login"
+    | "registration"
     | "user-tickets"
     | "purchase-history"
     | "my-companies"
