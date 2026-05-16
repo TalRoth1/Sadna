@@ -435,7 +435,12 @@ public class PurchaseDomainServiceTest {
         eventRepository.save(event);
         companyRepository.save(companyId, company);
 
-        when(userRepository.isCompanyOwner(ownerName, companyId)).thenReturn(true);
+        // Add a real User to the fake repository and mark them as company founder/owner
+        UUID ownerId = UUID.randomUUID();
+        org.example.DomainLayer.UserAggregate.User ownerUser =
+            new org.example.DomainLayer.UserAggregate.User(ownerId, ownerName, ownerName, "hash", 40);
+        ownerUser.getCompanyRoles().put(companyId, new org.example.DomainLayer.UserAggregate.CompanyFounder(ownerName));
+        userRepository.add(ownerUser);
 
         assertTrue(purchaseDomainService.isCompanyOwnerOfEvent(ownerName, eventId));
     }
@@ -452,7 +457,7 @@ public class PurchaseDomainServiceTest {
         eventRepository.save(event);
         companyRepository.save(companyId, company);
 
-        when(userRepository.isCompanyOwner(ownerName, companyId)).thenReturn(false);
+        // no user added to fake repository -> isCompanyOwner should return false
 
         assertFalse(purchaseDomainService.isCompanyOwnerOfEvent(ownerName, eventId));
     }
@@ -1248,12 +1253,14 @@ public class PurchaseDomainServiceTest {
 
         @Override
         public boolean isCompanyOwner(String username, UUID companyId) {
-            return false;
+            Optional<User> u = findByEmail(username);
+            return u.map(user -> user.isOwnerInCompany(companyId)).orElse(false);
         }
 
         @Override
         public boolean hasPermission(String username, UUID companyId, CompanyPermission permission, UUID eventId) {
-            return false;
+            Optional<User> u = findByEmail(username);
+            return u.map(user -> user.hasPremisions(companyId, permission, eventId)).orElse(false);
         }
     }
 

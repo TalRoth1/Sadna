@@ -384,18 +384,16 @@ public class PurchaseDomainService {
             return false;
         }
 
-        Company company = companyRepository.findByID(event.getCompanyId())
-                .orElse(null);
-        
-        User user = userRepository.findByEmail(ownerName)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
-        
+        UUID companyId = event.getCompanyId();
+        Company company = companyRepository.findByID(companyId).orElse(null);
 
         if (company == null) {
             return false;
         }
 
-        return user.isOwnerInCompany(company.getId());
+        return userRepository.findByEmail(ownerName)
+                .map(u -> u.isOwnerInCompany(companyId))
+                .orElse(false);
     }
 
     public boolean checkLastUpdate(ActivePurchase activePurchase)
