@@ -69,6 +69,12 @@ public class UserRepository implements IUserRepository {
                 .map(Map.Entry::getKey) // Extract the company IDs
                 .toList();
     }
+
+    @Override
+    public boolean isCompanyOwner(String username, UUID companyId) {
+        User user = findByEmail(username).orElseThrow(() -> new IllegalArgumentException("User not found"));
+        return user.isOwnerInCompany(companyId);
+    }
     
 
     public void addAdmin(Admin admin) {

@@ -22,4 +22,6 @@ public interface IUserRepository {
     boolean existsAdmin(UUID adminId);
 
     public List<UUID> getCompaniesIdsByMember(String username);
+
+    public boolean isCompanyOwner(String username, UUID companyId);
 }
