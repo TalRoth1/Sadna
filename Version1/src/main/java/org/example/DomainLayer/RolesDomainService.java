@@ -144,11 +144,17 @@ public class RolesDomainService {
         if (company == null)
             throw new IllegalArgumentException("Company not found");
 
-        User userToInvite = userRepository.findByEmail(usernameToInvite)
-                .orElseThrow(() -> new IllegalArgumentException("User to invite not found"));
-
+        // Fetch and validate the appointer first so authorization errors are raised
+        // before any user-to-invite existence checks.
         User ownerUser = userRepository.findByEmail(ownerUsername)
                 .orElseThrow(() -> new IllegalArgumentException("Owner user not found"));
+
+        if (!ownerUser.isCompanyMember(companyId) || !ownerUser.isOwnerInCompany(companyId)) {
+            throw new IllegalArgumentException("The appointer is not a company owner and therefore cannot invite a new manager");
+        }
+
+        User userToInvite = userRepository.findByEmail(usernameToInvite)
+                .orElseThrow(() -> new IllegalArgumentException("User to invite not found"));
 
         synchronized (company) {
             return userToInvite.inviteUserToBecomeManager(companyId, ownerUser, premissions);
@@ -168,10 +174,15 @@ public class RolesDomainService {
         if (company == null)
             throw new IllegalArgumentException("Company not found");
 
-        User userToInvite = userRepository.findByEmail(usernameToInvite)
-                .orElseThrow(() -> new IllegalArgumentException("User to invite not found"));
         User ownerUser = userRepository.findByEmail(ownerUsername)
                 .orElseThrow(() -> new IllegalArgumentException("Owner user not found"));
+
+        if (!ownerUser.isCompanyMember(companyId) || !ownerUser.isOwnerInCompany(companyId)) {
+            throw new IllegalArgumentException("The appointer is not a company owner and therefore cannot invite a new owner");
+        }
+
+        User userToInvite = userRepository.findByEmail(usernameToInvite)
+                .orElseThrow(() -> new IllegalArgumentException("User to invite not found"));
 
         synchronized (company) {
             return userToInvite.inviteUserToBecomeOwner(companyId, ownerUser);

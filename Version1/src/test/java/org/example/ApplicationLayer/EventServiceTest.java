@@ -143,6 +143,17 @@ public class EventServiceTest {
         when(eventRepository.getById(eventId)).thenReturn(event);
         when(companyRepository.findByID(companyId))
                 .thenReturn(Optional.of(authorizedCompany(ownerUsername, eventId)));
+        // Ensure the user repository returns a User who is a founder/owner
+        // for the company and is in charge of the event so permission checks pass.
+        org.example.DomainLayer.UserAggregate.User ownerUser =
+            new org.example.DomainLayer.UserAggregate.User(UUID.randomUUID(), ownerUsername, ownerUsername, "hash", 40);
+        ownerUser.getCompanyRoles().put(companyId, new org.example.DomainLayer.UserAggregate.CompanyFounder(ownerUsername));
+        // mark the founder as in charge of the event
+        ownerUser.getCompanyRole(companyId).getEventsIds().add(event.getEventId());
+        when(userRepository.findByEmail(ownerUsername)).thenReturn(Optional.of(ownerUser));
+        when(userRepository.hasPermission(ownerUsername, companyId,
+            org.example.DomainLayer.CompanyAggregate.CompanyPermission.MANAGE_POLICIES, eventId))
+            .thenReturn(true);
     }
 
     // =====================================================================

@@ -73,6 +73,12 @@ public class CompanyServiceTest {
 		regularUsername = "regularUser";
 		memberUsername = "member";
 		companyId = UUID.randomUUID();
+
+		// Default stub: provide a founder user for tests that reference "founderUser"
+		org.example.DomainLayer.UserAggregate.User defaultFounder = new org.example.DomainLayer.UserAggregate.User(UUID.randomUUID(), "founderUser", "founderUser", "hash", 40);
+		// by default make him a founder in a dummy company; specific tests override as needed
+		defaultFounder.getCompanyRoles().put(companyId, new org.example.DomainLayer.UserAggregate.CompanyFounder("founderUser"));
+		org.mockito.Mockito.lenient().when(userRepositoryMock.findByEmail("founderUser")).thenReturn(Optional.of(defaultFounder));
 	}
 
 	/* Test cases for closeCompanyAsAdmin method */
@@ -299,8 +305,11 @@ public class CompanyServiceTest {
 		// Arrange
 		UUID companyId = UUID.randomUUID();
 		Company realCompany = new Company("founderUser", "TestCorp");
-
-		// Now this call won't throw a NullPointerException
+		
+		// Ensure repository returns a User who is the company founder so permission checks pass
+		org.example.DomainLayer.UserAggregate.User ownerUser = new org.example.DomainLayer.UserAggregate.User(UUID.randomUUID(), "founderUser", "founderUser", "hash", 30);
+		ownerUser.getCompanyRoles().put(companyId, new org.example.DomainLayer.UserAggregate.CompanyFounder("founderUser"));
+		when(userRepositoryMock.findByEmail("founderUser")).thenReturn(Optional.of(ownerUser));
 		when(companyRepositoryMock.findByID(companyId)).thenReturn(Optional.of(realCompany));
 
 		Optional<Float> ageLimit = Optional.of(18.0f);
@@ -321,6 +330,10 @@ public class CompanyServiceTest {
 		UUID companyId = UUID.randomUUID();
 		Company realCompany = new Company("founderUser", "TestCorp");
 		when(companyRepositoryMock.findByID(companyId)).thenReturn(Optional.of(realCompany));
+
+		org.example.DomainLayer.UserAggregate.User ownerUser = new org.example.DomainLayer.UserAggregate.User(UUID.randomUUID(), "founderUser", "founderUser", "hash", 30);
+		ownerUser.getCompanyRoles().put(companyId, new org.example.DomainLayer.UserAggregate.CompanyFounder("founderUser"));
+		when(userRepositoryMock.findByEmail("founderUser")).thenReturn(Optional.of(ownerUser));
 
 		// Act: Add an age rule, then update it with a new value
 		companyService.addPolicyRule("founderUser", companyId, Optional.of(18.0f), Optional.empty(), Optional.empty(),
@@ -344,6 +357,10 @@ public class CompanyServiceTest {
 		UUID companyId = UUID.randomUUID();
 		Company realCompany = new Company("founderUser", "DiscountCorp");
 		when(companyRepositoryMock.findByID(companyId)).thenReturn(Optional.of(realCompany));
+
+		org.example.DomainLayer.UserAggregate.User ownerUser = new org.example.DomainLayer.UserAggregate.User(UUID.randomUUID(), "founderUser", "founderUser", "hash", 40);
+		ownerUser.getCompanyRoles().put(companyId, new org.example.DomainLayer.UserAggregate.CompanyFounder("founderUser"));
+		when(userRepositoryMock.findByEmail("founderUser")).thenReturn(Optional.of(ownerUser));
 
 		LocalDate startDate = LocalDate.now();
 		LocalDate endDate = LocalDate.now().plusDays(5);
@@ -369,6 +386,10 @@ public class CompanyServiceTest {
 				Optional.of(true));
 		when(companyRepositoryMock.findByID(companyId)).thenReturn(Optional.of(realCompany));
 
+		org.example.DomainLayer.UserAggregate.User ownerUser = new org.example.DomainLayer.UserAggregate.User(UUID.randomUUID(), "founderUser", "founderUser", "hash", 40);
+		ownerUser.getCompanyRoles().put(companyId, new org.example.DomainLayer.UserAggregate.CompanyFounder("founderUser"));
+		when(userRepositoryMock.findByEmail("founderUser")).thenReturn(Optional.of(ownerUser));
+
 		// Act: Delete only the Age Rule, keep the Lone Seat Rule
 		companyService.deletePolicyRule("founderUser", companyId, true, false, false, false);
 
@@ -385,6 +406,10 @@ public class CompanyServiceTest {
 		UUID companyId = UUID.randomUUID();
 		Company realCompany = new Company("founderUser", "SafetyCorp");
 		when(companyRepositoryMock.findByID(companyId)).thenReturn(Optional.of(realCompany));
+
+		org.example.DomainLayer.UserAggregate.User ownerUser = new org.example.DomainLayer.UserAggregate.User(UUID.randomUUID(), "founderUser", "founderUser", "hash", 40);
+		ownerUser.getCompanyRoles().put(companyId, new org.example.DomainLayer.UserAggregate.CompanyFounder("founderUser"));
+		when(userRepositoryMock.findByEmail("founderUser")).thenReturn(Optional.of(ownerUser));
 
 		// Act: Pass empty optionals for everything
 		companyService.addPolicyRule("founderUser", companyId, Optional.empty(), Optional.empty(), Optional.empty(),
@@ -403,6 +428,10 @@ public class CompanyServiceTest {
 
 		// We mock the repository to return our real company instance
 		when(companyRepositoryMock.findByID(companyId)).thenReturn(Optional.of(realCompany));
+
+		org.example.DomainLayer.UserAggregate.User ownerUser = new org.example.DomainLayer.UserAggregate.User(UUID.randomUUID(), "founderUser", "founderUser", "hash", 40);
+		ownerUser.getCompanyRoles().put(companyId, new org.example.DomainLayer.UserAggregate.CompanyFounder("founderUser"));
+		when(userRepositoryMock.findByEmail("founderUser")).thenReturn(Optional.of(ownerUser));
 
 		// 1. Add two different discounts
 		companyService.addOvertDiscount("founderUser", companyId, LocalDate.now(), LocalDate.now().plusDays(5), 10.0f);

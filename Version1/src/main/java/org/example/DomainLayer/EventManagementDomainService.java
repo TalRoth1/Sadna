@@ -54,10 +54,7 @@ public class EventManagementDomainService {
         Company company = companyRepository.findByID(companyId).get();
         if (company == null)
             throw new IllegalArgumentException("Company not found");
-        User user = userRepository.findByEmail(username).orElse(null);
-        if (user == null)
-            throw new IllegalArgumentException("User not found");
-        if (!user.hasPremisions(company.getId(), CompanyPermission.MANAGE_POLICIES, eventId))
+        if (!userRepository.hasPermission(username, companyId, CompanyPermission.MANAGE_POLICIES, eventId))
             throw new IllegalArgumentException("User has no permissions to change event policies");
         event.addPurchasePolicy(age, minTicket, maxTicket, allowLoneSeat);
     }
@@ -70,10 +67,7 @@ public class EventManagementDomainService {
         Company company = companyRepository.findByID(companyId).get();
         if (company == null)
             throw new IllegalArgumentException("Company not found");
-        User user = userRepository.findByEmail(username).orElse(null);
-        if (user == null)
-            throw new IllegalArgumentException("User not found");
-        if (!user.hasPremisions(company.getId(), CompanyPermission.MANAGE_POLICIES, eventId))
+        if (!userRepository.hasPermission(username, companyId, CompanyPermission.MANAGE_POLICIES, eventId))
             throw new IllegalArgumentException("User has no permissions to change event policies");
         event.deletePurchaseRule(age, minTicket, maxTicket, allowLoneSeat);
     }
@@ -86,10 +80,7 @@ public class EventManagementDomainService {
         Company company = companyRepository.findByID(companyId).get();
         if (company == null)
             throw new IllegalArgumentException("Company not found");
-        User user = userRepository.findByEmail(username).orElse(null);
-        if (user == null)
-            throw new IllegalArgumentException("User not found");
-        if (!user.hasPremisions(company.getId(), CompanyPermission.MANAGE_POLICIES, eventId))
+        if (!userRepository.hasPermission(username, companyId, CompanyPermission.MANAGE_POLICIES, eventId))
             throw new IllegalArgumentException("User has no permissions to change event policies");
         event.addOvertDiscount(fromDate, toDate, discountPrecent);
     }
@@ -102,10 +93,7 @@ public class EventManagementDomainService {
         Company company = companyRepository.findByID(companyId).get();
         if (company == null)
             throw new IllegalArgumentException("Company not found");
-        User user = userRepository.findByEmail(username).orElse(null);
-        if (user == null)
-            throw new IllegalArgumentException("User not found");
-        if (!user.hasPremisions(company.getId(), CompanyPermission.MANAGE_POLICIES, eventId))
+        if (!userRepository.hasPermission(username, companyId, CompanyPermission.MANAGE_POLICIES, eventId))
             throw new IllegalArgumentException("User has no permissions to change event policies");
         event.addConditionalDiscount(fromDate, toDate, discountPrecent, requiredTickets, appliedTickets);
     }
@@ -118,10 +106,7 @@ public class EventManagementDomainService {
         Company company = companyRepository.findByID(companyId).get();
         if (company == null)
             throw new IllegalArgumentException("Company not found");
-        User user = userRepository.findByEmail(username).orElse(null);
-        if (user == null)
-            throw new IllegalArgumentException("User not found");
-        if (!user.hasPremisions(company.getId(), CompanyPermission.MANAGE_POLICIES, eventId))
+        if (!userRepository.hasPermission(username, companyId, CompanyPermission.MANAGE_POLICIES, eventId))
             throw new IllegalArgumentException("User has no permissions to change event policies");
         event.addCouponCode(fromDate, toDate, discountPrecent, code);
     }
@@ -136,7 +121,7 @@ public class EventManagementDomainService {
         User user = userRepository.findByEmail(username).orElse(null);
         if (user == null)
             throw new IllegalArgumentException("User not found");
-        if (!user.hasPremisions(company.getId(), CompanyPermission.MANAGE_POLICIES, eventId))
+        if (!user.hasPremisions(companyId, CompanyPermission.MANAGE_POLICIES, eventId))
             throw new IllegalArgumentException("User has no permissions to change event policies");
         event.removeDiscount(discountId);
     }

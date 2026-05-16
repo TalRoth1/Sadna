@@ -79,8 +79,9 @@ public class User {
             throw new IllegalArgumentException(
                     "The appointer is not a company owner and therefore cannot invite a new owner");
         }
-        if (!isCompanyMember(companyId)) {
-            throw new IllegalStateException("Failed: The user is already a member of the company.");
+        // Prevent inviting an existing company member; only non-members may be invited
+        if (isCompanyMember(companyId)) {
+            throw new IllegalArgumentException("The appointee is already a member of the company and therefore cannot be invited as a manager");
         }
         Invitation ManagerInvitation = new ManagerInvitation(appointerUser, this, companyId, permissions);
         CompanyInvitations.put(ManagerInvitation.getId(), ManagerInvitation);

@@ -33,6 +33,7 @@ public class EventManagementDomainServiceTest {
         eventRepository = mock(IEventRepository.class);
         historyRepository = mock(IHistoryRepository.class);
         companyRepository = mock(ICompanyRepository.class);
+        userRepository = mock(IUserRepository.class);
 
         service = new EventManagementDomainService(
                 eventRepository,
