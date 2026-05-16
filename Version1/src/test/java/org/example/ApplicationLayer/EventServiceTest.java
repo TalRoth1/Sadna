@@ -889,7 +889,7 @@ public class EventServiceTest {
     public void GivenSaveThrowsRuntimeException_WhenRateEvent_ThenInfrastructureFailurePropagatesUnchanged() {
         Event event = newRealEvent();
         when(eventRepository.getById(eventId)).thenReturn(event);
-        doThrow(new RuntimeException("DB down")).when(eventRepository).save(event);
+        doThrow(new RuntimeException("DB down")).when(eventRepository).save(any(Event.class));
 
         RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> eventService.rateEvent(userId, eventId, 4));
