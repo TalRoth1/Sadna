@@ -3,18 +3,16 @@ import type { ChangeEvent } from "react";
 import { getEvents, searchEvents } from "../../services/eventSearchService";
 import {
     EMPTY_EVENT_SEARCH_FILTERS,
+    getAvailableTicketsCount,
+    getPriceRange,
     type Event,
-    type EventCategory,
     type EventSearchFilters,
 } from "../../types/event";
 import "./EventSearch.css";
 
-const CATEGORY_OPTIONS: EventCategory[] = [
-    "Live Show",
-    "Theater",
-    "Festival",
-    "Conference",
-];
+type EventSearchPageProps = {
+    onSelectEvent: (eventId: string) => void;
+};
 
 function formatEventDate(date: string) {
     const eventDate = new Date(date);
@@ -29,11 +27,12 @@ function formatEventDate(date: string) {
     });
 }
 
-function formatPriceRange(priceFrom: number, priceTo: number) {
-    if (priceFrom === priceTo) {
-        return `${priceFrom} NIS`;
+function formatPriceRange(event: Event) {
+    const { min, max } = getPriceRange(event);
+    if (min === max) {
+        return `${min} NIS`;
     }
-    return `${priceFrom}–${priceTo} NIS`;
+    return `${min}–${max} NIS`;
 }
 
 type EventCardProps = {
@@ -42,6 +41,8 @@ type EventCardProps = {
 };
 
 function EventCard({ event, onSelect }: EventCardProps) {
+    const availableTickets = getAvailableTicketsCount(event);
+
     return (
         <article
             className="event-card"
@@ -58,22 +59,25 @@ function EventCard({ event, onSelect }: EventCardProps) {
             <div className="event-card-main">
                 <div className="event-card-heading">
                     <h2>{event.name}</h2>
-                    <span className="event-category-badge">{event.category}</span>
+                    <span className="event-category-badge">{event.type}</span>
                 </div>
                 <p className="event-artist">{event.artist}</p>
-                <p className="event-meta">{formatEventDate(event.eventDate)}</p>
+                <p className="event-meta">{formatEventDate(event.date)}</p>
                 <p className="event-meta">{event.location}</p>
                 <p className="event-meta event-company">
-                    Production: {event.productionCompany}
+                    Production: {event.companyName}
                 </p>
             </div>
 
             <div className="event-card-side">
-                <span className="event-price">
-                    {formatPriceRange(event.priceFrom, event.priceTo)}
-                </span>
+                <span className="event-price">{formatPriceRange(event)}</span>
                 <span className="event-rating" aria-label={`Rating ${event.rating}`}>
                     ★ {event.rating.toFixed(1)}
+                </span>
+                <span className="event-availability">
+                    {availableTickets > 0
+                        ? `${availableTickets} tickets left`
+                        : "Sold out"}
                 </span>
             </div>
         </article>
@@ -104,13 +108,6 @@ function SearchFiltersForm({
         };
     }
 
-    function handleCategoryChange(
-        changeEvent: ChangeEvent<HTMLSelectElement>,
-    ) {
-        const nextValue = changeEvent.target.value as EventCategory | "";
-        updateField("category", nextValue);
-    }
-
     return (
         <section className="event-filters" aria-label="Event search filters">
             <div className="event-filters-row event-filters-row--primary">
@@ -118,25 +115,20 @@ function SearchFiltersForm({
                     <span>Search</span>
                     <input
                         type="search"
-                        placeholder="Event, artist or keywords"
-                        value={filters.query}
-                        onChange={handleInputChange("query")}
+                        placeholder="Event, artist, type or keywords"
+                        value={filters.text}
+                        onChange={handleInputChange("text")}
                     />
                 </label>
 
-                <label className="event-filter">
-                    <span>Category</span>
-                    <select
-                        value={filters.category}
-                        onChange={handleCategoryChange}
-                    >
-                        <option value="">All categories</option>
-                        {CATEGORY_OPTIONS.map((category) => (
-                            <option key={category} value={category}>
-                                {category}
-                            </option>
-                        ))}
-                    </select>
+                <label className="event-filter event-filter--grow">
+                    <span>Production company (optional)</span>
+                    <input
+                        type="text"
+                        placeholder="Scope to a company id"
+                        value={filters.companyId}
+                        onChange={handleInputChange("companyId")}
+                    />
                 </label>
             </div>
 
@@ -194,25 +186,28 @@ function SearchFiltersForm({
                 </label>
 
                 <label className="event-filter">
-                    <span>Min rating</span>
+                    <span>Min event rating</span>
                     <input
                         type="number"
                         min={0}
                         max={5}
                         step={0.1}
                         placeholder="0–5"
-                        value={filters.minRating}
-                        onChange={handleInputChange("minRating")}
+                        value={filters.minEventRating}
+                        onChange={handleInputChange("minEventRating")}
                     />
                 </label>
 
-                <label className="event-filter event-filter--grow">
-                    <span>Production company (optional)</span>
+                <label className="event-filter">
+                    <span>Min company rating</span>
                     <input
-                        type="text"
-                        placeholder="Scope to a company"
-                        value={filters.productionCompany}
-                        onChange={handleInputChange("productionCompany")}
+                        type="number"
+                        min={0}
+                        max={5}
+                        step={0.1}
+                        placeholder="0–5"
+                        value={filters.minCompanyRating}
+                        onChange={handleInputChange("minCompanyRating")}
                     />
                 </label>
             </div>
@@ -230,7 +225,9 @@ function SearchFiltersForm({
     );
 }
 
-export default function EventSearchPage() {
+export default function EventSearchPage({
+    onSelectEvent,
+}: EventSearchPageProps) {
     const [events, setEvents] = useState<Event[]>([]);
     const [filters, setFilters] = useState<EventSearchFilters>(
         EMPTY_EVENT_SEARCH_FILTERS,
@@ -262,8 +259,7 @@ export default function EventSearchPage() {
     );
 
     const hasActiveFilters = useMemo(
-        () =>
-            Object.entries(filters).some(([, value]) => value !== ""),
+        () => Object.values(filters).some((value) => value !== ""),
         [filters],
     );
 
@@ -272,18 +268,17 @@ export default function EventSearchPage() {
     }
 
     function handleEventSelect(event: Event) {
-        // TODO: Replace with real navigation to the event details screen
-        // once the routing layer is introduced.
-        console.info("Selected event:", event.id);
+        onSelectEvent(event.id);
     }
 
     return (
-        <main className="event-search-page">
+        <main className="app-page event-search-page">
             <section className="page-header">
                 <h1>Find Your Next Event</h1>
                 <p>
-                    Search the catalog by name, artist or keywords, then narrow
-                    the results down to your preferred dates, price and location.
+                    Search the catalog by name, artist, type or keywords, then
+                    narrow the results down to your preferred dates, price and
+                    location.
                 </p>
             </section>
 
