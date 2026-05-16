@@ -19,9 +19,15 @@ export default function AdminDashboardPage({ onNavigate }: AdminDashboardPagePro
                 setErrorMessage("");
 
                 const currentUser = await getCurrentUser();
-                const adminActions = await getAdminActions(currentUser.id);
 
+                if (!currentUser) {
+                    setErrorMessage("You must be logged in to access the admin dashboard.");
+                    return;
+                }
+
+                const adminActions = await getAdminActions(currentUser.id);
                 setActions(adminActions);
+
             } catch {
                 setErrorMessage("You are not allowed to access the admin dashboard.");
             } finally {

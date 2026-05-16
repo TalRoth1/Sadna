@@ -55,6 +55,13 @@ export default function PurchaseHistoryPage() {
                 setErrorMessage("");
 
                 const currentUser = await getCurrentUser();
+
+                if (!currentUser) {
+                    setErrorMessage("Please log in to view your purchase history.");
+                    setPurchases([]);
+                    return;
+                }
+
                 const purchaseHistory = await getPurchaseHistory(currentUser.id);
                 setPurchases(purchaseHistory);
             } catch {

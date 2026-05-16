@@ -40,8 +40,13 @@ export default function NavigationMenu({
         async function loadUserPermissions() {
             try {
                 const currentUser = await getCurrentUser();
-                const hasAdminAccess = await verifyPlatformAdmin(currentUser.id);
 
+                if (!currentUser) {
+                    setIsAdmin(false);
+                    return;
+                }
+
+                const hasAdminAccess = await verifyPlatformAdmin(currentUser.id);
                 setIsAdmin(hasAdminAccess);
             } catch {
                 setIsAdmin(false);
@@ -50,7 +55,6 @@ export default function NavigationMenu({
 
         loadUserPermissions();
     }, []);
-
     function handleNavigate(page: AppPage) {
         onNavigate(page);
         setIsMenuOpen(false);

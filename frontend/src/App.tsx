@@ -11,7 +11,8 @@ import AdminQueuesPage from "./pages/admin/AdminQueuesPage";
 import AdminSubscribersPage from "./pages/admin/AdminSubscribersPage";
 
 import PurchaseHistoryPage from "./pages/PurchaseHistoryPage";
-import EventSearchPage from "./pages/EventSearch/EventSearch"; 
+import EventSearchPage from "./pages/EventSearch/EventSearch";
+import UserProfilePage from "./pages/UserProfilePage";
 
 import type { AdminActionId } from "./types/admin";
 import "./App.css";
@@ -38,6 +39,10 @@ function App(){
 
         if (currentPage === "purchase-history") {
             return <PurchaseHistoryPage />;
+        }
+
+        if (currentPage === "profile") {
+            return <UserProfilePage />;
         }
 
         if (currentPage === "admin-dashboard") {

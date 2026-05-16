@@ -17,7 +17,13 @@ export default function AdminQueuesPage() {
     useEffect(() => {
         async function loadQueues() {
             const currentUser = await getCurrentUser();
+
+            if (!currentUser) {
+                return;
+            }
+
             const result = await getActiveQueues(currentUser.id);
+
             const firstQueue = result[0];
 
             setAdminUserId(currentUser.id);

@@ -18,6 +18,11 @@ export default function AdminComplaintsPage() {
     useEffect(() => {
         async function loadComplaints() {
             const currentUser = await getCurrentUser();
+
+            if (!currentUser) {
+                return;
+            }
+
             const result = await getComplaints(currentUser.id);
 
             setAdminUserId(currentUser.id);
