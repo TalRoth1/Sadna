@@ -7,7 +7,6 @@ import java.util.Set;
 import java.util.UUID;
 
 import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
-import org.example.DomainLayer.UserAggregate.Invitation;
 
 // --- Aggregate Root: User ---
 public class User {
@@ -216,7 +215,7 @@ public class User {
         return role instanceof CompanyFounder;
     }
 
-    private CompanyFounder getMyCompanyFounder(UUID companyId) {
+    public CompanyFounder getMyCompanyFounder(UUID companyId) {
         if (!isCompanyMember(companyId)) {
             throw new IllegalArgumentException("User is not a member of the company");
         }

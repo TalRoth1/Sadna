@@ -47,7 +47,7 @@ public class EventManagementDomainService {
     }
 
     public void addPurchasePolicy(String username, UUID companyId, UUID eventId, Optional<Float> age,
-            Optional<Integer> minTicket, Optional<Integer> maxTicket, Optional<Boolean> allowLoneSeat) {
+            Optional<Integer> minTicket, Optional<Integer> maxTicket, Optional<Boolean> allowLoneSeat, boolean andOr) {
         Event event = eventRepository.getById(eventId);
         if (event == null)
             throw new IllegalArgumentException("Event not found");
@@ -56,11 +56,10 @@ public class EventManagementDomainService {
             throw new IllegalArgumentException("Company not found");
         if (!userRepository.hasPermission(username, companyId, CompanyPermission.MANAGE_POLICIES, eventId))
             throw new IllegalArgumentException("User has no permissions to change event policies");
-        event.addPurchasePolicy(age, minTicket, maxTicket, allowLoneSeat);
+        event.addPurchasePolicy(age, minTicket, maxTicket, allowLoneSeat, andOr);
     }
 
-    public void deletePurchasePolicy(String username, UUID companyId, UUID eventId, boolean age, boolean minTicket,
-            boolean maxTicket, boolean allowLoneSeat) {
+    public void deletePurchasePolicy(String username, UUID companyId, UUID eventId, UUID ruleId) {
         Event event = eventRepository.getById(eventId);
         if (event == null)
             throw new IllegalArgumentException("Event not found");
@@ -69,7 +68,7 @@ public class EventManagementDomainService {
             throw new IllegalArgumentException("Company not found");
         if (!userRepository.hasPermission(username, companyId, CompanyPermission.MANAGE_POLICIES, eventId))
             throw new IllegalArgumentException("User has no permissions to change event policies");
-        event.deletePurchaseRule(age, minTicket, maxTicket, allowLoneSeat);
+        event.deletePurchaseRule(ruleId);
     }
 
     public void addOvertDiscount(String username, UUID companyId, UUID eventId, LocalDate fromDate, LocalDate toDate,

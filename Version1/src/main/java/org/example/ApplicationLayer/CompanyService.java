@@ -95,7 +95,7 @@ public class CompanyService {
         rolesDomainService.acceptCompanyInvitation(invetationID, username, companyId);
     }
     
-    public void addPolicyRule(String username, UUID companyId, Optional<Float> age, Optional<Integer> minTicket, Optional<Integer> maxTicket, Optional<Boolean> allowLoneSeat)
+    public void addPolicyRule(String username, UUID companyId, Optional<Float> age, Optional<Integer> minTicket, Optional<Integer> maxTicket, Optional<Boolean> allowLoneSeat, boolean andOr)
     {
         logger.info("User '" + username + "' attempting to add/update policy rules for Company ID: " + companyId);
 
@@ -114,7 +114,7 @@ public class CompanyService {
                 throw new IllegalArgumentException("maximum ticket amount must be a non negative integer");
             }
 
-            rolesDomainService.addPurchasePolicy(username, companyId, age, minTicket, maxTicket, allowLoneSeat);
+            rolesDomainService.addPurchasePolicy(username, companyId, age, minTicket, maxTicket, allowLoneSeat, andOr);
             
             logger.info("Successfully updated policy rules for Company ID: " + companyId + " by user: " + username);
 
@@ -124,12 +124,12 @@ public class CompanyService {
         }
     }
 
-    public void deletePolicyRule(String username, UUID companyId, boolean age, boolean minTicket, boolean maxTicket, boolean allowLoneSeat)
+    public void deletePolicyRule(String username, UUID companyId, UUID ruleId)
     {
         logger.info("User '" + username + "' attempting to delete specific policy rules for Company ID: " + companyId);
 
         try {
-            rolesDomainService.deletePurchasePolicy(username, companyId, age, minTicket, maxTicket, allowLoneSeat);
+            rolesDomainService.deletePurchasePolicy(username, companyId, ruleId);
             
             logger.info("Successfully deleted requested policy rules for Company ID: " + companyId + " by user: " + username);
             

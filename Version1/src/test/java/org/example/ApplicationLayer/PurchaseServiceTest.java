@@ -1,6 +1,5 @@
 package org.example.ApplicationLayer;
 
-import org.example.ApplicationLayer.PurchaseServiceTest.InMemoryHistoryRepository;
 import org.example.DomainLayer.*;
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 import org.example.DomainLayer.CompanyAggregate.Company;
@@ -1043,9 +1042,6 @@ public class PurchaseServiceTest {
         TestSetup setup = createSetup();
         UUID eventId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
-        UUID companyId = UUID.randomUUID();
-
-        // הגדרת הגרלה במערכת לאירוע הזה
         PuchaseLottery lottery = new PuchaseLottery(
                 UUID.randomUUID(),
                 eventId,
@@ -1059,11 +1055,9 @@ public class PurchaseServiceTest {
                 setup.purchaseService.selectSittingTickets(eventId, List.of(UUID.randomUUID()), userId, false)
         );
 
-        // וידוא שלא נוצר ActivePurchase במאגר
         assertNull(setup.inMemoryPurchaseRepository.findByUserID(userId));
     }
 
-    //סוף הטיימר, מוחקים את ה-activepurchase שפגי תוקף
     @Test
     public void expiredActivePurchaseCleaner_releasesTicketsAndDeletesPurchase() throws InterruptedException {
         TestSetup setup = createSetup();

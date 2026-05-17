@@ -14,11 +14,18 @@ import org.example.DomainLayer.UserAggregate.User;
 
 public class LoneSeatRule implements IPurchaseRule {
 
+    private UUID id = UUID.randomUUID();
     private boolean allowLoneSeat;
 
     public LoneSeatRule(boolean allowLoneSeat)
     {
         this.allowLoneSeat = allowLoneSeat;
+    }
+
+    @Override
+    public UUID getId()
+    {
+        return this.id;
     }
 
     @Override
