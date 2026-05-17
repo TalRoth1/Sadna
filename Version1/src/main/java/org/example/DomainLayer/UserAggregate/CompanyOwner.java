@@ -62,6 +62,14 @@ public class CompanyOwner extends ICompanyMember {
             subordinate.buildMermaid(sb);
         }
     }
+
+    @Override
+    public CompanyFounder getFounder() {
+        if (getAppointer() == null) {
+            throw new IllegalStateException("Owner without appointer cannot determine founder, invalid state");
+        }
+        return getAppointer().getFounder();
+    }
     
     public List<UUID> getEventsUnderMe() {
         List<UUID> eventsUnderMe = new ArrayList<>(getEventsIds());

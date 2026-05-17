@@ -19,6 +19,7 @@ public class EventManagementDomainServiceTest {
     private IEventRepository eventRepository;
     private IHistoryRepository historyRepository;
     private ICompanyRepository companyRepository;
+    private IUserRepository userRepository;
     private EventManagementDomainService service;
 
     private UUID eventId;
@@ -32,11 +33,13 @@ public class EventManagementDomainServiceTest {
         eventRepository = mock(IEventRepository.class);
         historyRepository = mock(IHistoryRepository.class);
         companyRepository = mock(ICompanyRepository.class);
+        userRepository = mock(IUserRepository.class);
 
         service = new EventManagementDomainService(
                 eventRepository,
                 historyRepository,
-                companyRepository
+                companyRepository,
+                userRepository
         );
 
         eventId = UUID.randomUUID();
@@ -54,7 +57,7 @@ public class EventManagementDomainServiceTest {
         List<PurchaseHistory> expected = List.of(mock(PurchaseHistory.class));
 
         when(eventRepository.getById(eventId)).thenReturn(event);
-        when(companyRepository.isOwner(username, companyId)).thenReturn(true);
+        when(userRepository.isCompanyOwner(username, companyId)).thenReturn(true);
         when(historyRepository.getByEventId(eventId)).thenReturn(expected);
 
         List<PurchaseHistory> result =
@@ -78,7 +81,7 @@ public class EventManagementDomainServiceTest {
     @Test
     public void getEventPurchaseHistory_whenUserIsNotOwner_throwsException() {
         when(eventRepository.getById(eventId)).thenReturn(event);
-        when(companyRepository.isOwner(username, companyId)).thenReturn(false);
+        when(userRepository.isCompanyOwner(username, companyId)).thenReturn(false);
 
         assertThrows(DomainException.class, () ->
                 service.getEventPurchaseHistory(username, eventId)
@@ -91,7 +94,7 @@ public class EventManagementDomainServiceTest {
     public void addPurchasePolicy_whenUserHasPermission_addsPolicyToEvent() {
         when(eventRepository.getById(eventId)).thenReturn(event);
         when(companyRepository.findByID(companyId)).thenReturn(Optional.of(company));
-        when(company.hasPremision(username, CompanyPermission.MANAGE_POLICIES, eventId))
+        when(userRepository.hasPermission(username, companyId, CompanyPermission.MANAGE_POLICIES, eventId))
                 .thenReturn(true);
 
         service.addPurchasePolicy(
@@ -133,7 +136,7 @@ public class EventManagementDomainServiceTest {
     public void addPurchasePolicy_whenUserHasNoPermission_throwsException() {
         when(eventRepository.getById(eventId)).thenReturn(event);
         when(companyRepository.findByID(companyId)).thenReturn(Optional.of(company));
-        when(company.hasPremision(username, CompanyPermission.MANAGE_POLICIES, eventId))
+        when(userRepository.hasPermission(username, companyId, CompanyPermission.MANAGE_POLICIES, eventId))
                 .thenReturn(false);
 
         assertThrows(IllegalArgumentException.class, () ->

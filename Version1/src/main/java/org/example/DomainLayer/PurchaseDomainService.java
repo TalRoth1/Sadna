@@ -384,14 +384,16 @@ public class PurchaseDomainService {
             return false;
         }
 
-        Company company = companyRepository.findByID(event.getCompanyId())
-                .orElse(null);
+        UUID companyId = event.getCompanyId();
+        Company company = companyRepository.findByID(companyId).orElse(null);
 
         if (company == null) {
             return false;
         }
 
-        return company.isOwner(ownerName);
+        return userRepository.findByEmail(ownerName)
+                .map(u -> u.isOwnerInCompany(companyId))
+                .orElse(false);
     }
 
     public boolean checkLastUpdate(ActivePurchase activePurchase)
@@ -468,7 +470,11 @@ public class PurchaseDomainService {
         if (company == null) {
             throw new IllegalArgumentException("Company not found");
         }
-        List<UUID> eventsUnderOwner = company.getEventsUnderOwner(ownerUsername);
+        User owner = userRepository.findByEmail(ownerUsername).orElse(null);
+        if (owner == null) {
+            throw new IllegalArgumentException("Owner not found");
+        }
+        List<UUID> eventsUnderOwner = owner.getMyEventIdsOfCompany(companyId);
         List<PurchaseHistory> relevantPurchases = new ArrayList<>();
         for (UUID eventId : eventsUnderOwner) {
             relevantPurchases.addAll(historyRepository.getByEventId(eventId));

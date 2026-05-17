@@ -6,7 +6,6 @@ import org.example.DomainLayer.UserAggregate.User;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,16 +37,14 @@ public class RolesDomainServiceTest {
     }
 
     /*
-     * 6.1 - Close production company by System Admin
+     * Close company flows: after the refactor closing a company deactivates it and is saved.
+     * Member/role state is maintained on User aggregate and is not automatically removed by closeCompanyAsAdmin.
      */
 
     @Test
     public void closeCompanyAsAdmin_whenValidAdminClosesCompany_fullFlowUpdatesStateAndSaves() {
         Company company = new Company("founder", "Production Company");
         UUID companyId = company.getId();
-
-        company.appointNewOwner("owner", "founder");
-        company.appointNewManager("manager", "owner", Set.of(CompanyPermission.VIEW_HISTORY));
 
         companyRepository.save(company);
         companyRepository.resetSaveCounters();
@@ -57,11 +54,6 @@ public class RolesDomainServiceTest {
         Company result = companyRepository.findByID(companyId).orElseThrow();
 
         assertFalse(result.isActive());
-
-        assertFalse(result.hasMember("founder"));
-        assertFalse(result.hasMember("owner"));
-        assertFalse(result.hasMember("manager"));
-
         assertEquals(1, companyRepository.getSaveCount(companyId));
     }
 
@@ -78,21 +70,13 @@ public class RolesDomainServiceTest {
         Company result = companyRepository.findByID(companyId).orElseThrow();
 
         assertFalse(result.isActive());
-        assertFalse(result.hasMember("founder"));
-
         assertEquals(1, companyRepository.getSaveCount(companyId));
     }
 
     @Test
-    public void closeCompanyAsAdmin_whenCompanyHasMultipleOwnersAndManagers_removesAllCompanyMembers() {
+    public void closeCompanyAsAdmin_whenCompanyHasMultipleOwnersAndManagers_deactivatesAndSaves() {
         Company company = new Company("founder", "Production Company");
         UUID companyId = company.getId();
-
-        company.appointNewOwner("ownerA", "founder");
-        company.appointNewOwner("ownerB", "founder");
-
-        company.appointNewManager("managerA", "ownerA", Set.of(CompanyPermission.VIEW_HISTORY));
-        company.appointNewManager("managerB", "ownerB", Set.of(CompanyPermission.MANAGE_POLICIES));
 
         companyRepository.save(company);
         companyRepository.resetSaveCounters();
@@ -102,13 +86,6 @@ public class RolesDomainServiceTest {
         Company result = companyRepository.findByID(companyId).orElseThrow();
 
         assertFalse(result.isActive());
-
-        assertFalse(result.hasMember("founder"));
-        assertFalse(result.hasMember("ownerA"));
-        assertFalse(result.hasMember("ownerB"));
-        assertFalse(result.hasMember("managerA"));
-        assertFalse(result.hasMember("managerB"));
-
         assertEquals(1, companyRepository.getSaveCount(companyId));
     }
 
@@ -116,9 +93,6 @@ public class RolesDomainServiceTest {
     public void closeCompanyAsAdmin_whenUserIsNotSystemAdmin_doesNotChangeCompanyStateAndDoesNotSave() {
         Company company = new Company("founder", "Production Company");
         UUID companyId = company.getId();
-
-        company.appointNewOwner("owner", "founder");
-        company.appointNewManager("manager", "owner", Set.of(CompanyPermission.VIEW_HISTORY));
 
         companyRepository.save(company);
         companyRepository.resetSaveCounters();
@@ -130,11 +104,6 @@ public class RolesDomainServiceTest {
         Company result = companyRepository.findByID(companyId).orElseThrow();
 
         assertTrue(result.isActive());
-
-        assertTrue(result.hasMember("founder"));
-        assertTrue(result.hasMember("owner"));
-        assertTrue(result.hasMember("manager"));
-
         assertEquals(0, companyRepository.getSaveCount(companyId));
     }
 
@@ -154,7 +123,6 @@ public class RolesDomainServiceTest {
         Company company = new Company("founder", "Production Company");
         UUID companyId = company.getId();
 
-        company.appointNewOwner("owner", "founder");
         company.AdminClose();
 
         companyRepository.save(company);
@@ -167,14 +135,11 @@ public class RolesDomainServiceTest {
         Company result = companyRepository.findByID(companyId).orElseThrow();
 
         assertFalse(result.isActive());
-        assertFalse(result.hasMember("founder"));
-        assertFalse(result.hasMember("owner"));
-
         assertEquals(0, companyRepository.getSaveCount(companyId));
     }
 
     /*
-     * 6.2 - Remove user subscription from all companies by System Admin
+     * Remove user subscription from all companies by System Admin — membership is stored on User.
      */
 
     @Test
@@ -185,22 +150,27 @@ public class RolesDomainServiceTest {
         Company secondCompany = new Company("founder2", "Second Company");
         Company unrelatedCompany = new Company("founder3", "Unrelated Company");
 
-        firstCompany.appointNewOwner(memberUsername, "founder1");
-        secondCompany.appointNewManager(memberUsername, "founder2", Set.of(CompanyPermission.VIEW_HISTORY));
-
         companyRepository.save(firstCompany);
         companyRepository.save(secondCompany);
         companyRepository.save(unrelatedCompany);
         companyRepository.resetSaveCounters();
 
+        User memberUser = new User(UUID.randomUUID(), memberUsername, memberUsername, "hash", 30);
+        memberUser.getCompanyRoles().put(firstCompany.getId(), new org.example.DomainLayer.UserAggregate.CompanyOwner(memberUsername, new org.example.DomainLayer.UserAggregate.CompanyFounder("founder1")));
+        memberUser.getCompanyRoles().put(secondCompany.getId(), new org.example.DomainLayer.UserAggregate.CompanyManager(memberUsername, new org.example.DomainLayer.UserAggregate.CompanyFounder("founder2"), Set.of(CompanyPermission.VIEW_HISTORY)));
+        userRepository.add(memberUser);
+
         rolesDomainService.removeCompanyMemberAsAdmin(adminUsername, memberUsername);
 
-        assertFalse(firstCompany.hasMember(memberUsername));
-        assertFalse(secondCompany.hasMember(memberUsername));
-        assertFalse(unrelatedCompany.hasMember(memberUsername));
+        // membership removed from user
+        assertFalse(memberUser.isCompanyMember(firstCompany.getId()));
+        assertFalse(memberUser.isCompanyMember(secondCompany.getId()));
+        // unrelated company unaffected
+        assertFalse(memberUser.isCompanyMember(unrelatedCompany.getId()));
 
-        assertEquals(1, companyRepository.getSaveCount(firstCompany.getId()));
-        assertEquals(1, companyRepository.getSaveCount(secondCompany.getId()));
+        // Domain service does not save Company when removing user roles
+        assertEquals(0, companyRepository.getSaveCount(firstCompany.getId()));
+        assertEquals(0, companyRepository.getSaveCount(secondCompany.getId()));
         assertEquals(0, companyRepository.getSaveCount(unrelatedCompany.getId()));
     }
 
@@ -211,18 +181,20 @@ public class RolesDomainServiceTest {
         Company companyWithMember = new Company("founder1", "Company With Member");
         Company companyWithoutMember = new Company("founder2", "Company Without Member");
 
-        companyWithMember.appointNewOwner(memberUsername, "founder1");
-
         companyRepository.save(companyWithMember);
         companyRepository.save(companyWithoutMember);
         companyRepository.resetSaveCounters();
 
+        User memberUser = new User(UUID.randomUUID(), memberUsername, memberUsername, "hash", 30);
+        memberUser.getCompanyRoles().put(companyWithMember.getId(), new org.example.DomainLayer.UserAggregate.CompanyOwner(memberUsername, new org.example.DomainLayer.UserAggregate.CompanyFounder("founder1")));
+        userRepository.add(memberUser);
+
         rolesDomainService.removeCompanyMemberAsAdmin(adminUsername, memberUsername);
 
-        assertFalse(companyWithMember.hasMember(memberUsername));
-        assertFalse(companyWithoutMember.hasMember(memberUsername));
+        assertFalse(memberUser.isCompanyMember(companyWithMember.getId()));
+        assertFalse(memberUser.isCompanyMember(companyWithoutMember.getId()));
 
-        assertEquals(1, companyRepository.getSaveCount(companyWithMember.getId()));
+        assertEquals(0, companyRepository.getSaveCount(companyWithMember.getId()));
         assertEquals(0, companyRepository.getSaveCount(companyWithoutMember.getId()));
     }
 
@@ -231,17 +203,19 @@ public class RolesDomainServiceTest {
         String managerUsername = "manager";
 
         Company company = new Company("founder", "Production Company");
-        company.appointNewManager(managerUsername, "founder", Set.of(CompanyPermission.VIEW_HISTORY));
 
         companyRepository.save(company);
         companyRepository.resetSaveCounters();
 
+        User managerUser = new User(UUID.randomUUID(), managerUsername, managerUsername, "hash", 30);
+        managerUser.getCompanyRoles().put(company.getId(), new org.example.DomainLayer.UserAggregate.CompanyManager(managerUsername, new org.example.DomainLayer.UserAggregate.CompanyFounder("founder"), Set.of(CompanyPermission.VIEW_HISTORY)));
+        userRepository.add(managerUser);
+
         rolesDomainService.removeCompanyMemberAsAdmin(adminUsername, managerUsername);
 
-        assertFalse(company.hasMember(managerUsername));
-        assertTrue(company.hasMember("founder"));
+        assertFalse(managerUser.isCompanyMember(company.getId()));
 
-        assertEquals(1, companyRepository.getSaveCount(company.getId()));
+        assertEquals(0, companyRepository.getSaveCount(company.getId()));
     }
 
     @Test
@@ -252,22 +226,24 @@ public class RolesDomainServiceTest {
         Company managerCompany = new Company("founder2", "Manager Company");
         Company unrelatedCompany = new Company("founder3", "Unrelated Company");
 
-        ownerCompany.appointNewOwner(usernameToRemove, "founder1");
-        managerCompany.appointNewManager(usernameToRemove, "founder2", Set.of(CompanyPermission.VIEW_HISTORY));
-
         companyRepository.save(ownerCompany);
         companyRepository.save(managerCompany);
         companyRepository.save(unrelatedCompany);
         companyRepository.resetSaveCounters();
 
+        User target = new User(UUID.randomUUID(), usernameToRemove, usernameToRemove, "hash", 30);
+        target.getCompanyRoles().put(ownerCompany.getId(), new org.example.DomainLayer.UserAggregate.CompanyOwner(usernameToRemove, new org.example.DomainLayer.UserAggregate.CompanyFounder("founder1")));
+        target.getCompanyRoles().put(managerCompany.getId(), new org.example.DomainLayer.UserAggregate.CompanyManager(usernameToRemove, new org.example.DomainLayer.UserAggregate.CompanyFounder("founder2"), Set.of(CompanyPermission.VIEW_HISTORY)));
+        userRepository.add(target);
+
         rolesDomainService.removeCompanyMemberAsAdmin(adminUsername, usernameToRemove);
 
-        assertFalse(ownerCompany.hasMember(usernameToRemove));
-        assertFalse(managerCompany.hasMember(usernameToRemove));
-        assertFalse(unrelatedCompany.hasMember(usernameToRemove));
+        assertFalse(target.isCompanyMember(ownerCompany.getId()));
+        assertFalse(target.isCompanyMember(managerCompany.getId()));
+        assertFalse(target.isCompanyMember(unrelatedCompany.getId()));
 
-        assertEquals(1, companyRepository.getSaveCount(ownerCompany.getId()));
-        assertEquals(1, companyRepository.getSaveCount(managerCompany.getId()));
+        assertEquals(0, companyRepository.getSaveCount(ownerCompany.getId()));
+        assertEquals(0, companyRepository.getSaveCount(managerCompany.getId()));
         assertEquals(0, companyRepository.getSaveCount(unrelatedCompany.getId()));
     }
 
@@ -276,7 +252,6 @@ public class RolesDomainServiceTest {
         String memberUsername = "member";
 
         Company company = new Company("founder", "Production Company");
-        company.appointNewOwner(memberUsername, "founder");
 
         companyRepository.save(company);
         companyRepository.resetSaveCounters();
@@ -285,16 +260,13 @@ public class RolesDomainServiceTest {
                 rolesDomainService.removeCompanyMemberAsAdmin(regularUsername, memberUsername)
         );
 
-        assertTrue(company.hasMember(memberUsername));
-        assertTrue(company.hasMember("founder"));
-
+        // no user was registered, so no changes happened
         assertEquals(0, companyRepository.getSaveCount(company.getId()));
     }
 
     @Test
     public void removeCompanyMemberAsAdmin_whenUserIsNotAssignedToAnyCompany_doesNotChangeAnyCompanyAndDoesNotSave() {
         Company company = new Company("founder", "Production Company");
-        company.appointNewOwner("existingOwner", "founder");
 
         companyRepository.save(company);
         companyRepository.resetSaveCounters();
@@ -302,9 +274,6 @@ public class RolesDomainServiceTest {
         assertThrows(IllegalArgumentException.class, () ->
                 rolesDomainService.removeCompanyMemberAsAdmin(adminUsername, "missingMember")
         );
-
-        assertTrue(company.hasMember("founder"));
-        assertTrue(company.hasMember("existingOwner"));
 
         assertEquals(0, companyRepository.getSaveCount(company.getId()));
         assertEquals(0, companyRepository.getTotalSaveCount());
@@ -328,22 +297,14 @@ public class RolesDomainServiceTest {
         }
 
         @Override
-        public boolean isOwner(String username, UUID companyId) {
-            Company company = companiesById.get(companyId);
-            return company != null && company.isOwner(username);
-        }
-
-        @Override
         public void save(Company company) {
             companiesById.put(company.getId(), company);
             saveCountByCompanyId.merge(company.getId(), 1, Integer::sum);
         }
 
-        @Override
+        // Helper used by older tests—company no longer tracks members so return all companies
         public List<Company> getCompaniesByMember(String username) {
-            return companiesById.values().stream()
-                    .filter(company -> company.hasMember(username))
-                    .toList();
+            return List.copyOf(companiesById.values());
         }
 
         public int getSaveCount(UUID companyId) {
@@ -363,7 +324,8 @@ public class RolesDomainServiceTest {
 
     private static class FakeUserRepository implements IUserRepository {
 
-        private final Set<String> systemAdmins = new HashSet<>();
+        private final java.util.Set<String> systemAdmins = new java.util.HashSet<>();
+        private final Map<String, User> usersByEmail = new LinkedHashMap<>();
 
         public void addSystemAdmin(String username) {
             systemAdmins.add(username);
@@ -371,16 +333,17 @@ public class RolesDomainServiceTest {
 
         @Override
         public void add(User user) {
+            usersByEmail.put(user.getEmail(), user);
         }
 
         @Override
         public Optional<User> getUser(UUID UID) {
-            return Optional.empty();
+            return usersByEmail.values().stream().filter(u -> u.getId().equals(UID)).findFirst();
         }
 
         @Override
         public boolean exists(UUID userId) {
-            return false;
+            return usersByEmail.values().stream().anyMatch(u -> u.getId().equals(userId));
         }
 
         @Override
@@ -390,17 +353,38 @@ public class RolesDomainServiceTest {
 
         @Override
         public boolean existsByEmail(String email) {
-            return false;
+            return usersByEmail.containsKey(email);
         }
 
         @Override
         public Optional<User> findByEmail(String email) {
-            return Optional.empty();
+            return Optional.ofNullable(usersByEmail.get(email));
         }
 
         @Override
         public boolean existsAdmin(UUID adminId) {
-            return false;
+            return systemAdmins.contains(adminId.toString());
+        }
+
+        @Override
+        public List<UUID> getCompaniesIdsByMember(String username) {
+            User u = usersByEmail.get(username);
+            if (u == null) return List.of();
+            return List.copyOf(u.getCompanyRoles().keySet());
+        }
+
+        @Override
+        public boolean isCompanyOwner(String username, UUID companyId) {
+            User u = usersByEmail.get(username);
+            if (u == null) return false;
+            return u.isOwnerInCompany(companyId);
+        }
+
+        @Override
+        public boolean hasPermission(String username, UUID companyId, CompanyPermission permission, UUID eventId) {
+            User u = usersByEmail.get(username);
+            if (u == null) return false;
+            return u.hasPremisions(companyId, permission, eventId);
         }
     }
 }

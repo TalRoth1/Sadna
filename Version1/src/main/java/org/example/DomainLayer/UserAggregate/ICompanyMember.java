@@ -23,6 +23,8 @@ public abstract class ICompanyMember {
         return eventsIds;
     }
 
+    public abstract CompanyFounder getFounder();
+
     public abstract List<UUID> getEventsUnderMe();
 
     public ICompanyMember(String username, CompanyOwner Appointer) {

@@ -1,7 +1,9 @@
 package org.example.DomainLayer;
 
+import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
 import org.example.DomainLayer.UserAggregate.User;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -19,4 +21,10 @@ public interface IUserRepository {
     public Optional<User> findByEmail(String email);
 
     boolean existsAdmin(UUID adminId);
+
+    public List<UUID> getCompaniesIdsByMember(String username);
+
+    public boolean isCompanyOwner(String username, UUID companyId);
+
+    public boolean hasPermission(String username, UUID companyId, CompanyPermission permission, UUID eventId);
 }

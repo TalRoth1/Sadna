@@ -9,6 +9,7 @@ import org.example.DomainLayer.EventManagementDomainService;
 import org.example.DomainLayer.ICompanyRepository;
 import org.example.DomainLayer.IEventRepository;
 import org.example.DomainLayer.IHistoryRepository;
+import org.example.DomainLayer.IUserRepository;
 import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.DomainLayer.EventAggregate.Event;
 import org.example.DomainLayer.EventAggregate.EventSearchCriteria;
@@ -79,6 +80,8 @@ public class EventServiceTest {
     private ICompanyRepository companyRepository;
     @Mock
     private IHistoryRepository historyRepository;
+    @Mock
+    private IUserRepository userRepository;
 
     private EventService eventService;
 
@@ -91,7 +94,7 @@ public class EventServiceTest {
     @Before
     public void setUp() {
         EventManagementDomainService eventManagementDomainService =
-                new EventManagementDomainService(eventRepository, historyRepository, companyRepository);
+                new EventManagementDomainService(eventRepository, historyRepository, companyRepository, userRepository);
         eventService = new EventService(eventManagementDomainService);
 
         eventId = UUID.randomUUID();
@@ -121,7 +124,7 @@ public class EventServiceTest {
      */
     private Company authorizedCompany(String founderUsername, UUID eventId) {
         Company c = new Company(founderUsername, "TestCompany");
-        c.getFounder().getEventsIds().add(eventId);
+        c.addEvent(eventId);
         return c;
     }
 
@@ -140,6 +143,17 @@ public class EventServiceTest {
         when(eventRepository.getById(eventId)).thenReturn(event);
         when(companyRepository.findByID(companyId))
                 .thenReturn(Optional.of(authorizedCompany(ownerUsername, eventId)));
+        // Ensure the user repository returns a User who is a founder/owner
+        // for the company and is in charge of the event so permission checks pass.
+        org.example.DomainLayer.UserAggregate.User ownerUser =
+            new org.example.DomainLayer.UserAggregate.User(UUID.randomUUID(), ownerUsername, ownerUsername, "hash", 40);
+        ownerUser.getCompanyRoles().put(companyId, new org.example.DomainLayer.UserAggregate.CompanyFounder(ownerUsername));
+        // mark the founder as in charge of the event
+        ownerUser.getCompanyRole(companyId).getEventsIds().add(event.getEventId());
+        when(userRepository.findByEmail(ownerUsername)).thenReturn(Optional.of(ownerUser));
+        when(userRepository.hasPermission(ownerUsername, companyId,
+            org.example.DomainLayer.CompanyAggregate.CompanyPermission.MANAGE_POLICIES, eventId))
+            .thenReturn(true);
     }
 
     // =====================================================================
@@ -395,7 +409,7 @@ public class EventServiceTest {
         Event event = newRealEvent();
         List<PurchaseHistory> expected = Collections.emptyList();
         when(eventRepository.getById(eventId)).thenReturn(event);
-        when(companyRepository.isOwner(ownerUsername, companyId)).thenReturn(true);
+        when(userRepository.isCompanyOwner(ownerUsername, companyId)).thenReturn(true);
         when(historyRepository.getByEventId(eventId)).thenReturn(expected);
 
         List<PurchaseHistory> actual =
@@ -787,7 +801,7 @@ public class EventServiceTest {
     public void GivenUserIsNotOwnerOfEventCompany_WhenGetEventPurchaseHistoryForOwner_ThenDomainExceptionIsPropagated() {
         Event event = newRealEvent();
         when(eventRepository.getById(eventId)).thenReturn(event);
-        when(companyRepository.isOwner(ownerUsername, companyId)).thenReturn(false);
+        when(userRepository.isCompanyOwner(ownerUsername, companyId)).thenReturn(false);
 
         DomainException ex = assertThrows(DomainException.class,
                 () -> eventService.getEventPurchaseHistoryForOwner(ownerUsername, eventId));
@@ -872,17 +886,6 @@ public class EventServiceTest {
     }
 
     @Test
-    public void GivenSaveThrowsRuntimeException_WhenRateEvent_ThenInfrastructureFailurePropagatesUnchanged() {
-        Event event = newRealEvent();
-        when(eventRepository.getById(eventId)).thenReturn(event);
-        doThrow(new RuntimeException("DB down")).when(eventRepository).save(event);
-
-        RuntimeException ex = assertThrows(RuntimeException.class,
-                () -> eventService.rateEvent(userId, eventId, 4));
-        assertEquals("DB down", ex.getMessage());
-    }
-
-    @Test
     public void GivenEventAlreadyExists_WhenAddEvent_ThenDomainExceptionIsPropagated() {
         when(eventRepository.getById(eventId)).thenReturn(newRealEvent());
 
@@ -900,6 +903,18 @@ public class EventServiceTest {
                 () -> eventService.editEvent(eventId, null, null, null, null, null));
         verify(eventRepository, never()).save(any(Event.class));
     }
+
+    @Test
+    public void GivenSaveThrowsRuntimeException_WhenRateEvent_ThenInfrastructureFailurePropagatesUnchanged() {
+        Event event = newRealEvent();
+        when(eventRepository.getById(eventId)).thenReturn(event);
+        doThrow(new RuntimeException("DB down")).when(eventRepository).save(any(Event.class));
+
+        DomainException ex = assertThrows(DomainException.class,
+            () -> eventService.rateEvent(userId, eventId, 4));
+        assertEquals("DB down", ex.getMessage());
+    }
+
 
     @Test
     public void GivenEventDoesNotExist_WhenDeleteEvent_ThenDomainExceptionIsPropagated() {

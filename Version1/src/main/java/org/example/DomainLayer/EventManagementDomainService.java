@@ -5,6 +5,8 @@ import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
 import org.example.DomainLayer.EventAggregate.Event;
 import org.example.DomainLayer.EventAggregate.EventStatus;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
+import org.example.DomainLayer.UserAggregate.User;
+
 import java.util.ArrayList;
 import org.example.DomainLayer.EventAggregate.EventSearchCriteria;
 import java.time.LocalDate;
@@ -18,13 +20,16 @@ public class EventManagementDomainService {
     private final IEventRepository eventRepository;
     private final IHistoryRepository historyRepository;
     private final ICompanyRepository companyRepository;
+    private final IUserRepository userRepository;
 
     public EventManagementDomainService(IEventRepository eventRepository,
-                                        IHistoryRepository historyRepository,
-                                        ICompanyRepository companyRepository) {
+            IHistoryRepository historyRepository,
+            ICompanyRepository companyRepository,
+            IUserRepository userRepository) {
         this.eventRepository = eventRepository;
         this.historyRepository = historyRepository;
         this.companyRepository = companyRepository;
+        this.userRepository = userRepository;
     }
 
     public List<PurchaseHistory> getEventPurchaseHistory(String username, UUID eventId) {
@@ -34,93 +39,94 @@ public class EventManagementDomainService {
             throw new DomainException("Event not found");
         }
 
-        if (!companyRepository.isOwner(username, event.getCompanyId())) {
+        if (!userRepository.isCompanyOwner(username, event.getCompanyId())) {
             throw new DomainException("User is not authorized to view this event purchase history");
         }
 
         return historyRepository.getByEventId(eventId);
     }
-    
-    public void addPurchasePolicy(String username, UUID companyId ,UUID eventId, Optional<Float> age, Optional<Integer> minTicket, Optional<Integer> maxTicket, Optional<Boolean> allowLoneSeat)
-    {
+
+    public void addPurchasePolicy(String username, UUID companyId, UUID eventId, Optional<Float> age,
+            Optional<Integer> minTicket, Optional<Integer> maxTicket, Optional<Boolean> allowLoneSeat) {
         Event event = eventRepository.getById(eventId);
         if (event == null)
             throw new IllegalArgumentException("Event not found");
         Company company = companyRepository.findByID(companyId).get();
         if (company == null)
             throw new IllegalArgumentException("Company not found");
-        if (!company.hasPremision(username, CompanyPermission.MANAGE_POLICIES, eventId))
+        if (!userRepository.hasPermission(username, companyId, CompanyPermission.MANAGE_POLICIES, eventId))
             throw new IllegalArgumentException("User has no permissions to change event policies");
         event.addPurchasePolicy(age, minTicket, maxTicket, allowLoneSeat);
     }
 
-    public void deletePurchasePolicy(String username, UUID companyId, UUID eventId, boolean age, boolean minTicket, boolean maxTicket, boolean allowLoneSeat)
-    {
+    public void deletePurchasePolicy(String username, UUID companyId, UUID eventId, boolean age, boolean minTicket,
+            boolean maxTicket, boolean allowLoneSeat) {
         Event event = eventRepository.getById(eventId);
         if (event == null)
             throw new IllegalArgumentException("Event not found");
         Company company = companyRepository.findByID(companyId).get();
         if (company == null)
             throw new IllegalArgumentException("Company not found");
-        if (!company.hasPremision(username, CompanyPermission.MANAGE_POLICIES, eventId))
+        if (!userRepository.hasPermission(username, companyId, CompanyPermission.MANAGE_POLICIES, eventId))
             throw new IllegalArgumentException("User has no permissions to change event policies");
         event.deletePurchaseRule(age, minTicket, maxTicket, allowLoneSeat);
     }
 
-    public void addOvertDiscount(String username, UUID companyId, UUID eventId, LocalDate fromDate, LocalDate toDate, float discountPrecent)
-    {
+    public void addOvertDiscount(String username, UUID companyId, UUID eventId, LocalDate fromDate, LocalDate toDate,
+            float discountPrecent) {
         Event event = eventRepository.getById(eventId);
         if (event == null)
             throw new IllegalArgumentException("Event not found");
         Company company = companyRepository.findByID(companyId).get();
         if (company == null)
             throw new IllegalArgumentException("Company not found");
-        if (!company.hasPremision(username, CompanyPermission.MANAGE_POLICIES, eventId))
+        if (!userRepository.hasPermission(username, companyId, CompanyPermission.MANAGE_POLICIES, eventId))
             throw new IllegalArgumentException("User has no permissions to change event policies");
         event.addOvertDiscount(fromDate, toDate, discountPrecent);
     }
 
-    public void addConditionalDiscount(String username, UUID companyId, UUID eventId, LocalDate fromDate, LocalDate toDate, float discountPrecent, int requiredTickets, int appliedTickets)
-    {
+    public void addConditionalDiscount(String username, UUID companyId, UUID eventId, LocalDate fromDate,
+            LocalDate toDate, float discountPrecent, int requiredTickets, int appliedTickets) {
         Event event = eventRepository.getById(eventId);
         if (event == null)
             throw new IllegalArgumentException("Event not found");
         Company company = companyRepository.findByID(companyId).get();
         if (company == null)
             throw new IllegalArgumentException("Company not found");
-        if (!company.hasPremision(username, CompanyPermission.MANAGE_POLICIES, eventId))
+        if (!userRepository.hasPermission(username, companyId, CompanyPermission.MANAGE_POLICIES, eventId))
             throw new IllegalArgumentException("User has no permissions to change event policies");
         event.addConditionalDiscount(fromDate, toDate, discountPrecent, requiredTickets, appliedTickets);
     }
 
-    public void addCouponCode(String username, UUID companyId, UUID eventId, LocalDate fromDate, LocalDate toDate, float discountPrecent, String code)
-    {
+    public void addCouponCode(String username, UUID companyId, UUID eventId, LocalDate fromDate, LocalDate toDate,
+            float discountPrecent, String code) {
         Event event = eventRepository.getById(eventId);
         if (event == null)
             throw new IllegalArgumentException("Event not found");
         Company company = companyRepository.findByID(companyId).get();
         if (company == null)
             throw new IllegalArgumentException("Company not found");
-        if (!company.hasPremision(username, CompanyPermission.MANAGE_POLICIES, eventId))
+        if (!userRepository.hasPermission(username, companyId, CompanyPermission.MANAGE_POLICIES, eventId))
             throw new IllegalArgumentException("User has no permissions to change event policies");
         event.addCouponCode(fromDate, toDate, discountPrecent, code);
     }
 
-    public void removeDiscount(String username, UUID companyId, UUID eventId, UUID discountId)
-    {
+    public void removeDiscount(String username, UUID companyId, UUID eventId, UUID discountId) {
         Event event = eventRepository.getById(eventId);
         if (event == null)
             throw new IllegalArgumentException("Event not found");
         Company company = companyRepository.findByID(companyId).get();
         if (company == null)
             throw new IllegalArgumentException("Company not found");
-        if (!company.hasPremision(username, CompanyPermission.MANAGE_POLICIES, eventId))
+        User user = userRepository.findByEmail(username).orElse(null);
+        if (user == null)
+            throw new IllegalArgumentException("User not found");
+        if (!user.hasPremisions(companyId, CompanyPermission.MANAGE_POLICIES, eventId))
             throw new IllegalArgumentException("User has no permissions to change event policies");
-        event.removeDiscount(discountId); 
+        event.removeDiscount(discountId);
     }
-    
-    public void rateEvent(UUID userID, UUID eventID, int rating)
-    {
+
+    public void rateEvent(UUID userID, UUID eventID, int rating) {
         Event event = eventRepository.getById(eventID);
 
         if (event == null)
@@ -134,7 +140,7 @@ public class EventManagementDomainService {
     }
 
     public void addEvent(UUID eventId, UUID companyId, LocalDateTime date, String location,
-                         String artist, String type, EventStatus status) {
+            String artist, String type, EventStatus status) {
         if (eventRepository.getById(eventId) != null) {
             throw new DomainException("Event already exists: " + eventId);
         }
@@ -143,7 +149,7 @@ public class EventManagementDomainService {
     }
 
     public boolean editEvent(UUID eventId, LocalDateTime date, String location,
-                             String artist, String type, EventStatus status) {
+            String artist, String type, EventStatus status) {
         Event event = eventRepository.getById(eventId);
         if (event == null) {
             throw new DomainException("Event not found");
@@ -194,51 +200,51 @@ public class EventManagementDomainService {
         eventRepository.save(event);
     }
 
-        //list all currently active production companies.
-        public List<Company> getActiveCompanies() {
-            return companyRepository.getAllActive();
-        }
-    
-        /** publicly-visible events of a given company (used to build the catalog). */
-        public List<Event> getVisibleEventsForCompany(UUID companyId) {
-            if (companyId == null) {
-                throw new DomainException("companyId is required");
-            }
-            List<Event> out = new ArrayList<>();
-            for (Event e : eventRepository.getAll()) {
-                if (companyId.equals(e.getCompanyId()) && e.isPubliclyVisible()) {
-                    out.add(e);
-                }
-            }
-            return out;
-        }
-    
-        //fetch a single event for read-only display.
-        public Event getEventForView(UUID eventId) {
-            if (eventId == null) {
-                throw new DomainException("eventId is required");
-            }
-            Event event = eventRepository.getById(eventId);
-            if (event == null) {
-                throw new DomainException("Event not found");
-            }
-            return event;
-        }
+    // list all currently active production companies.
+    public List<Company> getActiveCompanies() {
+        return companyRepository.getAllActive();
+    }
 
-        /** UC filter events by criteria (companyId is just one optional filter). */
-        public List<Event> searchEvents(EventSearchCriteria criteria) {
-            EventSearchCriteria c = (criteria == null) ? EventSearchCriteria.empty() : criteria;
-            List<Event> out = new ArrayList<>();
-            for (Event e : eventRepository.getAll()) {
-                Optional<Company> co = companyRepository.findByID(e.getCompanyId());
-                if (co.isEmpty() || !co.get().isActive()) {
-                    continue;
-                }
-                if (e.matches(c, co.get().getRating())) {
-                    out.add(e);
-                }
-            }
-            return out;
+    /** publicly-visible events of a given company (used to build the catalog). */
+    public List<Event> getVisibleEventsForCompany(UUID companyId) {
+        if (companyId == null) {
+            throw new DomainException("companyId is required");
         }
+        List<Event> out = new ArrayList<>();
+        for (Event e : eventRepository.getAll()) {
+            if (companyId.equals(e.getCompanyId()) && e.isPubliclyVisible()) {
+                out.add(e);
+            }
+        }
+        return out;
+    }
+
+    // fetch a single event for read-only display.
+    public Event getEventForView(UUID eventId) {
+        if (eventId == null) {
+            throw new DomainException("eventId is required");
+        }
+        Event event = eventRepository.getById(eventId);
+        if (event == null) {
+            throw new DomainException("Event not found");
+        }
+        return event;
+    }
+
+    /** UC filter events by criteria (companyId is just one optional filter). */
+    public List<Event> searchEvents(EventSearchCriteria criteria) {
+        EventSearchCriteria c = (criteria == null) ? EventSearchCriteria.empty() : criteria;
+        List<Event> out = new ArrayList<>();
+        for (Event e : eventRepository.getAll()) {
+            Optional<Company> co = companyRepository.findByID(e.getCompanyId());
+            if (co.isEmpty() || !co.get().isActive()) {
+                continue;
+            }
+            if (e.matches(c, co.get().getRating())) {
+                out.add(e);
+            }
+        }
+        return out;
+    }
 
 }

@@ -302,7 +302,7 @@ public class EventService {
             throw e;
         } catch (RuntimeException e) {
             logger.log(Level.SEVERE, "[Error Log] System error in rateEvent: " + e.getMessage(), e);
-            throw e;
+            throw new DomainException(e.getMessage());
         }
     }
 

@@ -1,8 +1,10 @@
 package org.example.ApplicationLayer;
 
+import org.example.ApplicationLayer.PurchaseServiceTest.InMemoryHistoryRepository;
 import org.example.DomainLayer.*;
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 import org.example.DomainLayer.CompanyAggregate.Company;
+import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
 import org.example.DomainLayer.EventAggregate.*;
 import org.example.DomainLayer.LotteryAggregate.PuchaseLottery;
 import org.example.DomainLayer.NotificationAggregate.INotifier;
@@ -1234,6 +1236,21 @@ public class PurchaseServiceTest {
         public boolean existsAdmin(UUID adminId) {
             return false;
         }
+
+        @Override
+        public boolean isCompanyOwner(String username, UUID companyId) {
+            return false;
+        }
+
+        @Override
+        public List<UUID> getCompaniesIdsByMember(String username) {
+            return List.of();
+        }
+
+        @Override
+        public boolean hasPermission(String username, UUID companyId, CompanyPermission permission, UUID eventId) { 
+            return false;
+        }
     }
     private static class InMemoryCompanyRepository implements ICompanyRepository
     {
@@ -1249,18 +1266,8 @@ public class PurchaseServiceTest {
         }
 
         @Override
-        public boolean isOwner(String username, UUID companyId) {
-            return false;
-        }
-
-        @Override
         public void save(Company company) {
 
-        }
-
-        @Override
-        public List<Company> getCompaniesByMember(String username) {
-            return List.of();
         }
     }
     public static class InMemoryHistoryRepository implements IHistoryRepository

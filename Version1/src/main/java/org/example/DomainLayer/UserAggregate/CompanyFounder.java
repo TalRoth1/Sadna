@@ -14,4 +14,9 @@ public class CompanyFounder extends CompanyOwner {
             sub.buildMermaid(sb);
         }
     }
+
+    @Override
+    public CompanyFounder getFounder() {
+        return this;
+    }
 }
