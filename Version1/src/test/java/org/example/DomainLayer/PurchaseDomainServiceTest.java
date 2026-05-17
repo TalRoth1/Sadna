@@ -56,6 +56,166 @@ public class PurchaseDomainServiceTest {
         );
     }
 
+    private Event eventWithOneSittingTicket(UUID eventId, UUID companyId, UUID areaId, UUID ticketId) {
+        Event event = event(eventId, companyId);
+        event.getLayout().addArea(new SittingArea(areaId, 100f));
+        event.addTicket(new SittingTicket(ticketId, eventId, areaId, 100f, 1, 1));
+        return event;
+    }
+
+    @Test
+    public void selectSittingTicketsWithLotteryCode_whenUserNotRegisteredToLottery_throwsAndDoesNotReserveTicket() {
+        UUID eventId = UUID.randomUUID();
+        UUID companyId = UUID.randomUUID();
+        UUID areaId = UUID.randomUUID();
+        UUID ticketId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+
+        Event event = eventWithOneSittingTicket(eventId, companyId, areaId, ticketId);
+        eventRepository.save(event);
+
+        PuchaseLottery lottery = new PuchaseLottery(
+                UUID.randomUUID(),
+                eventId,
+                LocalDateTime.now().minusDays(1),
+                LocalDateTime.now().plusDays(1)
+        );
+        lotteryRepository.save(lottery);
+
+        assertThrows(DomainException.class, () ->
+                purchaseDomainService.selectSittingTicketsWithLotteryCode(
+                        eventId,
+                        List.of(ticketId),
+                        userId,
+                        false,
+                        "some-code"
+                )
+        );
+
+        assertNull(purchaseRepository.findByUserID(userId));
+        assertEquals(TicketStatus.AVAILABLE, event.getTicket(ticketId).getStatus());
+    }
+
+    @Test
+    public void selectSittingTicketsWithLotteryCode_whenUserRegisteredButDidNotWin_throwsAndDoesNotReserveTicket() {
+        UUID eventId = UUID.randomUUID();
+        UUID companyId = UUID.randomUUID();
+        UUID areaId = UUID.randomUUID();
+        UUID ticketId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+
+        Event event = eventWithOneSittingTicket(eventId, companyId, areaId, ticketId);
+        eventRepository.save(event);
+
+        PuchaseLottery lottery = new PuchaseLottery(
+                UUID.randomUUID(),
+                eventId,
+                LocalDateTime.now().minusDays(1),
+                LocalDateTime.now().plusDays(1)
+        );
+
+        lottery.registerMember(userId.toString(), 1, LocalDateTime.now());
+        lotteryRepository.save(lottery);
+
+        assertThrows(DomainException.class, () ->
+                purchaseDomainService.selectSittingTicketsWithLotteryCode(
+                        eventId,
+                        List.of(ticketId),
+                        userId,
+                        false,
+                        "some-code"
+                )
+        );
+
+        assertNull(purchaseRepository.findByUserID(userId));
+        assertEquals(TicketStatus.AVAILABLE, event.getTicket(ticketId).getStatus());
+    }
+
+    @Test
+    public void selectSittingTicketsWithLotteryCode_whenWinnerCodeExpired_throwsAndDoesNotReserveTicket() {
+        UUID eventId = UUID.randomUUID();
+        UUID companyId = UUID.randomUUID();
+        UUID areaId = UUID.randomUUID();
+        UUID ticketId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+
+        Event event = eventWithOneSittingTicket(eventId, companyId, areaId, ticketId);
+        eventRepository.save(event);
+
+        PuchaseLottery lottery = new PuchaseLottery(
+                UUID.randomUUID(),
+                eventId,
+                LocalDateTime.now().minusDays(1),
+                LocalDateTime.now().plusDays(1)
+        );
+
+        lottery.registerMember(userId.toString(), 1, LocalDateTime.now());
+        lottery.addWinner(userId.toString());
+
+        String expiredCode = lottery.generateWinnerAccessCode(
+                userId.toString(),
+                LocalDateTime.now().minusMinutes(1)
+        );
+
+        lotteryRepository.save(lottery);
+
+        assertThrows(DomainException.class, () ->
+                purchaseDomainService.selectSittingTicketsWithLotteryCode(
+                        eventId,
+                        List.of(ticketId),
+                        userId,
+                        false,
+                        expiredCode
+                )
+        );
+
+        assertNull(purchaseRepository.findByUserID(userId));
+        assertEquals(TicketStatus.AVAILABLE, event.getTicket(ticketId).getStatus());
+    }
+    @Test
+    public void selectSittingTicketsWithLotteryCode_whenWinnerHasValidCode_createsActivePurchaseAndReservesTicket() {
+        UUID eventId = UUID.randomUUID();
+        UUID companyId = UUID.randomUUID();
+        UUID areaId = UUID.randomUUID();
+        UUID ticketId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+
+        Event event = eventWithOneSittingTicket(eventId, companyId, areaId, ticketId);
+        eventRepository.save(event);
+
+        PuchaseLottery lottery = new PuchaseLottery(
+                UUID.randomUUID(),
+                eventId,
+                LocalDateTime.now().minusDays(1),
+                LocalDateTime.now().plusDays(1)
+        );
+
+        lottery.registerMember(userId.toString(), 1, LocalDateTime.now());
+        lottery.addWinner(userId.toString());
+
+        String accessCode = lottery.generateWinnerAccessCode(
+                userId.toString(),
+                LocalDateTime.now().plusMinutes(10)
+        );
+
+        lotteryRepository.save(lottery);
+
+        purchaseDomainService.selectSittingTicketsWithLotteryCode(
+                eventId,
+                List.of(ticketId),
+                userId,
+                false,
+                accessCode
+        );
+
+        ActivePurchase activePurchase = purchaseRepository.findByUserID(userId);
+
+        assertNotNull(activePurchase);
+        assertEquals(eventId, activePurchase.getEventID());
+        assertTrue(activePurchase.getTicketIDs().containsKey(ticketId));
+        assertEquals(TicketStatus.RESERVED, event.getTicket(ticketId).getStatus());
+    }
+
     @Test
     public void completePurchase_whenPaymentFails_preservesInvariants() {
         UUID eventId = UUID.randomUUID();
@@ -435,7 +595,6 @@ public class PurchaseDomainServiceTest {
         eventRepository.save(event);
         companyRepository.save(companyId, company);
 
-        // Add a real User to the fake repository and mark them as company founder/owner
         UUID ownerId = UUID.randomUUID();
         org.example.DomainLayer.UserAggregate.User ownerUser =
             new org.example.DomainLayer.UserAggregate.User(ownerId, ownerName, ownerName, "hash", 40);
@@ -1300,19 +1459,23 @@ public class PurchaseDomainServiceTest {
     }
 
     private static class FakeLotteryRepository implements ILotteryRepository {
+        private final LinkedHashMap<UUID, PuchaseLottery> lotteriesById = new LinkedHashMap<>();
+        private final LinkedHashMap<UUID, PuchaseLottery> lotteriesByEventId = new LinkedHashMap<>();
 
         @Override
         public void save(PuchaseLottery lottery) {
+            lotteriesById.put(lottery.getLotteryId(), lottery);
+            lotteriesByEventId.put(lottery.getEventId(), lottery);
         }
 
         @Override
         public PuchaseLottery findByID(UUID lotteryId) {
-            return null;
+            return lotteriesById.get(lotteryId);
         }
 
         @Override
         public PuchaseLottery findByEventID(UUID eventId) {
-            return null;
+            return lotteriesByEventId.get(eventId);
         }
     }
 }

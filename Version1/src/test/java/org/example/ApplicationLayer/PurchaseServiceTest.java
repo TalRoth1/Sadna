@@ -14,6 +14,7 @@ import org.example.InfrastructureLayer.Broadcaster;
 import org.example.InfrastructureLayer.WebSocketNotificationSender;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 
 import java.time.LocalDateTime;
@@ -56,6 +57,87 @@ public class PurchaseServiceTest {
     /*
      * Admin purchase history filter tests
      */
+
+    @Test
+    public void selectSittingTicketsWithLotteryCode_whenUserNotEligible_doesNotEnterQueueAndDoesNotSelectTickets() {
+        UUID eventId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID ticketId = UUID.randomUUID();
+        String accessCode = "bad-code";
+
+        doThrow(new DomainException("Invalid or expired lottery access code"))
+                .when(purchaseDomainServiceMock)
+                .validateSelectionEligibility(eventId, userId, accessCode);
+
+        assertThrows(IllegalStateException.class, () ->
+                purchaseService.selectSittingTicketsWithLotteryCode(
+                        eventId,
+                        List.of(ticketId),
+                        userId,
+                        false,
+                        accessCode
+                )
+        );
+
+        verify(purchaseDomainServiceMock).validateSelectionEligibility(eventId, userId, accessCode);
+        verify(queueManagerMock, never()).requestSelectionAccess(any(), any());
+        verify(purchaseDomainServiceMock, never()).selectSittingTicketsWithLotteryCode(any(), any(), any(), anyBoolean(), anyString());
+    }
+
+    @Test
+    public void selectStandingTicketsWithLotteryCode_whenUserNotEligible_doesNotEnterQueueAndDoesNotSelectTickets() {
+        UUID eventId = UUID.randomUUID();
+        UUID areaId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        String accessCode = "bad-code";
+
+        doThrow(new DomainException("Invalid or expired lottery access code"))
+                .when(purchaseDomainServiceMock)
+                .validateSelectionEligibility(eventId, userId, accessCode);
+
+        assertThrows(IllegalStateException.class, () ->
+                purchaseService.selectStandingTicketsWithLotteryCode(
+                        eventId,
+                        1,
+                        areaId,
+                        userId,
+                        false,
+                        accessCode
+                )
+        );
+
+        verify(purchaseDomainServiceMock).validateSelectionEligibility(eventId, userId, accessCode);
+        verify(queueManagerMock, never()).requestSelectionAccess(any(), any());
+        verify(purchaseDomainServiceMock, never()).selectStandingTicketsWithLotteryCode(any(), anyInt(), any(), any(), anyBoolean(), anyString());
+    }
+
+    @Test
+    public void selectSittingTicketsWithLotteryCode_whenUserEligible_checksEligibilityBeforeQueueAndSelectsTickets() {
+        UUID eventId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID ticketId = UUID.randomUUID();
+        String accessCode = "valid-code";
+
+        when(queueManagerMock.requestSelectionAccess(userId, eventId))
+                .thenReturn(QueueAccessResult.allowed());
+
+        purchaseService.selectSittingTicketsWithLotteryCode(
+                eventId,
+                List.of(ticketId),
+                userId,
+                false,
+                accessCode
+        );
+
+        InOrder inOrder = inOrder(purchaseDomainServiceMock, queueManagerMock);
+
+        inOrder.verify(purchaseDomainServiceMock).validateSelectionEligibility(eventId, userId, accessCode);
+        inOrder.verify(queueManagerMock).requestSelectionAccess(userId, eventId);
+        inOrder.verify(purchaseDomainServiceMock).selectSittingTicketsWithLotteryCode(eventId, List.of(ticketId), userId, false, accessCode);
+
+        verify(queueManagerMock).finishAccess(userId, eventId);
+        verify(queueManagerMock).releaseBatch(eventId, 1);
+    }
 
     @Test
     public void getHistoryByFilter_whenFilterIsUser_returnsUserHistory() {

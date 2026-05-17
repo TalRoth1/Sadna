@@ -17,6 +17,7 @@ import org.example.ApplicationLayer.dto.SalesReport;
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.DomainLayer.EventAggregate.Event;
+import org.example.DomainLayer.EventAggregate.TicketStatus;
 import org.example.DomainLayer.LotteryAggregate.PuchaseLottery;
 import org.example.DomainLayer.PolicyManagment.DiscountPolicy;
 import org.example.DomainLayer.PurchaseHistoryAggregate.Payment;
@@ -60,32 +61,58 @@ public class PurchaseDomainService {
     }
 
     public void selectSittingTickets(UUID eventID, List<UUID> ticketIDs, UUID userID, boolean guestAgeConfirmed) {
+        selectSittingTickets(eventID, ticketIDs, userID, guestAgeConfirmed, null);
+    }
+    public void selectSittingTicketsWithLotteryCode(UUID eventID,List<UUID> ticketIDs,UUID userID,boolean guestAgeConfirmed,String accessCode)
+    {
+        selectSittingTickets(eventID, ticketIDs, userID, guestAgeConfirmed, accessCode);
+    }
+    public void selectSittingTickets(UUID eventID,List<UUID> ticketIDs,UUID userID,boolean guestAgeConfirmed,String accessCode)
+    {
         ensureUserHasNoOtherActivePurchases(userID);
+
+        // חשוב: לפני reserve
+        validateSelectionEligibility(eventID, userID, accessCode);
+
         Event event = eventRepository.getById(eventID);
 
         synchronized (event) {
             event.reserveSittingTickets(ticketIDs);
+
             LinkedHashMap<UUID, Float> ticketBasePrices = new LinkedHashMap<>();
 
             for (UUID ticketId : ticketIDs) {
                 ticketBasePrices.put(ticketId, event.getTicket(ticketId).getPrice());
             }
 
-            ActivePurchase activePurchase = new ActivePurchase(userID, eventID, ticketBasePrices, LocalDateTime.now().plusMinutes(10));
+            ActivePurchase activePurchase =
+                    new ActivePurchase(userID, eventID, ticketBasePrices, LocalDateTime.now().plusMinutes(10));
+
             activePurchase.SetGuestAgeConfirmed(guestAgeConfirmed);
 
             purchaseRepository.save(activePurchase);
         }
-
     }
 
-
     public void selectStandingTickets(UUID eventID, int amount, UUID userID, UUID areaID, boolean guestAgeConfirmed) {
+        selectStandingTickets(eventID, amount, userID, areaID, guestAgeConfirmed, null);
+    }
+
+    public void selectStandingTicketsWithLotteryCode(UUID eventID,int amount,UUID userID,UUID areaID,boolean guestAgeConfirmed,String accessCode)
+    {
+        selectStandingTickets(eventID, amount, userID, areaID, guestAgeConfirmed, accessCode);
+    }
+
+    public void selectStandingTickets(UUID eventID,int amount,UUID userID,UUID areaID,boolean guestAgeConfirmed,String accessCode)
+    {
         ensureUserHasNoOtherActivePurchases(userID);
+
+        // חשוב: לפני reserve
+        validateSelectionEligibility(eventID, userID, accessCode);
+
         Event event = eventRepository.getById(eventID);
 
         synchronized (event) {
-
             List<UUID> reservedTicketIDs = event.reserveStandingTickets(amount, areaID);
 
             LinkedHashMap<UUID, Float> ticketBasePrices = new LinkedHashMap<>();
@@ -94,14 +121,16 @@ public class PurchaseDomainService {
                 ticketBasePrices.put(ticketId, event.getTicket(ticketId).getPrice());
             }
 
-            ActivePurchase ap = new ActivePurchase(userID, eventID, ticketBasePrices, LocalDateTime.now().plusMinutes(10));
-            ap.SetGuestAgeConfirmed(guestAgeConfirmed);
+            ActivePurchase activePurchase =
+                    new ActivePurchase(userID, eventID, ticketBasePrices, LocalDateTime.now().plusMinutes(10));
 
-            purchaseRepository.save(ap);
+            activePurchase.SetGuestAgeConfirmed(guestAgeConfirmed);
+
+            purchaseRepository.save(activePurchase);
         }
-
-
     }
+
+
 
     public void completePurchase(UUID activePurchaseID, PaymentDetails paymentDetails, String couponCode) {
         ActivePurchase activePurchase = purchaseRepository.findByID(activePurchaseID);
@@ -167,6 +196,44 @@ public class PurchaseDomainService {
         }
 
     }
+
+    public void validateSelectionEligibility(UUID eventId, UUID userId, String accessCode) {
+        if (eventId == null) {
+            throw new DomainException("Event ID is required");
+        }
+
+        if (userId == null) {
+            throw new DomainException("User ID is required");
+        }
+
+        Event event = eventRepository.getById(eventId);
+        if (event == null) {
+            throw new DomainException("Event does not exist");
+        }
+
+        PuchaseLottery lottery = lotteryRepository.findByEventID(eventId);
+
+        // אירוע רגיל — לא צריך הגרלה
+        if (lottery == null) {
+            return;
+        }
+
+        // אירוע הגרלה — חייב קוד
+        if (accessCode == null || accessCode.isBlank()) {
+            throw new DomainException("Lottery access code is required for this event");
+        }
+
+        boolean valid = lottery.isAccessCodeValid(
+                userId.toString(),
+                accessCode,
+                LocalDateTime.now()
+        );
+
+        if (!valid) {
+            throw new DomainException("Invalid or expired lottery access code");
+        }
+    }
+
 
     public List<PurchaseHistory> getAllHistory() {
         return historyRepository.getAll();
@@ -437,7 +504,7 @@ public class PurchaseDomainService {
         lotteryRepository.save(lottery);
     }
 
-    public Set<String> drawLotteryForEvent(UUID eventId, LocalDateTime codeExpiry) {
+    public Map<String, String> drawLotteryForEvent(UUID eventId, LocalDateTime codeExpiry) {
         if (eventId == null) {
             throw new DomainException("Event ID is required");
         }
@@ -456,12 +523,17 @@ public class PurchaseDomainService {
             throw new DomainException("Lottery does not exist for this event");
         }
 
-        int availableTickets = event.getTicketsView().size();
+        int availableTickets = (int) event.getTicketsView()
+                .values()
+                .stream()
+                .filter(t -> t.getStatus() == TicketStatus.AVAILABLE)
+                .count();
 
-        lottery.drawWinners(availableTickets, codeExpiry);
+        Map<String, String> winnerCodes = lottery.drawWinners(availableTickets, codeExpiry);
 
         lotteryRepository.save(lottery);
-        return lottery.getWinnerUsers();
+
+        return winnerCodes;
     }
     
     
