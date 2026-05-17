@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
-import { getCurrentUser } from "../services/currentUserService";
+import NotificationsPopup from "./NotificationsPopup";
+import {
+    getCurrentUser,
+    type CurrentUser,
+} from "../services/currentUserService";
 import { verifyPlatformAdmin } from "../services/admin/adminAuthService";
 
 export type AppPage =
     | "event-search"
-    | "event-details"
     | "login"
     | "registration"
     | "user-tickets"
@@ -37,26 +40,25 @@ export default function NavigationMenu({
                                            onNavigate,
                                        }: NavigationMenuProps) {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
     const [isAdmin, setIsAdmin] = useState(false);
-    const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const isLoggedIn = currentUser !== null;
 
     useEffect(() => {
         async function loadUserPermissions() {
             try {
-                const currentUser = await getCurrentUser();
+                const user = await getCurrentUser();
+                setCurrentUser(user);
 
-                if (!currentUser) {
-                    setIsLoggedIn(false);
+                if (!user) {
                     setIsAdmin(false);
                     return;
                 }
 
-                setIsLoggedIn(true);
-
-                const hasAdminAccess = await verifyPlatformAdmin(currentUser.id);
+                const hasAdminAccess = await verifyPlatformAdmin(user.id);
                 setIsAdmin(hasAdminAccess);
             } catch {
-                setIsLoggedIn(false);
+                setCurrentUser(null);
                 setIsAdmin(false);
             }
         }
@@ -90,6 +92,10 @@ export default function NavigationMenu({
                 >
                     Event Tickets
                 </button>
+
+                <div className="top-navigation-actions">
+                    <NotificationsPopup currentUser={currentUser} />
+                </div>
             </header>
 
             {isMenuOpen && (
