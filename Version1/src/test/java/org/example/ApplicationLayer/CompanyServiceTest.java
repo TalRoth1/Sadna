@@ -22,8 +22,11 @@ import java.util.Set;
 import java.util.HashSet;
 import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
 import org.example.DomainLayer.PolicyManagment.AgeRule;
+import org.example.DomainLayer.PolicyManagment.IPurchaseRule;
 import org.example.DomainLayer.PolicyManagment.LoneSeatRule;
+import org.example.DomainLayer.PolicyManagment.MinTicketRule;
 import org.example.DomainLayer.PolicyManagment.OvertDiscount;
+import org.example.DomainLayer.PolicyManagment.PurchaseComposite;
 import org.example.DomainLayer.UserAggregate.CompanyManager;
 import org.example.DomainLayer.UserAggregate.CompanyOwner;
 import org.example.DomainLayer.UserAggregate.CompanyFounder;
@@ -33,6 +36,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -310,49 +314,47 @@ public class CompanyServiceTest {
 		UUID companyId = UUID.randomUUID();
 		Company realCompany = new Company("founderUser", "TestCorp");
 		
-		// Ensure repository returns a User who is the company founder so permission checks pass
-		org.example.DomainLayer.UserAggregate.User ownerUser = new org.example.DomainLayer.UserAggregate.User(UUID.randomUUID(), "founderUser", "founderUser", "hash", 30);
-		ownerUser.getCompanyRoles().put(companyId, new org.example.DomainLayer.UserAggregate.CompanyFounder("founderUser"));
+		User ownerUser = new User(UUID.randomUUID(), "founderUser", "founderUser", "hash", 30);
+		ownerUser.getCompanyRoles().put(companyId, new CompanyFounder("founderUser"));
 		when(userRepositoryMock.findByEmail("founderUser")).thenReturn(Optional.of(ownerUser));
 		when(companyRepositoryMock.findByID(companyId)).thenReturn(Optional.of(realCompany));
 
 		Optional<Float> ageLimit = Optional.of(18.0f);
 
-		// Act
+		// Act - true = AND operator (doesn't matter for the first rule)
 		companyService.addPolicyRule("founderUser", companyId, ageLimit, Optional.empty(), Optional.empty(),
-				Optional.empty());
+				Optional.empty(), true);
 
-		// Assert - Checking that the rule was added to the real object's list
-		var rules = realCompany.getPurchasePolicy().getRulesView();
-		assertFalse("Rules should be added to the company policy", rules.isEmpty());
-		assertTrue("The rule should be an instance of AgeRule", rules.get(0) instanceof AgeRule);
+		// Assert
+		IPurchaseRule rootRule = realCompany.getPurchasePolicy().getRulesView();
+		assertNotNull("Root rule should not be null", rootRule);
+		assertTrue("The root rule should be an instance of AgeRule", rootRule instanceof AgeRule);
 	}
 
 	@Test
-	public void testAddMultiplePolicyRules_CorrectReplacementLogic() {
+	public void testAddMultiplePolicyRules_CreatesCompositeTree() {
 		// Arrange
 		UUID companyId = UUID.randomUUID();
 		Company realCompany = new Company("founderUser", "TestCorp");
 		when(companyRepositoryMock.findByID(companyId)).thenReturn(Optional.of(realCompany));
 
-		org.example.DomainLayer.UserAggregate.User ownerUser = new org.example.DomainLayer.UserAggregate.User(UUID.randomUUID(), "founderUser", "founderUser", "hash", 30);
-		ownerUser.getCompanyRoles().put(companyId, new org.example.DomainLayer.UserAggregate.CompanyFounder("founderUser"));
+		User ownerUser = new User(UUID.randomUUID(), "founderUser", "founderUser", "hash", 30);
+		ownerUser.getCompanyRoles().put(companyId, new CompanyFounder("founderUser"));
 		when(userRepositoryMock.findByEmail("founderUser")).thenReturn(Optional.of(ownerUser));
 
-		// Act: Add an age rule, then update it with a new value
+		// Act: Add an age rule, then a min ticket rule linked with an AND operator (true)
 		companyService.addPolicyRule("founderUser", companyId, Optional.of(18.0f), Optional.empty(), Optional.empty(),
-				Optional.empty());
-		companyService.addPolicyRule("founderUser", companyId, Optional.of(21.0f), Optional.empty(), Optional.empty(),
-				Optional.empty());
+				Optional.empty(), true);
+		companyService.addPolicyRule("founderUser", companyId, Optional.empty(), Optional.of(2), Optional.empty(),
+				Optional.empty(), true);
 
-		// Assert: Since your PurchasePolicy.addRule uses removeIf(existingRule ->
-		// existingRule.getClass().equals(rule.getClass()))
-		// there should still only be ONE AgeRule, but with the updated value.
-		var rules = realCompany.getPurchasePolicy().getRulesView();
-		long ageRuleCount = rules.stream().filter(r -> r instanceof AgeRule).count();
+		// Assert: Check that a tree structure was constructed
+		IPurchaseRule rootRule = realCompany.getPurchasePolicy().getRulesView();
+		assertTrue("Root rule should now be a PurchaseComposite", rootRule instanceof PurchaseComposite);
 
-		assertEquals("Should only have one AgeRule due to replacement logic", 1, ageRuleCount);
-		assertEquals(21.0f, ((AgeRule) rules.get(0)).getMinAge(), 0.01);
+		PurchaseComposite composite = (PurchaseComposite) rootRule;
+		assertTrue("Left side should contain the original AgeRule", composite.getLeftRule() instanceof AgeRule);
+		assertTrue("Right side should contain the new MinTicketRule", composite.getRightRule() instanceof MinTicketRule);
 	}
 
 	@Test
@@ -385,23 +387,27 @@ public class CompanyServiceTest {
 		UUID companyId = UUID.randomUUID();
 		Company realCompany = new Company("founderUser", "DeletionCorp");
 
-		// Manually setup a company with two different rules
-		realCompany.addPurchasePolicy(Optional.of(18.0f), Optional.empty(), Optional.empty(),
-				Optional.of(true));
+		// Manually build an initial tree with 2 rules using true (AND)
+		realCompany.addPurchasePolicy(Optional.of(18.0f), Optional.empty(), Optional.empty(), Optional.empty(), true);
+		realCompany.addPurchasePolicy(Optional.empty(), Optional.empty(), Optional.empty(), Optional.of(true), true);
+		
+		// Extract the composite root and find the target child ID (AgeRule)
+		PurchaseComposite rootComposite = (PurchaseComposite) realCompany.getPurchasePolicy().getRulesView();
+		UUID ageRuleId = rootComposite.getLeftRule().getId();
+
 		when(companyRepositoryMock.findByID(companyId)).thenReturn(Optional.of(realCompany));
 
-		org.example.DomainLayer.UserAggregate.User ownerUser = new org.example.DomainLayer.UserAggregate.User(UUID.randomUUID(), "founderUser", "founderUser", "hash", 40);
-		ownerUser.getCompanyRoles().put(companyId, new org.example.DomainLayer.UserAggregate.CompanyFounder("founderUser"));
+		User ownerUser = new User(UUID.randomUUID(), "founderUser", "founderUser", "hash", 40);
+		ownerUser.getCompanyRoles().put(companyId, new CompanyFounder("founderUser"));
 		when(userRepositoryMock.findByEmail("founderUser")).thenReturn(Optional.of(ownerUser));
 
-		// Act: Delete only the Age Rule, keep the Lone Seat Rule
-		companyService.deletePolicyRule("founderUser", companyId, true, false, false, false);
+		// Act: Delete specifically the AgeRule by its ID
+		companyService.deletePolicyRule("founderUser", companyId, ageRuleId);
 
-		// Assert
-		var rules = realCompany.getPurchasePolicy().getRulesView();
-		assertEquals("Should have exactly one rule left", 1, rules.size());
-		assertTrue("Remaining rule should be LoneSeatRule", rules.get(0) instanceof LoneSeatRule);
-		assertFalse("AgeRule should have been removed", rules.stream().anyMatch(r -> r instanceof AgeRule));
+		// Assert: Your PurchaseComposite removes the rule and promotes the remaining child (LoneSeatRule)
+		IPurchaseRule remainingRoot = realCompany.getPurchasePolicy().getRulesView();
+		assertNotNull("The policy shouldn't be completely empty", remainingRoot);
+		assertTrue("The remaining rule promoted to the root should be LoneSeatRule", remainingRoot instanceof LoneSeatRule);
 	}
 
 	@Test
@@ -411,17 +417,17 @@ public class CompanyServiceTest {
 		Company realCompany = new Company("founderUser", "SafetyCorp");
 		when(companyRepositoryMock.findByID(companyId)).thenReturn(Optional.of(realCompany));
 
-		org.example.DomainLayer.UserAggregate.User ownerUser = new org.example.DomainLayer.UserAggregate.User(UUID.randomUUID(), "founderUser", "founderUser", "hash", 40);
-		ownerUser.getCompanyRoles().put(companyId, new org.example.DomainLayer.UserAggregate.CompanyFounder("founderUser"));
+		User ownerUser = new User(UUID.randomUUID(), "founderUser", "founderUser", "hash", 40);
+		ownerUser.getCompanyRoles().put(companyId, new CompanyFounder("founderUser"));
 		when(userRepositoryMock.findByEmail("founderUser")).thenReturn(Optional.of(ownerUser));
 
 		// Act: Pass empty optionals for everything
 		companyService.addPolicyRule("founderUser", companyId, Optional.empty(), Optional.empty(), Optional.empty(),
-				Optional.empty());
+				Optional.empty(), true);
 
 		// Assert
-		var rules = realCompany.getPurchasePolicy().getRulesView();
-		assertTrue("No rules should be added if all Optionals are empty", rules.isEmpty());
+		IPurchaseRule rootRule = realCompany.getPurchasePolicy().getRulesView();
+		assertNull("No rules or composites should be created if all Optionals are empty", rootRule);
 	}
 
 	@Test
@@ -1197,7 +1203,6 @@ public class CompanyServiceTest {
 
 		// Mock domain service to perform recursive removal when asked (remove ownerB and managerX)
 		doAnswer(invocation -> {
-			String actingOwner = invocation.getArgument(0);
 			UUID cid = invocation.getArgument(1);
 			String toRemove = invocation.getArgument(2);
 			if (toRemove.equals(ownerB)) {

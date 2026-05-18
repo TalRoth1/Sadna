@@ -6,7 +6,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 
 import org.example.DomainLayer.DomainException;
@@ -112,31 +111,24 @@ public Company(String founderUsername, String name) {
         // TODO: imlement founder close
     }
 
-    public void addPurchasePolicy(Optional<Float> age, Optional<Integer> minTicket, Optional<Integer> maxTicket, Optional<Boolean> allowLoneSeat)
+    public void addPurchasePolicy(Optional<Float> age, Optional<Integer> minTicket, Optional<Integer> maxTicket, Optional<Boolean> allowLoneSeat, boolean andOr)
     {
     if (age != null && age.isPresent()) 
-        this.purchasePolicy.addRule(new AgeRule(age.get()));
+        this.purchasePolicy.addRule(new AgeRule(age.get()), andOr);
         
     if (minTicket != null && minTicket.isPresent()) 
-        this.purchasePolicy.addRule(new MinTicketRule(minTicket.get()));
+        this.purchasePolicy.addRule(new MinTicketRule(minTicket.get()), andOr);
         
     if (maxTicket != null && maxTicket.isPresent()) 
-        this.purchasePolicy.addRule(new MaxTicketRule(maxTicket.get()));
+        this.purchasePolicy.addRule(new MaxTicketRule(maxTicket.get()), andOr);
         
     if (allowLoneSeat != null && allowLoneSeat.isPresent()) 
-        this.purchasePolicy.addRule(new LoneSeatRule(allowLoneSeat.get()));
+        this.purchasePolicy.addRule(new LoneSeatRule(allowLoneSeat.get()), andOr);
     }
 
-    public void deletePurchaseRule(boolean age, boolean minTicket, boolean maxTicket, boolean allowLoneSeat)
+    public void deletePurchaseRule(UUID ruleId)
     {
-        if(age)
-            this.purchasePolicy.removeRule(new AgeRule(0));
-        if(minTicket)
-            this.purchasePolicy.removeRule(new MinTicketRule(0));
-        if(maxTicket)
-            this.purchasePolicy.removeRule(new MaxTicketRule(0));
-        if(allowLoneSeat)
-            this.purchasePolicy.removeRule(new LoneSeatRule(false));
+        purchasePolicy.removeRule(ruleId);
     }
 
     public void addOvertDiscount(LocalDate fromDate, LocalDate toDate, float discountPrecent)

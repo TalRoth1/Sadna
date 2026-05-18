@@ -7,11 +7,12 @@ import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 
 import static org.junit.Assert.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.*;
 
 public class EventManagementDomainServiceTest {
@@ -90,7 +91,7 @@ public class EventManagementDomainServiceTest {
         verify(historyRepository, never()).getByEventId(any());
     }
 
-    @Test
+@Test
     public void addPurchasePolicy_whenUserHasPermission_addsPolicyToEvent() {
         when(eventRepository.getById(eventId)).thenReturn(event);
         when(companyRepository.findByID(companyId)).thenReturn(Optional.of(company));
@@ -104,14 +105,16 @@ public class EventManagementDomainServiceTest {
                 Optional.of(18f),
                 Optional.of(1),
                 Optional.of(5),
-                Optional.of(true)
+                Optional.of(true),
+                true // Appended composite composition binary flag
         );
 
         verify(event).addPurchasePolicy(
                 Optional.of(18f),
                 Optional.of(1),
                 Optional.of(5),
-                Optional.of(true)
+                Optional.of(true),
+                true // Verified expected method invocation matching signature
         );
     }
 
@@ -127,7 +130,8 @@ public class EventManagementDomainServiceTest {
                         Optional.of(18f),
                         Optional.empty(),
                         Optional.empty(),
-                        Optional.empty()
+                        Optional.empty(),
+                        true // Appended composition binary flag
                 )
         );
     }
@@ -147,11 +151,13 @@ public class EventManagementDomainServiceTest {
                         Optional.of(18f),
                         Optional.empty(),
                         Optional.empty(),
-                        Optional.empty()
+                        Optional.empty(),
+                        true // Appended composition binary flag
                 )
         );
 
-        verify(event, never()).addPurchasePolicy(any(), any(), any(), any());
+        // Verification uses anyBoolean() or explicit true/false to match the updated 5-argument method
+        verify(event, never()).addPurchasePolicy(any(), any(), any(), any(), anyBoolean());
     }
 
     @Test

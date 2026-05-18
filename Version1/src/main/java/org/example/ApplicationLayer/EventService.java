@@ -14,7 +14,6 @@ import org.example.DomainLayer.EventAggregate.EventStatus;
 import org.example.DomainLayer.EventAggregate.SittingArea;
 import org.example.DomainLayer.EventAggregate.StandingArea;
 import org.example.DomainLayer.PolicyManagment.IDiscountRule;
-import org.example.DomainLayer.PolicyManagment.IPurchaseRule;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 
 import java.time.LocalDate;
@@ -157,11 +156,11 @@ public class EventService {
         }
     }
 
-    public void addPolicyRule(String username, UUID companyId, UUID eventId, Optional<Float> age, Optional<Integer> minTicket, Optional<Integer> maxTicket, Optional<Boolean> allowLoneSeat)
+    public void addPolicyRule(String username, UUID companyId, UUID eventId, Optional<Float> age, Optional<Integer> minTicket, Optional<Integer> maxTicket, Optional<Boolean> allowLoneSeat, boolean andOr)
     {
         logger.info("[Event Log] Method: addPolicyRule called with parameters: username=" + username
                 + ", companyId=" + companyId + ", eventId=" + eventId + ", age=" + age
-                + ", minTicket=" + minTicket + ", maxTicket=" + maxTicket + ", allowLoneSeat=" + allowLoneSeat);
+                + ", minTicket=" + minTicket + ", maxTicket=" + maxTicket + ", allowLoneSeat=" + allowLoneSeat + ", andOr=" + andOr);
         try {
             if (age.isPresent() && age.get() < 0)
                 throw new IllegalArgumentException("Age must be a non negative number");
@@ -169,7 +168,7 @@ public class EventService {
                 throw new IllegalArgumentException("Minimum ticket amount must be a non negative integer");
             if (maxTicket.isPresent() && maxTicket.get() < 0)
                 throw new IllegalArgumentException("maximum ticket amount must be a non negative integer");
-            eventManagementDomainService.addPurchasePolicy(username, companyId, eventId, age, minTicket, maxTicket, allowLoneSeat);
+            eventManagementDomainService.addPurchasePolicy(username, companyId, eventId, age, minTicket, maxTicket, allowLoneSeat, andOr);
         } catch (IllegalArgumentException | DomainException e) {
             logger.info("[Event Log] Business rejection in addPolicyRule: " + e.getMessage());
             throw e;
@@ -179,13 +178,12 @@ public class EventService {
         }
     }
     
-    public void deletePolicyRule(String username, UUID companyId, UUID eventId, boolean age, boolean minTicket, boolean maxTicket, boolean allowLoneSeat)
+    public void deletePolicyRule(String username, UUID companyId, UUID eventId, UUID ruleId)
     {
         logger.info("[Event Log] Method: deletePolicyRule called with parameters: username=" + username
-                + ", companyId=" + companyId + ", eventId=" + eventId + ", age=" + age
-                + ", minTicket=" + minTicket + ", maxTicket=" + maxTicket + ", allowLoneSeat=" + allowLoneSeat);
+                + ", companyId=" + companyId + "ruleId=" + ruleId);
         try {
-            eventManagementDomainService.deletePurchasePolicy(username, companyId, eventId, age, minTicket, maxTicket, allowLoneSeat);
+            eventManagementDomainService.deletePurchasePolicy(username, companyId, eventId, ruleId);
         } catch (IllegalArgumentException | DomainException e) {
             logger.info("[Event Log] Business rejection in deletePolicyRule: " + e.getMessage());
             throw e;
@@ -436,9 +434,7 @@ public class EventService {
             areas.add(new AreaSummaryDto(a.getAreaId(), kind, a.getPrice()));
         }
         List<String> purchaseRules = new ArrayList<>();
-        for (IPurchaseRule r : e.getPurchasePolicy().getRulesView()) {
-            purchaseRules.add(r.getClass().getSimpleName());
-        }
+        purchaseRules.add(e.getPurchasePolicy().getClass().getSimpleName());
         List<String> discountRules = new ArrayList<>();
         for (IDiscountRule r : e.getDiscountPolicy().getDiscountRules()) {
             discountRules.add(r.getClass().getSimpleName());

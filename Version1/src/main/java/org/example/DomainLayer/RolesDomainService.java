@@ -203,7 +203,7 @@ public class RolesDomainService {
     }
 
     public void addPurchasePolicy(String username, UUID companyId, Optional<Float> age, Optional<Integer> minTicket,
-        Optional<Integer> maxTicket, Optional<Boolean> allowLoneSeat) {
+        Optional<Integer> maxTicket, Optional<Boolean> allowLoneSeat, boolean andOr) {
         Company company = companyRepository.findByID(companyId).get();
         if (company == null)
             throw new IllegalArgumentException("Company not found");
@@ -215,11 +215,10 @@ public class RolesDomainService {
                 && !(userRole instanceof CompanyOwner) && !(userRole instanceof CompanyFounder)) {
             throw new IllegalArgumentException("User has no permission to change company policies");
         }
-        company.addPurchasePolicy(age, minTicket, maxTicket, allowLoneSeat);
+        company.addPurchasePolicy(age, minTicket, maxTicket, allowLoneSeat, andOr);
     }
 
-    public void deletePurchasePolicy(String username, UUID companyId, boolean age, boolean minTicket, boolean maxTicket,
-            boolean allowLoneSeat) {
+    public void deletePurchasePolicy(String username, UUID companyId, UUID ruleId) {
         Company company = companyRepository.findByID(companyId).get();
         if (company == null)
             throw new IllegalArgumentException("Company not found");
@@ -231,7 +230,7 @@ public class RolesDomainService {
                 && !(userRole instanceof CompanyOwner) && !(userRole instanceof CompanyFounder)) {
             throw new IllegalArgumentException("User has no permission to change company policies");
         }
-        company.deletePurchaseRule(age, minTicket, maxTicket, allowLoneSeat);
+        company.deletePurchaseRule(ruleId);
     }
 
     public void addOvertDiscount(String username, UUID companyId, LocalDate fromDate, LocalDate toDate,
