@@ -14,6 +14,7 @@ import "./EventDetails.css";
 type EventDetailsPageProps = {
     eventId: string;
     onBackToSearch: () => void;
+    onStartPurchase: (eventId: string) => void;
     onBackToCompany?: (companyId: string) => void;
 };
 
@@ -160,6 +161,7 @@ function DetailRow({ label, value }: DetailRowProps) {
 export default function EventDetailsPage({
     eventId,
     onBackToSearch,
+    onStartPurchase,
     onBackToCompany,
 }: EventDetailsPageProps) {
     const [event, setEvent] = useState<Event | null>(null);
@@ -214,20 +216,23 @@ export default function EventDetailsPage({
         if (!event || !primaryAction || primaryAction.kind === "unavailable") {
             return;
         }
+
+        // The "buy" branch routes to the Ticket Purchase Screen (#87) where
+        // the actual seat selection happens. Lottery / queue stay mocked here
+        // until those flows ship.
+        if (primaryAction.kind === "buy") {
+            onStartPurchase(event.id);
+            return;
+        }
+
         // TODO: Replace with real flows once the protocol/API is implemented:
-        //   buy     -> POST /events/{id}/reservations
         //   lottery -> POST /lotteries/{lotteryId}/registrations
         //   queue   -> POST /events/{id}/queue
         setIsPerformingAction(true);
         setActionMessage(null);
         setTimeout(() => {
             setIsPerformingAction(false);
-            if (primaryAction.kind === "buy") {
-                setActionMessage({
-                    kind: "success",
-                    text: "Tickets reserved. Continue to checkout to complete your purchase.",
-                });
-            } else if (primaryAction.kind === "lottery") {
+            if (primaryAction.kind === "lottery") {
                 setActionMessage({
                     kind: "success",
                     text: "You have been entered into the lottery. We'll notify you when results are drawn.",

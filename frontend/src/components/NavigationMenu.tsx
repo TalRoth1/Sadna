@@ -5,6 +5,7 @@ import { verifyPlatformAdmin } from "../services/admin/adminAuthService";
 export type AppPage =
     | "event-search"
     | "event-details"
+    | "event-purchase"
     | "login"
     | "registration"
     | "user-tickets"

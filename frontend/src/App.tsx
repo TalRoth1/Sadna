@@ -11,6 +11,7 @@ import AdminSubscribersPage from "./pages/admin/AdminSubscribersPage";
 import EventDetailsPage from "./pages/EventDetails/EventDetails";
 import EventSearchPage from "./pages/EventSearch/EventSearch";
 import PurchaseHistoryPage from "./pages/PurchaseHistoryPage";
+import TicketPurchasePage from "./pages/TicketPurchase/TicketPurchase";
 import UserProfilePage from "./pages/UserProfilePage";
 import LoginPage from "./pages/LoginPage";
 import RegistrationPage from "./pages/RegistrationPage";
@@ -40,7 +41,7 @@ function App() {
     const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
 
     function navigate(page: AppPage) {
-        if (page !== "event-details") {
+        if (page !== "event-details" && page !== "event-purchase") {
             setSelectedEventId(null);
         }
         setCurrentPage(page);
@@ -69,6 +70,19 @@ function App() {
         setCurrentPage("event-search");
     }
 
+    function handleStartPurchase(eventId: string) {
+        setSelectedEventId(eventId);
+        setCurrentPage("event-purchase");
+    }
+
+    function handleBackToEvent() {
+        if (!selectedEventId) {
+            setCurrentPage("event-search");
+            return;
+        }
+        setCurrentPage("event-details");
+    }
+
     function renderPage() {
         if (currentPage === "event-search") {
             return <EventSearchPage onSelectEvent={handleSelectEvent} />;
@@ -82,6 +96,19 @@ function App() {
                 <EventDetailsPage
                     eventId={selectedEventId}
                     onBackToSearch={handleBackToSearch}
+                    onStartPurchase={handleStartPurchase}
+                />
+            );
+        }
+
+        if (currentPage === "event-purchase") {
+            if (!selectedEventId) {
+                return <EventSearchPage onSelectEvent={handleSelectEvent} />;
+            }
+            return (
+                <TicketPurchasePage
+                    eventId={selectedEventId}
+                    onBackToEvent={handleBackToEvent}
                 />
             );
         }
