@@ -1,0 +1,821 @@
+/* The .ticket-purchase-page wrapper inherits padding and background from
+   the global .app-page rule in App.css; no own rules needed. */
+
+.ticket-purchase-page .event-back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 auto 16px;
+    padding: 8px 14px;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    color: #4338ca;
+    background: rgba(99, 102, 241, 0.08);
+    border: 1px solid rgba(99, 102, 241, 0.25);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.ticket-purchase-page .event-back-link:hover {
+    background: rgba(99, 102, 241, 0.15);
+    border-color: rgba(99, 102, 241, 0.45);
+}
+
+/* =========================
+   Event summary card
+   ========================= */
+
+.event-summary-card {
+    max-width: 1100px;
+    margin: 0 auto 16px;
+    padding: 24px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.venue-photo {
+    width: 100%;
+    max-height: 260px;
+    object-fit: cover;
+    border-radius: 10px;
+    border: 1px solid #e5e7eb;
+}
+
+.event-summary-content {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.event-summary-content h1 {
+    margin: 0;
+    font-size: 32px;
+    color: #111827;
+}
+
+.event-summary-subtitle {
+    margin: 4px 0 0;
+    color: #6b7280;
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.event-summary-meta {
+    margin: 0;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px 24px;
+}
+
+.event-summary-meta > div {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.event-summary-meta dt {
+    font-size: 12px;
+    font-weight: 600;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.event-summary-meta dd {
+    margin: 0;
+    font-size: 15px;
+    color: #111827;
+    font-weight: 500;
+}
+
+/* =========================
+   Purchase timer
+   ========================= */
+
+.purchase-timer {
+    max-width: 1100px;
+    margin: 0 auto 24px;
+    padding: 14px 24px;
+    border-radius: 14px;
+    border: 1px solid;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.purchase-timer-label {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.purchase-timer-value {
+    font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+}
+
+.purchase-timer.tone-normal {
+    color: #1f2937;
+    background: rgba(99, 102, 241, 0.06);
+    border-color: rgba(99, 102, 241, 0.25);
+}
+
+.purchase-timer.tone-warning {
+    color: #92400e;
+    background: rgba(251, 191, 36, 0.12);
+    border-color: rgba(251, 191, 36, 0.5);
+}
+
+.purchase-timer.tone-critical {
+    color: #991b1b;
+    background: rgba(220, 38, 38, 0.1);
+    border-color: rgba(220, 38, 38, 0.4);
+}
+
+.purchase-timer.tone-expired {
+    color: #6b7280;
+    background: #f3f4f6;
+    border-color: #d1d5db;
+}
+
+/* =========================
+   Event closed banner
+   ========================= */
+
+.ticket-purchase-page .event-closed-banner {
+    max-width: 1100px;
+    margin: 0 auto 24px;
+    padding: 20px 24px;
+    background: rgba(220, 38, 38, 0.06);
+    border: 1px solid rgba(220, 38, 38, 0.25);
+    border-radius: 14px;
+}
+
+.ticket-purchase-page .event-closed-banner h2 {
+    margin: 0 0 6px;
+    font-size: 20px;
+    color: #991b1b;
+}
+
+.ticket-purchase-page .event-closed-banner p {
+    margin: 0;
+    color: #7f1d1d;
+}
+
+/* =========================
+   Two-column layout: schematic on the left, summary aside on the right
+   ========================= */
+
+.ticket-purchase-grid {
+    max-width: 1100px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 360px;
+    gap: 24px;
+    align-items: start;
+}
+
+/* =========================
+   Schematic layout
+   ========================= */
+
+.ticket-schematic {
+    padding: 24px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.schematic-stage {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 14px 24px;
+    background: #111827;
+    color: #ffffff;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 0.4px;
+}
+
+.schematic-entrances {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    border-top: 1px dashed #cbd5e1;
+    color: #6b7280;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+}
+
+.schematic-areas {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.schematic-area {
+    padding: 20px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: #fafbfc;
+    text-align: left;
+}
+
+.schematic-area-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.schematic-area-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    color: #111827;
+}
+
+.schematic-area-meta {
+    margin: 4px 0 0;
+    color: #6b7280;
+    font-size: 14px;
+}
+
+.schematic-area-kind {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #4338ca;
+    background: rgba(99, 102, 241, 0.12);
+    border-radius: 999px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+/* =========================
+   Sitting grid + seat buttons
+   ========================= */
+
+.seat-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.seat-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.seat-row-label {
+    flex: 0 0 60px;
+    color: #6b7280;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+}
+
+.seat-row-seats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.seat-button {
+    min-width: 32px;
+    height: 32px;
+    padding: 0 6px;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    color: #111827;
+    background: #ffffff;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.12s ease, border-color 0.12s ease,
+        transform 0.05s ease;
+}
+
+.seat-button:hover:not(:disabled) {
+    background: rgba(99, 102, 241, 0.08);
+    border-color: #6366f1;
+}
+
+.seat-button:active:not(:disabled) {
+    transform: translateY(1px);
+}
+
+.seat-button:focus-visible {
+    outline: 2px solid #6366f1;
+    outline-offset: 2px;
+}
+
+.seat-button.selected {
+    background: #4338ca;
+    border-color: #4338ca;
+    color: #ffffff;
+}
+
+.seat-button.selected:hover:not(:disabled) {
+    background: #3730a3;
+    border-color: #3730a3;
+}
+
+.seat-button.seat-status-reserved {
+    background: #fef3c7;
+    border-color: #fcd34d;
+    color: #92400e;
+    cursor: not-allowed;
+    opacity: 0.75;
+}
+
+.seat-button.seat-status-sold {
+    background: #f3f4f6;
+    border-color: #d1d5db;
+    color: #9ca3af;
+    cursor: not-allowed;
+    opacity: 0.75;
+}
+
+.seat-button:disabled {
+    cursor: not-allowed;
+}
+
+/* =========================
+   Seat legend
+   ========================= */
+
+.seat-legend {
+    list-style: none;
+    margin: 16px 0 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 18px;
+    font-size: 13px;
+    color: #4b5563;
+}
+
+.seat-legend li {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.seat-legend-dot {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+    border: 1px solid #d1d5db;
+    background: #ffffff;
+}
+
+.seat-legend-dot.seat-status-available {
+    background: #ffffff;
+    border-color: #d1d5db;
+}
+
+.seat-legend-dot.seat-status-available.selected {
+    background: #4338ca;
+    border-color: #4338ca;
+}
+
+.seat-legend-dot.seat-status-reserved {
+    background: #fef3c7;
+    border-color: #fcd34d;
+}
+
+.seat-legend-dot.seat-status-sold {
+    background: #f3f4f6;
+    border-color: #d1d5db;
+}
+
+/* =========================
+   Standing picker
+   ========================= */
+
+.standing-counter {
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 16px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+}
+
+.standing-button {
+    width: 36px;
+    height: 36px;
+    font: inherit;
+    font-size: 20px;
+    font-weight: 700;
+    color: #111827;
+    background: #f3f4f6;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.standing-button:hover:not(:disabled) {
+    background: rgba(99, 102, 241, 0.12);
+    border-color: #6366f1;
+}
+
+.standing-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.standing-count {
+    min-width: 36px;
+    text-align: center;
+    font-size: 18px;
+    font-weight: 700;
+    color: #111827;
+}
+
+.standing-subtotal {
+    color: #4b5563;
+    font-size: 14px;
+    font-weight: 600;
+    margin-left: 4px;
+}
+
+/* =========================
+   Purchase summary aside
+   ========================= */
+
+.purchase-summary {
+    padding: 24px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    position: sticky;
+    top: 88px; /* account for the 72px sticky nav + a little space */
+}
+
+.purchase-summary h2 {
+    margin: 0;
+    font-size: 22px;
+    color: #111827;
+}
+
+.purchase-summary-empty {
+    margin: 0;
+    padding: 18px;
+    color: #6b7280;
+    background: #f9fafb;
+    border: 1px dashed #cbd5e1;
+    border-radius: 12px;
+    font-size: 14px;
+}
+
+.purchase-summary-items {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.purchase-summary-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+}
+
+.purchase-summary-item strong {
+    color: #111827;
+    font-size: 14px;
+}
+
+.purchase-summary-meta {
+    margin: 4px 0 0;
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.purchase-summary-amount {
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 13px;
+    color: #4b5563;
+}
+
+.purchase-summary-amount strong {
+    font-size: 14px;
+    color: #111827;
+}
+
+.purchase-summary-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 0;
+    border-top: 1px solid #e5e7eb;
+    border-bottom: 1px solid #e5e7eb;
+    font-size: 16px;
+    font-weight: 700;
+    color: #111827;
+}
+
+.purchase-policy-message {
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.purchase-policy-message.tone-warning {
+    color: #92400e;
+    background: rgba(251, 191, 36, 0.12);
+    border: 1px solid rgba(251, 191, 36, 0.4);
+}
+
+.purchase-policy-message.tone-error {
+    color: #991b1b;
+    background: rgba(220, 38, 38, 0.08);
+    border: 1px solid rgba(220, 38, 38, 0.3);
+}
+
+.purchase-terms {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 4px 0;
+    font-size: 14px;
+    color: #4b5563;
+    line-height: 1.45;
+    cursor: pointer;
+}
+
+.purchase-terms input[type="checkbox"] {
+    margin-top: 3px;
+    width: 18px;
+    height: 18px;
+    accent-color: #4338ca;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.purchase-action-primary {
+    padding: 14px 18px;
+    font: inherit;
+    font-size: 15px;
+    font-weight: 700;
+    color: #ffffff;
+    background: #4338ca;
+    border: 1px solid #4338ca;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.05s ease;
+}
+
+.purchase-action-primary:hover:not(:disabled) {
+    background: #3730a3;
+}
+
+.purchase-action-primary:active:not(:disabled) {
+    transform: translateY(1px);
+}
+
+.purchase-action-primary:disabled {
+    background: #a5b4fc;
+    border-color: #a5b4fc;
+    cursor: not-allowed;
+}
+
+.purchase-action-secondary {
+    padding: 10px 16px;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    color: #111827;
+    background: #ffffff;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.purchase-action-secondary:hover:not(:disabled) {
+    background: #f3f4f6;
+    border-color: #9ca3af;
+}
+
+.purchase-action-secondary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.purchase-action-message {
+    padding: 12px 14px;
+    border-radius: 10px;
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.purchase-action-message.tone-success {
+    color: #166534;
+    background: rgba(22, 163, 74, 0.1);
+    border: 1px solid rgba(22, 163, 74, 0.3);
+}
+
+.purchase-action-message.tone-error {
+    color: #991b1b;
+    background: rgba(220, 38, 38, 0.08);
+    border: 1px solid rgba(220, 38, 38, 0.3);
+}
+
+.purchase-checkout-secondary-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.purchase-checkout-secondary-actions .purchase-action-secondary {
+    flex: 1;
+    text-align: center;
+}
+
+.purchase-action-danger {
+    color: #991b1b;
+    border-color: rgba(220, 38, 38, 0.4);
+}
+
+.purchase-action-danger:hover:not(:disabled) {
+    color: #7f1d1d;
+    background: rgba(220, 38, 38, 0.08);
+    border-color: rgba(220, 38, 38, 0.6);
+}
+
+/* =========================
+   Payment details card (checkout step)
+   ========================= */
+
+.payment-details-card {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding: 24px 22px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+}
+
+.payment-details-header {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.payment-details-header h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    color: #111827;
+}
+
+.payment-details-subtitle {
+    margin: 0;
+    color: #4b5563;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.payment-form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.payment-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 13px;
+    color: #374151;
+}
+
+.payment-field > span {
+    font-weight: 600;
+}
+
+.payment-field input {
+    padding: 10px 12px;
+    font: inherit;
+    font-size: 14px;
+    color: #111827;
+    background: #f9fafb;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+}
+
+.payment-field input:disabled {
+    background: #f3f4f6;
+    color: #6b7280;
+    cursor: not-allowed;
+}
+
+.payment-field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.payment-form-notice {
+    margin: 0;
+    padding: 12px 14px;
+    background: rgba(67, 56, 202, 0.06);
+    border: 1px dashed rgba(67, 56, 202, 0.35);
+    border-radius: 10px;
+    color: #3730a3;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+/* =========================
+   Responsive: collapse to one column on narrow screens
+   ========================= */
+
+@media (max-width: 1024px) {
+    .ticket-purchase-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .purchase-summary {
+        position: static;
+    }
+}
+
+@media (max-width: 700px) {
+    .event-summary-meta {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .seat-row {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .seat-row-label {
+        flex: 0 0 auto;
+    }
+
+    .purchase-timer {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .purchase-checkout-secondary-actions {
+        flex-direction: column;
+    }
+
+    .payment-field-row {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}

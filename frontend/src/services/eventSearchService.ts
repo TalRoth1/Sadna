@@ -3,6 +3,7 @@ import type {
     Event,
     EventSearchFilters,
     Ticket,
+    TicketStatus,
 } from "../types/event";
 import { getPriceRange } from "../types/event";
 
@@ -24,6 +25,50 @@ function makeAvailableTickets(
             status: "AVAILABLE",
             price: pricePerTicket,
         });
+    }
+    return tickets;
+}
+
+// Mirrors Event.addSittingTickets(areaId, rows, seatsPerRow) on the backend:
+// one ticket per (row, seat) coordinate. Optional pre-populated
+// reserved / sold lists make the seat grid look realistic in the demo.
+function makeSittingTickets(
+    eventId: string,
+    area: Area,
+    rows: number,
+    seatsPerRow: number,
+    options: {
+        reserved?: Array<[number, number]>;
+        sold?: Array<[number, number]>;
+    } = {},
+): Ticket[] {
+    const reservedKeys = new Set(
+        (options.reserved ?? []).map(([row, seat]) => `${row}-${seat}`),
+    );
+    const soldKeys = new Set(
+        (options.sold ?? []).map(([row, seat]) => `${row}-${seat}`),
+    );
+
+    const tickets: Ticket[] = [];
+    for (let row = 1; row <= rows; row += 1) {
+        for (let seat = 1; seat <= seatsPerRow; seat += 1) {
+            const key = `${row}-${seat}`;
+            let status: TicketStatus = "AVAILABLE";
+            if (soldKeys.has(key)) {
+                status = "SOLD";
+            } else if (reservedKeys.has(key)) {
+                status = "RESERVED";
+            }
+            tickets.push({
+                id: `ticket-${eventId}-${area.id}-r${row}s${seat}`,
+                eventId,
+                areaId: area.id,
+                status,
+                price: area.price,
+                row,
+                seat,
+            });
+        }
     }
     return tickets;
 }
@@ -211,8 +256,16 @@ const mockEvents: Event[] = [
         },
         discountPolicy: { rules: [] },
         tickets: [
-            ...makeAvailableTickets("evt-2", standupNightAreas[0], 140, 160, 0),
-            ...makeAvailableTickets("evt-2", standupNightAreas[1], 70, 90, 0),
+            ...makeSittingTickets("evt-2", standupNightAreas[0], 8, 12, {
+                sold: [
+                    [1, 1], [1, 2], [2, 5], [2, 6], [3, 7], [5, 4], [7, 11],
+                ],
+                reserved: [[4, 8], [6, 2]],
+            }),
+            ...makeSittingTickets("evt-2", standupNightAreas[1], 5, 10, {
+                sold: [[1, 5], [1, 6]],
+                reserved: [[3, 9]],
+            }),
         ],
         description:
             "An intimate set of new material from one of Israel's busiest " +
@@ -250,8 +303,17 @@ const mockEvents: Event[] = [
             ],
         },
         tickets: [
-            ...makeAvailableTickets("evt-3", hamletAreas[0], 220, 260, 0),
-            ...makeAvailableTickets("evt-3", hamletAreas[1], 320, 180, 0),
+            ...makeSittingTickets("evt-3", hamletAreas[0], 10, 14, {
+                sold: [
+                    [1, 1], [1, 7], [2, 3], [2, 4], [3, 8], [5, 5], [5, 6],
+                    [7, 11], [10, 1], [10, 14],
+                ],
+                reserved: [[4, 7], [6, 10], [8, 2]],
+            }),
+            ...makeSittingTickets("evt-3", hamletAreas[1], 8, 14, {
+                sold: [[1, 1], [1, 2], [2, 7], [5, 11], [7, 3]],
+                reserved: [[3, 8], [6, 9]],
+            }),
         ],
         description:
             "A modern-dress staging of Shakespeare's Hamlet by the Cameri " +
@@ -280,8 +342,11 @@ const mockEvents: Event[] = [
         },
         discountPolicy: { rules: [] },
         tickets: [
-            ...makeAvailableTickets("evt-4", aiCloudAreas[0], 400, 850, 0),
-            ...makeAvailableTickets("evt-4", aiCloudAreas[1], 1200, 350, 0),
+            ...makeSittingTickets("evt-4", aiCloudAreas[0], 6, 12, {
+                sold: [[1, 1], [1, 12], [2, 6], [2, 7]],
+                reserved: [[3, 4]],
+            }),
+            ...makeAvailableTickets("evt-4", aiCloudAreas[1], 800, 350, 0),
         ],
         description:
             "Two days of talks and workshops on cloud-native AI, with " +
@@ -309,13 +374,14 @@ const mockEvents: Event[] = [
         },
         discountPolicy: { rules: [] },
         tickets: [
-            ...makeAvailableTickets(
-                "evt-5",
-                jazzRooftopAreas[0],
-                0,
-                240,
-                0,
-            ),
+            ...makeSittingTickets("evt-5", jazzRooftopAreas[0], 4, 6, {
+                sold: [
+                    [1, 1], [1, 2], [1, 3], [1, 4], [1, 5], [1, 6],
+                    [2, 1], [2, 2], [2, 3], [2, 4], [2, 5], [2, 6],
+                    [3, 1], [3, 2], [3, 3], [3, 4], [3, 5], [3, 6],
+                    [4, 1], [4, 2], [4, 3], [4, 4], [4, 5], [4, 6],
+                ],
+            }),
             ...makeAvailableTickets("evt-5", jazzRooftopAreas[1], 0, 140, 0),
         ],
         description:
@@ -366,7 +432,12 @@ const mockEvents: Event[] = [
             allowLoneSeat: true,
         },
         discountPolicy: { rules: [] },
-        tickets: [...makeAvailableTickets("evt-7", meetupAreas[0], 80, 50, 0)],
+        tickets: [
+            ...makeSittingTickets("evt-7", meetupAreas[0], 6, 8, {
+                sold: [[1, 1], [1, 2]],
+                reserved: [[3, 5], [3, 6]],
+            }),
+        ],
         description:
             "A community meetup focused on the latest in the React " +
             "ecosystem. Pizza included.",
