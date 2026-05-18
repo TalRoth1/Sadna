@@ -9,6 +9,7 @@ public class EventListener {
     private final NotificationService notificationService;
 
     public EventListener(NotificationService notificationService) {
+
         if (notificationService == null) {
             throw new IllegalArgumentException("Notification service is required");
         }
@@ -20,7 +21,12 @@ public class EventListener {
         if (event instanceof LotteryWonEvent lotteryWonEvent) {
             notificationService.notifyUser(
                     lotteryWonEvent.getUserId(),
-                    "Congratulations! You won the lottery!"
+                    "Congratulations! You won the lottery for event "
+                            + lotteryWonEvent.getEventId()
+                            + ". Your access code is: "
+                            + lotteryWonEvent.getAccessCode()
+                            + ". It expires at: "
+                            + lotteryWonEvent.getCodeExpiry()
             );
         }
 

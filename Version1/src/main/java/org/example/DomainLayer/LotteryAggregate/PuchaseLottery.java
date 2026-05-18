@@ -192,10 +192,14 @@ public class PuchaseLottery {
         String validCode = winnerAccessCodes.get(memberId);
         LocalDateTime expiry = winnerCodeExpiry.get(memberId);
 
+        if (validCode == null || expiry == null) {
+            return false;
+        }
+
         return accessCode.equals(validCode) && now.isBefore(expiry);
     }
 
-    public void drawWinners(int availableTickets, LocalDateTime codeExpiry) {
+    public Map<String, String> drawWinners(int availableTickets, LocalDateTime codeExpiry) {
         if (availableTickets <= 0) {
             throw new DomainException("No tickets available for lottery");
         }
@@ -216,13 +220,17 @@ public class PuchaseLottery {
         Collections.shuffle(candidates);
 
         int remainingTickets = availableTickets;
+        Map<String, String> winnerCodes = new HashMap<>();
 
         for (String memberId : candidates) {
             int requestedAmount = requestedTicketAmounts.get(memberId);
 
             if (requestedAmount <= remainingTickets) {
                 winnerUsers.add(memberId);
-                generateWinnerAccessCode(memberId, codeExpiry);
+
+                String accessCode = generateWinnerAccessCode(memberId, codeExpiry);
+                winnerCodes.put(memberId, accessCode);
+
                 remainingTickets -= requestedAmount;
             }
 
@@ -230,5 +238,7 @@ public class PuchaseLottery {
                 break;
             }
         }
+
+        return winnerCodes;
     }
 }

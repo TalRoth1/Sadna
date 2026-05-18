@@ -14,6 +14,7 @@ import org.example.InfrastructureLayer.Broadcaster;
 import org.example.InfrastructureLayer.WebSocketNotificationSender;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 
 import java.time.LocalDateTime;
@@ -56,6 +57,218 @@ public class PurchaseServiceTest {
     /*
      * Admin purchase history filter tests
      */
+
+    @Test
+    public void selectSittingTicketsWithLotteryCode_whenUserNotEligible_doesNotEnterQueueAndDoesNotSelectTickets() {
+        UUID eventId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID ticketId = UUID.randomUUID();
+        String accessCode = "bad-code";
+
+        doThrow(new DomainException("Invalid or expired lottery access code"))
+                .when(purchaseDomainServiceMock)
+                .validateSelectionEligibility(eventId, userId, accessCode);
+
+        assertThrows(IllegalStateException.class, () ->
+                purchaseService.selectSittingTicketsWithLotteryCode(
+                        eventId,
+                        List.of(ticketId),
+                        userId,
+                        false,
+                        accessCode
+                )
+        );
+
+        verify(purchaseDomainServiceMock).validateSelectionEligibility(eventId, userId, accessCode);
+        verify(queueManagerMock, never()).requestSelectionAccess(any(), any());
+        verify(purchaseDomainServiceMock, never()).selectSittingTicketsWithLotteryCode(any(), any(), any(), anyBoolean(), anyString());
+    }
+
+    @Test
+    public void selectStandingTicketsWithLotteryCode_whenUserNotEligible_doesNotEnterQueueAndDoesNotSelectTickets() {
+        UUID eventId = UUID.randomUUID();
+        UUID areaId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        String accessCode = "bad-code";
+
+        doThrow(new DomainException("Invalid or expired lottery access code"))
+                .when(purchaseDomainServiceMock)
+                .validateSelectionEligibility(eventId, userId, accessCode);
+
+        assertThrows(IllegalStateException.class, () ->
+                purchaseService.selectStandingTicketsWithLotteryCode(
+                        eventId,
+                        1,
+                        areaId,
+                        userId,
+                        false,
+                        accessCode
+                )
+        );
+
+        verify(purchaseDomainServiceMock).validateSelectionEligibility(eventId, userId, accessCode);
+        verify(queueManagerMock, never()).requestSelectionAccess(any(), any());
+        verify(purchaseDomainServiceMock, never()).selectStandingTicketsWithLotteryCode(any(), anyInt(), any(), any(), anyBoolean(), anyString());
+    }
+    @Test
+    public void selectSittingTicketsWithLotteryCode_whenUserNotRegisteredToLottery_throwsAndDoesNotCreateActivePurchase() {
+        TestSetup setup = createSetup();
+
+        UUID eventId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID companyId = UUID.randomUUID();
+        UUID areaId = UUID.randomUUID();
+        UUID ticketId = UUID.randomUUID();
+
+        Event event = new Event(eventId, companyId, LocalDateTime.now(), "loc", "artist", "type", EventStatus.ACTIVE);
+        event.getLayout().addArea(new SittingArea(areaId, 100f));
+        event.addTicket(new SittingTicket(ticketId, eventId, areaId, 100f, 1, 1));
+        setup.inMemoryEventRepository.save(event);
+
+        PuchaseLottery lottery = new PuchaseLottery(
+                UUID.randomUUID(),
+                eventId,
+                LocalDateTime.now().minusDays(1),
+                LocalDateTime.now().plusDays(1)
+        );
+        setup.inMemoryLotteryRepository.save(lottery);
+
+        assertThrows(IllegalStateException.class, () ->
+                setup.purchaseService.selectSittingTicketsWithLotteryCode(
+                        eventId,
+                        List.of(ticketId),
+                        userId,
+                        false,
+                        "fake-code"
+                )
+        );
+
+        assertNull(setup.inMemoryPurchaseRepository.findByUserID(userId));
+        assertEquals(TicketStatus.AVAILABLE, event.getTicket(ticketId).getStatus());
+        assertFalse(setup.queueManager.hasSelectAccess(userId, eventId));
+    }
+    @Test
+    public void selectSittingTicketsWithLotteryCode_whenUserRegisteredButDidNotWin_throwsAndDoesNotCreateActivePurchase() {
+        TestSetup setup = createSetup();
+
+        UUID eventId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID companyId = UUID.randomUUID();
+        UUID areaId = UUID.randomUUID();
+        UUID ticketId = UUID.randomUUID();
+
+        Event event = new Event(eventId, companyId, LocalDateTime.now(), "loc", "artist", "type", EventStatus.ACTIVE);
+        event.getLayout().addArea(new SittingArea(areaId, 100f));
+        event.addTicket(new SittingTicket(ticketId, eventId, areaId, 100f, 1, 1));
+        setup.inMemoryEventRepository.save(event);
+
+        PuchaseLottery lottery = new PuchaseLottery(
+                UUID.randomUUID(),
+                eventId,
+                LocalDateTime.now().minusDays(1),
+                LocalDateTime.now().plusDays(1)
+        );
+
+        lottery.registerMember(userId.toString(), 2, LocalDateTime.now());
+
+        // יש רק כרטיס זמין אחד להגרלה, והמשתמש ביקש 2 — לכן הוא לא אמור לזכות
+        lottery.drawWinners(1, LocalDateTime.now().plusHours(1));
+
+        assertFalse(lottery.isWinner(userId.toString()));
+        assertNull(lottery.getWinnerAccessCode(userId.toString()));
+
+        setup.inMemoryLotteryRepository.save(lottery);
+
+        assertThrows(IllegalStateException.class, () ->
+                setup.purchaseService.selectSittingTicketsWithLotteryCode(
+                        eventId,
+                        List.of(ticketId),
+                        userId,
+                        false,
+                        "fake-code"
+                )
+        );
+
+        assertNull(setup.inMemoryPurchaseRepository.findByUserID(userId));
+        assertEquals(TicketStatus.AVAILABLE, event.getTicket(ticketId).getStatus());
+        assertFalse(setup.queueManager.hasSelectAccess(userId, eventId));
+    }
+    @Test
+    public void selectSittingTicketsWithLotteryCode_whenWinnerHasValidCode_createsActivePurchaseAndReservesTicket() {
+        TestSetup setup = createSetup();
+
+        UUID eventId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID companyId = UUID.randomUUID();
+        UUID areaId = UUID.randomUUID();
+        UUID ticketId = UUID.randomUUID();
+
+        Event event = new Event(eventId, companyId, LocalDateTime.now(), "loc", "artist", "type", EventStatus.ACTIVE);
+        event.getLayout().addArea(new SittingArea(areaId, 100f));
+        event.addTicket(new SittingTicket(ticketId, eventId, areaId, 100f, 1, 1));
+        setup.inMemoryEventRepository.save(event);
+
+        PuchaseLottery lottery = new PuchaseLottery(
+                UUID.randomUUID(),
+                eventId,
+                LocalDateTime.now().minusDays(1),
+                LocalDateTime.now().plusDays(1)
+        );
+
+        lottery.registerMember(userId.toString(), 1, LocalDateTime.now());
+        lottery.addWinner(userId.toString());
+
+        String accessCode = lottery.generateWinnerAccessCode(
+                userId.toString(),
+                LocalDateTime.now().plusHours(1)
+        );
+
+        setup.inMemoryLotteryRepository.save(lottery);
+
+        setup.purchaseService.selectSittingTicketsWithLotteryCode(
+                eventId,
+                List.of(ticketId),
+                userId,
+                false,
+                accessCode
+        );
+
+        ActivePurchase activePurchase = setup.inMemoryPurchaseRepository.findByUserID(userId);
+
+        assertNotNull(activePurchase);
+        assertEquals(eventId, activePurchase.getEventID());
+        assertTrue(activePurchase.getTicketIDs().containsKey(ticketId));
+        assertEquals(TicketStatus.RESERVED, event.getTicket(ticketId).getStatus());
+        assertFalse(setup.queueManager.hasSelectAccess(userId, eventId));
+    }
+
+    @Test
+    public void selectSittingTicketsWithLotteryCode_whenUserEligible_checksEligibilityBeforeQueueAndSelectsTickets() {
+        UUID eventId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID ticketId = UUID.randomUUID();
+        String accessCode = "valid-code";
+
+        when(queueManagerMock.requestSelectionAccess(userId, eventId))
+                .thenReturn(QueueAccessResult.allowed());
+
+        purchaseService.selectSittingTicketsWithLotteryCode(
+                eventId,
+                List.of(ticketId),
+                userId,
+                false,
+                accessCode
+        );
+
+        InOrder inOrder = inOrder(purchaseDomainServiceMock, queueManagerMock);
+
+        inOrder.verify(purchaseDomainServiceMock).validateSelectionEligibility(eventId, userId, accessCode);
+        inOrder.verify(queueManagerMock).requestSelectionAccess(userId, eventId);
+        inOrder.verify(purchaseDomainServiceMock).selectSittingTicketsWithLotteryCode(eventId, List.of(ticketId), userId, false, accessCode);
+
+        verify(queueManagerMock).finishAccess(userId, eventId);
+        verify(queueManagerMock).releaseBatch(eventId, 1);
+    }
 
     @Test
     public void getHistoryByFilter_whenFilterIsUser_returnsUserHistory() {

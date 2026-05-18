@@ -2,6 +2,7 @@ package org.example.ApplicationLayer;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Logger;
@@ -32,6 +33,95 @@ public class PurchaseService {
         }
         if (!purchaseDomainService.validateAdmin(adminId)) {
             throw new IllegalArgumentException("User is not an admin");
+        }
+    }
+
+    public void selectSittingTicketsWithLotteryCode(UUID eventID,List<UUID> ticketIDs,UUID userID,boolean isConfirmedAge,String accessCode)
+    {
+        logger.info("caller=" + userID + ", action=selectSittingTicketsWithLotteryCode, target=PurchaseDomainService.selectSittingTicketsWithLotteryCode, params={eventID=" + eventID + ", ticketCount=" + (ticketIDs == null ? 0 : ticketIDs.size()) + ", isConfirmedAge=" + isConfirmedAge + ", accessCodeProvided=" + (accessCode != null && !accessCode.isBlank()) + "}");
+
+
+        if (eventID == null) {
+            logger.warning("action=selectSittingTicketsWithLotteryCode rejected, reason=eventID is null, caller=" + userID);
+            throw new IllegalArgumentException("Event ID is required");
+        }
+
+        if (ticketIDs == null || ticketIDs.isEmpty()) {
+            throw new IllegalArgumentException("Amount must be greater than zero");
+        }
+
+        if (userID == null) {
+            throw new IllegalArgumentException("User ID is required");
+        }
+
+        if (accessCode == null || accessCode.isBlank()) {
+            throw new IllegalArgumentException("Lottery access code is required");
+        }
+
+        try {
+            // קודם בודקים זכאות, לפני תור
+            purchaseDomainService.validateSelectionEligibility(eventID, userID, accessCode);
+
+            validateQueueAccess(userID, eventID);
+
+            purchaseDomainService.selectSittingTicketsWithLotteryCode(
+                    eventID, ticketIDs, userID, isConfirmedAge, accessCode
+            );
+
+            queueManager.finishAccess(userID, eventID);
+            queueManager.releaseBatch(eventID, 1);
+            logger.info("action=selectSittingTicketsWithLotteryCode completed successfully, caller=" + userID + ", params={eventID=" + eventID + ", ticketCount=" + ticketIDs.size() + "}");
+
+
+        } catch (DomainException e) {
+            logger.severe("action=selectSittingTicketsWithLotteryCode failed, caller=" + userID + ", params={eventID=" + eventID + ", ticketCount=" + (ticketIDs == null ? 0 : ticketIDs.size()) + "}, error=" + e.getMessage());
+            throw new IllegalStateException("Couldn't select lottery sitting tickets: " + e.getMessage());
+        }
+    }
+    public void selectStandingTicketsWithLotteryCode(UUID eventID,int amount,UUID areaID,UUID userID,boolean isConfirmedAge,String accessCode)
+    {
+        logger.info("caller=" + userID + ", action=selectStandingTicketsWithLotteryCode, target=PurchaseDomainService.selectStandingTicketsWithLotteryCode, params={eventID=" + eventID + ", areaID=" + areaID + ", amount=" + amount + ", isConfirmedAge=" + isConfirmedAge + ", accessCodeProvided=" + (accessCode != null && !accessCode.isBlank()) + "}");
+
+        if (eventID == null) {
+            logger.warning("action=selectStandingTicketsWithLotteryCode rejected, reason=missing access code, caller=" + userID + ", eventID=" + eventID);
+
+            throw new IllegalArgumentException("Event ID is required");
+        }
+
+        if (amount <= 0) {
+            throw new IllegalArgumentException("Amount must be greater than zero");
+        }
+
+        if (areaID == null) {
+            throw new IllegalArgumentException("Area ID is required");
+        }
+
+        if (userID == null) {
+            throw new IllegalArgumentException("User ID is required");
+        }
+
+        if (accessCode == null || accessCode.isBlank()) {
+            throw new IllegalArgumentException("Lottery access code is required");
+        }
+
+        try {
+            // קודם בודקים זכאות, לפני תור
+            purchaseDomainService.validateSelectionEligibility(eventID, userID, accessCode);
+
+            validateQueueAccess(userID, eventID);
+
+            purchaseDomainService.selectStandingTicketsWithLotteryCode(
+                    eventID, amount, userID, areaID, isConfirmedAge, accessCode
+            );
+
+            queueManager.finishAccess(userID, eventID);
+            queueManager.releaseBatch(eventID, 1);
+            logger.info("action=selectStandingTicketsWithLotteryCode completed successfully, caller=" + userID + ", params={eventID=" + eventID + ", areaID=" + areaID + ", amount=" + amount + "}");
+
+
+        } catch (DomainException e) {
+            logger.severe("action=selectStandingTicketsWithLotteryCode failed, caller=" + userID + ", params={eventID=" + eventID + ", areaID=" + areaID + ", amount=" + amount + "}, error=" + e.getMessage());
+            throw new IllegalStateException("Couldn't select lottery standing tickets: " + e.getMessage());
         }
     }
 
@@ -69,7 +159,6 @@ public class PurchaseService {
             queueManager.releaseBatch(eventID, 1);
 
             logger.info("Successfully selected sitting tickets for user: " + userID);
-            eventPublisher.publish(new PurchaseCompletedEvent(userID));
 
         } catch (DomainException e)
         {
@@ -374,42 +463,36 @@ public class PurchaseService {
     }
 
     public void registerToLottery(UUID eventId, UUID memberId, int ticketAmount) {
-        logger.info("caller=" + memberId
-            + ", action=registerToLottery"
-            + ", target=PurchaseDomainService.registerToLottery"
-            + ", params={eventId=" + eventId + ", memberId=" + memberId + ", ticketAmount=" + ticketAmount + "}");
-        
-            if (eventId == null) {
+        logger.info("caller=" + memberId + ", action=registerToLottery, target=PurchaseDomainService.registerToLottery, params={eventId=" + eventId + ", memberId=" + memberId + ", ticketAmount=" + ticketAmount + "}");
+        if (eventId == null) {
+            logger.warning("action=registerToLottery rejected, reason=eventId is null, caller=" + memberId);
             throw new IllegalArgumentException("Event ID is required");
         }
 
         if (memberId == null) {
+            logger.warning("action=registerToLottery rejected, reason=memberId is null");
             throw new IllegalArgumentException("Member ID is required");
         }
 
         if (ticketAmount <= 0) {
+            logger.warning("action=registerToLottery rejected, reason=invalid ticketAmount, caller=" + memberId + ", ticketAmount=" + ticketAmount);
             throw new IllegalArgumentException("Ticket amount must be greater than zero");
         }
 
         try {
             purchaseDomainService.registerToLottery(eventId, memberId, ticketAmount);
-            logger.info("action=registerToLottery completed successfully"
-                + ", params={eventId=" + eventId + ", memberId=" + memberId + ", ticketAmount=" + ticketAmount + "}");
+            logger.info("action=registerToLottery completed successfully, params={eventId=" + eventId + ", memberId=" + memberId + ", ticketAmount=" + ticketAmount + "}");
         } catch (DomainException e) {
-            logger.severe("action=registerToLottery failed"
-                + ", caller=" + memberId
-                + ", target=PurchaseDomainService.registerToLottery"
-                + ", params={eventId=" + eventId + ", memberId=" + memberId + ", ticketAmount=" + ticketAmount + "}"
-                + ", error=" + e.getMessage());
+            logger.severe("action=registerToLottery failed, caller=" + memberId + ", target=PurchaseDomainService.registerToLottery, params={eventId=" + eventId + ", memberId=" + memberId + ", ticketAmount=" + ticketAmount + "}, error=" + e.getMessage());
             throw new IllegalStateException("Couldn't register to lottery: " + e.getMessage());
         }
     }
 
     public void drawLotteryForEvent(UUID eventId, LocalDateTime codeExpiry) {
         logger.info("caller=system/admin"
-            + ", action=drawLotteryForEvent"
-            + ", target=PurchaseDomainService.drawLotteryForEvent"
-            + ", params={eventId=" + eventId + ", codeExpiry=" + codeExpiry + "}");
+                + ", action=drawLotteryForEvent"
+                + ", target=PurchaseDomainService.drawLotteryForEvent"
+                + ", params={eventId=" + eventId + ", codeExpiry=" + codeExpiry + "}");
 
         if (eventId == null) {
             throw new IllegalArgumentException("Event ID is required");
@@ -420,19 +503,28 @@ public class PurchaseService {
         }
 
         try {
-            Set<String> winners = purchaseDomainService.drawLotteryForEvent(eventId, codeExpiry);
-            logger.info("action=drawLotteryForEvent completed successfully"
-                + ", params={eventId=" + eventId + ", codeExpiry=" + codeExpiry + "}");
+            Map<String, String> winnerCodes =
+                    purchaseDomainService.drawLotteryForEvent(eventId, codeExpiry);
 
-            for (String winnerId : winners) {
-                eventPublisher.publish(new LotteryWonEvent(winnerId));
+            logger.info("action=drawLotteryForEvent completed successfully"
+                    + ", params={eventId=" + eventId + ", codeExpiry=" + codeExpiry + "}");
+
+            for (Map.Entry<String, String> entry : winnerCodes.entrySet()) {
+                String winnerId = entry.getKey();
+                String accessCode = entry.getValue();
+
+                eventPublisher.publish(
+                        new LotteryWonEvent(winnerId, eventId, accessCode, codeExpiry)
+                );
             }
+
         } catch (DomainException e) {
             logger.severe("action=drawLotteryForEvent failed"
-                + ", caller=system/admin"
-                + ", target=PurchaseDomainService.drawLotteryForEvent"
-                + ", params={eventId=" + eventId + ", codeExpiry=" + codeExpiry + "}"
-                + ", error=" + e.getMessage());
+                    + ", caller=system/admin"
+                    + ", target=PurchaseDomainService.drawLotteryForEvent"
+                    + ", params={eventId=" + eventId + ", codeExpiry=" + codeExpiry + "}"
+                    + ", error=" + e.getMessage());
+
             throw new IllegalStateException("Couldn't draw lottery: " + e.getMessage());
         }
     }
