@@ -3,6 +3,8 @@ package org.example.ApplicationLayer;
 import org.example.ApplicationLayer.dto.AuthResponse;
 import org.example.ApplicationLayer.dto.LoginRequest;
 import org.example.ApplicationLayer.dto.RegisterRequest;
+import org.example.DomainLayer.IAuthenticationGateway;
+import org.example.DomainLayer.IPurchaseRepository;
 import org.example.DomainLayer.IUserRepository;
 import org.example.DomainLayer.UserAggregate.User;
 
@@ -13,10 +15,12 @@ public class UserService{
     private static final Logger logger = Logger.getLogger(EventService.class.getName());
     private final IUserRepository userRepository;
     private final IAuthenticationGateway authGateway;
+    private  final IPurchaseRepository purchaseRepository;
 
-    public UserService(IUserRepository userRepository, IAuthenticationGateway authGateway) {
+    public UserService(IUserRepository userRepository, IAuthenticationGateway authGateway, IPurchaseRepository purchaseRepository) {
         this.userRepository = userRepository;
         this.authGateway = authGateway;
+        this.purchaseRepository = purchaseRepository;
     }
 
     public AuthResponse logout(UUID memberId) {
@@ -26,6 +30,9 @@ public class UserService{
                 return new AuthResponse(false, "Request denied: user does not exist.", null);
             }
 
+            if (purchaseRepository.findByUserID(memberId) !=null){
+
+            }
             user.logout();
             userRepository.add(user);
 
@@ -68,7 +75,7 @@ public class UserService{
             }
             User user = userRepository.findByEmail(request.email).orElse(null);
             if (user == null) {
-                return new AuthResponse(false, "incorrect email or password.", null);
+                return new AuthResponse(false, "incorrect email or password", null);
             }
             boolean isPasswordCorrect = authGateway.verifyPassword(request.plainPassword, user.getPasswordHash());
             if (!isPasswordCorrect) {
