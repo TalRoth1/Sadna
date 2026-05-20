@@ -54,6 +54,10 @@ public Company(String founderUsername, String name) {
         return this.id;
     }
 
+    public Invitation getInvitation(UUID invitationId) {
+        return invitations.get(invitationId);
+    }
+
     public String getName()
     {
         return this.name;
@@ -318,19 +322,18 @@ public Company(String founderUsername, String name) {
         members.remove(username);
     }
 
-    public void addPurchasePolicy(Optional<Float> age, Optional<Integer> minTicket, Optional<Integer> maxTicket, Optional<Boolean> allowLoneSeat)
-    {
-    if (age != null && age.isPresent()) 
-        this.purchasePolicy.addRule(new AgeRule(age.get()));
-        
-    if (minTicket != null && minTicket.isPresent()) 
-        this.purchasePolicy.addRule(new MinTicketRule(minTicket.get()));
-        
-    if (maxTicket != null && maxTicket.isPresent()) 
-        this.purchasePolicy.addRule(new MaxTicketRule(maxTicket.get()));
-        
-    if (allowLoneSeat != null && allowLoneSeat.isPresent()) 
-        this.purchasePolicy.addRule(new LoneSeatRule(allowLoneSeat.get()));
+    public void addPurchasePolicy(Float age, Integer minTicket, Integer maxTicket, Boolean allowLoneSeat) {
+        if (age != null)
+            this.purchasePolicy.addRule(new AgeRule(age));
+
+        if (minTicket != null)
+            this.purchasePolicy.addRule(new MinTicketRule(minTicket));
+
+        if (maxTicket != null)
+            this.purchasePolicy.addRule(new MaxTicketRule(maxTicket));
+
+        if (allowLoneSeat != null)
+            this.purchasePolicy.addRule(new LoneSeatRule(allowLoneSeat));
     }
 
     public void deletePurchaseRule(boolean age, boolean minTicket, boolean maxTicket, boolean allowLoneSeat)

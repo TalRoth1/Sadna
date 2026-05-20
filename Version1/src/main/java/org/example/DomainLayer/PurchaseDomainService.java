@@ -1,11 +1,13 @@
 package org.example.DomainLayer;
 
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.example.ApplicationLayer.PaymentDetails;
 import org.example.ApplicationLayer.dto.SalesReport;
@@ -21,9 +23,6 @@ import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.example.DomainLayer.UserAggregate.User;
 import org.example.DomainLayer.UserAggregate.UserRole;
 import org.example.DomainLayer.UserAggregate.UserStatus;
-
-import java.time.temporal.ChronoUnit;
-import java.util.stream.Collectors;
 
 public class PurchaseDomainService {
     private final IHistoryRepository historyRepository;
@@ -59,7 +58,7 @@ public class PurchaseDomainService {
         historyRepository.add(purchaseHistory);
     }
 
-    public void selectSittingTickets(UUID eventID, List<UUID> ticketIDs, UUID userID, boolean guestAgeConfirmed) {
+    public ActivePurchase selectSittingTickets(UUID eventID, List<UUID> ticketIDs, UUID userID, boolean guestAgeConfirmed) {
         ensureUserHasNoOtherActivePurchases(userID);
         Event event = eventRepository.getById(eventID);
 
@@ -75,12 +74,13 @@ public class PurchaseDomainService {
             activePurchase.SetGuestAgeConfirmed(guestAgeConfirmed);
 
             purchaseRepository.save(activePurchase);
-        }
 
+            return activePurchase;
+        }
     }
 
 
-    public void selectStandingTickets(UUID eventID, int amount, UUID userID, UUID areaID, boolean guestAgeConfirmed) {
+    public ActivePurchase selectStandingTickets(UUID eventID, int amount, UUID userID, UUID areaID, boolean guestAgeConfirmed) {
         ensureUserHasNoOtherActivePurchases(userID);
         Event event = eventRepository.getById(eventID);
 
@@ -98,9 +98,9 @@ public class PurchaseDomainService {
             ap.SetGuestAgeConfirmed(guestAgeConfirmed);
 
             purchaseRepository.save(ap);
+
+            return ap;
         }
-
-
     }
 
     public void completePurchase(UUID activePurchaseID, PaymentDetails paymentDetails, String couponCode) {
@@ -118,7 +118,8 @@ public class PurchaseDomainService {
         Event event = eventRepository.getById(activePurchase.getEventID());
 
         synchronized (event) {
-            User user = userRepository.getUser(activePurchase.getUserID()).get();
+            User user = userRepository.getUser(activePurchase.getUserID())
+                    .orElseThrow(() -> new DomainException("User not found"));
 
             try {
                 if (event.getPurchasePolicy() != null) {
@@ -126,7 +127,8 @@ public class PurchaseDomainService {
                 }
                 else
                 {
-                    Company eventCompany = companyRepository.findByID(event.getCompanyId()).get();
+                    Company eventCompany = companyRepository.findByID(event.getCompanyId())
+                            .orElseThrow(() -> new DomainException("Company not found for event"));
                     eventCompany.getPurchasePolicy().validate(activePurchase, user, event);
                 }
             } catch (DomainException e) {
@@ -137,7 +139,10 @@ public class PurchaseDomainService {
             DiscountPolicy relevantDiscountPolicy;
             if (event.getDiscountPolicy() != null)
                 relevantDiscountPolicy = event.getDiscountPolicy();
-            else relevantDiscountPolicy = companyRepository.findByID(event.getCompanyId()).get().getDiscountPolicy();
+            else
+                relevantDiscountPolicy = companyRepository.findByID(event.getCompanyId())
+                        .orElseThrow(() -> new DomainException("Company not found for event"))
+                        .getDiscountPolicy();
 
             float finalPrice = relevantDiscountPolicy.applyDiscount(activePurchase);
 
@@ -313,7 +318,7 @@ public class PurchaseDomainService {
         {
             cancelActivePurchase(activePurchaseId);
             throw new DomainException("Purchase canceled due to inactivity");
-        }        
+        }
 
         Event event = eventRepository.getById(activePurchase.getEventID());
 
@@ -446,12 +451,11 @@ public class PurchaseDomainService {
 
         lotteryRepository.save(lottery);
     }
-    
+
     public SalesReport getSalesReportForOwner(String ownerUsername, UUID companyId) {
-        Company company = companyRepository.findByID(companyId).orElse(null);
-        if (company == null) {
-            throw new IllegalArgumentException("Company not found");
-        }
+        Company company = companyRepository.findByID(companyId)
+                .orElseThrow(() -> new IllegalArgumentException("Company not found"));
+
         List<UUID> eventsUnderOwner = company.getEventsUnderOwner(ownerUsername);
         List<PurchaseHistory> relevantPurchases = new ArrayList<>();
         for (UUID eventId : eventsUnderOwner) {

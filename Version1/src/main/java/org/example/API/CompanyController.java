@@ -1,15 +1,37 @@
 package org.example.API;
 
+import java.util.UUID;
+
 import org.example.ApplicationLayer.CompanyService;
-import org.example.ApplicationLayer.dto.*;
-import org.example.DomainLayer.DomainException;
+import org.example.ApplicationLayer.dto.ApiResponse;
+import org.example.ApplicationLayer.dto.CompanyDTOs.AddConditionalDiscountRequest;
+import org.example.ApplicationLayer.dto.CompanyDTOs.AddCouponRequest;
+import org.example.ApplicationLayer.dto.CompanyDTOs.AddOvertDiscountRequest;
+import org.example.ApplicationLayer.dto.CompanyDTOs.AddPolicyRuleRequest;
+import org.example.ApplicationLayer.dto.CompanyDTOs.ChangeManagerPermissionsRequest;
+import org.example.ApplicationLayer.dto.CompanyDTOs.CloseCompanyRequest;
+import org.example.ApplicationLayer.dto.CompanyDTOs.CreateCompanyRequest;
+import org.example.ApplicationLayer.dto.CompanyDTOs.DeletePolicyRuleRequest;
+import org.example.ApplicationLayer.dto.CompanyDTOs.InviteManagerRequest;
+import org.example.ApplicationLayer.dto.CompanyDTOs.InviteOwnerRequest;
+import org.example.ApplicationLayer.dto.CompanyDTOs.RateCompanyRequest;
+import org.example.ApplicationLayer.dto.CompanyDTOs.RemoveDiscountRequest;
+import org.example.ApplicationLayer.dto.CompanyDTOs.RemoveMemberAdminRequest;
+import org.example.ApplicationLayer.dto.CompanyDTOs.RemoveMemberOwnerRequest;
+import org.example.ApplicationLayer.dto.CompanyDTOs.CompanyResponse;
+import org.example.ApplicationLayer.dto.CompanyDTOs.HierarchyResponse;
+import org.example.ApplicationLayer.dto.CompanyDTOs.InvitationResponse;
+import org.example.ApplicationLayer.dto.CompanyDTOs.SalesReportResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Optional;
-import java.util.UUID;
-
+/**
+ * CompanyController
+ *
+ * Every endpoint returns ResponseEntity<ApiResponse<T>> with a consistent shape:
+ *   { "success": boolean, "message": string, "data": T | null }
+ */
 @RestController
 @RequestMapping("/api/companies")
 public class CompanyController {
@@ -20,201 +42,307 @@ public class CompanyController {
         this.companyService = companyService;
     }
 
+    // ================================================================
+    //  Company creation & closing
+    // ================================================================
+
     @PostMapping
-    public ResponseEntity<CompanyResponse> createCompany(@RequestBody CreateCompanyRequest request) {
+    public ResponseEntity<ApiResponse<CompanyResponse>> createCompany(
+            @RequestBody CreateCompanyRequest request) {
         try {
-            UUID companyId = companyService.createCompany(request.founderUsername, request.companyName);
+            CompanyResponse company = companyService.createCompany(
+                    request.founderUsername, request.companyName);
             return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(new CompanyResponse(true, "Company created successfully", companyId));
-        } catch (IllegalArgumentException | DomainException e) {
-            return ResponseEntity.badRequest().body(new CompanyResponse(false, e.getMessage(), null));
+                    .body(ApiResponse.success("Company created successfully", company));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         }
     }
 
-    // TODO (V3): Extract adminUsername from security context token
-    @DeleteMapping("/{companyId}/admin-close")
-    public ResponseEntity<CompanyResponse> closeCompanyAsAdmin(@PathVariable UUID companyId, @RequestBody AdminActionRequest request) {
+    @DeleteMapping("/{companyId}/admin")
+    public ResponseEntity<ApiResponse<Void>> closeCompanyAsAdmin(
+            @PathVariable UUID companyId,
+            @RequestBody CloseCompanyRequest request) {
         try {
             companyService.closeCompanyAsAdmin(request.adminUsername, companyId);
-            return ResponseEntity.ok(new CompanyResponse(true, "Company closed by admin", null));
+            return ResponseEntity.ok(ApiResponse.success("Company closed successfully"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(new CompanyResponse(false, e.getMessage(), null));
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error("Not authorized to close this company"));
         }
     }
 
-    // TODO (V3): Extract ownerUsername from security context token
-    @PostMapping("/{companyId}/invite-manager")
-    public ResponseEntity<CompanyResponse> inviteCompanyManager(@PathVariable UUID companyId, @RequestBody InviteMemberRequest request) {
+    // ================================================================
+    //  Invitations
+    // ================================================================
+
+    @PostMapping("/{companyId}/managers/invite")
+    public ResponseEntity<ApiResponse<InvitationResponse>> inviteManager(
+            @PathVariable UUID companyId,
+            @RequestBody InviteManagerRequest request) {
         try {
-            UUID inviteId = companyService.inviteCompanyManager(request.ownerUsername, companyId, request.usernameToInvite, request.permissions);
-            return ResponseEntity.ok(new CompanyResponse(true, "Manager invited successfully", inviteId));
+            InvitationResponse invitation = companyService.inviteCompanyManager(
+                    request.ownerUsername, companyId,
+                    request.usernameToInvite, request.permissions);
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.success("Manager invited successfully", invitation));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(new CompanyResponse(false, e.getMessage(), null));
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error("Not authorized to invite managers"));
         }
     }
 
-    // TODO (V3): Extract ownerUsername from security context token
-    @PostMapping("/{companyId}/invite-owner")
-    public ResponseEntity<CompanyResponse> inviteCompanyOwner(@PathVariable UUID companyId, @RequestBody InviteMemberRequest request) {
+    @PostMapping("/{companyId}/owners/invite")
+    public ResponseEntity<ApiResponse<InvitationResponse>> inviteOwner(
+            @PathVariable UUID companyId,
+            @RequestBody InviteOwnerRequest request) {
         try {
-            UUID inviteId = companyService.inviteCompanyOwner(request.ownerUsername, companyId, request.usernameToInvite);
-            return ResponseEntity.ok(new CompanyResponse(true, "Owner invited successfully", inviteId));
+            InvitationResponse invitation = companyService.inviteCompanyOwner(
+                    request.ownerUsername, companyId, request.usernameToInvite);
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.success("Owner invited successfully", invitation));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(new CompanyResponse(false, e.getMessage(), null));
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error("Not authorized to invite owners"));
         }
     }
 
-    /**
-     * דיוק 1: שימוש ב-PathVariable במקום DTO ייעודי
-     */
     @PostMapping("/{companyId}/invitations/{invitationId}/accept")
-    public ResponseEntity<CompanyResponse> acceptCompanyInvitation(@PathVariable UUID companyId, @PathVariable UUID invitationId) {
+    public ResponseEntity<ApiResponse<Void>> acceptInvitation(
+            @PathVariable UUID companyId,
+            @PathVariable UUID invitationId) {
         try {
             companyService.acceptCompanyInvitation(invitationId, companyId);
-            return ResponseEntity.ok(new CompanyResponse(true, "Invitation accepted", null));
+            return ResponseEntity.ok(ApiResponse.success("Invitation accepted successfully"));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(new CompanyResponse(false, e.getMessage(), null));
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error("Invitation not found or already used"));
         }
     }
 
-    // TODO (V3): Extract ownerUsername from security context token
-    @DeleteMapping("/{companyId}/members/owner-remove")
-    public ResponseEntity<CompanyResponse> removeCompanyMemberAsOwner(@PathVariable UUID companyId, @RequestBody OwnerActionRequest request) {
+    // ================================================================
+    //  Member management
+    // ================================================================
+
+    @DeleteMapping("/{companyId}/members/owner")
+    public ResponseEntity<ApiResponse<Void>> removeMemberAsOwner(
+            @PathVariable UUID companyId,
+            @RequestBody RemoveMemberOwnerRequest request) {
         try {
-            companyService.removeCompanyMemberAsOwner(request.ownerUsername, companyId, request.targetUsername);
-            return ResponseEntity.ok(new CompanyResponse(true, "Member removed by owner", null));
+            companyService.removeCompanyMemberAsOwner(
+                    request.ownerUsername, companyId, request.usernameToRemove);
+            return ResponseEntity.ok(ApiResponse.success("Member removed successfully"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(new CompanyResponse(false, e.getMessage(), null));
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error("Not authorized to remove this member"));
         }
     }
 
-    // TODO (V3): Extract adminUsername from security context token
-    @DeleteMapping("/admin-remove-member")
-    public ResponseEntity<CompanyResponse> removeCompanyMemberAsAdmin(@RequestBody AdminActionRequest request) {
+    @DeleteMapping("/members/admin")
+    public ResponseEntity<ApiResponse<Void>> removeMemberAsAdmin(
+            @RequestBody RemoveMemberAdminRequest request) {
         try {
-            companyService.removeCompanyMemberAsAdmin(request.adminUsername, request.targetUsername);
-            return ResponseEntity.ok(new CompanyResponse(true, "Member removed globally by admin", null));
+            companyService.removeCompanyMemberAsAdmin(
+                    request.adminUsername, request.usernameToRemove);
+            return ResponseEntity.ok(ApiResponse.success("Member removed by admin successfully"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(new CompanyResponse(false, e.getMessage(), null));
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error("Not authorized to perform admin removal"));
         }
     }
 
-    @PutMapping("/{companyId}/manager-permissions")
-    public ResponseEntity<CompanyResponse> changeManagerPermissions(@PathVariable UUID companyId, @RequestBody ChangePermissionsRequest request) {
+    @PatchMapping("/{companyId}/managers/permissions")
+    public ResponseEntity<ApiResponse<Void>> changeManagerPermissions(
+            @PathVariable UUID companyId,
+            @RequestBody ChangeManagerPermissionsRequest request) {
         try {
-            companyService.changeManagerPermissions(request.ownerUsername, companyId, request.managerUsername, request.newPermissions);
-            return ResponseEntity.ok(new CompanyResponse(true, "Permissions updated", null));
+            companyService.changeManagerPermissions(
+                    request.ownerUsername, companyId,
+                    request.managerUsername, request.newPermissions);
+            return ResponseEntity.ok(ApiResponse.success("Permissions updated successfully"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(new CompanyResponse(false, e.getMessage(), null));
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error("Not authorized to change permissions"));
         }
     }
 
-    @PostMapping("/{companyId}/policies")
-    public ResponseEntity<CompanyResponse> addPolicyRule(@PathVariable UUID companyId, @RequestBody PolicyRuleRequest request) {
+    // ================================================================
+    //  Purchase Policy
+    // ================================================================
+
+    @PostMapping("/{companyId}/policy")
+    public ResponseEntity<ApiResponse<Void>> addPolicyRule(
+            @PathVariable UUID companyId,
+            @RequestBody AddPolicyRuleRequest request) {
         try {
+            // No more Optional.ofNullable wrapping — pass nullable fields directly.
             companyService.addPolicyRule(
                     request.username, companyId,
-                    Optional.ofNullable(request.age),
-                    Optional.ofNullable(request.minTicket),
-                    Optional.ofNullable(request.maxTicket),
-                    Optional.ofNullable(request.allowLoneSeat)
-            );
-            return ResponseEntity.ok(new CompanyResponse(true, "Policy rule added", null));
+                    request.age,
+                    request.minTicket,
+                    request.maxTicket,
+                    request.allowLoneSeat);
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.success("Policy rule added successfully"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(new CompanyResponse(false, e.getMessage(), null));
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error("Not authorized to modify purchase policy"));
         }
     }
 
-    @DeleteMapping("/{companyId}/policies")
-    public ResponseEntity<CompanyResponse> deletePolicyRule(@PathVariable UUID companyId, @RequestBody PolicyRuleRequest request) {
+    @DeleteMapping("/{companyId}/policy")
+    public ResponseEntity<ApiResponse<Void>> deletePolicyRule(
+            @PathVariable UUID companyId,
+            @RequestBody DeletePolicyRuleRequest request) {
         try {
             companyService.deletePolicyRule(
                     request.username, companyId,
-                    request.age != null,
-                    request.minTicket != null,
-                    request.maxTicket != null,
-                    request.allowLoneSeat != null
-            );
-            return ResponseEntity.ok(new CompanyResponse(true, "Policy rule deleted", null));
+                    request.age, request.minTicket,
+                    request.maxTicket, request.allowLoneSeat);
+            return ResponseEntity.ok(ApiResponse.success("Policy rule deleted successfully"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(new CompanyResponse(false, e.getMessage(), null));
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error("Not authorized to modify purchase policy"));
         }
     }
 
+    // ================================================================
+    //  Discounts
+    // ================================================================
+
     @PostMapping("/{companyId}/discounts/overt")
-    public ResponseEntity<CompanyResponse> addOvertDiscount(@PathVariable UUID companyId, @RequestBody DiscountRequest request) {
+    public ResponseEntity<ApiResponse<Void>> addOvertDiscount(
+            @PathVariable UUID companyId,
+            @RequestBody AddOvertDiscountRequest request) {
         try {
-            companyService.addOvertDiscount(request.username, companyId, request.fromDate, request.toDate, request.discountPercent);
-            return ResponseEntity.ok(new CompanyResponse(true, "Overt discount added", null));
+            companyService.addOvertDiscount(
+                    request.username, companyId,
+                    request.fromDate, request.toDate, request.discountPercent);
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.success("Overt discount added successfully"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(new CompanyResponse(false, e.getMessage(), null));
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error("Not authorized to add discounts"));
         }
     }
 
     @PostMapping("/{companyId}/discounts/conditional")
-    public ResponseEntity<CompanyResponse> addConditionalDiscount(@PathVariable UUID companyId, @RequestBody DiscountRequest request) {
+    public ResponseEntity<ApiResponse<Void>> addConditionalDiscount(
+            @PathVariable UUID companyId,
+            @RequestBody AddConditionalDiscountRequest request) {
         try {
-            companyService.addConditionalDiscount(request.username, companyId, request.fromDate, request.toDate, request.discountPercent, request.requiredTickets, request.appliedTickets);
-            return ResponseEntity.ok(new CompanyResponse(true, "Conditional discount added", null));
+            companyService.addConditionalDiscount(
+                    request.username, companyId,
+                    request.fromDate, request.toDate, request.discountPercent,
+                    request.requiredTickets, request.appliedTickets);
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.success("Conditional discount added successfully"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(new CompanyResponse(false, e.getMessage(), null));
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error("Not authorized to add discounts"));
         }
     }
 
     @PostMapping("/{companyId}/discounts/coupon")
-    public ResponseEntity<CompanyResponse> addCouponCode(@PathVariable UUID companyId, @RequestBody DiscountRequest request) {
+    public ResponseEntity<ApiResponse<Void>> addCouponCode(
+            @PathVariable UUID companyId,
+            @RequestBody AddCouponRequest request) {
         try {
-            companyService.addCouponCode(request.username, companyId, request.fromDate, request.toDate, request.discountPercent, request.code);
-            return ResponseEntity.ok(new CompanyResponse(true, "Coupon code added", null));
+            companyService.addCouponCode(
+                    request.username, companyId,
+                    request.fromDate, request.toDate,
+                    request.discountPercent, request.code);
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.success("Coupon added successfully"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(new CompanyResponse(false, e.getMessage(), null));
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error("Not authorized to add coupons"));
         }
     }
 
-    /**
-     * דיוק 1: discountId עובר כ-PathVariable בנתיב.
-     * מאחר ובקשת DELETE סטנדרטית לא רצוי שתכיל גוף (Body), אנחנו נעביר את ה-username כ-RequestParam.
-     */
     @DeleteMapping("/{companyId}/discounts/{discountId}")
-    public ResponseEntity<CompanyResponse> removeDiscount(
+    public ResponseEntity<ApiResponse<Void>> removeDiscount(
             @PathVariable UUID companyId,
             @PathVariable UUID discountId,
-            @RequestParam String username) { // Username מגיע כמשתנה שאילתה (e.g., ?username=Admin)
+            @RequestBody RemoveDiscountRequest request) {
         try {
-            companyService.removeDiscount(username, companyId, discountId);
-            return ResponseEntity.ok(new CompanyResponse(true, "Discount removed", null));
+            companyService.removeDiscount(request.username, companyId, discountId);
+            return ResponseEntity.ok(ApiResponse.success("Discount removed successfully"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(new CompanyResponse(false, e.getMessage(), null));
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error("Not authorized to remove discounts"));
         }
     }
 
-    @PostMapping("/{companyId}/rate")
-    public ResponseEntity<CompanyResponse> rateCompany(@PathVariable UUID companyId, @RequestBody RateCompanyRequest request) {
+    // ================================================================
+    //  Rating & Info
+    // ================================================================
+
+    @PostMapping("/{companyId}/ratings")
+    public ResponseEntity<ApiResponse<Void>> rateCompany(
+            @PathVariable UUID companyId,
+            @RequestBody RateCompanyRequest request) {
         try {
             companyService.rateCompany(request.userId, companyId, request.rating);
-            return ResponseEntity.ok(new CompanyResponse(true, "Company rated successfully", null));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(new CompanyResponse(false, e.getMessage(), null));
+            return ResponseEntity.ok(ApiResponse.success("Rating submitted successfully"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         }
     }
 
     @GetMapping("/{companyId}/hierarchy")
-    public ResponseEntity<CompanyResponse> getCompanyHierarchy(@PathVariable UUID companyId, @RequestParam String requesterUsername) {
+    public ResponseEntity<ApiResponse<HierarchyResponse>> getCompanyHierarchy(
+            @PathVariable UUID companyId,
+            @RequestParam String requester) {
         try {
-            String mermaidData = companyService.getCompanyHierarchyMermaid(companyId, requesterUsername);
-            return ResponseEntity.ok(new CompanyResponse(true, "Hierarchy fetched", mermaidData));
+            HierarchyResponse hierarchy = companyService.getCompanyHierarchyMermaid(
+                    companyId, requester);
+            return ResponseEntity.ok(ApiResponse.success(hierarchy));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(new CompanyResponse(false, e.getMessage(), null));
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error("Not authorized to view company hierarchy"));
         }
     }
 
     @GetMapping("/{companyId}/sales-report")
-    public ResponseEntity<CompanyResponse> getSalesReport(@PathVariable UUID companyId, @RequestParam String ownerUsername) {
+    public ResponseEntity<ApiResponse<SalesReportResponse>> getSalesReport(
+            @PathVariable UUID companyId,
+            @RequestParam String owner) {
         try {
-            String reportData = companyService.getSalesReportForOwner(ownerUsername, companyId);
-            return ResponseEntity.ok(new CompanyResponse(true, "Sales report fetched", reportData));
+            SalesReportResponse report = companyService.getSalesReportForOwner(
+                    owner, companyId);
+            return ResponseEntity.ok(ApiResponse.success(report));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(new CompanyResponse(false, e.getMessage(), null));
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error("Not authorized to view sales report"));
         }
     }
 }

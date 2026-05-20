@@ -1,15 +1,42 @@
 package org.example.API;
 
+import java.util.List;
+import java.util.UUID;
+
 import org.example.ApplicationLayer.EventService;
-import org.example.ApplicationLayer.dto.*;
+import org.example.ApplicationLayer.dto.ApiResponse;
+import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.CompanyCatalogDto;
+import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.EventDetailsDto;
+import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.EventSummaryDto;
+import org.example.ApplicationLayer.dto.EventDTOs.AddEventConditionalDiscountRequest;
+import org.example.ApplicationLayer.dto.EventDTOs.AddEventCouponRequest;
+import org.example.ApplicationLayer.dto.EventDTOs.AddEventOvertDiscountRequest;
+import org.example.ApplicationLayer.dto.EventDTOs.AddEventPolicyRuleRequest;
+import org.example.ApplicationLayer.dto.EventDTOs.AddSittingTicketsRequest;
+import org.example.ApplicationLayer.dto.EventDTOs.AddStandingTicketsRequest;
+import org.example.ApplicationLayer.dto.EventDTOs.CreateEventRequest;
+import org.example.ApplicationLayer.dto.EventDTOs.DeleteEventPolicyRuleRequest;
+import org.example.ApplicationLayer.dto.EventDTOs.EditEventRequest;
+import org.example.ApplicationLayer.dto.EventDTOs.EventSearchCriteriaRequest;
+import org.example.ApplicationLayer.dto.EventDTOs.RateEventRequest;
+import org.example.ApplicationLayer.dto.EventDTOs.RemoveEventDiscountRequest;
+import org.example.ApplicationLayer.dto.PurchaseDTOs.PurchaseHistoryDTO;
+import org.example.DomainLayer.EventAggregate.EventSearchCriteria;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
-
+/**
+ * EventController
+ *
+ * Every endpoint returns ResponseEntity<ApiResponse<T>>:
+ *   { "success": boolean, "message": string, "data": T | null }
+ *
+ * Exception → HTTP status mapping:
+ *   IllegalArgumentException   → 400 Bad Request
+ *   IllegalStateException      → 400 Bad Request
+ *   Anything else              → 500 Internal Server Error
+ */
 @RestController
 @RequestMapping("/api/events")
 public class EventController {
@@ -20,207 +47,327 @@ public class EventController {
         this.eventService = eventService;
     }
 
-    // ==========================================
-    // 1. ניהול אירועים (הוספה, עריכה, מחיקה)
-    // ==========================================
+    // ================================================================
+    //  1. Event lifecycle
+    // ================================================================
 
     @PostMapping
-    public ResponseEntity<EventResponse> addEvent(@RequestBody AddEventRequest request) {
+    public ResponseEntity<ApiResponse<EventDetailsDto>> createEvent(@RequestBody CreateEventRequest request) {
         try {
-            // תיקון 1: יצירת ה-UUID בקונטרולר והתאמה מדויקת לחתימת ה-Service
-            UUID newEventId = UUID.randomUUID();
-            eventService.addEvent(
-                    newEventId,
+            EventDetailsDto event = eventService.addEvent(
+                    UUID.randomUUID(),
                     request.companyId,
-                    request.eventDate,
+                    request.name,
+                    request.date,
                     request.location,
                     request.artist,
                     request.type,
-                    request.status
-            );
-            return ResponseEntity.status(HttpStatus.CREATED).body(new EventResponse(true, "Event created successfully", newEventId));
+                    request.status);
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.success("Event created successfully", event));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(new EventResponse(false, e.getMessage(), null));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to create event: system exception"));
         }
     }
 
     @PutMapping("/{eventId}")
-    public ResponseEntity<EventResponse> editEvent(@PathVariable UUID eventId, @RequestBody EditEventRequest request) {
+    public ResponseEntity<ApiResponse<EventSummaryDto>> editEvent(
+            @PathVariable UUID eventId,
+            @RequestBody EditEventRequest request) {
         try {
-            // תיקון 1: התאמה לחתימה המדויקת של עריכה
-            eventService.editEvent(
-                    eventId,
-                    request.eventDate,
-                    request.location,
-                    request.artist,
-                    request.type,
-                    request.status
-            );
-            return ResponseEntity.ok(new EventResponse(true, "Event updated successfully", null));
+            EventSummaryDto event = eventService.editEvent(
+                    eventId, request.date, request.location,
+                    request.artist, request.type, request.status);
+            return ResponseEntity.ok(ApiResponse.success("Event updated successfully", event));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(new EventResponse(false, e.getMessage(), null));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to update event: system exception"));
         }
     }
 
     @DeleteMapping("/{eventId}")
-    public ResponseEntity<EventResponse> deleteEvent(@PathVariable UUID eventId) {
+    public ResponseEntity<ApiResponse<Void>> deleteEvent(@PathVariable UUID eventId) {
         try {
             eventService.deleteEvent(eventId);
-            return ResponseEntity.ok(new EventResponse(true, "Event deleted successfully", null));
+            return ResponseEntity.ok(ApiResponse.success("Event deleted successfully"));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(new EventResponse(false, e.getMessage(), null));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to delete event: system exception"));
         }
     }
 
-    // ==========================================
-    // 2. ניהול כרטיסים ואזורים
-    // ==========================================
+    // ================================================================
+    //  2. Layout & tickets
+    // ================================================================
 
-    @PostMapping("/{eventId}/areas/standing")
-    public ResponseEntity<EventResponse> addStandingTickets(@PathVariable UUID eventId, @RequestBody AddStandingAreaRequest request) {
+    @PostMapping("/{eventId}/areas/{areaId}/tickets/standing")
+    public ResponseEntity<ApiResponse<Void>> addStandingTickets(
+            @PathVariable UUID eventId,
+            @PathVariable UUID areaId,
+            @RequestBody AddStandingTicketsRequest request) {
         try {
-            eventService.addStandingTickets(eventId, request.areaId, request.count);
-            return ResponseEntity.ok(new EventResponse(true, "Standing tickets added", null));
+            eventService.addStandingTickets(eventId, areaId, request.count);
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.success("Standing tickets added successfully"));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(new EventResponse(false, e.getMessage(), null));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to add standing tickets: system exception"));
         }
     }
 
-    @PostMapping("/{eventId}/areas/sitting")
-    public ResponseEntity<EventResponse> addSittingTickets(@PathVariable UUID eventId, @RequestBody AddSittingAreaRequest request) {
+    @PostMapping("/{eventId}/areas/{areaId}/tickets/sitting")
+    public ResponseEntity<ApiResponse<Void>> addSittingTickets(
+            @PathVariable UUID eventId,
+            @PathVariable UUID areaId,
+            @RequestBody AddSittingTicketsRequest request) {
         try {
-            eventService.addSittingTickets(eventId, request.areaId, request.rows, request.seatsPerRow);
-            return ResponseEntity.ok(new EventResponse(true, "Sitting tickets added", null));
+            eventService.addSittingTickets(eventId, areaId, request.rows, request.seatsPerRow);
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.success("Sitting tickets added successfully"));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(new EventResponse(false, e.getMessage(), null));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to add sitting tickets: system exception"));
         }
     }
 
-    // ==========================================
-    // 3. מדיניות והנחות
-    // ==========================================
+    // ================================================================
+    //  3. Purchase policy (per-event rules)
+    // ================================================================
 
-    @PostMapping("/{eventId}/policies")
-    public ResponseEntity<EventResponse> addPolicyRule(@PathVariable UUID eventId, @RequestBody EventPolicyRequest request) {
+    @PostMapping("/{eventId}/policy")
+    public ResponseEntity<ApiResponse<Void>> addPolicyRule(
+            @PathVariable UUID eventId,
+            @RequestBody AddEventPolicyRuleRequest request) {
         try {
-            eventService.addPolicyRule(request.username, request.companyId, eventId, Optional.ofNullable(request.age), Optional.ofNullable(request.minTicket), Optional.ofNullable(request.maxTicket), Optional.ofNullable(request.allowLoneSeat));
-            return ResponseEntity.ok(new EventResponse(true, "Policy rule added to event", null));
+            eventService.addPolicyRule(
+                    request.username, request.companyId, eventId,
+                    request.age, request.minTicket, request.maxTicket, request.allowLoneSeat);
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.success("Policy rule added successfully"));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(new EventResponse(false, e.getMessage(), null));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to add policy rule: system exception"));
         }
     }
 
-    @DeleteMapping("/{eventId}/policies")
-    public ResponseEntity<EventResponse> deletePolicyRule(@PathVariable UUID eventId, @RequestBody EventPolicyRequest request) {
+    @DeleteMapping("/{eventId}/policy")
+    public ResponseEntity<ApiResponse<Void>> deletePolicyRule(
+            @PathVariable UUID eventId,
+            @RequestBody DeleteEventPolicyRuleRequest request) {
         try {
-            eventService.deletePolicyRule(request.username, request.companyId, eventId, request.age != null, request.minTicket != null, request.maxTicket != null, request.allowLoneSeat != null);
-            return ResponseEntity.ok(new EventResponse(true, "Policy rule deleted from event", null));
+            eventService.deletePolicyRule(
+                    request.username, request.companyId, eventId,
+                    request.age, request.minTicket, request.maxTicket, request.allowLoneSeat);
+            return ResponseEntity.ok(ApiResponse.success("Policy rule deleted successfully"));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(new EventResponse(false, e.getMessage(), null));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to delete policy rule: system exception"));
         }
     }
+
+    // ================================================================
+    //  4. Discounts
+    // ================================================================
 
     @PostMapping("/{eventId}/discounts/overt")
-    public ResponseEntity<EventResponse> addOvertDiscount(@PathVariable UUID eventId, @RequestBody EventDiscountRequest request) {
+    public ResponseEntity<ApiResponse<Void>> addOvertDiscount(
+            @PathVariable UUID eventId,
+            @RequestBody AddEventOvertDiscountRequest request) {
         try {
-            eventService.addOvertDiscount(request.username, request.companyId, eventId, request.fromDate, request.toDate, request.discountPercent);
-            return ResponseEntity.ok(new EventResponse(true, "Overt discount added to event", null));
+            eventService.addOvertDiscount(
+                    request.username, request.companyId, eventId,
+                    request.fromDate, request.toDate, request.discountPercent);
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.success("Overt discount added successfully"));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(new EventResponse(false, e.getMessage(), null));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to add discount: system exception"));
         }
     }
 
     @PostMapping("/{eventId}/discounts/conditional")
-    public ResponseEntity<EventResponse> addConditionalDiscount(@PathVariable UUID eventId, @RequestBody EventDiscountRequest request) {
+    public ResponseEntity<ApiResponse<Void>> addConditionalDiscount(
+            @PathVariable UUID eventId,
+            @RequestBody AddEventConditionalDiscountRequest request) {
         try {
-            eventService.addConditionalDiscount(request.username, request.companyId, eventId, request.fromDate, request.toDate, request.discountPercent, request.requiredTickets, request.appliedTickets);
-            return ResponseEntity.ok(new EventResponse(true, "Conditional discount added to event", null));
+            eventService.addConditionalDiscount(
+                    request.username, request.companyId, eventId,
+                    request.fromDate, request.toDate, request.discountPercent,
+                    request.requiredTickets, request.appliedTickets);
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.success("Conditional discount added successfully"));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(new EventResponse(false, e.getMessage(), null));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to add discount: system exception"));
         }
     }
 
     @PostMapping("/{eventId}/discounts/coupon")
-    public ResponseEntity<EventResponse> addCouponCode(@PathVariable UUID eventId, @RequestBody EventDiscountRequest request) {
+    public ResponseEntity<ApiResponse<Void>> addCouponCode(
+            @PathVariable UUID eventId,
+            @RequestBody AddEventCouponRequest request) {
         try {
-            eventService.addCouponCode(request.username, request.companyId, eventId, request.fromDate, request.toDate, request.discountPercent, request.code);
-            return ResponseEntity.ok(new EventResponse(true, "Coupon code added to event", null));
+            eventService.addCouponCode(
+                    request.username, request.companyId, eventId,
+                    request.fromDate, request.toDate, request.discountPercent, request.code);
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.success("Coupon added successfully"));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(new EventResponse(false, e.getMessage(), null));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to add coupon: system exception"));
         }
     }
 
     @DeleteMapping("/{eventId}/discounts/{discountId}")
-    public ResponseEntity<EventResponse> removeDiscount(@PathVariable UUID eventId, @PathVariable UUID discountId, @RequestParam String username, @RequestParam UUID companyId) {
+    public ResponseEntity<ApiResponse<Void>> removeDiscount(
+            @PathVariable UUID eventId,
+            @PathVariable UUID discountId,
+            @RequestBody RemoveEventDiscountRequest request) {
         try {
-            eventService.removeDiscount(username, companyId, eventId, discountId);
-            return ResponseEntity.ok(new EventResponse(true, "Discount removed from event", null));
+            eventService.removeDiscount(request.username, request.companyId, eventId, discountId);
+            return ResponseEntity.ok(ApiResponse.success("Discount removed successfully"));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(new EventResponse(false, e.getMessage(), null));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to remove discount: system exception"));
         }
     }
 
-    // ==========================================
-    // 4. פעולות משתמשים (דירוג, קטלוג, חיפוש)
-    // ==========================================
+    // ================================================================
+    //  5. Rating
+    // ================================================================
 
-    @PostMapping("/{eventId}/rate")
-    public ResponseEntity<EventResponse> rateEvent(@PathVariable UUID eventId, @RequestBody RateEventRequest request) {
+    @PostMapping("/{eventId}/ratings")
+    public ResponseEntity<ApiResponse<Void>> rateEvent(
+            @PathVariable UUID eventId,
+            @RequestBody RateEventRequest request) {
         try {
             eventService.rateEvent(request.userId, eventId, request.rating);
-            return ResponseEntity.ok(new EventResponse(true, "Event rated successfully", null));
+            return ResponseEntity.ok(ApiResponse.success("Rating submitted successfully"));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(new EventResponse(false, e.getMessage(), null));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to submit rating: system exception"));
         }
     }
 
+    // ================================================================
+    //  6. Public browsing & search (UC 2.3.x)
+    // ================================================================
+
     @GetMapping("/catalog")
-    public ResponseEntity<EventResponse> browseCatalog() {
+    public ResponseEntity<ApiResponse<List<CompanyCatalogDto>>> browseCatalog() {
         try {
-            List<CompanyCatalogDto> catalogData = eventService.browseCatalog();
-            return ResponseEntity.ok(new EventResponse(true, "Catalog fetched", catalogData));
+            List<CompanyCatalogDto> catalog = eventService.browseCatalog();
+            return ResponseEntity.ok(ApiResponse.success("Catalog fetched", catalog));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(new EventResponse(false, e.getMessage(), null));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to fetch catalog: system exception"));
         }
     }
 
     @GetMapping("/{eventId}")
-    public ResponseEntity<EventResponse> getEventDetails(@PathVariable UUID eventId) {
+    public ResponseEntity<ApiResponse<EventDetailsDto>> getEventDetails(@PathVariable UUID eventId) {
         try {
-            EventDetailsDto eventDetails = eventService.getEventDetails(eventId);
-            return ResponseEntity.ok(new EventResponse(true, "Event details fetched", eventDetails));
+            EventDetailsDto event = eventService.getEventDetails(eventId);
+            return ResponseEntity.ok(ApiResponse.success("Event details fetched", event));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new EventResponse(false, e.getMessage(), null));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to fetch event details: system exception"));
         }
     }
 
-    @GetMapping("/search")
-    public ResponseEntity<EventResponse> searchEvents(
-            @RequestParam(required = false) String query,
-            @RequestParam(required = false) Double minPrice,
-            @RequestParam(required = false) Double maxPrice,
-            @RequestParam(required = false) String location,
-            @RequestParam(required = false) UUID companyId) {
+    @PostMapping("/search")
+    public ResponseEntity<ApiResponse<List<EventSummaryDto>>> searchEvents(
+            @RequestBody EventSearchCriteriaRequest request) {
         try {
-            // תיקון 2: שימוש ב-Immutable Object (Record/Builder pattern) ליצירת הקריטריונים
-            EventSearchCriteria criteria = EventSearchCriteria.empty();
-
-            // במידה וזה Immutable, כל קריאה מחזירה אובייקט חדש לכן אנו דורסים את criteria
-            if (query != null) criteria = criteria.withQuery(query);
-            if (minPrice != null) criteria = criteria.withMinPrice(minPrice);
-            if (maxPrice != null) criteria = criteria.withMaxPrice(maxPrice);
-            if (location != null) criteria = criteria.withLocation(location);
-
-            List<EventSummaryDto> searchResults;
-            if (companyId != null) {
-                searchResults = eventService.searchEventsByCompany(companyId, criteria);
-            } else {
-                searchResults = eventService.searchEvents(criteria);
-            }
-
-            return ResponseEntity.ok(new EventResponse(true, "Search completed", searchResults));
+            EventSearchCriteria criteria = toDomainCriteria(request);
+            List<EventSummaryDto> results = eventService.searchEvents(criteria);
+            return ResponseEntity.ok(ApiResponse.success("Search completed", results));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(new EventResponse(false, e.getMessage(), null));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Search failed: system exception"));
         }
+    }
+
+    @PostMapping("/search/companies/{companyId}")
+    public ResponseEntity<ApiResponse<List<EventSummaryDto>>> searchEventsByCompany(
+            @PathVariable UUID companyId,
+            @RequestBody EventSearchCriteriaRequest request) {
+        try {
+            EventSearchCriteria criteria = toDomainCriteria(request);
+            List<EventSummaryDto> results = eventService.searchEventsByCompany(companyId, criteria);
+            return ResponseEntity.ok(ApiResponse.success("Search completed", results));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Search failed: system exception"));
+        }
+    }
+
+    // ================================================================
+    //  7. Purchase history (carryover endpoint)
+    // ================================================================
+
+    @GetMapping("/{eventId}/history/owner")
+    public ResponseEntity<ApiResponse<List<PurchaseHistoryDTO>>> getEventPurchaseHistoryForOwner(
+            @PathVariable UUID eventId,
+            @RequestParam String ownerName) {
+        try {
+            List<PurchaseHistoryDTO> history = eventService.getEventPurchaseHistoryForOwner(ownerName, eventId);
+            return ResponseEntity.ok(ApiResponse.success("Event history fetched", history));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to fetch event history: system exception"));
+        }
+    }
+
+    // ================================================================
+    //  Private helpers
+    // ================================================================
+
+    /** Convert the flat Request DTO into the Domain's record-based search criteria. */
+    private static EventSearchCriteria toDomainCriteria(EventSearchCriteriaRequest r) {
+        if (r == null) {
+            return EventSearchCriteria.empty();
+        }
+        return EventService.toDomainCriteria(
+                r.text, r.location,
+                r.priceMin, r.priceMax,
+                r.dateFrom, r.dateTo,
+                r.minEventRating, r.minCompanyRating,
+                r.companyId);
     }
 }

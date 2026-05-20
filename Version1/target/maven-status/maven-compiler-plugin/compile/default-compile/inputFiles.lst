@@ -1,76 +1,91 @@
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\ApplicationLayer\CompanyService.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\ApplicationLayer\dto\AuthResponse.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\ApplicationLayer\dto\LoginRequest.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\ApplicationLayer\dto\RegisterRequest.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\ApplicationLayer\EventDtos.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\ApplicationLayer\EventListener.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\ApplicationLayer\EventPublisher.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\ApplicationLayer\EventService.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\ApplicationLayer\NotificationService.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\ApplicationLayer\PaymentDetails.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\ApplicationLayer\PurchaseService.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\ApplicationLayer\QueueManager.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\ApplicationLayer\UserService.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\ActivePurchaseAggregate\ActivePurchase.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\ActivePurchaseAggregate\IPaymentGateway.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\ActivePurchaseAggregate\ITicketingGateway.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\AdminAggregate\Admin.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\CompanyAggregate\Company.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\CompanyAggregate\CompanyFounder.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\CompanyAggregate\CompanyManager.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\CompanyAggregate\CompanyOwner.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\CompanyAggregate\CompanyPermission.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\CompanyAggregate\ICompanyMember.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\CompanyAggregate\Invitation.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\CompanyAggregate\ManagerInvetation.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\CompanyAggregate\OwnerInvetation.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\DomainException.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\EventAggregate\Area.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\EventAggregate\Event.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\EventAggregate\EventStatus.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\EventAggregate\Layout.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\EventAggregate\SeatRowSpec.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\EventAggregate\SittingArea.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\EventAggregate\SittingTicket.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\EventAggregate\StandingArea.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\EventAggregate\StandingTicket.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\EventAggregate\Ticket.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\EventAggregate\TicketStatus.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\EventManagementDomainService.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\IAuthenticationGateway.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\ICompanyRepository.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\IEventRepository.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\IHistoryRepository.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\ILotteryRepository.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\IPurchaseRepository.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\IUserRepository.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\LotteryAggregate\PuchaseLottery.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\NotificationAggregate\Notification.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\PolicyAggregate\AgeRule.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\PolicyAggregate\ConditionalDiscount.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\PolicyAggregate\CouponCode.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\PolicyAggregate\DiscountPolicy.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\PolicyAggregate\IDiscountRule.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\PolicyAggregate\IPurchaseRule.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\PolicyAggregate\LoneSeatRule.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\PolicyAggregate\MaxTicketRule.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\PolicyAggregate\MinTicketRule.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\PolicyAggregate\OvertDiscount.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\PolicyAggregate\PurchasePolicy.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\PurchaseDomainService.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\PurchaseHistoryAggregate\Payment.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\PurchaseHistoryAggregate\PurchaseHistory.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\Rating.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\RolesDomainService.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\UserAggregate\User.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\UserAggregate\UserRole.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\DomainLayer\UserAggregate\UserStatus.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\InfrastructureLayer\CompanyRepository.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\InfrastructureLayer\EventRepository.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\InfrastructureLayer\HistoryRepository.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\InfrastructureLayer\InMemoryCompanyRepository.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\InfrastructureLayer\InMemoryEventRepository.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\InfrastructureLayer\LotteryRepository.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\InfrastructureLayer\NotificationRepository.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\InfrastructureLayer\UserRepository.java
-C:\Users\naama\OneDrive\מסמכים\בן גוריון\סמסטר ו\סדנא\פרויקט\Sadna\Version1\src\main\java\org\example\Main.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\ApplicationLayer\dto\OwnerActionRequest.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\InfrastructureLayer\EventRepository.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\API\NotificationController.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\ApplicationLayer\dto\RateCompanyRequest.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\Main.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\ApplicationLayer\dto\CreateCompanyRequest.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\ApplicationLayer\EventPublisher.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\PolicyAggregate\OvertDiscount.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\DomainException.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\InfrastructureLayer\NotificationRepository.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\ApplicationLayer\dto\AdminActionRequest.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\CompanyAggregate\CompanyFounder.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\CompanyAggregate\ICompanyMember.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\ApplicationLayer\dto\UserDTOs\RegisterRequest.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\EventAggregate\StandingArea.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\CompanyAggregate\ManagerInvetation.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\CompanyAggregate\OwnerInvetation.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\PolicyAggregate\PurchasePolicy.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\PolicyAggregate\LoneSeatRule.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\CompanyAggregate\CompanyPermission.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\NotificationAggregate\Notification.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\PolicyAggregate\IDiscountRule.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\API\UserController.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\ApplicationLayer\dto\UserDTOs\LoginRequest.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\IHistoryRepository.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\ApplicationLayer\QueueAccessResult.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\EventAggregate\Event.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\ApplicationLayer\dto\InviteMemberRequest.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\EventAggregate\TicketStatus.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\EventManagementDomainService.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\PolicyAggregate\MinTicketRule.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\ApplicationLayer\PurchaseService.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\IEventRepository.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\ActivePurchaseAggregate\IPaymentGateway.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\AdminAggregate\Admin.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\RolesDomainService.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\InfrastructureLayer\InMemoryEventRepository.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\InfrastructureLayer\UserRepository.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\ActivePurchaseAggregate\ActivePurchase.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\IAuthenticationGateway.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\ApplicationLayer\dto\SalesReport.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\ActivePurchaseAggregate\ITicketingGateway.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\PolicyAggregate\CouponCode.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\Rating.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\PolicyAggregate\AgeRule.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\CompanyAggregate\CompanyOwner.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\ApplicationLayer\dto\UserDTOs\AuthResponse.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\PolicyAggregate\DiscountPolicy.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\InfrastructureLayer\HistoryRepository.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\PolicyAggregate\ConditionalDiscount.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\ApplicationLayer\dto\EventDtos.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\EventAggregate\StandingTicket.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\PurchaseDomainService.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\ApplicationLayer\dto\CompanyResponse.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\ApplicationLayer\NotificationService.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\InfrastructureLayer\CompanyRepository.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\ApplicationLayer\dto\ChangePermissionsRequest.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\ApplicationLayer\EventListener.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\CompanyAggregate\CompanyManager.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\API\EventController.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\ApplicationLayer\dto\DiscountRequest.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\EventAggregate\EventSearchCriteria.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\LotteryAggregate\PuchaseLottery.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\UserAggregate\UserStatus.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\InfrastructureLayer\LotteryRepository.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\PolicyAggregate\MaxTicketRule.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\IUserRepository.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\PurchaseHistoryAggregate\PurchaseHistory.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\UserAggregate\UserRole.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\ApplicationLayer\PaymentDetails.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\EventAggregate\SittingTicket.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\PurchaseHistoryAggregate\Payment.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\ApplicationLayer\UserService.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\API\PurchaseController.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\CompanyAggregate\Company.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\PolicyAggregate\IPurchaseRule.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\ApplicationLayer\CompanyService.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\EventAggregate\Ticket.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\API\CompanyController.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\ApplicationLayer\EventService.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\ILotteryRepository.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\EventAggregate\Layout.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\ApplicationLayer\QueueManager.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\EventAggregate\Area.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\ApplicationLayer\dto\PolicyRuleRequest.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\EventAggregate\SittingArea.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\EventAggregate\EventStatus.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\CompanyAggregate\Invitation.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\IPurchaseRepository.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\UserAggregate\User.java
+C:\Users\Lenovo\Documents\six\Sadna\Sadna\Version1\src\main\java\org\example\DomainLayer\ICompanyRepository.java

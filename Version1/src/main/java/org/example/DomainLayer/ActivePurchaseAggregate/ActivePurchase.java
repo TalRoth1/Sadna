@@ -119,4 +119,7 @@ public class ActivePurchase
     }
 
 
+    public Map<UUID, Float> getTicketPrices() {
+        return this.ticketIDPrices;
+    }
 }
