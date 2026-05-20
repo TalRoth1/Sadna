@@ -1,0 +1,292 @@
+package org.example.API;
+
+import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.UUID;
+
+import org.example.ApplicationLayer.PurchaseService;
+import org.example.ApplicationLayer.dto.ApiResponse;
+import org.example.ApplicationLayer.dto.PurchaseDTOs.ActivePurchaseDTO;
+import org.example.ApplicationLayer.dto.PurchaseDTOs.CompletePurchaseRequest;
+import org.example.ApplicationLayer.dto.PurchaseDTOs.LotteryDrawRequest;
+import org.example.ApplicationLayer.dto.PurchaseDTOs.LotteryRegisterRequest;
+import org.example.ApplicationLayer.dto.PurchaseDTOs.PurchaseHistoryDTO;
+import org.example.ApplicationLayer.dto.PurchaseDTOs.SelectSittingRequest;
+import org.example.ApplicationLayer.dto.PurchaseDTOs.SelectStandingRequest;
+import org.example.ApplicationLayer.dto.PurchaseDTOs.UpdateSittingRequest;
+import org.example.ApplicationLayer.dto.PurchaseDTOs.UpdateStandingRequest;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+/**
+ * PurchaseController
+ *
+ * Every endpoint returns ResponseEntity<ApiResponse<T>>:
+ *   { "success": boolean, "message": string, "data": T | null }
+ *
+ * Exception → HTTP status mapping:
+ *   IllegalArgumentException   → 400 Bad Request   (validation / auth failure in Service)
+ *   IllegalStateException      → 400 Bad Request   (domain operation failed; user in queue)
+ *   NoSuchElementException     → 404 Not Found     (resource doesn't exist)
+ *   Anything else              → 500 Internal Server Error
+ */
+@RestController
+@RequestMapping("/api/purchases")
+public class PurchaseController {
+
+    private final PurchaseService purchaseService;
+
+    public PurchaseController(PurchaseService purchaseService) {
+        this.purchaseService = purchaseService;
+    }
+
+    // ================================================================
+    //  1. Ticket selection (creates active purchase)
+    // ================================================================
+
+    // TODO (V3): Extract userID from JWT token
+    @PostMapping("/events/{eventId}/sitting")
+    public ResponseEntity<ApiResponse<ActivePurchaseDTO>> selectSittingTickets(
+            @PathVariable UUID eventId,
+            @RequestBody SelectSittingRequest request) {
+        try {
+            ActivePurchaseDTO activePurchase = purchaseService.selectSittingTickets(
+                    eventId, request.ticketIDs, request.userID, request.isConfirmedAge);
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.success("Sitting tickets selected successfully", activePurchase));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to select sitting tickets: system exception"));
+        }
+    }
+
+    // TODO (V3): Extract userID from JWT token
+    @PostMapping("/events/{eventId}/standing")
+    public ResponseEntity<ApiResponse<ActivePurchaseDTO>> selectStandingTickets(
+            @PathVariable UUID eventId,
+            @RequestBody SelectStandingRequest request) {
+        try {
+            ActivePurchaseDTO activePurchase = purchaseService.selectStandingTickets(
+                    eventId, request.amount, request.areaID, request.userID, request.isConfirmedAge);
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.success("Standing tickets selected successfully", activePurchase));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to select standing tickets: system exception"));
+        }
+    }
+
+    // ================================================================
+    //  2. Active purchase management
+    // ================================================================
+
+    @GetMapping("/active/{activePurchaseId}")
+    public ResponseEntity<ApiResponse<ActivePurchaseDTO>> viewActivePurchase(
+            @PathVariable UUID activePurchaseId) {
+        try {
+            ActivePurchaseDTO activePurchase = purchaseService.viewActivePurchase(activePurchaseId);
+            return ResponseEntity.ok(ApiResponse.success("Active purchase fetched", activePurchase));
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error(e.getMessage()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to fetch active purchase: system exception"));
+        }
+    }
+
+    @PostMapping("/active/{activePurchaseId}/complete")
+    public ResponseEntity<ApiResponse<Void>> completePurchase(
+            @PathVariable UUID activePurchaseId,
+            @RequestBody CompletePurchaseRequest request) {
+        try {
+            purchaseService.completePurchase(activePurchaseId, request.paymentDetails, request.couponCode);
+            return ResponseEntity.ok(ApiResponse.success("Purchase completed successfully"));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to complete purchase: system exception"));
+        }
+    }
+
+    @DeleteMapping("/active/{activePurchaseId}")
+    public ResponseEntity<ApiResponse<Void>> cancelActivePurchase(@PathVariable UUID activePurchaseId) {
+        try {
+            purchaseService.cancelActivePurchase(activePurchaseId);
+            return ResponseEntity.ok(ApiResponse.success("Purchase cancelled successfully"));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to cancel purchase: system exception"));
+        }
+    }
+
+    @PutMapping("/active/{activePurchaseId}/sitting")
+    public ResponseEntity<ApiResponse<Void>> updateActivePurchaseSittingTickets(
+            @PathVariable UUID activePurchaseId,
+            @RequestBody UpdateSittingRequest request) {
+        try {
+            purchaseService.updateActivePurchaseSittingTickets(activePurchaseId, request.newTicketIds);
+            return ResponseEntity.ok(ApiResponse.success("Sitting tickets updated"));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to update sitting tickets: system exception"));
+        }
+    }
+
+    @PutMapping("/active/{activePurchaseId}/standing")
+    public ResponseEntity<ApiResponse<Void>> updateActivePurchaseStandingTickets(
+            @PathVariable UUID activePurchaseId,
+            @RequestBody UpdateStandingRequest request) {
+        try {
+            purchaseService.updateActivePurchaseStandingTickets(activePurchaseId, request.newAmount, request.areaId);
+            return ResponseEntity.ok(ApiResponse.success("Standing tickets updated"));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to update standing tickets: system exception"));
+        }
+    }
+
+    // ================================================================
+    //  3. Lottery
+    // ================================================================
+
+    @PostMapping("/events/{eventId}/lottery/register")
+    public ResponseEntity<ApiResponse<Void>> registerToLottery(
+            @PathVariable UUID eventId,
+            @RequestBody LotteryRegisterRequest request) {
+        try {
+            purchaseService.registerToLottery(eventId, request.memberId, request.ticketAmount);
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.success("Registered to lottery successfully"));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to register to lottery: system exception"));
+        }
+    }
+
+    // TODO (V3): Extract caller identity from JWT and verify authorization
+    @PostMapping("/events/{eventId}/lottery/draw")
+    public ResponseEntity<ApiResponse<Void>> drawLotteryForEvent(
+            @PathVariable UUID eventId,
+            @RequestBody LotteryDrawRequest request) {
+        try {
+            purchaseService.drawLotteryForEvent(eventId, request.codeExpiry);
+            return ResponseEntity.ok(ApiResponse.success("Lottery drawn successfully"));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to draw lottery: system exception"));
+        }
+    }
+
+    // ================================================================
+    //  4. Purchase history / reports
+    // ================================================================
+
+    // TODO (V3): Extract adminId / ownerName / memberId from JWT instead of params
+
+    @GetMapping("/history/all")
+    public ResponseEntity<ApiResponse<List<PurchaseHistoryDTO>>> getAllHistory(
+            @RequestParam UUID adminId) {
+        try {
+            List<PurchaseHistoryDTO> history = purchaseService.getAllHistory(adminId);
+            return ResponseEntity.ok(ApiResponse.success("All history fetched", history));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to fetch history: system exception"));
+        }
+    }
+
+    @GetMapping("/history/users/{userId}")
+    public ResponseEntity<ApiResponse<List<PurchaseHistoryDTO>>> getHistoryByUser(
+            @PathVariable UUID userId,
+            @RequestParam UUID adminId) {
+        try {
+            List<PurchaseHistoryDTO> history = purchaseService.getHistoryByUser(adminId, userId);
+            return ResponseEntity.ok(ApiResponse.success("User history fetched", history));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to fetch user history: system exception"));
+        }
+    }
+
+    @GetMapping("/history/events/{eventId}")
+    public ResponseEntity<ApiResponse<List<PurchaseHistoryDTO>>> getHistoryByEvent(
+            @PathVariable UUID eventId,
+            @RequestParam UUID adminId) {
+        try {
+            List<PurchaseHistoryDTO> history = purchaseService.getHistoryByEvent(adminId, eventId);
+            return ResponseEntity.ok(ApiResponse.success("Event history fetched", history));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to fetch event history: system exception"));
+        }
+    }
+
+    @GetMapping("/history/companies/{companyId}")
+    public ResponseEntity<ApiResponse<List<PurchaseHistoryDTO>>> getHistoryByCompany(
+            @PathVariable UUID companyId,
+            @RequestParam UUID adminId) {
+        try {
+            List<PurchaseHistoryDTO> history = purchaseService.getHistoryByCompany(adminId, companyId);
+            return ResponseEntity.ok(ApiResponse.success("Company history fetched", history));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to fetch company history: system exception"));
+        }
+    }
+
+    @GetMapping("/history/members/{memberId}")
+    public ResponseEntity<ApiResponse<List<PurchaseHistoryDTO>>> getPurchaseHistoryForMember(
+            @PathVariable UUID memberId) {
+        try {
+            List<PurchaseHistoryDTO> history = purchaseService.getPurchaseHistoryForMember(memberId);
+            return ResponseEntity.ok(ApiResponse.success("Member history fetched", history));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to fetch member history: system exception"));
+        }
+    }
+
+    @GetMapping("/events/{eventId}/history/owner")
+    public ResponseEntity<ApiResponse<List<PurchaseHistoryDTO>>> getEventPurchaseHistoryForOwner(
+            @PathVariable UUID eventId,
+            @RequestParam String ownerName) {
+        try {
+            List<PurchaseHistoryDTO> history = purchaseService.getEventPurchaseHistoryForOwner(ownerName, eventId);
+            return ResponseEntity.ok(ApiResponse.success("Event history for owner fetched", history));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to fetch event history: system exception"));
+        }
+    }
+}
