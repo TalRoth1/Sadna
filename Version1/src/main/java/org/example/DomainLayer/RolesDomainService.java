@@ -2,20 +2,18 @@ package org.example.DomainLayer;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-
-import org.example.DomainLayer.CompanyAggregate.Company;
-import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
-import org.example.DomainLayer.UserAggregate.CompanyFounder;
-import org.example.DomainLayer.UserAggregate.CompanyManager;
-import org.example.DomainLayer.UserAggregate.CompanyOwner;
-import org.example.DomainLayer.UserAggregate.ICompanyMember;
-import org.example.DomainLayer.UserAggregate.User;
-
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
+
+import org.example.DomainLayer.CompanyAggregate.Company;
+import org.example.DomainLayer.CompanyAggregate.CompanyManager;
+import org.example.DomainLayer.CompanyAggregate.CompanyOwner;
+import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
+import org.example.DomainLayer.CompanyAggregate.ICompanyMember;
+import org.example.DomainLayer.CompanyAggregate.Invitation;
+import org.example.DomainLayer.UserAggregate.User;
 
 public class RolesDomainService {
 
@@ -30,7 +28,7 @@ public class RolesDomainService {
         this.userRepository = userRepository;
     }
 
-    public UUID createCompany(String founderUsername, String companyName) {
+    public Company createCompany(String founderUsername, String companyName) {
         return companyRepository.createCompany(founderUsername, companyName);
     }
 
@@ -114,11 +112,13 @@ public class RolesDomainService {
         if (usernameToRemove == null || usernameToRemove.isBlank()) {
             throw new IllegalArgumentException("Username to remove is required");
         }
+
         // making sure the company exists
         Company company = companyRepository.findByID(companyId).get();
         if (company == null) {
             throw new IllegalArgumentException("Company not found");
         }
+
         User userToRemove = userRepository.findByEmail(usernameToRemove)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
@@ -130,8 +130,8 @@ public class RolesDomainService {
         }
     }
 
-    public UUID inviteCompanyManager(String ownerUsername, UUID companyId, String usernameToInvite,
-            Set<CompanyPermission> premissions) {
+    public Invitation inviteCompanyManager(String ownerUsername, UUID companyId, String usernameToInvite,
+                                           Set<CompanyPermission> premissions) {
         if (ownerUsername == null || ownerUsername.isBlank()) {
             throw new IllegalArgumentException("Owner username is required");
         }
@@ -139,29 +139,15 @@ public class RolesDomainService {
         if (usernameToInvite == null || usernameToInvite.isBlank()) {
             throw new IllegalArgumentException("Username to invite is required");
         }
-        Company company = companyRepository.findByID(companyId).get();
 
-        if (company == null)
-            throw new IllegalArgumentException("Company not found");
+        Company company = companyRepository.findByID(companyId)
+                .orElseThrow(() -> new IllegalArgumentException("Company not found"));
 
-        // Fetch and validate the appointer first so authorization errors are raised
-        // before any user-to-invite existence checks.
-        User ownerUser = userRepository.findByEmail(ownerUsername)
-                .orElseThrow(() -> new IllegalArgumentException("Owner user not found"));
-
-        if (!ownerUser.isCompanyMember(companyId) || !ownerUser.isOwnerInCompany(companyId)) {
-            throw new IllegalArgumentException("The appointer is not a company owner and therefore cannot invite a new manager");
-        }
-
-        User userToInvite = userRepository.findByEmail(usernameToInvite)
-                .orElseThrow(() -> new IllegalArgumentException("User to invite not found"));
-
-        synchronized (company) {
-            return userToInvite.inviteUserToBecomeManager(companyId, ownerUser, premissions);
-        }
+        UUID invitationId = company.inviteNewManager(usernameToInvite, ownerUsername, premissions);
+        return company.getInvitation(invitationId);
     }
 
-    public UUID inviteCompanyOwner(String ownerUsername, UUID companyId, String usernameToInvite) {
+    public Invitation inviteCompanyOwner(String ownerUsername, UUID companyId, String usernameToInvite) {
         if (ownerUsername == null || ownerUsername.isBlank()) {
             throw new IllegalArgumentException("Owner username is required");
         }
@@ -169,132 +155,83 @@ public class RolesDomainService {
         if (usernameToInvite == null || usernameToInvite.isBlank()) {
             throw new IllegalArgumentException("Username to invite is required");
         }
-        Company company = companyRepository.findByID(companyId).get();
 
-        if (company == null)
-            throw new IllegalArgumentException("Company not found");
+        Company company = companyRepository.findByID(companyId)
+                .orElseThrow(() -> new IllegalArgumentException("Company not found"));
 
-        User ownerUser = userRepository.findByEmail(ownerUsername)
-                .orElseThrow(() -> new IllegalArgumentException("Owner user not found"));
-
-        if (!ownerUser.isCompanyMember(companyId) || !ownerUser.isOwnerInCompany(companyId)) {
-            throw new IllegalArgumentException("The appointer is not a company owner and therefore cannot invite a new owner");
-        }
-
-        User userToInvite = userRepository.findByEmail(usernameToInvite)
-                .orElseThrow(() -> new IllegalArgumentException("User to invite not found"));
-
-        synchronized (company) {
-            return userToInvite.inviteUserToBecomeOwner(companyId, ownerUser);
-        }
+        UUID invitationId = company.inviteNewOwner(usernameToInvite, ownerUsername);
+        return company.getInvitation(invitationId);
     }
 
-    public void acceptCompanyInvitation(UUID invetationID, String username, UUID companyId) {
-        Company company = companyRepository.findByID(companyId).get();
+    public void acceptCompanyInvitation(UUID invetationID, UUID companyId) {
+        Company company = companyRepository.findByID(companyId)
+                .orElseThrow(() -> new IllegalArgumentException("Company not found"));
 
-        if (company == null)
-            throw new IllegalArgumentException("Company not found");
+        Invitation invitation = company.getInvitation(invetationID);
+        if (invitation == null) {
+            throw new IllegalArgumentException("Invitation not found");
+        }
+
+        String username = invitation.getAppointeeUsername();
 
         User user = userRepository.findByEmail(username)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
         synchronized (company) {
             user.acceptCompanyInvitation(invetationID);
         }
     }
 
-    public void addPurchasePolicy(String username, UUID companyId, Optional<Float> age, Optional<Integer> minTicket,
-        Optional<Integer> maxTicket, Optional<Boolean> allowLoneSeat, boolean andOr) {
-        Company company = companyRepository.findByID(companyId).get();
-        if (company == null)
-            throw new IllegalArgumentException("Company not found");
-        User user = userRepository.findByEmail(username)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
-        ICompanyMember userRole = user.getCompanyRole(companyId);
-        if (!(userRole instanceof CompanyManager
-                && ((CompanyManager) userRole).hasPremission(CompanyPermission.MANAGE_POLICIES))
-                && !(userRole instanceof CompanyOwner) && !(userRole instanceof CompanyFounder)) {
-            throw new IllegalArgumentException("User has no permission to change company policies");
-        }
-        company.addPurchasePolicy(age, minTicket, maxTicket, allowLoneSeat, andOr);
+    public void addPurchasePolicy(String username, UUID companyId,
+                                  Float age, Integer minTicket,
+                                  Integer maxTicket, Boolean allowLoneSeat) {
+        Company company = companyRepository.findByID(companyId)
+                .orElseThrow(() -> new IllegalArgumentException("Company not found"));
+
+        requirePolicyPermission(company, username);
+        company.addPurchasePolicy(age, minTicket, maxTicket, allowLoneSeat);
     }
 
-    public void deletePurchasePolicy(String username, UUID companyId, UUID ruleId) {
-        Company company = companyRepository.findByID(companyId).get();
-        if (company == null)
-            throw new IllegalArgumentException("Company not found");
-        User user = userRepository.findByEmail(username)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
-        ICompanyMember userRole = user.getCompanyRole(companyId);
-        if (!(userRole instanceof CompanyManager
-                && ((CompanyManager) userRole).hasPremission(CompanyPermission.MANAGE_POLICIES))
-                && !(userRole instanceof CompanyOwner) && !(userRole instanceof CompanyFounder)) {
-            throw new IllegalArgumentException("User has no permission to change company policies");
-        }
-        company.deletePurchaseRule(ruleId);
+    public void deletePurchasePolicy(String username, UUID companyId,
+                                     boolean age, boolean minTicket, boolean maxTicket, boolean allowLoneSeat) {
+        Company company = companyRepository.findByID(companyId)
+                .orElseThrow(() -> new IllegalArgumentException("Company not found"));
+
+        requirePolicyPermission(company, username);
+        company.deletePurchaseRule(age, minTicket, maxTicket, allowLoneSeat);
     }
 
-    public void addOvertDiscount(String username, UUID companyId, LocalDate fromDate, LocalDate toDate,
-            float discountPrecent) {
-        Company company = companyRepository.findByID(companyId).get();
-        if (company == null)
-            throw new IllegalArgumentException("Company not found");
-        User user = userRepository.findByEmail(username)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
-        ICompanyMember userRole = user.getCompanyRole(companyId);
-        if (!(userRole instanceof CompanyManager
-                && ((CompanyManager) userRole).hasPremission(CompanyPermission.MANAGE_POLICIES))
-                && !(userRole instanceof CompanyOwner) && !(userRole instanceof CompanyFounder)) {
-            throw new IllegalArgumentException("User has no permission to change company policies");
-        }
+    public void addOvertDiscount(String username, UUID companyId, LocalDate fromDate, LocalDate toDate, float discountPrecent) {
+        Company company = companyRepository.findByID(companyId)
+                .orElseThrow(() -> new IllegalArgumentException("Company not found"));
+
+        requirePolicyPermission(company, username);
         company.addOvertDiscount(fromDate, toDate, discountPrecent);
     }
 
-    public void addConditionalDiscount(String username, UUID companyId, LocalDate fromDate, LocalDate toDate,
-            float discountPrecent,
-            int requiredTickets, int appliedTickets) {
-        Company company = companyRepository.findByID(companyId).get();
-        if (company == null)
-            throw new IllegalArgumentException("Company not found");
-        User user = userRepository.findByEmail(username)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
-        ICompanyMember userRole = user.getCompanyRole(companyId);
-        if (!(userRole instanceof CompanyManager
-                && ((CompanyManager) userRole).hasPremission(CompanyPermission.MANAGE_POLICIES))
-                && !(userRole instanceof CompanyOwner) && !(userRole instanceof CompanyFounder)) {
-            throw new IllegalArgumentException("User has no permission to change company policies");
-        }
+    public void addConditionalDiscount(String username, UUID companyId, LocalDate fromDate, LocalDate toDate, float discountPrecent,
+                                       int requiredTickets, int appliedTickets) {
+        Company company = companyRepository.findByID(companyId)
+                .orElseThrow(() -> new IllegalArgumentException("Company not found"));
+
+        requirePolicyPermission(company, username);
         company.addConditionalDiscount(fromDate, toDate, discountPrecent, requiredTickets, appliedTickets);
     }
 
-    public void addCouponCode(String username, UUID companyId, LocalDate fromDate, LocalDate toDate,
-            float discountPrecent,
-            String code) {
-        Company company = companyRepository.findByID(companyId).get();
-        if (company == null)
-            throw new IllegalArgumentException("Company not found");
-        User user = userRepository.findByEmail(username)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
-        ICompanyMember userRole = user.getCompanyRole(companyId);
-        if (!(userRole instanceof CompanyManager
-                && ((CompanyManager) userRole).hasPremission(CompanyPermission.MANAGE_POLICIES))
-                && !(userRole instanceof CompanyOwner) && !(userRole instanceof CompanyFounder)) {
-            throw new IllegalArgumentException("User has no permission to change company policies");
-        }
+    public void addCouponCode(String username, UUID companyId, LocalDate fromDate, LocalDate toDate, float discountPrecent,
+                              String code) {
+        Company company = companyRepository.findByID(companyId)
+                .orElseThrow(() -> new IllegalArgumentException("Company not found"));
+
+        requirePolicyPermission(company, username);
         company.addCouponCode(fromDate, toDate, discountPrecent, code);
     }
 
     public void removeDiscount(String username, UUID companyId, UUID discountId) {
-        Company company = companyRepository.findByID(companyId).get();
-        if (company == null)
-            throw new IllegalArgumentException("Company not found");
-        User user = userRepository.findByEmail(username)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
-        ICompanyMember userRole = user.getCompanyRole(companyId);
-        if (!(userRole instanceof CompanyManager
-                && ((CompanyManager) userRole).hasPremission(CompanyPermission.MANAGE_POLICIES))
-                && !(userRole instanceof CompanyOwner) && !(userRole instanceof CompanyFounder)) {
-            throw new IllegalArgumentException("User has no permission to change company policies");
-        }
+        Company company = companyRepository.findByID(companyId)
+                .orElseThrow(() -> new IllegalArgumentException("Company not found"));
+
+        requirePolicyPermission(company, username);
         company.removeDiscount(discountId);
     }
 
@@ -307,37 +244,53 @@ public class RolesDomainService {
         if (managerUsername == null || managerUsername.isBlank()) {
             throw new IllegalArgumentException("Manager username is required");
         }
-        Company company = companyRepository.findByID(companyId).get();
-        if (company == null)
-            throw new IllegalArgumentException("Company not found");
-        User managerUser = userRepository.findByEmail(managerUsername)
-                .orElseThrow(() -> new IllegalArgumentException("Manager user not found"));
-        User ownerUser = userRepository.findByEmail(ownerUsername)
-                .orElseThrow(() -> new IllegalArgumentException("Owner user not found"));
-        synchronized (company) {
-            managerUser.changeManagerPermissionsAsOwner(companyId, ownerUser, newPremissions);
-        }
+
+        Company company = companyRepository.findByID(companyId)
+                .orElseThrow(() -> new IllegalArgumentException("Company not found"));
+
+        company.changeManagerPermissions(ownerUsername, managerUsername, newPremissions);
     }
 
     public void rateCompany(UUID userID, UUID companyID, int rating) {
-        Company company = companyRepository.findByID(companyID).get();
-
-        if (company == null)
-            throw new DomainException("Event not found while rating");
-
-        if (userID == null)
+        if (userID == null) {
             throw new DomainException("User not found while rating");
+        }
+
+        Company company = companyRepository.findByID(companyID)
+                .orElseThrow(() -> new DomainException("Company not found while rating"));
 
         company.addRating(userID, rating);
         companyRepository.save(company);
     }
 
     public String getCompanyHierarchyMermaid(UUID companyId, String requesterUsername) {
-        Company company = companyRepository.findByID(companyId).get();
-        if (company == null)
-            throw new IllegalArgumentException("Company not found");
-        User requesterUser = userRepository.findByEmail(requesterUsername)
-                .orElseThrow(() -> new IllegalArgumentException("Requester user not found"));
-        return requesterUser.getHierarchyMermaid(companyId);
+        Company company = companyRepository.findByID(companyId)
+                .orElseThrow(() -> new IllegalArgumentException("Company not found"));
+
+        return company.getHierarchyMermaid(requesterUsername);
+    }
+
+    // ================================================================
+    //  PRIVATE HELPERS
+    // ================================================================
+
+    /**
+     * Verifies that the user is allowed to manage purchase / discount policies.
+     * A user is allowed if either:
+     *   - They are a CompanyOwner (this includes CompanyFounder, since it extends CompanyOwner)
+     *   - They are a CompanyManager with the MANAGE_POLICIES permission
+     *
+     * Throws IllegalArgumentException if the user has no permission.
+     */
+    private void requirePolicyPermission(Company company, String username) {
+        ICompanyMember user = company.getMember(username);
+
+        boolean isManagerWithPermission = user instanceof CompanyManager
+                && ((CompanyManager) user).hasPremission(CompanyPermission.MANAGE_POLICIES);
+        boolean isOwnerOrFounder = user instanceof CompanyOwner; // CompanyFounder extends CompanyOwner
+
+        if (!isManagerWithPermission && !isOwnerOrFounder) {
+            throw new IllegalArgumentException("User has no permission to change company policies");
+        }
     }
 }
