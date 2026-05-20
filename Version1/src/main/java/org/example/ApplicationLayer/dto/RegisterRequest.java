@@ -1,4 +1,4 @@
-package org.example.ApplicationLayer.dto.UserDTOs;
+package org.example.ApplicationLayer.dto;
 
 public class RegisterRequest {
     public String username;

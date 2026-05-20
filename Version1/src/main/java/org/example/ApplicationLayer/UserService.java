@@ -1,101 +1,86 @@
 package org.example.ApplicationLayer;
 
-import java.util.UUID;
-
-import org.example.ApplicationLayer.dto.UserDTOs.LoginRequest;
-import org.example.ApplicationLayer.dto.UserDTOs.RegisterRequest;
-import org.example.ApplicationLayer.dto.UserDTOs.UserResponse;
-import org.example.DomainLayer.IAuthenticationGateway;
-import org.example.DomainLayer.IPurchaseRepository;
+import org.example.ApplicationLayer.dto.AuthResponse;
+import org.example.ApplicationLayer.dto.LoginRequest;
+import org.example.ApplicationLayer.dto.RegisterRequest;
 import org.example.DomainLayer.IUserRepository;
 import org.example.DomainLayer.UserAggregate.User;
 
-/**
- * UserService
- *
- * Follows the project-wide convention:
- *  - Returns raw payload DTOs (UserResponse) on success
- *  - Throws exceptions on failure (Controller maps them to ApiResponse.error)
- *
- * The Controller is responsible for wrapping the result in ApiResponse<T>.
- */
-public class UserService {
+import java.util.UUID;
+import java.util.logging.Logger;
 
+public class UserService{
+    private static final Logger logger = Logger.getLogger(EventService.class.getName());
     private final IUserRepository userRepository;
     private final IAuthenticationGateway authGateway;
-    private final IPurchaseRepository purchaseRepository;
 
-    public UserService(IUserRepository userRepository,
-                       IAuthenticationGateway authGateway,
-                       IPurchaseRepository purchaseRepository) {
+    public UserService(IUserRepository userRepository, IAuthenticationGateway authGateway) {
         this.userRepository = userRepository;
         this.authGateway = authGateway;
-        this.purchaseRepository = purchaseRepository;
     }
 
-    public UserResponse register(RegisterRequest request) {
-        if (request.email == null || request.email.isBlank()) {
-            throw new IllegalArgumentException("Email is required");
-        }
-        if (request.plainPassword == null || request.plainPassword.isBlank()) {
-            throw new IllegalArgumentException("Password is required");
-        }
-        if (userRepository.existsByEmail(request.email)) {
-            throw new IllegalArgumentException("Email already in use");
-        }
-        if (!authGateway.verifyUserDetails(request.email, request.plainPassword, request.age, request.username)) {
-            throw new IllegalArgumentException("One or more of the details is incorrect");
-        }
+    public AuthResponse logout(UUID memberId) {
+        try {
+            User user = userRepository.getUser(memberId).orElse(null);
+            if (user == null) {
+                return new AuthResponse(false, "Request denied: user does not exist.", null);
+            }
 
-        String hashedPassword = authGateway.hashPassword(request.plainPassword);
-        UUID newUserId = UUID.randomUUID();
-        User newUser = new User(newUserId, request.username, request.email, hashedPassword, request.age);
+            user.logout();
+            userRepository.add(user);
 
-        userRepository.add(newUser);
-
-        return toUserResponse(newUser);
+            return new AuthResponse(true, "logout successfully", user.getId());
+        } catch (IllegalStateException e) {
+            return new AuthResponse(false, e.getMessage(), memberId);
+        } catch (Exception e) {
+            return new AuthResponse(false, "Logout failed: system exception.", memberId);
+        }
     }
 
-    public UserResponse login(LoginRequest request) {
-        if (request.email == null || request.plainPassword == null) {
-            throw new IllegalArgumentException("Email or password is empty");
+    public AuthResponse register(RegisterRequest request) {
+        try {
+            if (request.email == null || request.email.isEmpty() || request.plainPassword == null) {
+                return new AuthResponse(false, "Missing details.", null);
+            }
+
+            if (userRepository.existsByEmail(request.email)) {
+                return new AuthResponse(false, "User Email is already exist.", null);
+            }
+            if(!(authGateway.verifyUserDetails(request.email,request.plainPassword,request.age,request.username))){
+                return new AuthResponse(false, "One or more of the details is incorrect.",null);
+            }
+
+            String hashedPassword = authGateway.hashPassword(request.plainPassword);
+            UUID newUserId = UUID.randomUUID();
+            User newUser = new User(newUserId,request.username, request.email, hashedPassword, request.age);
+
+            userRepository.add(newUser);
+            return new AuthResponse(true, "Register Successfully", newUser.getId());
+        } catch (Exception e) {
+            return new AuthResponse(false, "Register failed: system exception", null);
         }
-
-        User user = userRepository.findByEmail(request.email)
-                .orElseThrow(() -> new IllegalArgumentException("Incorrect email or password"));
-
-        if (!authGateway.verifyPassword(request.plainPassword, user.getPasswordHash())) {
-            System.out.println("LOG: Failed login attempt for user: " + request.email);
-            throw new IllegalArgumentException("Incorrect email or password");
-        }
-
-        user.login();
-        userRepository.add(user);
-
-        return toUserResponse(user);
     }
 
-    public UserResponse logout(UUID memberId) {
-        User user = userRepository.getUser(memberId)
-                .orElseThrow(() -> new IllegalArgumentException("User does not exist"));
+    public AuthResponse login(LoginRequest request) {
+        try {
+            if (request.email == null || request.plainPassword == null) {
+                return new AuthResponse(false, "email or pass is empty", null);
+            }
+            User user = userRepository.findByEmail(request.email).orElse(null);
+            if (user == null) {
+                return new AuthResponse(false, "incorrect email or password.", null);
+            }
+            boolean isPasswordCorrect = authGateway.verifyPassword(request.plainPassword, user.getPasswordHash());
+            if (!isPasswordCorrect) {
+                System.out.println("LOG: Failed login attempt for user: " + request.email);
+                return new AuthResponse(false, "incorrect email or password", null);
+            }
+            user.login();
+            userRepository.add(user);
+            return new AuthResponse(true, "Login successfully", user.getId());
 
-        // TODO: handle pending purchases for this user
-        // if (purchaseRepository.findByUserID(memberId) != null) { ... }
-
-        user.logout();
-        userRepository.add(user);
-
-        return toUserResponse(user);
-    }
-
-    private UserResponse toUserResponse(User user) {
-        return new UserResponse(
-                user.getId(),
-                user.getUsername(),
-                user.getEmail(),
-                user.getStatus().name(),
-                user.getRole().name(),
-                user.getAge()
-        );
+        } catch (Exception e) {
+            return new AuthResponse(false, "Login failed: system exception", null);
+        }
     }
 }
