@@ -5,7 +5,6 @@ import org.example.ApplicationLayer.dto.LoginRequest;
 import org.example.ApplicationLayer.dto.RegisterRequest;
 import org.example.DomainLayer.IUserRepository;
 import org.example.DomainLayer.UserAggregate.User;
-import org.example.DomainLayer.UserAggregate.UserStatus;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -118,9 +117,12 @@ public class UserServiceTest {
         assertTrue(response.isSuccess);
         assertEquals("Login successfully", response.message);
         assertEquals(mockId, response.userId);
-        assertEquals("User status should be updated to LOGGED_IN", UserStatus.LOGGED_IN, existingUser.getStatus());
+        // No more aggregate-state assertion: in the JWT world, login does
+        // not mutate the User aggregate. Proof of "logged-in" is the JWT.
+        // (When tokenService is wired, response.token would carry it.)
 
-        verify(userRepositoryMock, times(1)).add(existingUser); // מוודא שמרנו את הסטטוס החדש
+        // We no longer persist the user on login — there's nothing to save.
+        verify(userRepositoryMock, never()).add(existingUser);
     }
 
     @Test
@@ -159,7 +161,6 @@ public class UserServiceTest {
         // Assert
         assertFalse(response.isSuccess);
         assertEquals("incorrect email or password", response.message);
-        assertEquals("Status must remain NOT_LOGGED_IN", UserStatus.NOT_LOGGED_IN, existingUser.getStatus());
         verify(userRepositoryMock, never()).add(any(User.class));
     }
 
@@ -171,20 +172,21 @@ public class UserServiceTest {
     public void testLogout_Success() {
         // Arrange
         UUID memberId = UUID.randomUUID();
-        User loggedInUser = new User(memberId, "JohnDoe", "john@example.com", "hashed_password", 25.0f);
-        // "מחברים" את המשתמש בכוח כדי לבדוק את ההתנתקות
-        loggedInUser.login();
+        User existingUser = new User(memberId, "JohnDoe", "john@example.com", "hashed_password", 25.0f);
 
-        when(userRepositoryMock.getUser(memberId)).thenReturn(Optional.of(loggedInUser));
+        when(userRepositoryMock.getUser(memberId)).thenReturn(Optional.of(existingUser));
 
         // Act
         AuthResponse response = userService.logout(memberId);
 
         // Assert
+        // In the JWT world the legacy logout(UUID) is essentially a no-op
+        // success: there is no in-aggregate session state to flip and the
+        // client is responsible for discarding its token. For real revocation
+        // use UserService.logoutWithToken(rawJwt).
         assertTrue(response.isSuccess);
         assertEquals("logout successfully", response.message);
-        assertEquals("Status must be updated to NOT_LOGGED_IN", UserStatus.NOT_LOGGED_IN, loggedInUser.getStatus());
-        verify(userRepositoryMock, times(1)).add(loggedInUser);
+        verify(userRepositoryMock, never()).add(any(User.class));
     }
 
     @Test

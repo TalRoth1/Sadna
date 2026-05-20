@@ -9,13 +9,16 @@ import java.util.UUID;
 import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
 
 // --- Aggregate Root: User ---
+//
+// Authentication state is *not* stored on this aggregate. With JWT, the proof
+// that a user is "logged in" lives in the signed token (see {@code TokenClaims}).
+// The previous {@code UserStatus} / {@code UserRole} fields and {@code login()}
+// / {@code logout()} methods were removed during the JWT migration.
 public class User {
     private UUID id;
     private String username;
     private String email; // identifier
     private String passwordHash;
-    private UserRole role;
-    private UserStatus status;
     private float age;
     private HashMap<UUID, ICompanyMember> companyRoles;
     private final Map<UUID, Invitation> CompanyInvitations;
@@ -25,27 +28,9 @@ public class User {
         this.username = username;
         this.email = email;
         this.passwordHash = passwordHash;
-        this.role = UserRole.MEMBER;
-        this.status = UserStatus.NOT_LOGGED_IN;
         this.age = age;
         this.companyRoles = new HashMap<>();
         this.CompanyInvitations = new HashMap<>();
-    }
-
-    public void login() {
-        if (this.status == UserStatus.LOGGED_IN) {
-            throw new IllegalStateException("The user is already logged in.");
-        }
-        this.status = UserStatus.LOGGED_IN;
-        this.role = UserRole.MEMBER;
-    }
-
-    public void logout() {
-        if (this.status == UserStatus.NOT_LOGGED_IN) {
-            throw new IllegalStateException("The user is already logged out.");
-        }
-        this.status = UserStatus.NOT_LOGGED_IN;
-        this.role = UserRole.GUEST;
     }
 
     // company role management
@@ -312,16 +297,8 @@ public class User {
         return passwordHash;
     }
 
-    public UserStatus getStatus() {
-        return status;
-    }
-
     public float getAge() {
         return age;
-    }
-
-    public UserRole getRole() {
-        return role;
     }
 
     public Map<UUID, ICompanyMember> getCompanyRoles() {
