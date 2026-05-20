@@ -1,0 +1,10 @@
+package org.example.ApplicationLayer.CompanyDTOs;
+
+import java.time.LocalDate;
+
+public class AddOvertDiscountRequest {
+    public String username;
+    public LocalDate fromDate;
+    public LocalDate toDate;
+    public float discountPercent;
+}

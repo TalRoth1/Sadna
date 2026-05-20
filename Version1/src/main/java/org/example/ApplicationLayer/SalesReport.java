@@ -1,4 +1,4 @@
-package org.example.ApplicationLayer.dto;
+package org.example.ApplicationLayer;
 
 import java.util.List;
 import java.util.UUID;

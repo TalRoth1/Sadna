@@ -5,7 +5,6 @@ import org.example.DomainLayer.IUserRepository;
 import org.example.DomainLayer.RolesDomainService;
 import org.example.DomainLayer.PurchaseDomainService;
 import org.example.DomainLayer.CompanyAggregate.Company;
-import org.example.ApplicationLayer.dto.SalesReport;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
