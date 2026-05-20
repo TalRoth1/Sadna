@@ -3,6 +3,7 @@ package org.example.DomainLayer.EventAggregate;
 import java.util.UUID;
 
 /**
+ * ======
  * Abstract ticket in the event aggregate ({@link Event} 1:* {@link Ticket}).
  * Concrete kinds: {@link StandingTicket}, {@link SittingTicket}.
  */
