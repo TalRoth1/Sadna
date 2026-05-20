@@ -19,12 +19,14 @@ import org.example.DomainLayer.PolicyManagment.MaxTicketRule;
 import org.example.DomainLayer.PolicyManagment.MinTicketRule;
 import org.example.DomainLayer.PolicyManagment.OvertDiscount;
 import org.example.DomainLayer.PolicyManagment.PurchasePolicy;
+import org.example.DomainLayer.UserAggregate.*;
 
 
 public class Company {
     private final UUID id;
-    private String founderUsername;
-    private String name; 
+    private final String founderUsername;
+    private CompanyFounder founder;
+    private String name;
     private final DiscountPolicy discountPolicy;
     private final PurchasePolicy purchasePolicy;
     private double rating;
@@ -49,7 +51,8 @@ public Company(String founderUsername, String name) {
         return this.id;
     }
 
-    public Invitation getInvitation(UUID invitationId) {
+    public Invitation getInvitation(UUID invitationId)
+    {
         return invitations.get(invitationId);
     }
 

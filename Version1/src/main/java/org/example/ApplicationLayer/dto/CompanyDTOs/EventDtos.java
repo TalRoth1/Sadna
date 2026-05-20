@@ -1,8 +1,7 @@
-package org.example.ApplicationLayer.dto;
+package org.example.ApplicationLayer.dto.CompanyDTOs;
 
 import org.example.DomainLayer.EventAggregate.EventStatus;
 import org.example.DomainLayer.EventAggregate.TicketStatus;
-package org.example.ApplicationLayer.dto.CompanyDTOs;
 
 import java.time.LocalDateTime;
 import java.util.List;
