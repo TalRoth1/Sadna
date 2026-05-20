@@ -3,12 +3,10 @@ package org.example.ApplicationLayer;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Logger;
 
-import org.example.ApplicationLayer.dto.PurchaseDTOs.ActivePurchaseDTO;
-import org.example.ApplicationLayer.dto.PurchaseDTOs.PurchaseHistoryDTO;
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 import org.example.DomainLayer.DomainException;
 import org.example.DomainLayer.Events.LotteryWonEvent;
@@ -18,9 +16,9 @@ import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 
 public class PurchaseService {
     private static final Logger logger = Logger.getLogger(PurchaseService.class.getName());
-
     private final PurchaseDomainService purchaseDomainService;
     private final EventPublisher eventPublisher;
+
     private final QueueManager queueManager;
 
     public PurchaseService(PurchaseDomainService purchaseDomainService, EventPublisher eventPublisher, QueueManager queueManager) {
@@ -38,8 +36,10 @@ public class PurchaseService {
         }
     }
 
-    public void selectSittingTicketsWithLotteryCode(UUID eventID, List<UUID> ticketIDs, UUID userID, boolean isConfirmedAge, String accessCode) {
+    public void selectSittingTicketsWithLotteryCode(UUID eventID,List<UUID> ticketIDs,UUID userID,boolean isConfirmedAge,String accessCode)
+    {
         logger.info("caller=" + userID + ", action=selectSittingTicketsWithLotteryCode, target=PurchaseDomainService.selectSittingTicketsWithLotteryCode, params={eventID=" + eventID + ", ticketCount=" + (ticketIDs == null ? 0 : ticketIDs.size()) + ", isConfirmedAge=" + isConfirmedAge + ", accessCodeProvided=" + (accessCode != null && !accessCode.isBlank()) + "}");
+
 
         if (eventID == null) {
             logger.warning("action=selectSittingTicketsWithLotteryCode rejected, reason=eventID is null, caller=" + userID);
@@ -59,6 +59,7 @@ public class PurchaseService {
         }
 
         try {
+            // קודם בודקים זכאות, לפני תור
             purchaseDomainService.validateSelectionEligibility(eventID, userID, accessCode);
 
             validateQueueAccess(userID, eventID);
@@ -69,19 +70,21 @@ public class PurchaseService {
 
             queueManager.finishAccess(userID, eventID);
             queueManager.releaseBatch(eventID, 1);
-
             logger.info("action=selectSittingTicketsWithLotteryCode completed successfully, caller=" + userID + ", params={eventID=" + eventID + ", ticketCount=" + ticketIDs.size() + "}");
+
+
         } catch (DomainException e) {
             logger.severe("action=selectSittingTicketsWithLotteryCode failed, caller=" + userID + ", params={eventID=" + eventID + ", ticketCount=" + (ticketIDs == null ? 0 : ticketIDs.size()) + "}, error=" + e.getMessage());
             throw new IllegalStateException("Couldn't select lottery sitting tickets: " + e.getMessage());
         }
     }
-
-    public void selectStandingTicketsWithLotteryCode(UUID eventID, int amount, UUID areaID, UUID userID, boolean isConfirmedAge, String accessCode) {
+    public void selectStandingTicketsWithLotteryCode(UUID eventID,int amount,UUID areaID,UUID userID,boolean isConfirmedAge,String accessCode)
+    {
         logger.info("caller=" + userID + ", action=selectStandingTicketsWithLotteryCode, target=PurchaseDomainService.selectStandingTicketsWithLotteryCode, params={eventID=" + eventID + ", areaID=" + areaID + ", amount=" + amount + ", isConfirmedAge=" + isConfirmedAge + ", accessCodeProvided=" + (accessCode != null && !accessCode.isBlank()) + "}");
 
         if (eventID == null) {
             logger.warning("action=selectStandingTicketsWithLotteryCode rejected, reason=missing access code, caller=" + userID + ", eventID=" + eventID);
+
             throw new IllegalArgumentException("Event ID is required");
         }
 
@@ -102,6 +105,7 @@ public class PurchaseService {
         }
 
         try {
+            // קודם בודקים זכאות, לפני תור
             purchaseDomainService.validateSelectionEligibility(eventID, userID, accessCode);
 
             validateQueueAccess(userID, eventID);
@@ -112,25 +116,29 @@ public class PurchaseService {
 
             queueManager.finishAccess(userID, eventID);
             queueManager.releaseBatch(eventID, 1);
-
             logger.info("action=selectStandingTicketsWithLotteryCode completed successfully, caller=" + userID + ", params={eventID=" + eventID + ", areaID=" + areaID + ", amount=" + amount + "}");
+
+
         } catch (DomainException e) {
             logger.severe("action=selectStandingTicketsWithLotteryCode failed, caller=" + userID + ", params={eventID=" + eventID + ", areaID=" + areaID + ", amount=" + amount + "}, error=" + e.getMessage());
             throw new IllegalStateException("Couldn't select lottery standing tickets: " + e.getMessage());
         }
     }
 
-    private void validateQueueAccess(UUID userId, UUID eventId) {
+    private void validateQueueAccess(UUID userId, UUID eventId)
+    {
         QueueAccessResult result = queueManager.requestSelectionAccess(userId, eventId);
-        if (!result.isAllowed()) {
-            throw new IllegalStateException(
-                    "User is waiting in queue. Position: "
-                            + result.getUserPositionInQueue() + "/" + result.getQueueSize());
-        }
+        if (!result.isAllowed())
+            throw new IllegalStateException("User is waiting in queue. Position: " + result.getUserPositionInQueue() + "/" + result.getQueueSize());
     }
 
-    public ActivePurchaseDTO selectSittingTickets(UUID eventID, List<UUID> ticketIDs, UUID userID, boolean isConfirmedAge) {
-        if (ticketIDs == null || ticketIDs.isEmpty()) {
+    public void selectSittingTickets(UUID eventID, List<UUID> ticketIDs, UUID userID, boolean isConfirmedAge)
+    {
+        logger.info("Starting selectSittingTickets: eventID=" + eventID + ", ticketIDs=" + ticketIDs + ", userID=" + userID);
+
+        if (ticketIDs == null || ticketIDs.isEmpty())
+        {
+            logger.warning("Attempted to select tickets with null or empty list for user: " + userID);
             throw new IllegalArgumentException("Amount must be greater than zero");
         }
         if (userID == null) {
@@ -144,19 +152,25 @@ public class PurchaseService {
         validateQueueAccess(userID, eventID);
 
         try {
-            ActivePurchase created = purchaseDomainService.selectSittingTickets(
-                    eventID, ticketIDs, userID, isConfirmedAge);
+            purchaseDomainService.selectSittingTickets(eventID, ticketIDs, userID, isConfirmedAge);
 
+            //רק אם נוצר active purchase אז אנחנו מסירים מהמשתמש את ההרשאה לבחור
             queueManager.finishAccess(userID, eventID);
             queueManager.releaseBatch(eventID, 1);
 
-            return mapToActivePurchaseDTO(created);
-        } catch (DomainException e) {
-            throw new IllegalStateException("Couldn't select the sitting tickets: " + e.getMessage());
+            logger.info("Successfully selected sitting tickets for user: " + userID);
+
+        } catch (DomainException e)
+        {
+            logger.severe("Failed to select sitting tickets for user " + userID + " on event " + eventID + ". Reason: " + e.getMessage());
+            throw new IllegalStateException("couldn't select the sitting tickts");
         }
     }
 
-    public ActivePurchaseDTO selectStandingTickets(UUID eventID, int amount, UUID areaID, UUID userID, boolean isConfirmedAge) {
+    public void selectStandingTickets(UUID eventID, int amount, UUID areaID, UUID userID, boolean isConfirmedAge)
+    {
+        logger.info("Starting selectStandingTickets: eventID=" + eventID + ", amount=" + amount + ", areaID=" + areaID + ", userID=" + userID);
+
         if (amount <= 0) {
             logger.warning("Standing tickets selection failed: amount must be positive. User: " + userID);
             throw new IllegalArgumentException("Amount must be greater than zero");
@@ -173,70 +187,199 @@ public class PurchaseService {
 
         validateQueueAccess(userID, eventID);
 
-        try {
-            ActivePurchase created = purchaseDomainService.selectStandingTickets(
-                    eventID, amount, userID, areaID, isConfirmedAge);
+        try
+        {
+            purchaseDomainService.selectStandingTickets(eventID, amount, userID, areaID, isConfirmedAge);
 
+            //רק אם נוצר active purchase אז אנחנו מסירים מהמשתמש את ההרשאה לבחור
             queueManager.finishAccess(userID, eventID);
             queueManager.releaseBatch(eventID, 1);
 
-            return mapToActivePurchaseDTO(created);
-        } catch (DomainException e) {
-            throw new IllegalStateException("Couldn't select the standing tickets: " + e.getMessage());
+            logger.info("Successfully selected standing tickets for user: " + userID + " on event: " + eventID);
+        }
+        catch (DomainException e)
+        {
+            logger.severe("Failed to select standing tickets for user " + userID + ". Domain Error: " + e.getMessage());
+            throw new IllegalStateException("couldn't select the standing tickts");
         }
     }
 
-    public ActivePurchaseDTO viewActivePurchase(UUID activePurchaseId) {
-        if (activePurchaseId == null) {
-            throw new IllegalArgumentException("Active purchase ID is required");
-        }
-        try {
-            ActivePurchase domainPurchase = purchaseDomainService.viewActivePurchase(activePurchaseId);
-            if (domainPurchase == null) {
-                throw new NoSuchElementException("Active purchase not found");
-            }
-            return mapToActivePurchaseDTO(domainPurchase);
-        } catch (DomainException e) {
-            throw new NoSuchElementException("Active purchase not found");
-        }
-    }
+    public void completePurchase(UUID activePurchaseID, PaymentDetails paymentDetails, String couponCode)
+    {
+        logger.info("Starting completePurchase: activePurchaseID=" + activePurchaseID +
+                ", couponCode=" + (couponCode != null ? couponCode : "none"));
 
-    public void completePurchase(UUID activePurchaseID, PaymentDetails paymentDetails, String couponCode) {
         if (activePurchaseID == null) {
             logger.warning("Purchase completion failed: activePurchaseID is null");
             throw new IllegalArgumentException("Active Purchase ID is required");
         }
-        if (paymentDetails == null) {
+        else if (paymentDetails == null) {
             throw new IllegalArgumentException("Payment details are required");
         }
 
-        try {
+        try
+        {
             ActivePurchase activePurchase = purchaseDomainService.viewActivePurchase(activePurchaseID);
             UUID userId = activePurchase.getUserID();
-
             purchaseDomainService.completePurchase(activePurchaseID, paymentDetails, couponCode);
-
             logger.info("Purchase completed successfully for activePurchaseID: " + activePurchaseID);
             eventPublisher.publish(new PurchaseCompletedEvent(userId));
-        } catch (DomainException e) {
-            logger.severe("Critical failure in completePurchase for ID " + activePurchaseID + ". Reason: " + e.getMessage());
-            throw new IllegalStateException("Couldn't complete purchase: " + e.getMessage());
+        }
+        catch (DomainException e) {
+            logger.severe("Critical failure in completePurchase for ID " + activePurchaseID +
+                    ". Reason: " + e.getMessage());
+            throw new IllegalStateException("couldn't complete purchase");
         }
     }
 
-    public void cancelActivePurchase(UUID activePurchaseId) {
+    public List<PurchaseHistory> getAllHistory(UUID adminId) {
+        validateAdmin(adminId);
+        return purchaseDomainService.getAllHistory();
+    }
+
+    public List<PurchaseHistory> getHistoryByUser(UUID adminId, UUID userId) {
+        if (userId == null) {
+            throw new IllegalArgumentException("User ID is required");
+        }
+        validateAdmin(adminId);
+
+        return purchaseDomainService.getHistoryByUser(userId);
+    }
+
+    public List<PurchaseHistory> getHistoryByFilter(UUID adminId, String filterType, UUID filterId) {
+        logger.info("caller=" + adminId
+                + ", action=getHistoryByFilter"
+                + ", target=PurchaseDomainService"
+                + ", params={adminId=" + adminId + ", filterType=" + filterType + ", filterId=" + filterId + "}");
+
+        try {
+            if (filterType == null || filterType.isBlank()) {
+                throw new IllegalArgumentException("Filter type is required");
+            }
+
+            List<PurchaseHistory> result = switch (filterType.toLowerCase()) {
+                case "user" -> getHistoryByUser(adminId, filterId);
+                case "event" -> getHistoryByEvent(adminId, filterId);
+                case "company" -> getHistoryByCompany(adminId, filterId);
+                case "all" -> getAllHistory(adminId);
+                default -> throw new IllegalArgumentException("Invalid filter type");
+            };
+
+            logger.info("action=getHistoryByFilter completed successfully"
+                    + ", resultSize=" + result.size()
+                    + ", params={adminId=" + adminId + ", filterType=" + filterType + ", filterId=" + filterId + "}");
+
+            return result;
+
+        } catch (RuntimeException e) {
+            logger.severe("action=getHistoryByFilter failed"
+                    + ", caller=" + adminId
+                    + ", target=PurchaseDomainService"
+                    + ", params={adminId=" + adminId + ", filterType=" + filterType + ", filterId=" + filterId + "}"
+                    + ", error=" + e.getMessage());
+            throw e;
+        }
+    }
+
+
+    public List<PurchaseHistory> getHistoryByEvent(UUID adminId, UUID eventId) {
+        if (eventId == null) {
+            throw new IllegalArgumentException("Event ID is required");
+        }
+        validateAdmin(adminId);
+        return purchaseDomainService.getHistoryByEvent(eventId);
+    }
+
+    public List<PurchaseHistory> getHistoryByCompany(UUID adminId, UUID companyId) {
+        if (companyId == null) {
+            throw new IllegalArgumentException("Company ID is required");
+        }
+        validateAdmin(adminId);
+        return purchaseDomainService.getHistoryByCompany(companyId);
+    }
+
+    public List<PurchaseHistory> getPurchaseHistoryForMember(UUID memberId) {
+        logger.info("caller=" + memberId
+                + ", action=getPurchaseHistoryForMember"
+                + ", target=PurchaseDomainService.getPurchaseHistoryForMember"
+                + ", params={memberId=" + memberId + "}");
+
+        try {
+            if (memberId == null) {
+                throw new IllegalArgumentException("Member ID is required");
+            }
+
+            if (!purchaseDomainService.memberExists(memberId)) {
+                throw new IllegalArgumentException("Member does not exist");
+            }
+
+            if (!purchaseDomainService.isMember(memberId)) {
+                throw new IllegalArgumentException("User is not a member");
+            }
+
+            if (!purchaseDomainService.isMemberLoggedIn(memberId)) {
+                throw new IllegalArgumentException("Member is not logged in");
+            }
+
+            List<PurchaseHistory> result = purchaseDomainService.getPurchaseHistoryForMember(memberId);
+
+            logger.info("action=getPurchaseHistoryForMember completed successfully"
+                    + ", resultSize=" + result.size()
+                    + ", params={memberId=" + memberId + "}");
+
+            return result;
+
+        } catch (RuntimeException e) {
+            logger.severe("action=getPurchaseHistoryForMember failed"
+                    + ", caller=" + memberId
+                    + ", target=PurchaseDomainService.getPurchaseHistoryForMember"
+                    + ", params={memberId=" + memberId + "}"
+                    + ", error=" + e.getMessage());
+            throw e;
+        }
+    }
+
+    public ActivePurchase viewActivePurchase(UUID activePurchaseId)
+    {
+        logger.info("Request to view active purchase: ID=" + activePurchaseId);
+
         if (activePurchaseId == null) {
             logger.warning("viewActivePurchase failed: provided activePurchaseId is null");
             throw new IllegalArgumentException("Active purchase ID is required");
         }
-        try {
-            purchaseDomainService.cancelActivePurchase(activePurchaseId);
-        } catch (DomainException e) {
-            throw new IllegalStateException("Couldn't cancel purchase: " + e.getMessage());
+        try
+        {
+            return purchaseDomainService.viewActivePurchase(activePurchaseId);
+        }
+        catch (DomainException e)
+        {
+            logger.severe("Failed to view active purchase " + activePurchaseId + ". Reason: " + e.getMessage());
+            return null;
         }
     }
+    public void cancelActivePurchase(UUID activePurchaseId)
+    {
+        logger.info("Attempting to cancel active purchase: ID=" + activePurchaseId);
 
-    public void updateActivePurchaseSittingTickets(UUID activePurchaseId, List<UUID> newTicketIds) {
+        if (activePurchaseId == null) {
+            throw new IllegalArgumentException("Active purchase ID is required");
+        }
+        try
+        {
+            purchaseDomainService.cancelActivePurchase(activePurchaseId);
+
+            logger.info("Successfully cancelled active purchase: ID=" + activePurchaseId);
+        }
+        catch (DomainException e)
+        {
+            logger.severe("Failed to cancel active purchase " + activePurchaseId + ". Reason: " + e.getMessage());
+            throw new IllegalStateException("Couldn't cancel purchase");
+        }
+    }
+    public void updateActivePurchaseSittingTickets(UUID activePurchaseId, List<UUID> newTicketIds)
+    {
+        logger.info("Starting updateActivePurchaseSittingTickets: activePurchaseId=" + activePurchaseId + ", newTicketIds=" + newTicketIds);
+
         if (activePurchaseId == null) {
             logger.warning("Update failed: activePurchaseId is null");
             throw new IllegalArgumentException("Active purchase ID is required");
@@ -245,14 +388,20 @@ public class PurchaseService {
             logger.warning("Update failed: newTicketIds is null or empty for purchase: " + activePurchaseId);
             throw new IllegalArgumentException("New ticket IDs are required");
         }
-        try {
+        try
+        {
             purchaseDomainService.updateActivePurchaseSittingTickets(activePurchaseId, newTicketIds);
-        } catch (DomainException e) {
-            throw new IllegalStateException("Couldn't update active purchase: " + e.getMessage());
+            logger.info("Successfully updated sitting tickets for active purchase: " + activePurchaseId);
+        }
+        catch (DomainException e)
+        {
+            logger.severe("Failed to update sitting tickets for purchase " + activePurchaseId + ". Reason: " + e.getMessage());
+            throw new IllegalStateException("Couldn't update active purchase");
         }
     }
 
     public void updateActivePurchaseStandingTickets(UUID activePurchaseId, int newAmount, UUID areaId) {
+
         logger.info("Starting updateActivePurchaseStandingTickets: activePurchaseId=" + activePurchaseId + ", newAmount=" + newAmount + ", areaId=" + areaId);
 
         if (activePurchaseId == null) {
@@ -267,7 +416,49 @@ public class PurchaseService {
             purchaseDomainService.updateActivePurchaseStandingTickets(activePurchaseId, newAmount, areaId);
             logger.info("Successfully updated standing tickets for active purchase: " + activePurchaseId);
         } catch (DomainException e) {
-            throw new IllegalStateException("Couldn't update active purchase: " + e.getMessage());
+            logger.severe("Failed to update standing tickets for purchase " + activePurchaseId + ". Reason: " + e.getMessage());
+            throw new IllegalStateException("Couldn't update active purchase");
+        }
+    }
+
+    public List<PurchaseHistory> getEventPurchaseHistoryForOwner(String ownerName, UUID eventId) {
+        logger.info("caller=" + ownerName
+                + ", action=getEventPurchaseHistoryForOwner"
+                + ", target=PurchaseDomainService.getHistoryByEvent"
+                + ", params={ownerName=" + ownerName + ", eventId=" + eventId + "}");
+
+        try {
+            if (ownerName == null || ownerName.isBlank()) {
+                throw new IllegalArgumentException("Owner ID is required");
+            }
+
+            if (eventId == null) {
+                throw new IllegalArgumentException("Event ID is required");
+            }
+
+            if (!purchaseDomainService.eventExists(eventId)) {
+                throw new IllegalArgumentException("Event does not exist");
+            }
+
+            if (!purchaseDomainService.isCompanyOwnerOfEvent(ownerName, eventId)) {
+                throw new IllegalArgumentException("User is not authorized to view event purchase history");
+            }
+
+            List<PurchaseHistory> result = purchaseDomainService.getHistoryByEvent(eventId);
+
+            logger.info("action=getEventPurchaseHistoryForOwner completed successfully"
+                    + ", resultSize=" + result.size()
+                    + ", params={ownerName=" + ownerName + ", eventId=" + eventId + "}");
+
+            return result;
+
+        } catch (RuntimeException e) {
+            logger.severe("action=getEventPurchaseHistoryForOwner failed"
+                    + ", caller=" + ownerName
+                    + ", target=PurchaseDomainService.getHistoryByEvent"
+                    + ", params={ownerName=" + ownerName + ", eventId=" + eventId + "}"
+                    + ", error=" + e.getMessage());
+            throw e;
         }
     }
 
@@ -277,10 +468,12 @@ public class PurchaseService {
             logger.warning("action=registerToLottery rejected, reason=eventId is null, caller=" + memberId);
             throw new IllegalArgumentException("Event ID is required");
         }
+
         if (memberId == null) {
             logger.warning("action=registerToLottery rejected, reason=memberId is null");
             throw new IllegalArgumentException("Member ID is required");
         }
+
         if (ticketAmount <= 0) {
             logger.warning("action=registerToLottery rejected, reason=invalid ticketAmount, caller=" + memberId + ", ticketAmount=" + ticketAmount);
             throw new IllegalArgumentException("Ticket amount must be greater than zero");
@@ -304,6 +497,7 @@ public class PurchaseService {
         if (eventId == null) {
             throw new IllegalArgumentException("Event ID is required");
         }
+
         if (codeExpiry == null) {
             throw new IllegalArgumentException("Code expiry is required");
         }
@@ -333,143 +527,5 @@ public class PurchaseService {
 
             throw new IllegalStateException("Couldn't draw lottery: " + e.getMessage());
         }
-    }
-
-    public List<PurchaseHistoryDTO> getAllHistory(UUID adminId) {
-        validateAdmin(adminId);
-        List<PurchaseHistory> domainHistories = purchaseDomainService.getAllHistory();
-        return domainHistories.stream()
-                .map(this::mapToPurchaseHistoryDTO)
-                .toList();
-    }
-
-    public List<PurchaseHistoryDTO> getHistoryByUser(UUID adminId, UUID userId) {
-        if (userId == null) {
-            throw new IllegalArgumentException("User ID is required");
-        }
-        validateAdmin(adminId);
-
-        List<PurchaseHistory> domainHistories = purchaseDomainService.getHistoryByUser(userId);
-        return domainHistories.stream()
-                .map(this::mapToPurchaseHistoryDTO)
-                .toList();
-    }
-
-    public List<PurchaseHistoryDTO> getHistoryByFilter(UUID adminId, String filterType, UUID filterId) {
-        if (filterType == null || filterType.isBlank()) {
-            throw new IllegalArgumentException("Filter type is required");
-        }
-        return switch (filterType.toLowerCase()) {
-            case "user" -> getHistoryByUser(adminId, filterId);
-            case "event" -> getHistoryByEvent(adminId, filterId);
-            case "company" -> getHistoryByCompany(adminId, filterId);
-            case "all" -> getAllHistory(adminId);
-            default -> throw new IllegalArgumentException("Invalid filter type");
-        };
-    }
-
-    public List<PurchaseHistoryDTO> getHistoryByEvent(UUID adminId, UUID eventId) {
-        if (eventId == null) {
-            throw new IllegalArgumentException("Event ID is required");
-        }
-        validateAdmin(adminId);
-
-        List<PurchaseHistory> domainHistories = purchaseDomainService.getHistoryByEvent(eventId);
-        return domainHistories.stream()
-                .map(this::mapToPurchaseHistoryDTO)
-                .toList();
-    }
-
-    public List<PurchaseHistoryDTO> getHistoryByCompany(UUID adminId, UUID companyId) {
-        if (companyId == null) {
-            throw new IllegalArgumentException("Company ID is required");
-        }
-        validateAdmin(adminId);
-
-        List<PurchaseHistory> domainHistories = purchaseDomainService.getHistoryByCompany(companyId);
-        return domainHistories.stream()
-                .map(this::mapToPurchaseHistoryDTO)
-                .toList();
-    }
-
-    public List<PurchaseHistoryDTO> getPurchaseHistoryForMember(UUID memberId) {
-        if (memberId == null) {
-            throw new IllegalArgumentException("Member ID is required");
-        }
-        if (!purchaseDomainService.memberExists(memberId)) {
-            throw new IllegalArgumentException("Member does not exist");
-        }
-        if (!purchaseDomainService.isMember(memberId)) {
-            throw new IllegalArgumentException("User is not a member");
-        }
-        if (!purchaseDomainService.isMemberLoggedIn(memberId)) {
-            throw new IllegalArgumentException("Member is not logged in");
-        }
-
-        List<PurchaseHistory> domainHistories = purchaseDomainService.getPurchaseHistoryForMember(memberId);
-        return domainHistories.stream()
-                .map(this::mapToPurchaseHistoryDTO)
-                .toList();
-    }
-
-    public List<PurchaseHistoryDTO> getEventPurchaseHistoryForOwner(String ownerName, UUID eventId) {
-        if (ownerName == null) {
-            throw new IllegalArgumentException("Owner ID is required");
-        }
-        if (eventId == null) {
-            throw new IllegalArgumentException("Event ID is required");
-        }
-        if (!purchaseDomainService.eventExists(eventId)) {
-            throw new IllegalArgumentException("Event does not exist");
-        }
-        if (!purchaseDomainService.isCompanyOwnerOfEvent(ownerName, eventId)) {
-            throw new IllegalArgumentException("User is not authorized to view event purchase history");
-        }
-
-        List<PurchaseHistory> domainHistories = purchaseDomainService.getHistoryByEvent(eventId);
-        return domainHistories.stream()
-                .map(this::mapToPurchaseHistoryDTO)
-                .toList();
-    }
-
-    private ActivePurchaseDTO mapToActivePurchaseDTO(ActivePurchase domainPurchase) {
-        if (domainPurchase == null) {
-            return null;
-        }
-
-        ActivePurchaseDTO dto = new ActivePurchaseDTO();
-        dto.activePurchaseId = domainPurchase.getActivePurchaseId();
-        dto.userId = domainPurchase.getUserID();
-        dto.eventId = domainPurchase.getEventID();
-        dto.ticketPrices = domainPurchase.getTicketPrices();
-        dto.endTime = domainPurchase.getEndTime();
-        dto.isGuestConfirmedAge = domainPurchase.getGuestAgeConfirmed();
-        dto.coupon = domainPurchase.getCoupon();
-        dto.price = domainPurchase.getPrice();
-        dto.maxWaitTime = domainPurchase.getMaxWaitTime();
-        dto.lastUpdate = domainPurchase.getLastUpdate();
-        return dto;
-    }
-
-    private PurchaseHistoryDTO mapToPurchaseHistoryDTO(PurchaseHistory domainHistory) {
-        if (domainHistory == null) {
-            return null;
-        }
-
-        PurchaseHistoryDTO dto = new PurchaseHistoryDTO();
-        dto.userId = domainHistory.getUserId();
-        dto.eventId = domainHistory.getEventId();
-        dto.ticketIds = domainHistory.getTicketIds();
-        dto.purchaseDate = domainHistory.getPurchaseDate();
-
-        if (domainHistory.getPayment() != null) {
-            dto.totalPaid = domainHistory.getPayment().getTotal();
-            dto.paymentInfo = domainHistory.getPayment().getPaymentInfo();
-        } else {
-            dto.totalPaid = 0.0;
-            dto.paymentInfo = "N/A";
-        }
-
-        return dto;
     }
 }

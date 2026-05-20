@@ -1,4 +1,4 @@
-package org.example.ApplicationLayer.dto.UserDTOs;
+package org.example.ApplicationLayer.dto;
 
 public class LoginRequest {
     public String email;

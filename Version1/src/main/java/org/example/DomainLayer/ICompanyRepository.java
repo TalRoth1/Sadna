@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface ICompanyRepository {
-    Company createCompany(String founderUsername, String companyName);
+    UUID createCompany(String founderUsername, String companyName);
     Optional<Company> findByID(UUID companyId);
     void save(Company company);
     /**Declared as a default method returning an empty
