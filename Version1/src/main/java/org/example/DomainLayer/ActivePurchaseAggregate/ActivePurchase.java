@@ -117,4 +117,9 @@ public class ActivePurchase
         this.ticketIDPrices.clear();
         this.ticketIDPrices.putAll(newTicketPrices);
     }
+
+    public Map<UUID, Float> getTicketPrices() {
+        return this.ticketIDPrices;
+    }
+
 }

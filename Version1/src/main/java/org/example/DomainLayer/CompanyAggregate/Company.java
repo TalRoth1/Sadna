@@ -49,6 +49,10 @@ public Company(String founderUsername, String name) {
         return this.id;
     }
 
+    public Invitation getInvitation(UUID invitationId) {
+        return invitations.get(invitationId);
+    }
+
     public String getName()
     {
         return this.name;
@@ -111,19 +115,64 @@ public Company(String founderUsername, String name) {
         // TODO: imlement founder close
     }
 
-    public void addPurchasePolicy(Optional<Float> age, Optional<Integer> minTicket, Optional<Integer> maxTicket, Optional<Boolean> allowLoneSeat, boolean andOr)
-    {
-    if (age != null && age.isPresent()) 
-        this.purchasePolicy.addRule(new AgeRule(age.get()), andOr);
-        
-    if (minTicket != null && minTicket.isPresent()) 
-        this.purchasePolicy.addRule(new MinTicketRule(minTicket.get()), andOr);
-        
-    if (maxTicket != null && maxTicket.isPresent()) 
-        this.purchasePolicy.addRule(new MaxTicketRule(maxTicket.get()), andOr);
-        
-    if (allowLoneSeat != null && allowLoneSeat.isPresent()) 
-        this.purchasePolicy.addRule(new LoneSeatRule(allowLoneSeat.get()), andOr);
+    public boolean hasMember(String username) {
+        return username != null && members.containsKey(username);
+    }
+
+    // differ from removeMemberAsOwner in the fact that the admin could remove any member of the company without any restriction, while the founder can only remove members that are under him in the company hyrarchy and he cannot remove managers that are not under him.
+    public void removeMemberAsAdmin(String username) {
+        if (username == null || username.isBlank()) {
+            throw new IllegalArgumentException("Username is required");
+        }
+        if (!members.containsKey(username)) {
+            throw new IllegalArgumentException("User is not a company member");
+        }
+        removeMember(username);
+    }
+
+    public void removeMemberAsOwner(String username, String ownerUsername) {
+        if (username == null || username.isBlank() || ownerUsername == null || ownerUsername.isBlank()) {
+            throw new IllegalArgumentException("Username and owner username are required");
+        }
+        if (!members.containsKey(username)) {
+            throw new IllegalArgumentException("User is not a company member");
+        }
+        if (!members.containsKey(ownerUsername) || !(members.get(ownerUsername) instanceof CompanyOwner)) {
+            throw new IllegalArgumentException("Owner username is not a company owner");
+        }
+        ICompanyMember memberToRemove = members.get(username);
+        if (memberToRemove instanceof CompanyManager manager) {
+            if (!manager.isSubordinateOf(ownerUsername)) {
+                throw new IllegalArgumentException("The owner can only remove managers that are under him in the company hyrarchy");
+            }
+        } else if (memberToRemove instanceof CompanyOwner owner) {
+            if (!owner.isSubordinateOf(ownerUsername)) {
+                throw new IllegalArgumentException("The owner can only remove owners that are under him in the company hyrarchy");
+            }
+        } else {
+            throw new IllegalArgumentException("The owner can only remove managers or owners");
+        }
+        removeMember(username);
+    }
+
+    private void removeMember(String username) {
+        ICompanyMember memberToRemove = members.get(username);
+        memberToRemove.removeFromCompanyHyrarchy();
+        members.remove(username);
+    }
+
+    public void addPurchasePolicy(Float age, Integer minTicket, Integer maxTicket, Boolean allowLoneSeat) {
+        if (age != null)
+            this.purchasePolicy.addRule(new AgeRule(age));
+
+        if (minTicket != null)
+            this.purchasePolicy.addRule(new MinTicketRule(minTicket));
+
+        if (maxTicket != null)
+            this.purchasePolicy.addRule(new MaxTicketRule(maxTicket));
+
+        if (allowLoneSeat != null)
+            this.purchasePolicy.addRule(new LoneSeatRule(allowLoneSeat));
     }
 
     public void deletePurchaseRule(UUID ruleId)
