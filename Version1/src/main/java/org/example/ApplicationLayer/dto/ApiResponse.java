@@ -1,4 +1,4 @@
-package org.example.ApplicationLayer;
+package org.example.ApplicationLayer.dto;
 
 /**
  * Generic API response wrapper.

@@ -1,4 +1,4 @@
-package org.example.ApplicationLayer.dto.ComapnyDTOs;
+package org.example.ApplicationLayer.dto.CompanyDTOs;
 
 public class CreateCompanyRequest {
     public String founderUsername;

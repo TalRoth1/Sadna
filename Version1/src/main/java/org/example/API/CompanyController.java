@@ -4,6 +4,7 @@ import java.util.UUID;
 
 import org.example.ApplicationLayer.CompanyService;
 import org.example.ApplicationLayer.dto.ApiResponse;
+import org.example.ApplicationLayer.dto.CompanyDTOs.CompanyResponse;
 import org.example.ApplicationLayer.dto.CompanyDTOs.AddConditionalDiscountRequest;
 import org.example.ApplicationLayer.dto.CompanyDTOs.AddCouponRequest;
 import org.example.ApplicationLayer.dto.CompanyDTOs.AddOvertDiscountRequest;
@@ -18,7 +19,6 @@ import org.example.ApplicationLayer.dto.CompanyDTOs.RateCompanyRequest;
 import org.example.ApplicationLayer.dto.CompanyDTOs.RemoveDiscountRequest;
 import org.example.ApplicationLayer.dto.CompanyDTOs.RemoveMemberAdminRequest;
 import org.example.ApplicationLayer.dto.CompanyDTOs.RemoveMemberOwnerRequest;
-import org.example.ApplicationLayer.dto.CompanyDTOs.CompanyResponse;
 import org.example.ApplicationLayer.dto.CompanyDTOs.HierarchyResponse;
 import org.example.ApplicationLayer.dto.CompanyDTOs.InvitationResponse;
 import org.example.ApplicationLayer.dto.CompanyDTOs.SalesReportResponse;
