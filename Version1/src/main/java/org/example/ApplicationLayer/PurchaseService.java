@@ -7,7 +7,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Logger;
 
-import org.example.ApplicationLayer.dto.TokenClaims;
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 import org.example.DomainLayer.DomainException;
 import org.example.DomainLayer.Events.LotteryWonEvent;
@@ -264,55 +263,48 @@ public class PurchaseService {
         return toPurchaseHistoryDTOs(purchaseDomainService.getHistoryByCompany(companyId));
     }
 
-    /**
- * Returns the caller's own purchase history. Identity comes from the
- * verified JWT claims attached to the request.
- */
-    public List<PurchaseHistoryDTO> getPurchaseHistoryForMember(TokenClaims caller) 
-    {
-
-        UUID memberId = caller == null ? null : caller.getUserId();
-
+    public List<PurchaseHistoryDTO> getPurchaseHistoryForMember(UUID memberId) {
         logger.info("caller=" + memberId
                 + ", action=getPurchaseHistoryForMember"
                 + ", target=PurchaseDomainService.getPurchaseHistoryForMember"
                 + ", params={memberId=" + memberId + "}");
 
         try {
-
-            if (!purchaseDomainService.isMemberLoggedIn(caller)) {
-                throw new IllegalArgumentException("Member is not logged in");
-            }
-
-            if (!purchaseDomainService.isMember(caller)) {
-                throw new IllegalArgumentException("User is not a member");
+            if (memberId == null) {
+                throw new IllegalArgumentException("Member ID is required");
             }
 
             if (!purchaseDomainService.memberExists(memberId)) {
                 throw new IllegalArgumentException("Member does not exist");
             }
 
-            List<PurchaseHistory> result =
-                    purchaseDomainService.getPurchaseHistoryForMember(memberId);
+            if (!purchaseDomainService.isMember(memberId)) {
+                throw new IllegalArgumentException("User is not a member");
+            }
+
+            if (!purchaseDomainService.isMemberLoggedIn(memberId)) {
+                throw new IllegalArgumentException("Member is not logged in");
+            }
+
+            List<PurchaseHistory> result = purchaseDomainService.getPurchaseHistoryForMember(memberId);
 
             logger.info("action=getPurchaseHistoryForMember completed successfully"
                     + ", resultSize=" + result.size()
                     + ", params={memberId=" + memberId + "}");
 
-            return toPurchaseHistoryDTOs(result);
+            return toPurchaseHistoryDTOs(
+                    purchaseDomainService.getPurchaseHistoryForMember(memberId));
 
         } catch (RuntimeException e) {
-
             logger.severe("action=getPurchaseHistoryForMember failed"
                     + ", caller=" + memberId
                     + ", target=PurchaseDomainService.getPurchaseHistoryForMember"
                     + ", params={memberId=" + memberId + "}"
                     + ", error=" + e.getMessage());
-
             throw e;
         }
     }
-    
+
     public ActivePurchaseDTO viewActivePurchase(UUID activePurchaseId) {
         if (activePurchaseId == null) {
             throw new IllegalArgumentException("Active purchase ID is required");
@@ -430,24 +422,25 @@ public class PurchaseService {
         }
     }
 
-    public void registerToLottery(UUID eventId, TokenClaims caller, int ticketAmount) {
-        UUID memberId = caller == null ? null : caller.getUserId();
+    public void registerToLottery(UUID eventId, UUID memberId, int ticketAmount) {
         logger.info("caller=" + memberId + ", action=registerToLottery, target=PurchaseDomainService.registerToLottery, params={eventId=" + eventId + ", memberId=" + memberId + ", ticketAmount=" + ticketAmount + "}");
         if (eventId == null) {
             logger.warning("action=registerToLottery rejected, reason=eventId is null, caller=" + memberId);
             throw new IllegalArgumentException("Event ID is required");
         }
-        if (caller == null || memberId == null) {
-            logger.warning("action=registerToLottery rejected, reason=caller is not authenticated");
-            throw new IllegalArgumentException("Caller must be an authenticated member");
+
+        if (memberId == null) {
+            logger.warning("action=registerToLottery rejected, reason=memberId is null");
+            throw new IllegalArgumentException("Member ID is required");
         }
+
         if (ticketAmount <= 0) {
             logger.warning("action=registerToLottery rejected, reason=invalid ticketAmount, caller=" + memberId + ", ticketAmount=" + ticketAmount);
             throw new IllegalArgumentException("Ticket amount must be greater than zero");
         }
 
         try {
-            purchaseDomainService.registerToLottery(eventId, caller, ticketAmount);
+            purchaseDomainService.registerToLottery(eventId, memberId, ticketAmount);
             logger.info("action=registerToLottery completed successfully, params={eventId=" + eventId + ", memberId=" + memberId + ", ticketAmount=" + ticketAmount + "}");
         } catch (DomainException e) {
             logger.severe("action=registerToLottery failed, caller=" + memberId + ", target=PurchaseDomainService.registerToLottery, params={eventId=" + eventId + ", memberId=" + memberId + ", ticketAmount=" + ticketAmount + "}, error=" + e.getMessage());

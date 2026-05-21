@@ -9,16 +9,13 @@ import java.util.UUID;
 import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
 
 // --- Aggregate Root: User ---
-//
-// Authentication state is *not* stored on this aggregate. With JWT, the proof
-// that a user is "logged in" lives in the signed token (see {@code TokenClaims}).
-// The previous {@code UserStatus} / {@code UserRole} fields and {@code login()}
-// / {@code logout()} methods were removed during the JWT migration.
 public class User {
     private UUID id;
     private String username;
     private String email; // identifier
     private String passwordHash;
+    private UserRole role;
+    private UserStatus status;
     private float age;
     private HashMap<UUID, ICompanyMember> companyRoles;
     private final Map<UUID, Invitation> CompanyInvitations;
@@ -28,6 +25,8 @@ public class User {
         this.username = username;
         this.email = email;
         this.passwordHash = passwordHash;
+        this.role = UserRole.MEMBER;
+        this.status = UserStatus.NOT_LOGGED_IN;
         this.age = age;
         this.companyRoles = new HashMap<>();
         this.CompanyInvitations = new HashMap<>();
@@ -115,8 +114,8 @@ public class User {
         Invitation invitation = CompanyInvitations.get(invitationId);
         if (invitation instanceof OwnerInvitation OwnerInvitation) {
             becomeOwner(OwnerInvitation.getCompanyId(), OwnerInvitation.getAppointerUser()); // appointerUser is not
-                                                                                             // needed for becoming
-                                                                                             // owner
+            // needed for becoming
+            // owner
         } else if (invitation instanceof ManagerInvitation ManagerInvitation) {
             becomeManager(ManagerInvitation.getCompanyId(), ManagerInvitation.getAppointerUser(),
                     ManagerInvitation.getPremissions()); // appointerUser is not needed for becoming manager
@@ -189,7 +188,7 @@ public class User {
 
     // the current user is the manager whose permissions are being changed, and OwnerUser is the owner performing the change. this function is being called on the manager whose permissions are being changed in order to check that the owner performing the change has the authority to change his/her permissions (i.e. that he/she is a subordinate of the owner).
     public void changeManagerPermissionsAsOwner(UUID companyId, User OwnerUser,
-            Set<CompanyPermission> newPermissions) {
+                                                Set<CompanyPermission> newPermissions) {
         if (companyId == null) {
             throw new IllegalArgumentException("Company ID is required");
         }
@@ -333,8 +332,16 @@ public class User {
         return passwordHash;
     }
 
+    public UserStatus getStatus() {
+        return status;
+    }
+
     public float getAge() {
         return age;
+    }
+
+    public UserRole getRole() {
+        return role;
     }
 
     public Map<UUID, ICompanyMember> getCompanyRoles() {
