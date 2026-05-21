@@ -32,6 +32,26 @@ public class User {
         this.CompanyInvitations = new HashMap<>();
     }
 
+    /**
+     * Guest constructor.
+     *
+     * Creates an anonymous visitor with role=GUEST and status=NOT_LOGGED_IN.
+     * Guests have no email, no password, and a generated placeholder username.
+     * They exist only to give the system a UUID to attach transient state to
+     * (cart, active purchase, etc.) until/unless they register or log in.
+     */
+    public User(UUID id) {
+        this.id = id;
+        this.username = "guest-" + id.toString().substring(0, 8);
+        this.email = null;
+        this.passwordHash = null;
+        this.role = UserRole.GUEST;
+        this.status = UserStatus.NOT_LOGGED_IN;
+        this.age = 0;
+        this.companyRoles = new HashMap<>();
+        this.CompanyInvitations = new HashMap<>();
+    }
+
     public void login() {
         if (this.status == UserStatus.LOGGED_IN) {
             throw new IllegalStateException("The user is already logged in.");

@@ -22,6 +22,20 @@ public class UserService {
         this.authGateway = authGateway;
     }
 
+    /**
+     * Creates a fresh anonymous visitor (guest) and persists it.
+     *
+     * Called by UserController on the first visit so the front-end can attach
+     * a session token to a stable UUID even before the visitor logs in or
+     * registers. Issuing the JWT itself is the controller's job — this method
+     * only deals with the User aggregate.
+     */
+    public UserResponse enterAsGuest() {
+        User guest = new User(UUID.randomUUID());
+        userRepository.add(guest);
+        return toResponse(guest);
+    }
+
     public UserResponse register(RegisterRequest request) {
         if (request == null) {
             throw new IllegalArgumentException("Request is required");
