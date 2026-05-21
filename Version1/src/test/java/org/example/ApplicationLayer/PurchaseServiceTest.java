@@ -1,5 +1,6 @@
 package org.example.ApplicationLayer;
 
+import org.example.ApplicationLayer.dto.TokenClaims;
 import org.example.DomainLayer.*;
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 import org.example.DomainLayer.CompanyAggregate.Company;
@@ -15,6 +16,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.InOrder;
 import org.mockito.Mock;
+import org.w3c.dom.events.Event;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -26,6 +28,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
+
+import org.example.ApplicationLayer.dto.PurchaseDTOs.PurchaseHistoryDTO;
 
 public class PurchaseServiceTest {
 
@@ -279,10 +283,10 @@ public class PurchaseServiceTest {
         when(purchaseDomainServiceMock.validateAdmin(adminId)).thenReturn(true);
         when(purchaseDomainServiceMock.getHistoryByUser(userId)).thenReturn(expected);
 
-        List<PurchaseHistory> result =
+        List<PurchaseHistoryDTO> result =
                 purchaseService.getHistoryByFilter(adminId, "user", userId);
 
-        assertSame(expected, result);
+        assertEquals(expected.size(), result.size());
 
         verify(purchaseDomainServiceMock).validateAdmin(adminId);
         verify(purchaseDomainServiceMock).getHistoryByUser(userId);
@@ -301,10 +305,10 @@ public class PurchaseServiceTest {
         when(purchaseDomainServiceMock.validateAdmin(adminId)).thenReturn(true);
         when(purchaseDomainServiceMock.getHistoryByEvent(eventId)).thenReturn(expected);
 
-        List<PurchaseHistory> result =
+        List<PurchaseHistoryDTO> result =
                 purchaseService.getHistoryByFilter(adminId, "event", eventId);
 
-        assertSame(expected, result);
+        assertEquals(expected.size(), result.size());
 
         verify(purchaseDomainServiceMock).validateAdmin(adminId);
         verify(purchaseDomainServiceMock).getHistoryByEvent(eventId);
@@ -323,10 +327,10 @@ public class PurchaseServiceTest {
         when(purchaseDomainServiceMock.validateAdmin(adminId)).thenReturn(true);
         when(purchaseDomainServiceMock.getHistoryByCompany(companyId)).thenReturn(expected);
 
-        List<PurchaseHistory> result =
+        List<PurchaseHistoryDTO> result =
                 purchaseService.getHistoryByFilter(adminId, "company", companyId);
 
-        assertSame(expected, result);
+        assertEquals(expected.size(), result.size());
 
         verify(purchaseDomainServiceMock).validateAdmin(adminId);
         verify(purchaseDomainServiceMock).getHistoryByCompany(companyId);
@@ -347,10 +351,10 @@ public class PurchaseServiceTest {
         when(purchaseDomainServiceMock.validateAdmin(adminId)).thenReturn(true);
         when(purchaseDomainServiceMock.getAllHistory()).thenReturn(expected);
 
-        List<PurchaseHistory> result =
+        List<PurchaseHistoryDTO> result =
                 purchaseService.getHistoryByFilter(adminId, "all", null);
 
-        assertSame(expected, result);
+        assertEquals(expected.size(), result.size());
 
         verify(purchaseDomainServiceMock).validateAdmin(adminId);
         verify(purchaseDomainServiceMock).getAllHistory();
@@ -367,7 +371,7 @@ public class PurchaseServiceTest {
         when(purchaseDomainServiceMock.validateAdmin(adminId)).thenReturn(true);
         when(purchaseDomainServiceMock.getHistoryByUser(userId)).thenReturn(List.of());
 
-        List<PurchaseHistory> result =
+        List<PurchaseHistoryDTO> result =
                 purchaseService.getHistoryByFilter(adminId, "user", userId);
 
         assertTrue(result.isEmpty());
@@ -503,104 +507,142 @@ public class PurchaseServiceTest {
     }
 
     /*
-     * Member purchase history tests
-     */
+ * Member purchase history tests
+ */
+
+    private static TokenClaims memberClaims(UUID userId) {
+        return new TokenClaims(
+                userId,
+                "user@example.com",
+                "user",
+                "MEMBER",
+                TokenClaims.TokenType.ACCESS,
+                UUID.randomUUID().toString(),
+                java.time.Instant.now(),
+                java.time.Instant.now().plusSeconds(3600)
+        );
+    }
+
+    private static TokenClaims guestClaims(UUID userId) {
+        return new TokenClaims(
+                userId,
+                null,
+                null,
+                "GUEST",
+                TokenClaims.TokenType.GUEST,
+                UUID.randomUUID().toString(),
+                java.time.Instant.now(),
+                java.time.Instant.now().plusSeconds(3600)
+        );
+    }
 
     @Test
     public void getPurchaseHistoryForMember_whenMemberIsValidAndLoggedIn_returnsMemberHistory() {
         UUID memberId = UUID.randomUUID();
+        TokenClaims caller = memberClaims(memberId);
 
         List<PurchaseHistory> expected = List.of(mock(PurchaseHistory.class));
 
+        when(purchaseDomainServiceMock.isMemberLoggedIn(caller)).thenReturn(true);
+        when(purchaseDomainServiceMock.isMember(caller)).thenReturn(true);
         when(purchaseDomainServiceMock.memberExists(memberId)).thenReturn(true);
-        when(purchaseDomainServiceMock.isMember(memberId)).thenReturn(true);
-        when(purchaseDomainServiceMock.isMemberLoggedIn(memberId)).thenReturn(true);
         when(purchaseDomainServiceMock.getPurchaseHistoryForMember(memberId)).thenReturn(expected);
 
-        List<PurchaseHistory> result =
-                purchaseService.getPurchaseHistoryForMember(memberId);
+        List<PurchaseHistoryDTO> result =
+                purchaseService.getPurchaseHistoryForMember(caller);
 
-        assertSame(expected, result);
+        assertEquals(expected.size(), result.size());
 
+        verify(purchaseDomainServiceMock).isMemberLoggedIn(caller);
+        verify(purchaseDomainServiceMock).isMember(caller);
         verify(purchaseDomainServiceMock).memberExists(memberId);
-        verify(purchaseDomainServiceMock).isMember(memberId);
-        verify(purchaseDomainServiceMock).isMemberLoggedIn(memberId);
         verify(purchaseDomainServiceMock).getPurchaseHistoryForMember(memberId);
     }
 
     @Test
     public void getPurchaseHistoryForMember_whenHistoryIsEmpty_returnsEmptyList() {
         UUID memberId = UUID.randomUUID();
+        TokenClaims caller = memberClaims(memberId);
 
+        when(purchaseDomainServiceMock.isMemberLoggedIn(caller)).thenReturn(true);
+        when(purchaseDomainServiceMock.isMember(caller)).thenReturn(true);
         when(purchaseDomainServiceMock.memberExists(memberId)).thenReturn(true);
-        when(purchaseDomainServiceMock.isMember(memberId)).thenReturn(true);
-        when(purchaseDomainServiceMock.isMemberLoggedIn(memberId)).thenReturn(true);
         when(purchaseDomainServiceMock.getPurchaseHistoryForMember(memberId)).thenReturn(List.of());
 
-        List<PurchaseHistory> result =
-                purchaseService.getPurchaseHistoryForMember(memberId);
+        List<PurchaseHistoryDTO> result =
+                purchaseService.getPurchaseHistoryForMember(caller);
 
         assertTrue(result.isEmpty());
+
+        verify(purchaseDomainServiceMock).isMemberLoggedIn(caller);
+        verify(purchaseDomainServiceMock).isMember(caller);
+        verify(purchaseDomainServiceMock).memberExists(memberId);
+        verify(purchaseDomainServiceMock).getPurchaseHistoryForMember(memberId);
     }
 
     @Test
-    public void getPurchaseHistoryForMember_whenMemberIdIsNull_throwsExceptionAndDoesNotTouchDomain() {
+    public void getPurchaseHistoryForMember_whenCallerIsAnonymous_throwsExceptionAndDoesNotTouchDomain() {
+        when(purchaseDomainServiceMock.isMemberLoggedIn((TokenClaims) null)).thenReturn(false);
+
         assertThrows(IllegalArgumentException.class, () ->
-                purchaseService.getPurchaseHistoryForMember(null)
+                purchaseService.getPurchaseHistoryForMember((TokenClaims) null)
         );
 
-        verifyNoInteractions(purchaseDomainServiceMock);
+        verify(purchaseDomainServiceMock).isMemberLoggedIn((TokenClaims) null);
+        verify(purchaseDomainServiceMock, never()).isMember(any(TokenClaims.class));
+        verify(purchaseDomainServiceMock, never()).memberExists(any(UUID.class));
+        verify(purchaseDomainServiceMock, never()).getPurchaseHistoryForMember(any(UUID.class));
     }
 
     @Test
     public void getPurchaseHistoryForMember_whenMemberDoesNotExist_throwsExceptionAndDoesNotFetchHistory() {
         UUID memberId = UUID.randomUUID();
+        TokenClaims caller = memberClaims(memberId);
 
+        when(purchaseDomainServiceMock.isMemberLoggedIn(caller)).thenReturn(true);
+        when(purchaseDomainServiceMock.isMember(caller)).thenReturn(true);
         when(purchaseDomainServiceMock.memberExists(memberId)).thenReturn(false);
 
         assertThrows(IllegalArgumentException.class, () ->
-                purchaseService.getPurchaseHistoryForMember(memberId)
+                purchaseService.getPurchaseHistoryForMember(caller)
         );
 
+        verify(purchaseDomainServiceMock).isMemberLoggedIn(caller);
+        verify(purchaseDomainServiceMock).isMember(caller);
         verify(purchaseDomainServiceMock).memberExists(memberId);
-        verify(purchaseDomainServiceMock, never()).isMember(any());
-        verify(purchaseDomainServiceMock, never()).isMemberLoggedIn(any());
-        verify(purchaseDomainServiceMock, never()).getPurchaseHistoryForMember(any());
+        verify(purchaseDomainServiceMock, never()).getPurchaseHistoryForMember(any(UUID.class));
     }
 
     @Test
-    public void getPurchaseHistoryForMember_whenUserIsNotMember_throwsExceptionAndDoesNotFetchHistory() {
+    public void getPurchaseHistoryForMember_whenCallerIsGuest_throwsExceptionAndDoesNotFetchHistory() {
         UUID userId = UUID.randomUUID();
+        TokenClaims caller = guestClaims(userId);
 
-        when(purchaseDomainServiceMock.memberExists(userId)).thenReturn(true);
-        when(purchaseDomainServiceMock.isMember(userId)).thenReturn(false);
+        when(purchaseDomainServiceMock.isMemberLoggedIn(caller)).thenReturn(true);
+        when(purchaseDomainServiceMock.isMember(caller)).thenReturn(false);
 
         assertThrows(IllegalArgumentException.class, () ->
-                purchaseService.getPurchaseHistoryForMember(userId)
+                purchaseService.getPurchaseHistoryForMember(caller)
         );
 
-        verify(purchaseDomainServiceMock).memberExists(userId);
-        verify(purchaseDomainServiceMock).isMember(userId);
-        verify(purchaseDomainServiceMock, never()).isMemberLoggedIn(any());
-        verify(purchaseDomainServiceMock, never()).getPurchaseHistoryForMember(any());
+        verify(purchaseDomainServiceMock).isMemberLoggedIn(caller);
+        verify(purchaseDomainServiceMock).isMember(caller);
+        verify(purchaseDomainServiceMock, never()).memberExists(any(UUID.class));
+        verify(purchaseDomainServiceMock, never()).getPurchaseHistoryForMember(any(UUID.class));
     }
 
     @Test
     public void getPurchaseHistoryForMember_whenMemberIsNotLoggedIn_throwsExceptionAndDoesNotFetchHistory() {
-        UUID memberId = UUID.randomUUID();
-
-        when(purchaseDomainServiceMock.memberExists(memberId)).thenReturn(true);
-        when(purchaseDomainServiceMock.isMember(memberId)).thenReturn(true);
-        when(purchaseDomainServiceMock.isMemberLoggedIn(memberId)).thenReturn(false);
+        when(purchaseDomainServiceMock.isMemberLoggedIn((TokenClaims) null)).thenReturn(false);
 
         assertThrows(IllegalArgumentException.class, () ->
-                purchaseService.getPurchaseHistoryForMember(memberId)
+                purchaseService.getPurchaseHistoryForMember((TokenClaims) null)
         );
 
-        verify(purchaseDomainServiceMock).memberExists(memberId);
-        verify(purchaseDomainServiceMock).isMember(memberId);
-        verify(purchaseDomainServiceMock).isMemberLoggedIn(memberId);
-        verify(purchaseDomainServiceMock, never()).getPurchaseHistoryForMember(any());
+        verify(purchaseDomainServiceMock).isMemberLoggedIn((TokenClaims) null);
+        verify(purchaseDomainServiceMock, never()).isMember(any(TokenClaims.class));
+        verify(purchaseDomainServiceMock, never()).memberExists(any(UUID.class));
+        verify(purchaseDomainServiceMock, never()).getPurchaseHistoryForMember(any(UUID.class));
     }
 
     /*
@@ -618,10 +660,10 @@ public class PurchaseServiceTest {
         when(purchaseDomainServiceMock.isCompanyOwnerOfEvent(ownerName, eventId)).thenReturn(true);
         when(purchaseDomainServiceMock.getHistoryByEvent(eventId)).thenReturn(expected);
 
-        List<PurchaseHistory> result =
+        List<PurchaseHistoryDTO> result =
                 purchaseService.getEventPurchaseHistoryForOwner(ownerName, eventId);
 
-        assertSame(expected, result);
+        assertEquals(expected.size(), result.size());
 
         verify(purchaseDomainServiceMock).eventExists(eventId);
         verify(purchaseDomainServiceMock).isCompanyOwnerOfEvent(ownerName, eventId);
@@ -672,10 +714,10 @@ public class PurchaseServiceTest {
         when(purchaseDomainServiceMock.isCompanyOwnerOfEvent(ownerName, eventId)).thenReturn(true);
         when(purchaseDomainServiceMock.getHistoryByEvent(eventId)).thenReturn(expected);
 
-        List<PurchaseHistory> result =
+        List<PurchaseHistoryDTO> result =
                 purchaseService.getEventPurchaseHistoryForOwner(ownerName, eventId);
 
-        assertEquals(expected, result);
+        assertEquals(expected.size(), result.size());
     }
 
 
