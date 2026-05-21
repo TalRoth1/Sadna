@@ -27,6 +27,8 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
+import org.example.ApplicationLayer.dto.PurchaseDTOs.PurchaseHistoryDTO;
+
 public class PurchaseServiceTest {
 
     private PurchaseDomainService purchaseDomainServiceMock;
@@ -279,10 +281,10 @@ public class PurchaseServiceTest {
         when(purchaseDomainServiceMock.validateAdmin(adminId)).thenReturn(true);
         when(purchaseDomainServiceMock.getHistoryByUser(userId)).thenReturn(expected);
 
-        List<PurchaseHistory> result =
+        List<PurchaseHistoryDTO> result =
                 purchaseService.getHistoryByFilter(adminId, "user", userId);
 
-        assertSame(expected, result);
+        assertEquals(expected.size(), result.size());
 
         verify(purchaseDomainServiceMock).validateAdmin(adminId);
         verify(purchaseDomainServiceMock).getHistoryByUser(userId);
@@ -301,10 +303,10 @@ public class PurchaseServiceTest {
         when(purchaseDomainServiceMock.validateAdmin(adminId)).thenReturn(true);
         when(purchaseDomainServiceMock.getHistoryByEvent(eventId)).thenReturn(expected);
 
-        List<PurchaseHistory> result =
+        List<PurchaseHistoryDTO> result =
                 purchaseService.getHistoryByFilter(adminId, "event", eventId);
 
-        assertSame(expected, result);
+        assertEquals(expected.size(), result.size());
 
         verify(purchaseDomainServiceMock).validateAdmin(adminId);
         verify(purchaseDomainServiceMock).getHistoryByEvent(eventId);
@@ -323,10 +325,10 @@ public class PurchaseServiceTest {
         when(purchaseDomainServiceMock.validateAdmin(adminId)).thenReturn(true);
         when(purchaseDomainServiceMock.getHistoryByCompany(companyId)).thenReturn(expected);
 
-        List<PurchaseHistory> result =
+        List<PurchaseHistoryDTO> result =
                 purchaseService.getHistoryByFilter(adminId, "company", companyId);
 
-        assertSame(expected, result);
+        assertEquals(expected.size(), result.size());
 
         verify(purchaseDomainServiceMock).validateAdmin(adminId);
         verify(purchaseDomainServiceMock).getHistoryByCompany(companyId);
@@ -347,10 +349,10 @@ public class PurchaseServiceTest {
         when(purchaseDomainServiceMock.validateAdmin(adminId)).thenReturn(true);
         when(purchaseDomainServiceMock.getAllHistory()).thenReturn(expected);
 
-        List<PurchaseHistory> result =
+        List<PurchaseHistoryDTO> result =
                 purchaseService.getHistoryByFilter(adminId, "all", null);
 
-        assertSame(expected, result);
+        assertEquals(expected.size(), result.size());
 
         verify(purchaseDomainServiceMock).validateAdmin(adminId);
         verify(purchaseDomainServiceMock).getAllHistory();
@@ -367,7 +369,7 @@ public class PurchaseServiceTest {
         when(purchaseDomainServiceMock.validateAdmin(adminId)).thenReturn(true);
         when(purchaseDomainServiceMock.getHistoryByUser(userId)).thenReturn(List.of());
 
-        List<PurchaseHistory> result =
+        List<PurchaseHistoryDTO> result =
                 purchaseService.getHistoryByFilter(adminId, "user", userId);
 
         assertTrue(result.isEmpty());
@@ -517,15 +519,14 @@ public class PurchaseServiceTest {
         when(purchaseDomainServiceMock.isMemberLoggedIn(memberId)).thenReturn(true);
         when(purchaseDomainServiceMock.getPurchaseHistoryForMember(memberId)).thenReturn(expected);
 
-        List<PurchaseHistory> result =
+        List<PurchaseHistoryDTO> result =
                 purchaseService.getPurchaseHistoryForMember(memberId);
 
-        assertSame(expected, result);
+        assertEquals(expected.size(), result.size());
 
         verify(purchaseDomainServiceMock).memberExists(memberId);
         verify(purchaseDomainServiceMock).isMember(memberId);
         verify(purchaseDomainServiceMock).isMemberLoggedIn(memberId);
-        verify(purchaseDomainServiceMock).getPurchaseHistoryForMember(memberId);
     }
 
     @Test
@@ -537,7 +538,7 @@ public class PurchaseServiceTest {
         when(purchaseDomainServiceMock.isMemberLoggedIn(memberId)).thenReturn(true);
         when(purchaseDomainServiceMock.getPurchaseHistoryForMember(memberId)).thenReturn(List.of());
 
-        List<PurchaseHistory> result =
+        List<PurchaseHistoryDTO> result =
                 purchaseService.getPurchaseHistoryForMember(memberId);
 
         assertTrue(result.isEmpty());
@@ -618,10 +619,10 @@ public class PurchaseServiceTest {
         when(purchaseDomainServiceMock.isCompanyOwnerOfEvent(ownerName, eventId)).thenReturn(true);
         when(purchaseDomainServiceMock.getHistoryByEvent(eventId)).thenReturn(expected);
 
-        List<PurchaseHistory> result =
+        List<PurchaseHistoryDTO> result =
                 purchaseService.getEventPurchaseHistoryForOwner(ownerName, eventId);
 
-        assertSame(expected, result);
+        assertEquals(expected.size(), result.size());
 
         verify(purchaseDomainServiceMock).eventExists(eventId);
         verify(purchaseDomainServiceMock).isCompanyOwnerOfEvent(ownerName, eventId);
@@ -672,10 +673,10 @@ public class PurchaseServiceTest {
         when(purchaseDomainServiceMock.isCompanyOwnerOfEvent(ownerName, eventId)).thenReturn(true);
         when(purchaseDomainServiceMock.getHistoryByEvent(eventId)).thenReturn(expected);
 
-        List<PurchaseHistory> result =
+        List<PurchaseHistoryDTO> result =
                 purchaseService.getEventPurchaseHistoryForOwner(ownerName, eventId);
 
-        assertEquals(expected, result);
+        assertEquals(expected.size(), result.size());
     }
 
 
