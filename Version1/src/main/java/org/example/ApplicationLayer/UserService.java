@@ -33,13 +33,19 @@ public class UserService {
         this.tokenBlacklist = tokenBlacklist;
     }
 
-    public UserService(IUserRepository userRepository, IAuthenticationGateway authGateway) {
-        this(userRepository, authGateway, null, null);
+    /**
+     * Creates a fresh anonymous visitor (guest) and persists it.
+     *
+     * Called by UserController on the first visit so the front-end can attach
+     * a session token to a stable UUID even before the visitor logs in or
+     * registers. Issuing the JWT itself is the controller's job — this method
+     * only deals with the User aggregate.
+     */
+    public UserResponse enterAsGuest() {
+        User guest = new User(UUID.randomUUID());
+        userRepository.add(guest);
+        return toResponse(guest);
     }
-
-    // ================================================================
-    // New DTO API - used by the new controllers
-    // ================================================================
 
     public UserResponse register(RegisterRequest request) {
         if (request == null) {

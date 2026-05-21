@@ -54,6 +54,7 @@
         </dependency>
 
         <!-- JWT (jjwt) -->
+        <!-- JJWT (JSON Web Token) for session tokens -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-api</artifactId>
