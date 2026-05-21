@@ -57,7 +57,6 @@ public class EventController {
             EventDetailsDto event = eventService.addEvent(
                     UUID.randomUUID(),
                     request.companyId,
-                    request.name,
                     request.date,
                     request.location,
                     request.artist,
@@ -163,14 +162,17 @@ public class EventController {
         }
     }
 
-    @DeleteMapping("/{eventId}/policy")
+    @DeleteMapping("/{eventId}/policy/{ruleId}")
     public ResponseEntity<ApiResponse<Void>> deletePolicyRule(
             @PathVariable UUID eventId,
+            @PathVariable UUID ruleId,
             @RequestBody DeleteEventPolicyRuleRequest request) {
         try {
             eventService.deletePolicyRule(
-                    request.username, request.companyId, eventId,
-                    request.age, request.minTicket, request.maxTicket, request.allowLoneSeat);
+                    request.username,
+                    request.companyId,
+                    eventId,
+                    ruleId);
             return ResponseEntity.ok(ApiResponse.success("Policy rule deleted successfully"));
         } catch (IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));

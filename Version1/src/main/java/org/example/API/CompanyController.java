@@ -116,10 +116,13 @@ public class CompanyController {
     @PostMapping("/{companyId}/invitations/{invitationId}/accept")
     public ResponseEntity<ApiResponse<Void>> acceptInvitation(
             @PathVariable UUID companyId,
-            @PathVariable UUID invitationId) {
+            @PathVariable UUID invitationId,
+            @RequestParam String username) {
         try {
-            companyService.acceptCompanyInvitation(invitationId, companyId);
+            companyService.acceptCompanyInvitation(invitationId, username, companyId);
             return ResponseEntity.ok(ApiResponse.success("Invitation accepted successfully"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(ApiResponse.error("Invitation not found or already used"));
@@ -204,15 +207,13 @@ public class CompanyController {
         }
     }
 
-    @DeleteMapping("/{companyId}/policy")
+    @DeleteMapping("/{companyId}/policy/{ruleId}")
     public ResponseEntity<ApiResponse<Void>> deletePolicyRule(
             @PathVariable UUID companyId,
+            @PathVariable UUID ruleId,
             @RequestBody DeletePolicyRuleRequest request) {
         try {
-            companyService.deletePolicyRule(
-                    request.username, companyId,
-                    request.age, request.minTicket,
-                    request.maxTicket, request.allowLoneSeat);
+            companyService.deletePolicyRule(request.username, companyId, ruleId);
             return ResponseEntity.ok(ApiResponse.success("Policy rule deleted successfully"));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));

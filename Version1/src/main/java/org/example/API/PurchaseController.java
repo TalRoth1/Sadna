@@ -18,6 +18,7 @@ import org.example.ApplicationLayer.dto.PurchaseDTOs.UpdateStandingRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.example.ApplicationLayer.dto.PurchaseDTOs.PurchaseHistoryDTO;
 
 /**
  * PurchaseController
@@ -289,4 +290,5 @@ public class PurchaseController {
                     .body(ApiResponse.error("Failed to fetch event history: system exception"));
         }
     }
+
 }
