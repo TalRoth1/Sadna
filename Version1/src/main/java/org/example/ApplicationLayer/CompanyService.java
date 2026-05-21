@@ -11,6 +11,9 @@ import org.example.DomainLayer.DomainException;
 import org.example.DomainLayer.PurchaseDomainService;
 import org.example.DomainLayer.RolesDomainService;
 
+import org.springframework.stereotype.Service;
+
+@Service
 public class CompanyService {
     private static final Logger logger = Logger.getLogger(CompanyService.class.getName());
     private final RolesDomainService rolesDomainService;

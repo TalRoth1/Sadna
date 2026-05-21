@@ -9,6 +9,9 @@ import org.example.DomainLayer.UserAggregate.User;
 import java.util.UUID;
 import java.util.logging.Logger;
 
+import org.springframework.stereotype.Service;
+
+@Service
 public class UserService{
     private static final Logger logger = Logger.getLogger(EventService.class.getName());
     private final IUserRepository userRepository;

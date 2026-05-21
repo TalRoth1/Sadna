@@ -25,6 +25,9 @@ import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.springframework.stereotype.Service;
+
+@Service
 public class EventService {
     private static final Logger logger = Logger.getLogger(EventService.class.getName());
     private final EventManagementDomainService eventManagementDomainService;
