@@ -1,9 +1,9 @@
 package org.example.ApplicationLayer;
 
-import org.example.ApplicationLayer.dto.EventDtos.AreaSummaryDto;
-import org.example.ApplicationLayer.dto.EventDtos.CompanyCatalogDto;
-import org.example.ApplicationLayer.dto.EventDtos.EventDetailsDto;
-import org.example.ApplicationLayer.dto.EventDtos.EventSummaryDto;
+import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.AreaSummaryDto;
+import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.CompanyCatalogDto;
+import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.EventDetailsDto;
+import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.EventSummaryDto;
 import org.example.DomainLayer.DomainException;
 import org.example.DomainLayer.EventManagementDomainService;
 import org.example.DomainLayer.CompanyAggregate.Company;
@@ -25,6 +25,11 @@ import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.example.ApplicationLayer.dto.PurchaseDTOs.PurchaseHistoryDTO;
+
+import org.springframework.stereotype.Service;
+
+@Service
 public class EventService {
     private static final Logger logger = Logger.getLogger(EventService.class.getName());
     private final EventManagementDomainService eventManagementDomainService;
@@ -32,46 +37,48 @@ public class EventService {
     public EventService(EventManagementDomainService eventManagementDomainService) {
         this.eventManagementDomainService = eventManagementDomainService;
     }
-    
-    public void addEvent(UUID eventId, UUID companyId, LocalDateTime date, String location,
-                         String artist, String type, EventStatus status) {
-        logger.info("[Event Log] Method: addEvent called with parameters: eventId=" + eventId
-                + ", companyId=" + companyId + ", date=" + date + ", location=" + location
-                + ", artist=" + artist + ", type=" + type + ", status=" + status);
-        try {
-            if (eventId == null) {
-                throw new IllegalArgumentException("eventId is required");
-            }
-            if (companyId == null) {
-                throw new IllegalArgumentException("companyId is required");
-            }
-            eventManagementDomainService.addEvent(eventId, companyId, date, location, artist, type, status);
-        } catch (IllegalArgumentException | DomainException e) {
-            logger.info("[Event Log] Business rejection in addEvent: " + e.getMessage());
-            throw e;
-        } catch (RuntimeException e) {
-            logger.log(Level.SEVERE, "[Error Log] System error in addEvent: " + e.getMessage(), e);
-            throw e;
+
+    public EventDetailsDto addEvent(UUID eventId, UUID companyId, LocalDateTime date, String location,
+                                    String artist, String type, EventStatus status) {
+        logger.info("[Event Log] Method: addEvent called");
+
+        if (eventId == null) {
+            throw new IllegalArgumentException("eventId is required");
         }
+        if (companyId == null) {
+            throw new IllegalArgumentException("companyId is required");
+        }
+
+        eventManagementDomainService.addEvent(eventId, companyId, date, location, artist, type, status);
+
+        Event event = eventManagementDomainService.getEventForView(eventId);
+        return toDetails(event);
     }
 
-    public boolean editEvent(UUID eventId, LocalDateTime date, String location,
-                             String artist, String type, EventStatus status) {
-        logger.info("[Event Log] Method: editEvent called with parameters: eventId=" + eventId
-                + ", date=" + date + ", location=" + location + ", artist=" + artist
-                + ", type=" + type + ", status=" + status);
-        try {
-            if (eventId == null) {
-                throw new IllegalArgumentException("eventId is required");
-            }
-            return eventManagementDomainService.editEvent(eventId, date, location, artist, type, status);
-        } catch (IllegalArgumentException | DomainException e) {
-            logger.info("[Event Log] Business rejection in editEvent: " + e.getMessage());
-            throw e;
-        } catch (RuntimeException e) {
-            logger.log(Level.SEVERE, "[Error Log] System error in editEvent: " + e.getMessage(), e);
-            throw e;
+    public EventSummaryDto editEvent(UUID eventId, LocalDateTime date, String location,
+                                     String artist, String type, EventStatus status) {
+        if (eventId == null) {
+            throw new IllegalArgumentException("eventId is required");
         }
+
+        eventManagementDomainService.editEvent(eventId, date, location, artist, type, status);
+
+        Event event = eventManagementDomainService.getEventForView(eventId);
+        return toSummary(event);
+    }
+
+    public void addPolicyRule(String username, UUID companyId, UUID eventId,
+                              Float age, Integer minTicket, Integer maxTicket, Boolean allowLoneSeat) {
+        addPolicyRule(
+                username,
+                companyId,
+                eventId,
+                Optional.ofNullable(age),
+                Optional.ofNullable(minTicket),
+                Optional.ofNullable(maxTicket),
+                Optional.ofNullable(allowLoneSeat),
+                true
+        );
     }
 
     public boolean deleteEvent(UUID eventId) {
@@ -136,24 +143,22 @@ public class EventService {
         }
     }
 
-    public List<PurchaseHistory> getEventPurchaseHistoryForOwner(String ownerUsername, UUID eventId) {
-        logger.info("[Event Log] Method: getEventPurchaseHistoryForOwner called with parameters: ownerUsername="
-                + ownerUsername + ", eventId=" + eventId);
-        try {
-            if (ownerUsername == null || ownerUsername.isBlank()) {
-                throw new IllegalArgumentException("Owner username is required");
-            }
-            if (eventId == null) {
-                throw new IllegalArgumentException("eventId is required");
-            }
-            return eventManagementDomainService.getEventPurchaseHistory(ownerUsername, eventId);
-        } catch (IllegalArgumentException | DomainException e) {
-            logger.info("[Event Log] Business rejection in getEventPurchaseHistoryForOwner: " + e.getMessage());
-            throw e;
-        } catch (RuntimeException e) {
-            logger.log(Level.SEVERE, "[Error Log] System error in getEventPurchaseHistoryForOwner: " + e.getMessage(), e);
-            throw e;
+    public List<PurchaseHistoryDTO> getEventPurchaseHistoryForOwner(String ownerUsername, UUID eventId) {
+        if (ownerUsername == null || ownerUsername.isBlank()) {
+            throw new IllegalArgumentException("Owner username is required");
         }
+        if (eventId == null) {
+            throw new IllegalArgumentException("eventId is required");
+        }
+
+        List<PurchaseHistory> histories =
+                eventManagementDomainService.getEventPurchaseHistory(ownerUsername, eventId);
+
+        List<PurchaseHistoryDTO> out = new ArrayList<>();
+        for (PurchaseHistory history : histories) {
+            out.add(toPurchaseHistoryDTO(history));
+        }
+        return out;
     }
 
     public void addPolicyRule(String username, UUID companyId, UUID eventId, Optional<Float> age, Optional<Integer> minTicket, Optional<Integer> maxTicket, Optional<Boolean> allowLoneSeat, boolean andOr)
@@ -452,4 +457,47 @@ public class EventService {
                 purchaseRules,
                 discountRules);
     }
+
+    private static PurchaseHistoryDTO toPurchaseHistoryDTO(PurchaseHistory history) {
+        PurchaseHistoryDTO dto = new PurchaseHistoryDTO();
+        dto.userId = history.getUserId();
+        dto.eventId = history.getEventId();
+        dto.ticketIds = history.getTicketIds();
+        dto.purchaseDate = history.getPurchaseDate();
+
+        if (history.getPayment() != null) {
+            dto.paymentInfo = history.getPayment().toString();
+        } else {
+            dto.paymentInfo = "";
+        }
+
+        // אין כרגע getter ברור לסכום מתוך Payment, לכן נשאיר 0 עד שנראה את Payment.java
+        dto.totalPaid = 0.0;
+
+        return dto;
+    }
+    public static EventSearchCriteria toDomainCriteria(
+            String text,
+            String location,
+            Double priceMin,
+            Double priceMax,
+            LocalDateTime dateFrom,
+            LocalDateTime dateTo,
+            Double minEventRating,
+            Double minCompanyRating,
+            UUID companyId) {
+
+        return new EventSearchCriteria(
+                Optional.ofNullable(text),
+                Optional.ofNullable(location),
+                Optional.ofNullable(priceMin),
+                Optional.ofNullable(priceMax),
+                Optional.ofNullable(dateFrom),
+                Optional.ofNullable(dateTo),
+                Optional.ofNullable(minEventRating),
+                Optional.ofNullable(minCompanyRating),
+                Optional.ofNullable(companyId)
+        );
+    }
+
 }

@@ -1,9 +1,10 @@
 package org.example.ApplicationLayer;
 
-import org.example.ApplicationLayer.dto.EventDtos.AreaSummaryDto;
-import org.example.ApplicationLayer.dto.EventDtos.CompanyCatalogDto;
-import org.example.ApplicationLayer.dto.EventDtos.EventDetailsDto;
-import org.example.ApplicationLayer.dto.EventDtos.EventSummaryDto;
+import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.AreaSummaryDto;
+import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.CompanyCatalogDto;
+import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.EventDetailsDto;
+import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.EventSummaryDto;
+import org.example.ApplicationLayer.dto.PurchaseDTOs.PurchaseHistoryDTO;
 import org.example.DomainLayer.DomainException;
 import org.example.DomainLayer.EventManagementDomainService;
 import org.example.DomainLayer.ICompanyRepository;
@@ -382,27 +383,51 @@ public class EventServiceTest {
     // =====================================================================
 
     @Test
-    public void GivenAuthorizedOwnerAndExistingEvent_WhenGetEventPurchaseHistoryForOwner_ThenReturnsHistoryFromRepository() {
+    public void GivenAuthorizedOwnerAndExistingEvent_WhenGetEventPurchaseHistoryForOwner_ThenReturnsHistoryDtos() {
         Event event = newRealEvent();
-        List<PurchaseHistory> expected = Collections.emptyList();
+
         when(eventRepository.getById(eventId)).thenReturn(event);
         when(userRepository.isCompanyOwner(ownerUsername, companyId)).thenReturn(true);
-        when(historyRepository.getByEventId(eventId)).thenReturn(expected);
+        when(historyRepository.getByEventId(eventId)).thenReturn(Collections.emptyList());
 
-        List<PurchaseHistory> actual =
+        List<PurchaseHistoryDTO> actual =
                 eventService.getEventPurchaseHistoryForOwner(ownerUsername, eventId);
 
-        assertSame("service must return the exact list from the repository", expected, actual);
+        assertNotNull(actual);
+        assertTrue(actual.isEmpty());
         verify(historyRepository).getByEventId(eventId);
     }
 
     @Test
-    public void GivenValidArgs_WhenAddEvent_ThenServiceInvokesSaveOnRepository() {
-        when(eventRepository.getById(eventId)).thenReturn(null);
+    public void GivenValidArgs_WhenAddEvent_ThenServiceInvokesSaveOnRepositoryAndReturnsDetails() {
+        LocalDateTime date = LocalDateTime.now().plusDays(10);
 
-        eventService.addEvent(eventId, companyId, LocalDateTime.now().plusDays(10),
-                "Tel Aviv", "Some Artist", "concert", EventStatus.ACTIVE);
+        Event created = new Event(
+                eventId,
+                companyId,
+                date,
+                "Tel Aviv",
+                "Some Artist",
+                "concert",
+                EventStatus.ACTIVE
+        );
 
+        when(eventRepository.getById(eventId))
+                .thenReturn(null)
+                .thenReturn(created);
+
+        EventDetailsDto result = eventService.addEvent(
+                eventId,
+                companyId,
+                date,
+                "Tel Aviv",
+                "Some Artist",
+                "concert",
+                EventStatus.ACTIVE
+        );
+
+        assertNotNull(result);
+        assertEquals(eventId, result.eventId());
         verify(eventRepository).save(any(Event.class));
     }
 
@@ -412,10 +437,14 @@ public class EventServiceTest {
         when(eventRepository.getById(eventId)).thenReturn(event);
         LocalDateTime newDate = LocalDateTime.now().plusDays(60);
 
-        boolean result = eventService.editEvent(eventId, newDate, "Haifa",
+        EventSummaryDto result = eventService.editEvent(eventId, newDate, "Haifa",
                 "New Artist", "festival", EventStatus.CANCELED);
 
-        assertTrue("editEvent must report success", result);
+        assertNotNull(result);
+        assertEquals(newDate, result.date());
+        assertEquals("Haifa", result.location());
+        assertEquals("New Artist", result.artist());
+        assertEquals("festival", result.eventType());
         EventDetailsDto details = eventService.getEventDetails(eventId);
         assertEquals(newDate, details.date());
         assertEquals("Haifa", details.location());
@@ -429,9 +458,9 @@ public class EventServiceTest {
         Event event = newRealEvent();
         when(eventRepository.getById(eventId)).thenReturn(event);
 
-        boolean result = eventService.editEvent(eventId, null, null, null, null, null);
+        EventSummaryDto result = eventService.editEvent(eventId, null, null, null, null, null);
 
-        assertTrue(result);
+        assertNotNull(result);
         verify(eventRepository).save(any(Event.class));
     }
 

@@ -59,21 +59,25 @@ public class PurchaseDomainService {
         historyRepository.add(purchaseHistory);
     }
 
-    public void selectSittingTickets(UUID eventID, List<UUID> ticketIDs, UUID userID, boolean guestAgeConfirmed) {
-        selectSittingTickets(eventID, ticketIDs, userID, guestAgeConfirmed, null);
+    public ActivePurchase selectSittingTickets(UUID eventID, List<UUID> ticketIDs, UUID userID, boolean guestAgeConfirmed) {
+        return selectSittingTickets(eventID, ticketIDs, userID, guestAgeConfirmed, null);
     }
-    public void selectSittingTicketsWithLotteryCode(UUID eventID,List<UUID> ticketIDs,UUID userID,boolean guestAgeConfirmed,String accessCode)
-    {
-        selectSittingTickets(eventID, ticketIDs, userID, guestAgeConfirmed, accessCode);
+
+    public ActivePurchase selectSittingTicketsWithLotteryCode(UUID eventID, List<UUID> ticketIDs, UUID userID,
+                                                              boolean guestAgeConfirmed, String accessCode) {
+        return selectSittingTickets(eventID, ticketIDs, userID, guestAgeConfirmed, accessCode);
     }
-    public void selectSittingTickets(UUID eventID,List<UUID> ticketIDs,UUID userID,boolean guestAgeConfirmed,String accessCode)
-    {
+
+    public ActivePurchase selectSittingTickets(UUID eventID, List<UUID> ticketIDs, UUID userID,
+                                               boolean guestAgeConfirmed, String accessCode) {
         ensureUserHasNoOtherActivePurchases(userID);
 
-        // חשוב: לפני reserve
         validateSelectionEligibility(eventID, userID, accessCode);
 
         Event event = eventRepository.getById(eventID);
+        if (event == null) {
+            throw new DomainException("Event does not exist");
+        }
 
         synchronized (event) {
             event.reserveSittingTickets(ticketIDs);
@@ -90,26 +94,30 @@ public class PurchaseDomainService {
             activePurchase.SetGuestAgeConfirmed(guestAgeConfirmed);
 
             purchaseRepository.save(activePurchase);
+            return activePurchase;
         }
     }
 
-    public void selectStandingTickets(UUID eventID, int amount, UUID userID, UUID areaID, boolean guestAgeConfirmed) {
-        selectStandingTickets(eventID, amount, userID, areaID, guestAgeConfirmed, null);
+    public ActivePurchase selectStandingTickets(UUID eventID, int amount, UUID userID, UUID areaID,
+                                                boolean guestAgeConfirmed) {
+        return selectStandingTickets(eventID, amount, userID, areaID, guestAgeConfirmed, null);
     }
 
-    public void selectStandingTicketsWithLotteryCode(UUID eventID,int amount,UUID userID,UUID areaID,boolean guestAgeConfirmed,String accessCode)
-    {
-        selectStandingTickets(eventID, amount, userID, areaID, guestAgeConfirmed, accessCode);
+    public ActivePurchase selectStandingTicketsWithLotteryCode(UUID eventID, int amount, UUID userID, UUID areaID,
+                                                               boolean guestAgeConfirmed, String accessCode) {
+        return selectStandingTickets(eventID, amount, userID, areaID, guestAgeConfirmed, accessCode);
     }
 
-    public void selectStandingTickets(UUID eventID,int amount,UUID userID,UUID areaID,boolean guestAgeConfirmed,String accessCode)
-    {
+    public ActivePurchase selectStandingTickets(UUID eventID, int amount, UUID userID, UUID areaID,
+                                                boolean guestAgeConfirmed, String accessCode) {
         ensureUserHasNoOtherActivePurchases(userID);
 
-        // חשוב: לפני reserve
         validateSelectionEligibility(eventID, userID, accessCode);
 
         Event event = eventRepository.getById(eventID);
+        if (event == null) {
+            throw new DomainException("Event does not exist");
+        }
 
         synchronized (event) {
             List<UUID> reservedTicketIDs = event.reserveStandingTickets(amount, areaID);
@@ -126,9 +134,9 @@ public class PurchaseDomainService {
             activePurchase.SetGuestAgeConfirmed(guestAgeConfirmed);
 
             purchaseRepository.save(activePurchase);
+            return activePurchase;
         }
     }
-
 
 
     public void completePurchase(UUID activePurchaseID, PaymentDetails paymentDetails, String couponCode) {
