@@ -3,6 +3,7 @@ package org.example.ApplicationLayer;
 import org.example.DomainLayer.Events.IDomainEvent;
 import org.example.DomainLayer.Events.LotteryWonEvent;
 import org.example.DomainLayer.Events.PurchaseCompletedEvent;
+import org.example.DomainLayer.NotificationAggregate.NotificationType;
 
 public class EventListener {
 
@@ -19,21 +20,29 @@ public class EventListener {
 
     public void handle(IDomainEvent event) {
         if (event instanceof LotteryWonEvent lotteryWonEvent) {
-            notificationService.notifyUser(
+            notificationService.createAndNotify(
                     lotteryWonEvent.getUserId(),
+                    NotificationType.LOTTERY_WON,
+                    "Lottery won",
                     "Congratulations! You won the lottery for event "
                             + lotteryWonEvent.getEventId()
                             + ". Your access code is: "
                             + lotteryWonEvent.getAccessCode()
                             + ". It expires at: "
-                            + lotteryWonEvent.getCodeExpiry()
+                            + lotteryWonEvent.getCodeExpiry(),
+                    "EVENT",
+                    lotteryWonEvent.getEventId()
             );
         }
 
         if (event instanceof PurchaseCompletedEvent purchaseCompletedEvent) {
-            notificationService.notifyUser(
+            notificationService.createAndNotify(
                     purchaseCompletedEvent.getUserId().toString(),
-                    "Your purchase was completed successfully."
+                    NotificationType.PURCHASE_COMPLETED,
+                    "Purchase completed",
+                    "Your purchase was completed successfully.",
+                    "PURCHASE",
+                    null
             );
         }
     }
