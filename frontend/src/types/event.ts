@@ -87,10 +87,10 @@ export type Event = {
     purchasePolicy: PurchasePolicy;
     discountPolicy: DiscountPolicy;
     tickets: Ticket[];
-    // TODO: backend Event.java does not currently expose a description field.
-    // The Hebrew spec for Event Screen #100 requires it ("תיאור האירוע"),
-    // so we model it as optional here and will populate it once the backend
-    // adds support.
+    // Free-text description is not in the assignment spec (it lists name,
+    // artist, category, date/location, areas, policy and discounts only).
+    // We keep it as an optional field so the UI can fall back gracefully
+    // if a future iteration adds it server-side.
     description?: string;
 };
 

@@ -2,8 +2,13 @@ package org.example.ApplicationLayer;
 
 import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.AreaSummaryDto;
 import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.CompanyCatalogDto;
+import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.DiscountPolicyDto;
+import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.DiscountRuleDto;
 import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.EventDetailsDto;
 import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.EventSummaryDto;
+import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.PurchasePolicyDto;
+import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.PurchaseRuleDto;
+import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.TicketDetailsDto;
 import org.example.DomainLayer.DomainException;
 import org.example.DomainLayer.EventManagementDomainService;
 import org.example.DomainLayer.CompanyAggregate.Company;
@@ -12,10 +17,20 @@ import org.example.DomainLayer.EventAggregate.Event;
 import org.example.DomainLayer.EventAggregate.EventSearchCriteria;
 import org.example.DomainLayer.EventAggregate.EventStatus;
 import org.example.DomainLayer.EventAggregate.SittingArea;
+import org.example.DomainLayer.EventAggregate.SittingTicket;
 import org.example.DomainLayer.EventAggregate.StandingArea;
 import org.example.DomainLayer.EventAggregate.Ticket;
 import org.example.DomainLayer.EventAggregate.TicketStatus;
+import org.example.DomainLayer.PolicyManagment.AgeRule;
+import org.example.DomainLayer.PolicyManagment.ConditionalDiscount;
+import org.example.DomainLayer.PolicyManagment.CouponCode;
 import org.example.DomainLayer.PolicyManagment.IDiscountRule;
+import org.example.DomainLayer.PolicyManagment.IPurchaseRule;
+import org.example.DomainLayer.PolicyManagment.LoneSeatRule;
+import org.example.DomainLayer.PolicyManagment.MaxTicketRule;
+import org.example.DomainLayer.PolicyManagment.MinTicketRule;
+import org.example.DomainLayer.PolicyManagment.OvertDiscount;
+import org.example.DomainLayer.PolicyManagment.PurchaseComposite;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 
 import java.time.LocalDate;
@@ -422,16 +437,15 @@ public class EventService {
     }
 
     /**
-     * Map a domain Event to the flat summary row consumed by the Event Search
-     * page (UC 2.3.1). The card needs company info, a price range across the
-     * event's areas and live ticket counts — all derived here so the client
-     * doesn't need follow-up calls.
+     * Carrier for the aggregated inventory snapshot of an event — used by both
+     * {@link #toSummary(Event)} (UC 2.3.1) and {@link #toDetails(Event)}
+     * (UC 2.1 extended view) so the calculation lives in exactly one place.
      */
-    private EventSummaryDto toSummary(Event e) {
-        Company company = eventManagementDomainService.findCompanyById(e.getCompanyId());
-        String companyName = (company == null) ? "" : company.getName();
-        double companyRating = (company == null) ? 0.0 : company.getRating();
+    private record InventorySnapshot(double priceMin, double priceMax,
+                                     int availableTickets, int totalTickets) {
+    }
 
+    private static InventorySnapshot snapshotOf(Event e) {
         double priceMin = 0.0;
         double priceMax = 0.0;
         List<Area> areas = e.getLayout().getAreasView();
@@ -452,6 +466,21 @@ public class EventService {
                 availableTickets++;
             }
         }
+        return new InventorySnapshot(priceMin, priceMax, availableTickets, totalTickets);
+    }
+
+    /**
+     * Map a domain Event to the flat summary row consumed by the Event Search
+     * page (UC 2.3.1). The card needs company info, a price range across the
+     * event's areas and live ticket counts — all derived here so the client
+     * doesn't need follow-up calls.
+     */
+    private EventSummaryDto toSummary(Event e) {
+        Company company = eventManagementDomainService.findCompanyById(e.getCompanyId());
+        String companyName = (company == null) ? "" : company.getName();
+        double companyRating = (company == null) ? 0.0 : company.getRating();
+
+        InventorySnapshot snap = snapshotOf(e);
 
         return new EventSummaryDto(
                 e.getEventId(),
@@ -464,37 +493,130 @@ public class EventService {
                 e.getDate(),
                 e.getLocation(),
                 e.getRating(),
-                priceMin,
-                priceMax,
-                availableTickets,
-                totalTickets);
+                snap.priceMin(),
+                snap.priceMax(),
+                snap.availableTickets(),
+                snap.totalTickets());
     }
 
-    private static EventDetailsDto toDetails(Event e) {
+    /**
+     * Map a domain Event to the extended details payload consumed by the
+     * Event Details page. Compared to {@link #toSummary(Event)} this also
+     * carries the venue layout, the per-ticket inventory snapshot, the
+     * structured purchase + discount policies, and the lottery id.
+     */
+    private EventDetailsDto toDetails(Event e) {
+        Company company = eventManagementDomainService.findCompanyById(e.getCompanyId());
+        String companyName = (company == null) ? "" : company.getName();
+        double companyRating = (company == null) ? 0.0 : company.getRating();
+
         List<AreaSummaryDto> areas = new ArrayList<>();
         for (Area a : e.getLayout().getAreasView()) {
             String kind = (a instanceof StandingArea) ? "STANDING"
                     : (a instanceof SittingArea) ? "SITTING" : "UNKNOWN";
-            areas.add(new AreaSummaryDto(a.getAreaId(), kind, a.getPrice()));
+            areas.add(new AreaSummaryDto(
+                    a.getAreaId(), kind, a.getPrice(),
+                    new ArrayList<>(a.getTicketIdsView())));
         }
-        List<String> purchaseRules = new ArrayList<>();
-        purchaseRules.add(e.getPurchasePolicy().getClass().getSimpleName());
-        List<String> discountRules = new ArrayList<>();
-        for (IDiscountRule r : e.getDiscountPolicy().getDiscountRules()) {
-            discountRules.add(r.getClass().getSimpleName());
+
+        List<TicketDetailsDto> tickets = new ArrayList<>();
+        for (Ticket t : e.getTicketsView().values()) {
+            Integer row = null;
+            Integer seat = null;
+            if (t instanceof SittingTicket st) {
+                row = st.getSeatRow();
+                seat = st.getSeatNumber();
+            }
+            tickets.add(new TicketDetailsDto(
+                    t.getTicketId(), t.getAreaId(), t.getStatus(),
+                    t.getPrice(), row, seat));
         }
+
+        InventorySnapshot snap = snapshotOf(e);
+
         return new EventDetailsDto(
                 e.getEventId(),
                 e.getCompanyId(),
+                companyName,
+                companyRating,
                 e.getName(),
                 e.getArtist(),
                 e.getType(),
                 e.getDate(),
                 e.getLocation(),
+                e.getTagsView(),
+                e.getStatus(),
                 e.getRating(),
+                e.getLotteryId(),
+                snap.priceMin(),
+                snap.priceMax(),
+                snap.availableTickets(),
+                snap.totalTickets(),
                 areas,
-                purchaseRules,
-                discountRules);
+                tickets,
+                toPurchasePolicyDto(e),
+                toDiscountPolicyDto(e));
+    }
+
+    /**
+     * Walk the (possibly composite) purchase-rule tree on the event and
+     * collect all leaf rules into a flat list. The frontend just needs the
+     * scalar parameters (minAge, minTickets, maxTickets, allowLoneSeat) to
+     * render the "purchase rules" bullets, so composition nodes are skipped.
+     */
+    private static PurchasePolicyDto toPurchasePolicyDto(Event e) {
+        List<PurchaseRuleDto> out = new ArrayList<>();
+        collectPurchaseLeaves(e.getPurchasePolicy().getRulesView(), out);
+        return new PurchasePolicyDto(out);
+    }
+
+    private static void collectPurchaseLeaves(IPurchaseRule rule, List<PurchaseRuleDto> out) {
+        if (rule == null) {
+            return;
+        }
+        if (rule instanceof PurchaseComposite composite) {
+            collectPurchaseLeaves(composite.getLeftRule(), out);
+            collectPurchaseLeaves(composite.getRightRule(), out);
+            return;
+        }
+        if (rule instanceof AgeRule age) {
+            out.add(new PurchaseRuleDto(age.getId(), "AGE",
+                    age.getMinAge(), null, null, null));
+        } else if (rule instanceof MinTicketRule min) {
+            out.add(new PurchaseRuleDto(min.getId(), "MIN_TICKETS",
+                    null, min.getMinTicket(), null, null));
+        } else if (rule instanceof MaxTicketRule max) {
+            out.add(new PurchaseRuleDto(max.getId(), "MAX_TICKETS",
+                    null, null, max.getMaxTicket(), null));
+        } else if (rule instanceof LoneSeatRule lone) {
+            out.add(new PurchaseRuleDto(lone.getId(), "LONE_SEAT",
+                    null, null, null, lone.isAllowLoneSeat()));
+        }
+    }
+
+    private static DiscountPolicyDto toDiscountPolicyDto(Event e) {
+        List<DiscountRuleDto> out = new ArrayList<>();
+        for (IDiscountRule r : e.getDiscountPolicy().getDiscountRules()) {
+            if (r instanceof OvertDiscount overt) {
+                out.add(new DiscountRuleDto(
+                        overt.getId(), "OVERT",
+                        overt.getFromDate(), overt.getToDate(),
+                        overt.getDiscountPercent(), null, null, null));
+            } else if (r instanceof ConditionalDiscount cond) {
+                out.add(new DiscountRuleDto(
+                        cond.getId(), "CONDITIONAL",
+                        cond.getFromDate(), cond.getToDate(),
+                        cond.getDiscountPercent(),
+                        cond.getRequiredTickets(), cond.getAppliedTickets(), null));
+            } else if (r instanceof CouponCode coupon) {
+                out.add(new DiscountRuleDto(
+                        coupon.getId(), "COUPON",
+                        coupon.getFromDate(), coupon.getToDate(),
+                        coupon.getDiscountPercent(), null, null,
+                        coupon.getCode()));
+            }
+        }
+        return new DiscountPolicyDto(out);
     }
 
     private PurchaseHistoryDTO toPurchaseHistoryDTO(PurchaseHistory history) {

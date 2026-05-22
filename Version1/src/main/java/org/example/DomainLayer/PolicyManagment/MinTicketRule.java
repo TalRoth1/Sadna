@@ -27,4 +27,8 @@ public class MinTicketRule implements IPurchaseRule {
         int ticketNum = purchase.getTicketIDs().size();
         return ticketNum >= this.minTicket;
     }
+
+    public int getMinTicket() {
+        return this.minTicket;
+    }
 }

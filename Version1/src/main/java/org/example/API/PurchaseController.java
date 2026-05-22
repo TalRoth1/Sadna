@@ -49,7 +49,7 @@ public class PurchaseController {
     // TODO (V3): Extract userID from JWT token
     @PostMapping("/events/{eventId}/sitting")
     public ResponseEntity<ApiResponse<ActivePurchaseDTO>> selectSittingTickets(
-            @PathVariable UUID eventId,
+            @PathVariable("eventId") UUID eventId,
             @RequestBody SelectSittingRequest request) {
         try {
             ActivePurchaseDTO activePurchase = purchaseService.selectSittingTickets(
@@ -67,7 +67,7 @@ public class PurchaseController {
     // TODO (V3): Extract userID from JWT token
     @PostMapping("/events/{eventId}/standing")
     public ResponseEntity<ApiResponse<ActivePurchaseDTO>> selectStandingTickets(
-            @PathVariable UUID eventId,
+            @PathVariable("eventId") UUID eventId,
             @RequestBody SelectStandingRequest request) {
         try {
             ActivePurchaseDTO activePurchase = purchaseService.selectStandingTickets(
@@ -88,7 +88,7 @@ public class PurchaseController {
 
     @GetMapping("/active/{activePurchaseId}")
     public ResponseEntity<ApiResponse<ActivePurchaseDTO>> viewActivePurchase(
-            @PathVariable UUID activePurchaseId) {
+            @PathVariable("activePurchaseId") UUID activePurchaseId) {
         try {
             ActivePurchaseDTO activePurchase = purchaseService.viewActivePurchase(activePurchaseId);
             return ResponseEntity.ok(ApiResponse.success("Active purchase fetched", activePurchase));
@@ -105,7 +105,7 @@ public class PurchaseController {
 
     @PostMapping("/active/{activePurchaseId}/complete")
     public ResponseEntity<ApiResponse<Void>> completePurchase(
-            @PathVariable UUID activePurchaseId,
+            @PathVariable("activePurchaseId") UUID activePurchaseId,
             @RequestBody CompletePurchaseRequest request) {
         try {
             purchaseService.completePurchase(activePurchaseId, request.paymentDetails, request.couponCode);
@@ -119,7 +119,7 @@ public class PurchaseController {
     }
 
     @DeleteMapping("/active/{activePurchaseId}")
-    public ResponseEntity<ApiResponse<Void>> cancelActivePurchase(@PathVariable UUID activePurchaseId) {
+    public ResponseEntity<ApiResponse<Void>> cancelActivePurchase(@PathVariable("activePurchaseId") UUID activePurchaseId) {
         try {
             purchaseService.cancelActivePurchase(activePurchaseId);
             return ResponseEntity.ok(ApiResponse.success("Purchase cancelled successfully"));
@@ -133,7 +133,7 @@ public class PurchaseController {
 
     @PutMapping("/active/{activePurchaseId}/sitting")
     public ResponseEntity<ApiResponse<Void>> updateActivePurchaseSittingTickets(
-            @PathVariable UUID activePurchaseId,
+            @PathVariable("activePurchaseId") UUID activePurchaseId,
             @RequestBody UpdateSittingRequest request) {
         try {
             purchaseService.updateActivePurchaseSittingTickets(activePurchaseId, request.newTicketIds);
@@ -148,7 +148,7 @@ public class PurchaseController {
 
     @PutMapping("/active/{activePurchaseId}/standing")
     public ResponseEntity<ApiResponse<Void>> updateActivePurchaseStandingTickets(
-            @PathVariable UUID activePurchaseId,
+            @PathVariable("activePurchaseId") UUID activePurchaseId,
             @RequestBody UpdateStandingRequest request) {
         try {
             purchaseService.updateActivePurchaseStandingTickets(activePurchaseId, request.newAmount, request.areaId);
@@ -167,7 +167,7 @@ public class PurchaseController {
 
     @PostMapping("/events/{eventId}/lottery/register")
     public ResponseEntity<ApiResponse<Void>> registerToLottery(
-            @PathVariable UUID eventId,
+            @PathVariable("eventId") UUID eventId,
             @RequestBody LotteryRegisterRequest request) {
         try {
             purchaseService.registerToLottery(eventId, request.memberId, request.ticketAmount);
@@ -184,7 +184,7 @@ public class PurchaseController {
     // TODO (V3): Extract caller identity from JWT and verify authorization
     @PostMapping("/events/{eventId}/lottery/draw")
     public ResponseEntity<ApiResponse<Void>> drawLotteryForEvent(
-            @PathVariable UUID eventId,
+            @PathVariable("eventId") UUID eventId,
             @RequestBody LotteryDrawRequest request) {
         try {
             purchaseService.drawLotteryForEvent(eventId, request.codeExpiry);
@@ -219,7 +219,7 @@ public class PurchaseController {
 
     @GetMapping("/history/users/{userId}")
     public ResponseEntity<ApiResponse<List<PurchaseHistoryDTO>>> getHistoryByUser(
-            @PathVariable UUID userId,
+            @PathVariable("userId") UUID userId,
             @RequestParam UUID adminId) {
         try {
             List<PurchaseHistoryDTO> history = purchaseService.getHistoryByUser(adminId, userId);
@@ -234,7 +234,7 @@ public class PurchaseController {
 
     @GetMapping("/history/events/{eventId}")
     public ResponseEntity<ApiResponse<List<PurchaseHistoryDTO>>> getHistoryByEvent(
-            @PathVariable UUID eventId,
+            @PathVariable("eventId") UUID eventId,
             @RequestParam UUID adminId) {
         try {
             List<PurchaseHistoryDTO> history = purchaseService.getHistoryByEvent(adminId, eventId);
@@ -249,7 +249,7 @@ public class PurchaseController {
 
     @GetMapping("/history/companies/{companyId}")
     public ResponseEntity<ApiResponse<List<PurchaseHistoryDTO>>> getHistoryByCompany(
-            @PathVariable UUID companyId,
+            @PathVariable("companyId") UUID companyId,
             @RequestParam UUID adminId) {
         try {
             List<PurchaseHistoryDTO> history = purchaseService.getHistoryByCompany(adminId, companyId);
@@ -264,7 +264,7 @@ public class PurchaseController {
 
     @GetMapping("/history/members/{memberId}")
     public ResponseEntity<ApiResponse<List<PurchaseHistoryDTO>>> getPurchaseHistoryForMember(
-            @PathVariable UUID memberId) {
+            @PathVariable("memberId") UUID memberId) {
         try {
             List<PurchaseHistoryDTO> history = purchaseService.getPurchaseHistoryForMember(memberId);
             return ResponseEntity.ok(ApiResponse.success("Member history fetched", history));
@@ -278,7 +278,7 @@ public class PurchaseController {
 
     @GetMapping("/events/{eventId}/history/owner")
     public ResponseEntity<ApiResponse<List<PurchaseHistoryDTO>>> getEventPurchaseHistoryForOwner(
-            @PathVariable UUID eventId,
+            @PathVariable("eventId") UUID eventId,
             @RequestParam String ownerName) {
         try {
             List<PurchaseHistoryDTO> history = purchaseService.getEventPurchaseHistoryForOwner(ownerName, eventId);

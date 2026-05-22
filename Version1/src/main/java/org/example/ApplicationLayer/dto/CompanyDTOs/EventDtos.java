@@ -1,5 +1,6 @@
 package org.example.ApplicationLayer.dto.CompanyDTOs;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -96,25 +97,98 @@ public final class EventDtos {
             int totalTickets) {
     }
 
-    /** Area summary for the UC 2.1 extended view ("STANDING" or "SITTING"). */
+    /**
+     * Area summary for the UC 2.1 extended view ("STANDING" or "SITTING").
+     * Includes the ticket-id list so the ticket purchase screen can map each
+     * ticket back to its zone without a follow-up call.
+     */
     public record AreaSummaryDto(
             UUID areaId,
             String kind,
-            double price) {
+            double price,
+            List<UUID> ticketIds) {
     }
 
-    /** UC 2.1 extended event view (selected event details). */
+    /**
+     * Ticket row for the event-details payload. Row/seat are only populated
+     * for sitting tickets; standing tickets leave them null.
+     */
+    public record TicketDetailsDto(
+            UUID ticketId,
+            UUID areaId,
+            TicketStatus status,
+            double price,
+            Integer row,
+            Integer seat) {
+    }
+
+    // ---------------------------------------------------------------------
+    // Structured purchase / discount policies (gérsion 2 appendix).
+    //
+    // The domain layer stores rules as a class hierarchy (AgeRule, MinTicketRule,
+    // MaxTicketRule, LoneSeatRule joined by PurchaseComposite; OvertDiscount,
+    // ConditionalDiscount, CouponCode). These DTOs flatten the rule tree into
+    // a list keyed by `kind` so the frontend can render each rule without
+    // reflecting on Java types.
+    // ---------------------------------------------------------------------
+
+    public record PurchaseRuleDto(
+            UUID id,
+            String kind,            // "AGE" | "MIN_TICKETS" | "MAX_TICKETS" | "LONE_SEAT"
+            Float minAge,           // AGE
+            Integer minTickets,     // MIN_TICKETS
+            Integer maxTickets,     // MAX_TICKETS
+            Boolean allowLoneSeat   // LONE_SEAT
+    ) {
+    }
+
+    public record PurchasePolicyDto(List<PurchaseRuleDto> rules) {
+    }
+
+    public record DiscountRuleDto(
+            UUID id,
+            String kind,            // "OVERT" | "CONDITIONAL" | "COUPON"
+            LocalDate fromDate,
+            LocalDate toDate,
+            Float percent,
+            Integer requiredTickets, // CONDITIONAL only
+            Integer appliedTickets,  // CONDITIONAL only
+            String code              // COUPON only
+    ) {
+    }
+
+    public record DiscountPolicyDto(List<DiscountRuleDto> rules) {
+    }
+
+    /**
+     * UC 2.1 extended event view (selected event details).
+     *
+     * Carries everything the Event Details page needs in one round-trip:
+     * the company line, the status banner, tags, the area/ticket layout
+     * for the purchase screen, the aggregated price/inventory counts, and
+     * the structured purchase + discount policies.
+     */
     public record EventDetailsDto(
             UUID eventId,
             UUID companyId,
+            String companyName,
+            double companyRating,
             String name,
             String artist,
             String eventType,
             LocalDateTime date,
             String location,
+            List<String> tags,
+            EventStatus status,
             double rating,
+            String lotteryId,
+            double priceMin,
+            double priceMax,
+            int availableTickets,
+            int totalTickets,
             List<AreaSummaryDto> areas,
-            List<String> purchaseRuleNames,
-            List<String> discountRuleNames) {
+            List<TicketDetailsDto> tickets,
+            PurchasePolicyDto purchasePolicy,
+            DiscountPolicyDto discountPolicy) {
     }
 }

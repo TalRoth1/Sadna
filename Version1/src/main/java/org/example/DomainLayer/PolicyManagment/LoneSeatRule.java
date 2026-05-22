@@ -28,6 +28,10 @@ public class LoneSeatRule implements IPurchaseRule {
         return this.id;
     }
 
+    public boolean isAllowLoneSeat() {
+        return this.allowLoneSeat;
+    }
+
     @Override
     public boolean doesHold(ActivePurchase purchase, User user, Event event) {
         if (allowLoneSeat) {

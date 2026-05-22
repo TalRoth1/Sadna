@@ -61,7 +61,7 @@ public class CompanyController {
 
     @DeleteMapping("/{companyId}/admin")
     public ResponseEntity<ApiResponse<Void>> closeCompanyAsAdmin(
-            @PathVariable UUID companyId,
+            @PathVariable("companyId") UUID companyId,
             @RequestBody CloseCompanyRequest request) {
         try {
             companyService.closeCompanyAsAdmin(request.adminUsername, companyId);
@@ -80,7 +80,7 @@ public class CompanyController {
 
     @PostMapping("/{companyId}/managers/invite")
     public ResponseEntity<ApiResponse<InvitationResponse>> inviteManager(
-            @PathVariable UUID companyId,
+            @PathVariable("companyId") UUID companyId,
             @RequestBody InviteManagerRequest request) {
         try {
             InvitationResponse invitation = companyService.inviteCompanyManager(
@@ -98,7 +98,7 @@ public class CompanyController {
 
     @PostMapping("/{companyId}/owners/invite")
     public ResponseEntity<ApiResponse<InvitationResponse>> inviteOwner(
-            @PathVariable UUID companyId,
+            @PathVariable("companyId") UUID companyId,
             @RequestBody InviteOwnerRequest request) {
         try {
             InvitationResponse invitation = companyService.inviteCompanyOwner(
@@ -115,8 +115,8 @@ public class CompanyController {
 
     @PostMapping("/{companyId}/invitations/{invitationId}/accept")
     public ResponseEntity<ApiResponse<Void>> acceptInvitation(
-            @PathVariable UUID companyId,
-            @PathVariable UUID invitationId,
+            @PathVariable("companyId") UUID companyId,
+            @PathVariable("invitationId") UUID invitationId,
             @RequestParam String username) {
         try {
             companyService.acceptCompanyInvitation(invitationId, username, companyId);
@@ -135,7 +135,7 @@ public class CompanyController {
 
     @DeleteMapping("/{companyId}/members/owner")
     public ResponseEntity<ApiResponse<Void>> removeMemberAsOwner(
-            @PathVariable UUID companyId,
+            @PathVariable("companyId") UUID companyId,
             @RequestBody RemoveMemberOwnerRequest request) {
         try {
             companyService.removeCompanyMemberAsOwner(
@@ -166,7 +166,7 @@ public class CompanyController {
 
     @PatchMapping("/{companyId}/managers/permissions")
     public ResponseEntity<ApiResponse<Void>> changeManagerPermissions(
-            @PathVariable UUID companyId,
+            @PathVariable("companyId") UUID companyId,
             @RequestBody ChangeManagerPermissionsRequest request) {
         try {
             companyService.changeManagerPermissions(
@@ -187,7 +187,7 @@ public class CompanyController {
 
     @PostMapping("/{companyId}/policy")
     public ResponseEntity<ApiResponse<Void>> addPolicyRule(
-            @PathVariable UUID companyId,
+            @PathVariable("companyId") UUID companyId,
             @RequestBody AddPolicyRuleRequest request) {
         try {
             // No more Optional.ofNullable wrapping — pass nullable fields directly.
@@ -209,8 +209,8 @@ public class CompanyController {
 
     @DeleteMapping("/{companyId}/policy/{ruleId}")
     public ResponseEntity<ApiResponse<Void>> deletePolicyRule(
-            @PathVariable UUID companyId,
-            @PathVariable UUID ruleId,
+            @PathVariable("companyId") UUID companyId,
+            @PathVariable("ruleId") UUID ruleId,
             @RequestBody DeletePolicyRuleRequest request) {
         try {
             companyService.deletePolicyRule(request.username, companyId, ruleId);
@@ -229,7 +229,7 @@ public class CompanyController {
 
     @PostMapping("/{companyId}/discounts/overt")
     public ResponseEntity<ApiResponse<Void>> addOvertDiscount(
-            @PathVariable UUID companyId,
+            @PathVariable("companyId") UUID companyId,
             @RequestBody AddOvertDiscountRequest request) {
         try {
             companyService.addOvertDiscount(
@@ -247,7 +247,7 @@ public class CompanyController {
 
     @PostMapping("/{companyId}/discounts/conditional")
     public ResponseEntity<ApiResponse<Void>> addConditionalDiscount(
-            @PathVariable UUID companyId,
+            @PathVariable("companyId") UUID companyId,
             @RequestBody AddConditionalDiscountRequest request) {
         try {
             companyService.addConditionalDiscount(
@@ -266,7 +266,7 @@ public class CompanyController {
 
     @PostMapping("/{companyId}/discounts/coupon")
     public ResponseEntity<ApiResponse<Void>> addCouponCode(
-            @PathVariable UUID companyId,
+            @PathVariable("companyId") UUID companyId,
             @RequestBody AddCouponRequest request) {
         try {
             companyService.addCouponCode(
@@ -285,8 +285,8 @@ public class CompanyController {
 
     @DeleteMapping("/{companyId}/discounts/{discountId}")
     public ResponseEntity<ApiResponse<Void>> removeDiscount(
-            @PathVariable UUID companyId,
-            @PathVariable UUID discountId,
+            @PathVariable("companyId") UUID companyId,
+            @PathVariable("discountId") UUID discountId,
             @RequestBody RemoveDiscountRequest request) {
         try {
             companyService.removeDiscount(request.username, companyId, discountId);
@@ -305,7 +305,7 @@ public class CompanyController {
 
     @PostMapping("/{companyId}/ratings")
     public ResponseEntity<ApiResponse<Void>> rateCompany(
-            @PathVariable UUID companyId,
+            @PathVariable("companyId") UUID companyId,
             @RequestBody RateCompanyRequest request) {
         try {
             companyService.rateCompany(request.userId, companyId, request.rating);
@@ -317,7 +317,7 @@ public class CompanyController {
 
     @GetMapping("/{companyId}/hierarchy")
     public ResponseEntity<ApiResponse<HierarchyResponse>> getCompanyHierarchy(
-            @PathVariable UUID companyId,
+            @PathVariable("companyId") UUID companyId,
             @RequestParam String requester) {
         try {
             HierarchyResponse hierarchy = companyService.getCompanyHierarchyMermaid(
@@ -333,7 +333,7 @@ public class CompanyController {
 
     @GetMapping("/{companyId}/sales-report")
     public ResponseEntity<ApiResponse<SalesReportResponse>> getSalesReport(
-            @PathVariable UUID companyId,
+            @PathVariable("companyId") UUID companyId,
             @RequestParam String owner) {
         try {
             SalesReportResponse report = companyService.getSalesReportForOwner(
