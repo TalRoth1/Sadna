@@ -60,6 +60,20 @@ public class PurchaseDomainService {
         historyRepository.add(purchaseHistory);
     }
 
+    /**
+     * Null-safe read of an Event by id, intended for DTO denormalization in the
+     * Application layer (e.g. populating eventName/eventDate/eventLocation on
+     * PurchaseHistoryDTO and ActivePurchaseDTO). Returns {@code null} if the
+     * id is missing or no matching event exists, so callers can fall back to
+     * defaults without try/catch.
+     */
+    public Event findEventById(UUID eventId) {
+        if (eventId == null) {
+            return null;
+        }
+        return eventRepository.getById(eventId);
+    }
+
     public ActivePurchase selectSittingTickets(UUID eventID, List<UUID> ticketIDs, UUID userID, boolean guestAgeConfirmed) {
         return selectSittingTickets(eventID, ticketIDs, userID, guestAgeConfirmed, null);
     }

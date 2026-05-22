@@ -9,9 +9,15 @@ public class PurchaseHistoryDTO {
     public UUID eventId;
     public List<UUID> ticketIds;
 
-    // השטחה של אובייקט ה-Payment:
-    public double totalPaid;       // הותאם לטיפוס double של המחלקה
-    public String paymentInfo;     // הוסף כדי להציג באיזו דרך שולם (למשל "Visa ****1234")
+    // Denormalized event fields so the frontend can render and filter the
+    // purchase-history page without firing N+1 queries to fetch each event.
+    public String eventName;
+    public LocalDateTime eventDate;
+    public String eventLocation;
+    public int ticketsAmount;
+    // Note: field name matches the frontend JSON key (`totalPrice`).
+    public double totalPrice;
+    public String paymentInfo;     // Added to display the payment method (e.g. "Visa ****1234")
 
     public LocalDateTime purchaseDate;
 

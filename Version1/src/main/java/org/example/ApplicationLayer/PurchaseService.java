@@ -9,6 +9,7 @@ import java.util.logging.Logger;
 
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 import org.example.DomainLayer.DomainException;
+import org.example.DomainLayer.EventAggregate.Event;
 import org.example.DomainLayer.Events.LotteryWonEvent;
 import org.example.DomainLayer.Events.PurchaseCompletedEvent;
 import org.example.DomainLayer.PurchaseDomainService;
@@ -505,6 +506,9 @@ public class PurchaseService {
         dto.maxWaitTime = purchase.getMaxWaitTime();
         dto.lastUpdate = purchase.getLastUpdate();
 
+        dto.ticketsAmount = (dto.ticketPrices == null) ? 0 : dto.ticketPrices.size();
+        populateEventFields(dto, purchase.getEventID());
+
         return dto;
     }
     private PurchaseHistoryDTO toPurchaseHistoryDTO(PurchaseHistory history) {
@@ -514,13 +518,36 @@ public class PurchaseService {
         dto.eventId = history.getEventId();
         dto.ticketIds = history.getTicketIds();
         dto.purchaseDate = history.getPurchaseDate();
+        dto.ticketsAmount = (dto.ticketIds == null) ? 0 : dto.ticketIds.size();
 
         if (history.getPayment() != null) {
             dto.paymentInfo = history.getPayment().toString();
-            dto.totalPaid = history.getPayment().getTotal();
+            dto.totalPrice = history.getPayment().getTotal();
         }
 
+        populateEventFields(dto, history.getEventId());
+
         return dto;
+    }
+
+    private void populateEventFields(PurchaseHistoryDTO dto, UUID eventId) {
+        Event event = purchaseDomainService.findEventById(eventId);
+        if (event == null) {
+            return;
+        }
+        dto.eventName = event.getName();
+        dto.eventDate = event.getDate();
+        dto.eventLocation = event.getLocation();
+    }
+
+    private void populateEventFields(ActivePurchaseDTO dto, UUID eventId) {
+        Event event = purchaseDomainService.findEventById(eventId);
+        if (event == null) {
+            return;
+        }
+        dto.eventName = event.getName();
+        dto.eventDate = event.getDate();
+        dto.eventLocation = event.getLocation();
     }
     private List<PurchaseHistoryDTO> toPurchaseHistoryDTOs(List<PurchaseHistory> histories) {
         List<PurchaseHistoryDTO> result = new ArrayList<>();
