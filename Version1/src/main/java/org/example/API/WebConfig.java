@@ -1,27 +1,29 @@
 package org.example.API;
 
-import org.example.ApplicationLayer.JwtService;
-import org.springframework.boot.web.servlet.FilterRegistrationBean;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
- * WebConfig
+ * Global MVC config — for now only opens CORS for the local Vite dev
+ * server so the React frontend at http://localhost:5173 can call the
+ * REST endpoints under /api/** while developing.
  *
- * Registers the JwtAuthFilter against the URL patterns that should be
- * protected. Public paths (guest entry, login, register) are excluded
- * inside the filter itself via shouldNotFilter().
+ * Tighten {@code allowedOrigins} (and re-enable credentials only over
+ * HTTPS) before deploying anywhere outside of localhost.
  */
 @Configuration
-public class WebConfig {
+public class WebConfig implements WebMvcConfigurer {
 
-    @Bean
-    public FilterRegistrationBean<JwtAuthFilter> jwtAuthFilter(JwtService jwtService) {
-        FilterRegistrationBean<JwtAuthFilter> registration = new FilterRegistrationBean<>();
-        registration.setFilter(new JwtAuthFilter(jwtService));
-        // Apply to all /api/** endpoints; the filter itself decides which paths to skip.
-        registration.addUrlPatterns("/api/*");
-        registration.setOrder(1);
-        return registration;
+    @Override
+    public void addCorsMappings(CorsRegistry registry) {
+        registry.addMapping("/api/**")
+                .allowedOrigins(
+                        "http://localhost:5173",
+                        "http://127.0.0.1:5173")
+                .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
+                .allowedHeaders("*")
+                .allowCredentials(true)
+                .maxAge(3600);
     }
 }

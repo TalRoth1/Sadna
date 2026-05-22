@@ -57,6 +57,7 @@ public class EventController {
             EventDetailsDto event = eventService.addEvent(
                     UUID.randomUUID(),
                     request.companyId,
+                    request.name,
                     request.date,
                     request.location,
                     request.artist,
@@ -78,7 +79,7 @@ public class EventController {
             @RequestBody EditEventRequest request) {
         try {
             EventSummaryDto event = eventService.editEvent(
-                    eventId, request.date, request.location,
+                    eventId, request.name, request.date, request.location,
                     request.artist, request.type, request.status);
             return ResponseEntity.ok(ApiResponse.success("Event updated successfully", event));
         } catch (IllegalArgumentException | IllegalStateException e) {

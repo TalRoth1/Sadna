@@ -13,6 +13,8 @@ import org.example.DomainLayer.EventAggregate.EventSearchCriteria;
 import org.example.DomainLayer.EventAggregate.EventStatus;
 import org.example.DomainLayer.EventAggregate.SittingArea;
 import org.example.DomainLayer.EventAggregate.StandingArea;
+import org.example.DomainLayer.EventAggregate.Ticket;
+import org.example.DomainLayer.EventAggregate.TicketStatus;
 import org.example.DomainLayer.PolicyManagment.IDiscountRule;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 
@@ -38,7 +40,7 @@ public class EventService {
         this.eventManagementDomainService = eventManagementDomainService;
     }
 
-    public EventDetailsDto addEvent(UUID eventId, UUID companyId, LocalDateTime date, String location,
+    public EventDetailsDto addEvent(UUID eventId, UUID companyId, String name, LocalDateTime date, String location,
                                     String artist, String type, EventStatus status) {
         logger.info("[Event Log] Method: addEvent called");
 
@@ -49,19 +51,19 @@ public class EventService {
             throw new IllegalArgumentException("companyId is required");
         }
 
-        eventManagementDomainService.addEvent(eventId, companyId, date, location, artist, type, status);
+        eventManagementDomainService.addEvent(eventId, companyId, name, date, location, artist, type, status);
 
         Event event = eventManagementDomainService.getEventForView(eventId);
         return toDetails(event);
     }
 
-    public EventSummaryDto editEvent(UUID eventId, LocalDateTime date, String location,
+    public EventSummaryDto editEvent(UUID eventId, String name, LocalDateTime date, String location,
                                      String artist, String type, EventStatus status) {
         if (eventId == null) {
             throw new IllegalArgumentException("eventId is required");
         }
 
-        eventManagementDomainService.editEvent(eventId, date, location, artist, type, status);
+        eventManagementDomainService.editEvent(eventId, name, date, location, artist, type, status);
 
         Event event = eventManagementDomainService.getEventForView(eventId);
         return toSummary(event);
@@ -419,16 +421,53 @@ public class EventService {
         }
     }
 
-    private static EventSummaryDto toSummary(Event e) {
+    /**
+     * Map a domain Event to the flat summary row consumed by the Event Search
+     * page (UC 2.3.1). The card needs company info, a price range across the
+     * event's areas and live ticket counts — all derived here so the client
+     * doesn't need follow-up calls.
+     */
+    private EventSummaryDto toSummary(Event e) {
+        Company company = eventManagementDomainService.findCompanyById(e.getCompanyId());
+        String companyName = (company == null) ? "" : company.getName();
+        double companyRating = (company == null) ? 0.0 : company.getRating();
+
+        double priceMin = 0.0;
+        double priceMax = 0.0;
+        List<Area> areas = e.getLayout().getAreasView();
+        if (!areas.isEmpty()) {
+            priceMin = areas.get(0).getPrice();
+            priceMax = areas.get(0).getPrice();
+            for (Area a : areas) {
+                double p = a.getPrice();
+                if (p < priceMin) priceMin = p;
+                if (p > priceMax) priceMax = p;
+            }
+        }
+
+        int totalTickets = e.getTicketsView().size();
+        int availableTickets = 0;
+        for (Ticket t : e.getTicketsView().values()) {
+            if (t.getStatus() == TicketStatus.AVAILABLE) {
+                availableTickets++;
+            }
+        }
+
         return new EventSummaryDto(
                 e.getEventId(),
                 e.getCompanyId(),
+                companyName,
+                companyRating,
                 e.getName(),
                 e.getArtist(),
                 e.getType(),
                 e.getDate(),
                 e.getLocation(),
-                e.getRating());
+                e.getRating(),
+                priceMin,
+                priceMax,
+                availableTickets,
+                totalTickets);
     }
 
     private static EventDetailsDto toDetails(Event e) {

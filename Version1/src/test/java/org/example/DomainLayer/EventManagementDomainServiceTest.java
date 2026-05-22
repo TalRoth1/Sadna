@@ -192,6 +192,7 @@ public class EventManagementDomainServiceTest {
         service.addEvent(
                 eventId,
                 companyId,
+                "My Event",
                 LocalDateTime.now().plusDays(7),
                 "Tel Aviv",
                 "Artist",
@@ -210,6 +211,7 @@ public class EventManagementDomainServiceTest {
                 service.addEvent(
                         eventId,
                         companyId,
+                        "My Event",
                         LocalDateTime.now(),
                         "Tel Aviv",
                         "Artist",
@@ -229,6 +231,7 @@ public class EventManagementDomainServiceTest {
 
         boolean result = service.editEvent(
                 eventId,
+                null,
                 newDate,
                 "Haifa",
                 null,
