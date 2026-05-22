@@ -16,7 +16,9 @@ import org.example.DomainLayer.UserAggregate.User;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
+import org.springframework.stereotype.Service;
 
+@Service
 public class RolesDomainService {
 
     private final ICompanyRepository companyRepository;

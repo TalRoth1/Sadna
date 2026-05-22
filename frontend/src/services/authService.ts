@@ -1,59 +1,46 @@
-import { setCurrentMockUser } from "./currentUserService";
+import api from "./api";
+import {
+    clearCurrentUser,
+    setCurrentUserFromResponse,
+} from "./currentUserService";
 import type {
+    AuthResponse,
     LoginRequest,
     LoginResult,
-    RegistrationRequest,
+    RegisterRequest,
     RegistrationResult,
 } from "../types/auth";
 
-// TODO: Replace this mock implementation with a real login request once the communication layer is implemented.
-// The server should validate the username/password and return the logged-in user/session data.
-export async function loginUser(request: LoginRequest): Promise<LoginResult> {
-    return new Promise((resolve, reject) => {
-        setTimeout(() => {
-            if (request.username === "mock-user" && request.password === "123456") {
-                const loggedInUser = {
-                    userId: "user-1",
-                    username: "mock-user",
-                };
-
-                setCurrentMockUser({
-                    id: loggedInUser.userId,
-                    username: loggedInUser.username,
-                });
-
-                resolve(loggedInUser);
-                return;
-            }
-
-            reject(new Error("Invalid username or password."));
-        }, 500);
-    });
+function persistAuth(authResponse: AuthResponse): void {
+    localStorage.setItem("token", authResponse.token);
+    setCurrentUserFromResponse(authResponse.user);
 }
 
-// TODO: Replace this mock implementation with a real registration request once the communication layer is implemented.
-// The server should validate the username, create the user, and return the created user details.
+export async function loginUser(request: LoginRequest): Promise<LoginResult> {
+    const response = await api.post("/users/login", request);
+    const authResponse = response.data.data as AuthResponse;
+
+    persistAuth(authResponse);
+
+    return authResponse;
+}
+
 export async function registerUser(
-    request: RegistrationRequest,
+    request: RegisterRequest,
 ): Promise<RegistrationResult> {
-    return new Promise((resolve, reject) => {
-        setTimeout(() => {
-            if (request.username.toLowerCase() === "taken") {
-                reject(new Error("Username is already taken."));
-                return;
-            }
+    const response = await api.post("/users/register", request);
+    const authResponse = response.data.data as AuthResponse;
 
-            const registeredUser = {
-                userId: "registered-user-mock",
-                username: request.username,
-            };
+    persistAuth(authResponse);
 
-            setCurrentMockUser({
-                id: registeredUser.userId,
-                username: registeredUser.username,
-            });
+    return authResponse;
+}
 
-            resolve(registeredUser);
-        }, 500);
-    });
+export async function logoutUser(): Promise<void> {
+    try {
+        await api.post("/users/logout");
+    } finally {
+        localStorage.removeItem("token");
+        clearCurrentUser();
+    }
 }

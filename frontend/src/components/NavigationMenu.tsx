@@ -5,6 +5,7 @@ import {
     type CurrentUser,
 } from "../services/currentUserService";
 import { verifyPlatformAdmin } from "../services/admin/adminAuthService";
+import { logoutUser } from "../services/authService";
 
 export type AppPage =
     | "event-search"
@@ -71,6 +72,17 @@ export default function NavigationMenu({
     function handleNavigate(page: AppPage) {
         onNavigate(page);
         setIsMenuOpen(false);
+    }
+
+    async function handleLogout() {
+        try {
+            await logoutUser();
+        } finally {
+            setCurrentUser(null);
+            setIsAdmin(false);
+            setIsMenuOpen(false);
+            onNavigate("event-search");
+        }
     }
 
     return (
@@ -159,6 +171,20 @@ export default function NavigationMenu({
                                 onClick={() => handleNavigate("admin-dashboard")}
                             >
                                 Admin Dashboard
+                            </button>
+                        </>
+                    )}
+
+                    {isLoggedIn && (
+                        <>
+                            <div className="side-navigation-divider" />
+
+                            <button
+                                type="button"
+                                className="logout-menu-button"
+                                onClick={handleLogout}
+                            >
+                                Logout
                             </button>
                         </>
                     )}
