@@ -8,11 +8,14 @@ import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.example.DomainLayer.UserAggregate.User;
 
 import java.util.ArrayList;
+import java.util.HashSet;
+
 import org.example.DomainLayer.EventAggregate.EventSearchCriteria;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 public class EventManagementDomainService {
@@ -150,33 +153,56 @@ public class EventManagementDomainService {
         eventRepository.save(event);
     }
 
-    public boolean editEvent(UUID eventId, String name, LocalDateTime date, String location,
-            String artist, String type, EventStatus status) {
+    public Set<UUID> editEvent(UUID eventId,
+                            String name,
+                            LocalDateTime date,
+                            String location,
+                            String artist,
+                            String type,
+                            EventStatus status) {
+
         Event event = eventRepository.getById(eventId);
+
         if (event == null) {
             throw new DomainException("Event not found");
         }
+
         if (name != null) {
             event.setName(name);
         }
+
         if (date != null) {
             event.setDate(date);
         }
+
         if (location != null) {
             event.setLocation(location);
         }
+
         if (artist != null) {
             event.setArtist(artist);
         }
+
         if (type != null) {
             event.setType(type);
         }
+
         if (status != null) {
             event.setStatus(status);
         }
-        eventRepository.save(event);
-        return true;
+
+    Set<UUID> participants = new HashSet<>();
+
+    for (PurchaseHistory purchase : historyRepository.getAll()) {
+        if (purchase.getEventId().equals(eventId)) {
+            participants.add(purchase.getUserId());
+        }
     }
+
+    eventRepository.save(event);
+
+    return participants;
+}
 
     public boolean deleteEvent(UUID eventId) {
         Event event = eventRepository.getById(eventId);

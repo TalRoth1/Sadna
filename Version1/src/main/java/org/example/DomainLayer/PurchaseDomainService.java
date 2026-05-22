@@ -17,11 +17,13 @@ import org.example.ApplicationLayer.dto.SalesReport;
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.DomainLayer.EventAggregate.Event;
+import org.example.DomainLayer.EventAggregate.Ticket;
 import org.example.DomainLayer.EventAggregate.TicketStatus;
 import org.example.DomainLayer.LotteryAggregate.PuchaseLottery;
 import org.example.DomainLayer.PolicyManagment.DiscountPolicy;
 import org.example.DomainLayer.PurchaseHistoryAggregate.Payment;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
+import org.example.DomainLayer.UserAggregate.ICompanyMember;
 import org.example.DomainLayer.UserAggregate.User;
 import org.example.DomainLayer.UserAggregate.UserRole;
 import org.example.DomainLayer.UserAggregate.UserStatus;
@@ -156,7 +158,8 @@ public class PurchaseDomainService {
     }
 
 
-    public void completePurchase(UUID activePurchaseID, PaymentDetails paymentDetails, String couponCode) {
+    public boolean completePurchase(UUID activePurchaseID, PaymentDetails paymentDetails, String couponCode) 
+    { //returns true if last ticket to event was bought
         ActivePurchase activePurchase = purchaseRepository.findByID(activePurchaseID);
         if (activePurchase == null)
             throw new DomainException("Active Purchase Not Found");
@@ -217,6 +220,13 @@ public class PurchaseDomainService {
                     activePurchase.getEventID(),
                     payment
             );
+
+            for (Map.Entry<UUID, Ticket> ticket : event.getTicketsView().entrySet())
+                {
+                    if(ticket.getValue().getStatus() != TicketStatus.SOLD)
+                        return false;
+                }
+            return true;
         }
 
     }
@@ -258,6 +268,19 @@ public class PurchaseDomainService {
         }
     }
 
+
+    public String getEventManager(UUID eventId)
+    {
+        Event event = eventRepository.getById(eventId);
+        UUID companyId = event.getCompanyId();
+        Company company = companyRepository.findByID(companyId).get();
+        String founderUsername = company.getFounderUsername();
+        User founder = userRepository.findByEmail(founderUsername).get();
+        if (founder == null)
+            throw new IllegalArgumentException();
+        ICompanyMember founderRole = founder.getCompanyRole(companyId);
+        return  founderRole.isMyEvent(eventId); 
+    }
 
     public List<PurchaseHistory> getAllHistory() {
         return historyRepository.getAll();

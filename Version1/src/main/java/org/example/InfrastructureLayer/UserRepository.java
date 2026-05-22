@@ -91,4 +91,9 @@ public class UserRepository implements IUserRepository {
     public boolean existsAdmin(UUID adminId) {
         return admins.containsKey(adminId);
     }
+
+    public Map<UUID, User> getAllUsers()
+    {
+        return this.users;
+    }
 }

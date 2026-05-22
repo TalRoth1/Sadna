@@ -21,6 +21,7 @@ import org.example.DomainLayer.EventAggregate.SittingTicket;
 import org.example.DomainLayer.EventAggregate.StandingArea;
 import org.example.DomainLayer.EventAggregate.Ticket;
 import org.example.DomainLayer.EventAggregate.TicketStatus;
+import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.PolicyManagment.AgeRule;
 import org.example.DomainLayer.PolicyManagment.ConditionalDiscount;
 import org.example.DomainLayer.PolicyManagment.CouponCode;
@@ -38,6 +39,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -50,9 +52,11 @@ import org.springframework.stereotype.Service;
 public class EventService {
     private static final Logger logger = Logger.getLogger(EventService.class.getName());
     private final EventManagementDomainService eventManagementDomainService;
+    private final INotifier notifier;
 
-    public EventService(EventManagementDomainService eventManagementDomainService) {
+    public EventService(EventManagementDomainService eventManagementDomainService, INotifier notifier) {
         this.eventManagementDomainService = eventManagementDomainService;
+        this.notifier = notifier;
     }
 
     public EventDetailsDto addEvent(UUID eventId, UUID companyId, String name, LocalDateTime date, String location,
@@ -72,17 +76,53 @@ public class EventService {
         return toDetails(event);
     }
 
-    public EventSummaryDto editEvent(UUID eventId, String name, LocalDateTime date, String location,
-                                     String artist, String type, EventStatus status) {
+    public EventSummaryDto editEvent(UUID eventId,
+                                 String name,
+                                 LocalDateTime date,
+                                 String location,
+                                 String artist,
+                                 String type,
+                                 EventStatus status) {
+
+    logger.info("[Event Log] Method: editEvent called with parameters: eventId=" + eventId
+            + ", date=" + date + ", location=" + location + ", artist=" + artist
+            + ", type=" + type + ", status=" + status);
+
+    try {
         if (eventId == null) {
             throw new IllegalArgumentException("eventId is required");
         }
 
-        eventManagementDomainService.editEvent(eventId, name, date, location, artist, type, status);
+        Set<UUID> participants = eventManagementDomainService.editEvent(
+                eventId,
+                name,
+                date,
+                location,
+                artist,
+                type,
+                status
+        );
+
+        for (UUID uid : participants) {
+            notifier.notifyUser(uid,
+                    "Event: " + eventId + " has been changed");
+        }
 
         Event event = eventManagementDomainService.getEventForView(eventId);
+
         return toSummary(event);
+
+    } catch (IllegalArgumentException | DomainException e) {
+        logger.info("[Event Log] Business rejection in editEvent: " + e.getMessage());
+        throw e;
+
+    } catch (RuntimeException e) {
+        logger.log(Level.SEVERE,
+                "[Error Log] System error in editEvent: " + e.getMessage(),
+                e);
+        throw e;
     }
+}
 
     public void addPolicyRule(String username, UUID companyId, UUID eventId,
                               Float age, Integer minTicket, Integer maxTicket, Boolean allowLoneSeat) {

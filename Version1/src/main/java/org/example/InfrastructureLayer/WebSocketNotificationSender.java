@@ -1,5 +1,7 @@
 package org.example.InfrastructureLayer;
 
+import java.util.UUID;
+
 import org.example.DomainLayer.NotificationAggregate.INotifier;
 
 public class WebSocketNotificationSender implements INotifier {
@@ -11,7 +13,7 @@ public class WebSocketNotificationSender implements INotifier {
     }
 
     @Override
-    public boolean notifyUser(String userId, String message) {
+    public boolean notifyUser(UUID userId, String message) {
         if (userId == null) {
             throw new IllegalArgumentException("User ID is required");
         }
@@ -21,5 +23,18 @@ public class WebSocketNotificationSender implements INotifier {
         }
 
         return broadcaster.broadcast(userId.toString(), message);
+    }
+
+        @Override
+    public boolean notifyUser(String userId, String message) {
+        if (userId == null) {
+            throw new IllegalArgumentException("User ID is required");
+        }
+
+        if (message == null || message.isBlank()) {
+            throw new IllegalArgumentException("Notification message is required");
+        }
+
+        return broadcaster.broadcast(userId, message);
     }
 }

@@ -12,6 +12,7 @@ import org.example.ApplicationLayer.dto.CompanyDTOs.HierarchyResponse;
 import org.example.ApplicationLayer.dto.CompanyDTOs.InvitationResponse;
 import org.example.ApplicationLayer.dto.CompanyDTOs.SalesReportResponse;
 import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
+import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.DomainException;
 import org.example.DomainLayer.PurchaseDomainService;
 import org.example.DomainLayer.RolesDomainService;
@@ -25,11 +26,14 @@ public class CompanyService {
 
     private final RolesDomainService rolesDomainService;
     private final PurchaseDomainService purchaseDomainService;
+    private final INotifier notifier;
 
     public CompanyService(RolesDomainService rolesDomainService,
-                          PurchaseDomainService purchaseDomainService) {
+                        PurchaseDomainService purchaseDomainService,
+                        INotifier notifier) {
         this.rolesDomainService = rolesDomainService;
         this.purchaseDomainService = purchaseDomainService;
+        this.notifier = notifier;
     }
 
     public CompanyResponse createCompany(String founderUsername, String companyName) {
@@ -53,15 +57,37 @@ public class CompanyService {
     }
 
     public void closeCompanyAsAdmin(String adminUsername, UUID companyId) {
-        if (adminUsername == null || adminUsername.isBlank()) {
-            throw new IllegalArgumentException("Admin username is required");
-        }
-        if (companyId == null) {
-            throw new IllegalArgumentException("Company ID is required");
-        }
+        logger.info("caller=" + adminUsername
+                + ", action=closeCompanyAsAdmin"
+                + ", target=RolesDomainService.closeCompanyAsAdmin"
+                + ", params={adminUsername=" + adminUsername + ", companyId=" + companyId + "}");
 
-        rolesDomainService.closeCompanyAsAdmin(adminUsername, companyId);
-    }
+        try {
+            if (adminUsername == null || adminUsername.isBlank()) {
+                throw new IllegalArgumentException("Admin username is required");
+            }
+            if (companyId == null) {
+                throw new IllegalArgumentException("Company ID is required");
+            }
+
+            String owner = rolesDomainService.getCompanyOwner(companyId);
+
+            rolesDomainService.closeCompanyAsAdmin(adminUsername, companyId);
+
+            notifier.notifyUser(owner, "Company: " + companyId + " has been closed");
+
+            logger.info("action=closeCompanyAsAdmin completed successfully"
+                    + ", params={adminUsername=" + adminUsername + ", companyId=" + companyId + "}");
+
+        } catch (RuntimeException e) {
+            logger.severe("action=closeCompanyAsAdmin failed"
+                    + ", caller=" + adminUsername
+                    + ", target=RolesDomainService.closeCompanyAsAdmin"
+                    + ", params={adminUsername=" + adminUsername + ", companyId=" + companyId + "}"
+                    + ", error=" + e.getMessage());
+            throw e;
+        }
+}
 
     public InvitationResponse inviteCompanyManager(String ownerUsername,
                                                    UUID companyId,
@@ -144,19 +170,21 @@ public class CompanyService {
     }
 
     public void changeManagerPermissions(String ownerUsername,
-                                         UUID companyId,
-                                         String managerUsername,
-                                         Set<CompanyPermission> newPermissions) {
-        if (ownerUsername == null || ownerUsername.isBlank()) {
-            throw new IllegalArgumentException("Owner username is required");
-        }
-        if (managerUsername == null || managerUsername.isBlank()) {
-            throw new IllegalArgumentException("Manager username is required");
-        }
-
-        rolesDomainService.changeManagerPermissions(
-                ownerUsername, companyId, managerUsername, newPermissions);
+                                     UUID companyId,
+                                     String managerUsername,
+                                     Set<CompanyPermission> newPermissions) {
+    if (ownerUsername == null || ownerUsername.isBlank()) {
+        throw new IllegalArgumentException("Owner username is required");
     }
+    if (managerUsername == null || managerUsername.isBlank()) {
+        throw new IllegalArgumentException("Manager username is required");
+    }
+
+    rolesDomainService.changeManagerPermissions(
+            ownerUsername, companyId, managerUsername, newPermissions);
+
+    notifier.notifyUser(managerUsername, "Your permissions changed");
+}
 
     public void addPolicyRule(String username,
                               UUID companyId,

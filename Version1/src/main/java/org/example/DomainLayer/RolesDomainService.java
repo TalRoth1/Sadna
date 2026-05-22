@@ -70,6 +70,15 @@ public class RolesDomainService {
         }
     }
 
+    public String getCompanyOwner(UUID companyId)
+    {
+        if (companyId == null) {
+            throw new IllegalArgumentException("Company ID is required");
+        }
+        Company company = companyRepository.findByID(companyId).get();
+        return company.getFounderUsername();
+    }
+
     public void removeCompanyMemberAsAdmin(String adminUsername, String usernameToRemove) {
         if (adminUsername == null || adminUsername.isBlank()) {
             throw new IllegalArgumentException("Admin username is required");
