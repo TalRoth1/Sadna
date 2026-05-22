@@ -23,7 +23,8 @@ export type AppPage =
     | "admin-complaints"
     | "admin-purchases"
     | "admin-analytics"
-    | "admin-queues";
+    | "admin-queues"
+    | "lottery-registration";
 
 type NavigationMenuProps = {
     currentPage: AppPage;
