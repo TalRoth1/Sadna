@@ -62,4 +62,15 @@ public class CompanyManager extends ICompanyMember {
     public List<UUID> getEventsUnderMe() {
         return getEventsIds();
     }
+
+    @Override
+    public String isMyEvent(UUID eventId)
+    {
+        for(UUID evnId : this.getEventsIds())
+        {
+            if(evnId.equals(eventId))
+                return this.getUsername();
+        }
+        return null;
+    }
 }

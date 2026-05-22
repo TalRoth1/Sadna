@@ -33,6 +33,8 @@ public abstract class ICompanyMember {
         this.eventsIds = new ArrayList<>();
     }
 
+    public abstract String isMyEvent(UUID eventId);
+
     public boolean isSubordinateOf(String username) {
         if (this.Appointer == null) {
             return false;

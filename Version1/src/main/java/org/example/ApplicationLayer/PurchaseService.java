@@ -10,6 +10,7 @@ import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 import org.example.DomainLayer.DomainException;
 import org.example.DomainLayer.Events.LotteryWonEvent;
 import org.example.DomainLayer.Events.PurchaseCompletedEvent;
+import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.PurchaseDomainService;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 
@@ -17,13 +18,15 @@ public class PurchaseService {
     private static final Logger logger = Logger.getLogger(PurchaseService.class.getName());
     private final PurchaseDomainService purchaseDomainService;
     private final EventPublisher eventPublisher;
+    private final INotifier notifier;
 
     private final QueueManager queueManager;
 
-    public PurchaseService(PurchaseDomainService purchaseDomainService, EventPublisher eventPublisher, QueueManager queueManager) {
+    public PurchaseService(PurchaseDomainService purchaseDomainService, EventPublisher eventPublisher, QueueManager queueManager, INotifier notifier) {
         this.purchaseDomainService = purchaseDomainService;
         this.eventPublisher = eventPublisher;
         this.queueManager = queueManager;
+        this.notifier = notifier;
     }
 
     private void validateAdmin(UUID adminId) {
@@ -64,7 +67,6 @@ public class PurchaseService {
         try {
             purchaseDomainService.selectSittingTickets(eventID, ticketIDs, userID, isConfirmedAge);
 
-            //רק אם נוצר active purchase אז אנחנו מסירים מהמשתמש את ההרשאה לבחור
             queueManager.finishAccess(userID, eventID);
             queueManager.releaseBatch(eventID, 1);
 
@@ -132,8 +134,14 @@ public class PurchaseService {
         {
             ActivePurchase activePurchase = purchaseDomainService.viewActivePurchase(activePurchaseID);
             UUID userId = activePurchase.getUserID();
-            purchaseDomainService.completePurchase(activePurchaseID, paymentDetails, couponCode);
+            boolean isSoldOut = purchaseDomainService.completePurchase(activePurchaseID, paymentDetails, couponCode);
             logger.info("Purchase completed successfully for activePurchaseID: " + activePurchaseID);
+            notifier.notifyUser(activePurchase.getUserID(), "Purchase Complete");
+            if(isSoldOut)
+                {
+                    String managerUsername = purchaseDomainService.getEventManager(activePurchase.getEventID());
+                    notifier.notifyUser(managerUsername, "Tickets to event: " + activePurchase.getEventID() + " have been SOLD OUT");
+                }
             eventPublisher.publish(new PurchaseCompletedEvent(userId));
         }
         catch (DomainException e) {

@@ -8,11 +8,14 @@ import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.example.DomainLayer.UserAggregate.User;
 
 import java.util.ArrayList;
+import java.util.HashSet;
+
 import org.example.DomainLayer.EventAggregate.EventSearchCriteria;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 public class EventManagementDomainService {
@@ -148,8 +151,8 @@ public class EventManagementDomainService {
         eventRepository.save(event);
     }
 
-    public boolean editEvent(UUID eventId, LocalDateTime date, String location,
-            String artist, String type, EventStatus status) {
+    public Set<UUID> editEvent(UUID eventId, LocalDateTime date, String location,
+            String artist, String type, EventStatus status) { // returns list of all participants UUID
         Event event = eventRepository.getById(eventId);
         if (event == null) {
             throw new DomainException("Event not found");
@@ -169,8 +172,14 @@ public class EventManagementDomainService {
         if (status != null) {
             event.setStatus(status);
         }
+        Set<UUID> participants = new HashSet<UUID>();
+        for(PurchaseHistory purchase : historyRepository.getAll())
+        {
+            if(purchase.getEventId() == eventId)
+                participants.add(purchase.getUserId());
+        }
         eventRepository.save(event);
-        return true;
+        return participants;
     }
 
     public boolean deleteEvent(UUID eventId) {

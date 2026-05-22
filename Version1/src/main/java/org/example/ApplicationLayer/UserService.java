@@ -4,8 +4,10 @@ import org.example.ApplicationLayer.dto.AuthResponse;
 import org.example.ApplicationLayer.dto.LoginRequest;
 import org.example.ApplicationLayer.dto.RegisterRequest;
 import org.example.DomainLayer.IUserRepository;
+import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.UserAggregate.User;
 
+import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Logger;
 
@@ -13,10 +15,13 @@ public class UserService{
     private static final Logger logger = Logger.getLogger(EventService.class.getName());
     private final IUserRepository userRepository;
     private final IAuthenticationGateway authGateway;
+    private final INotifier notifier;
 
-    public UserService(IUserRepository userRepository, IAuthenticationGateway authGateway) {
+    public UserService(IUserRepository userRepository, IAuthenticationGateway authGateway, INotifier notifier) {
         this.userRepository = userRepository;
         this.authGateway = authGateway;
+        this.notifier = notifier;
+        notifyAll();
     }
 
     public AuthResponse logout(UUID memberId) {
@@ -81,6 +86,29 @@ public class UserService{
 
         } catch (Exception e) {
             return new AuthResponse(false, "Login failed: system exception", null);
+        }
+    }
+
+    public void adminMessage(String username, String message)
+    {
+        try {
+            if(username == null)
+                throw new IllegalArgumentException("Username Is null");
+            else if(!userRepository.isSystemAdmin(username))
+                throw new IllegalArgumentException("User is not admin");
+            else
+            {
+                for(Map.Entry<UUID, User> user: userRepository.getAllUsers().entrySet())
+                {
+                     notifier.notifyUser(user.getKey(), message);
+                }
+            }
+            logger.info("Admin: " + username + " sent message:" + message);
+        }
+        catch(Exception e)
+        {
+            logger.severe(e.toString());
+            throw e;
         }
     }
 }

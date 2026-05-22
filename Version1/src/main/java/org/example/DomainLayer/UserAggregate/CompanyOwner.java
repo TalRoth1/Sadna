@@ -78,4 +78,21 @@ public class CompanyOwner extends ICompanyMember {
         }
         return eventsUnderMe;
     }
+
+    @Override
+    public String isMyEvent(UUID eventId)
+    {
+        for(UUID evnId : this.getEventsIds())
+        {
+            if(evnId.equals(eventId))
+                return this.getUsername();
+        }
+        
+        for(ICompanyMember sub : subordinates)
+        {
+            return sub.isMyEvent(eventId);
+        }
+
+        return null;
+    }
 }

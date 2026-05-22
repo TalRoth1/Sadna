@@ -13,6 +13,7 @@ import org.example.DomainLayer.EventAggregate.EventSearchCriteria;
 import org.example.DomainLayer.EventAggregate.EventStatus;
 import org.example.DomainLayer.EventAggregate.SittingArea;
 import org.example.DomainLayer.EventAggregate.StandingArea;
+import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.PolicyManagment.IDiscountRule;
 import org.example.DomainLayer.PolicyManagment.IPurchaseRule;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
@@ -22,6 +23,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -29,9 +31,11 @@ import java.util.logging.Logger;
 public class EventService {
     private static final Logger logger = Logger.getLogger(EventService.class.getName());
     private final EventManagementDomainService eventManagementDomainService;
+    private final INotifier notifier;
 
-    public EventService(EventManagementDomainService eventManagementDomainService) {
+    public EventService(EventManagementDomainService eventManagementDomainService, INotifier notifier) {
         this.eventManagementDomainService = eventManagementDomainService;
+        this.notifier = notifier;
     }
     
     public void addEvent(UUID eventId, UUID companyId, LocalDateTime date, String location,
@@ -56,8 +60,7 @@ public class EventService {
         }
     }
 
-    public boolean editEvent(UUID eventId, LocalDateTime date, String location,
-                             String artist, String type, EventStatus status) {
+    public boolean editEvent(UUID eventId, LocalDateTime date, String location, String artist, String type, EventStatus status) {
         logger.info("[Event Log] Method: editEvent called with parameters: eventId=" + eventId
                 + ", date=" + date + ", location=" + location + ", artist=" + artist
                 + ", type=" + type + ", status=" + status);
@@ -65,7 +68,12 @@ public class EventService {
             if (eventId == null) {
                 throw new IllegalArgumentException("eventId is required");
             }
-            return eventManagementDomainService.editEvent(eventId, date, location, artist, type, status);
+            Set<UUID> participants =  eventManagementDomainService.editEvent(eventId, date, location, artist, type, status);
+            for (UUID uid : participants)
+            {
+                notifier.notifyUser(uid, "Event: " + eventId + " has been changed");                
+            }
+            return true;
         } catch (IllegalArgumentException | DomainException e) {
             logger.info("[Event Log] Business rejection in editEvent: " + e.getMessage());
             throw e;

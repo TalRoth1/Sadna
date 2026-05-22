@@ -7,6 +7,7 @@ import java.util.UUID;
 import java.util.logging.Logger;
 
 import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
+import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.DomainException;
 import org.example.DomainLayer.PurchaseDomainService;
 import org.example.DomainLayer.RolesDomainService;
@@ -15,10 +16,12 @@ public class CompanyService {
     private static final Logger logger = Logger.getLogger(CompanyService.class.getName());
     private final RolesDomainService rolesDomainService;
     private final PurchaseDomainService purchaseDomainService;
+    private final INotifier notifier;
 
-    public CompanyService(RolesDomainService rolesDomainService, PurchaseDomainService purchaseDomainService) {
+    public CompanyService(RolesDomainService rolesDomainService, PurchaseDomainService purchaseDomainService, INotifier notifier) {
         this.rolesDomainService = rolesDomainService;
         this.purchaseDomainService = purchaseDomainService;
+        this.notifier = notifier;
     }
     public UUID createCompany(String founderUsername, String companyName) {
         logger.info("Attempting to create company: '" + companyName + "' for founder: " + founderUsername);
@@ -54,8 +57,13 @@ public class CompanyService {
 
             rolesDomainService.closeCompanyAsAdmin(adminUsername, companyId);
 
+            String owner = rolesDomainService.getCompanyOwner(companyId);
+            notifier.notifyUser(owner, "Comapny: " + companyId + "has been closed");
+
             logger.info("action=closeCompanyAsAdmin completed successfully"
                     + ", params={adminUsername=" + adminUsername + ", companyId=" + companyId + "}");
+
+            rolesDomainService.getCompanyHierarchyMermaid(companyId, adminUsername);
 
         } catch (RuntimeException e) {
             logger.severe("action=closeCompanyAsAdmin failed"
@@ -279,6 +287,7 @@ public class CompanyService {
             throw new IllegalArgumentException("Manager username is required");
         }
         rolesDomainService.changeManagerPermissions(ownerUsername, companyId, managerUsername, newPremissions);
+        notifier.notifyUser(managerUsername, "Your premissions changed");
     }
 
     public String getCompanyHierarchyMermaid(UUID companyId, String requesterUsername) {

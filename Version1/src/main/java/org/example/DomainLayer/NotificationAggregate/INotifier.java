@@ -1,5 +1,8 @@
 package org.example.DomainLayer.NotificationAggregate;
 
+import java.util.UUID;
+
 public interface INotifier {
-    boolean notifyUser(String userId, String message);
+    boolean notifyUser(UUID userId, String message);
+    boolean notifyUser(String username, String message);
 }

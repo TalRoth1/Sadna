@@ -7,14 +7,13 @@ import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 
 
 public class OvertDiscount implements IDiscountRule {
-    private UUID id;
+    private final UUID id = UUID.randomUUID();
     private float discountPrecent;
     private LocalDate fromDate;
     private LocalDate toDate;
 
     public OvertDiscount(float discountPrecent, LocalDate fromDate, LocalDate toDate)
     {
-        this.id = UUID.randomUUID();
         this.discountPrecent = discountPrecent;
         this.fromDate = fromDate;
         this.toDate = toDate;
