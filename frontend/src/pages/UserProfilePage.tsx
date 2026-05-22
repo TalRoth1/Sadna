@@ -2,24 +2,32 @@ import { useEffect, useState } from "react";
 import { getCurrentUserProfile } from "../services/userProfileService";
 import type { UserProfile } from "../types/userProfile";
 
-function formatUserRole(role: UserProfile["role"]) {
-    if (role === "admin") {
+function formatUserRole(role: string) {
+    if (role === "ADMIN" || role === "SYSTEM_ADMIN") {
         return "System Admin";
     }
 
-    return "Regular User";
+    if (role === "MEMBER") {
+        return "Member";
+    }
+
+    if (role === "GUEST") {
+        return "Guest";
+    }
+
+    return role || "Unknown";
 }
 
-function formatUserStatus(status: UserProfile["status"]) {
-    if (status === "active") {
-        return "Active";
+function formatUserStatus(status: string) {
+    if (status === "LOGGED_IN") {
+        return "Logged In";
     }
 
-    if (status === "blocked") {
-        return "Blocked";
+    if (status === "NOT_LOGGED_IN") {
+        return "Not Logged In";
     }
 
-    return "Removed";
+    return status || "Unknown";
 }
 
 export default function UserProfilePage() {
@@ -82,16 +90,28 @@ export default function UserProfilePage() {
         <main className="app-page">
             <section className="page-header">
                 <h1>User Profile</h1>
-                <p>Basic details of the currently logged-in user.</p>
+                <p>Your account details.</p>
             </section>
 
             <section className="profile-card">
-                <div className="profile-avatar">{profile.username.charAt(0).toUpperCase()}</div>
+                <div className="profile-avatar">
+                    {profile.username.charAt(0).toUpperCase()}
+                </div>
 
                 <div className="profile-details">
                     <div className="profile-row">
                         <span>Username</span>
                         <strong>{profile.username}</strong>
+                    </div>
+
+                    <div className="profile-row">
+                        <span>Email</span>
+                        <strong>{profile.email}</strong>
+                    </div>
+
+                    <div className="profile-row">
+                        <span>Age</span>
+                        <strong>{profile.age}</strong>
                     </div>
 
                     <div className="profile-row">
