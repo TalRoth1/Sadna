@@ -15,6 +15,7 @@ import TicketPurchasePage from "./pages/TicketPurchase/TicketPurchase";
 import UserProfilePage from "./pages/UserProfilePage";
 import LoginPage from "./pages/LoginPage";
 import RegistrationPage from "./pages/RegistrationPage";
+import LotteryRegistrationPage from "./pages/LotteryRegistrationPage";
 
 import type { AdminActionId } from "./types/admin";
 import "./App.css";
@@ -75,6 +76,11 @@ function App() {
         setCurrentPage("event-purchase");
     }
 
+    function handleStartLotteryRegistration(eventId: string) {
+        setSelectedEventId(eventId);
+        setCurrentPage("lottery-registration");
+    }
+
     function handleBackToEvent() {
         if (!selectedEventId) {
             setCurrentPage("event-search");
@@ -93,11 +99,12 @@ function App() {
                 return <EventSearchPage onSelectEvent={handleSelectEvent} />;
             }
             return (
-                <EventDetailsPage
-                    eventId={selectedEventId}
-                    onBackToSearch={handleBackToSearch}
-                    onStartPurchase={handleStartPurchase}
-                />
+                    <EventDetailsPage
+                        eventId={selectedEventId}
+                        onBackToSearch={handleBackToSearch}
+                        onStartPurchase={handleStartPurchase}
+                        onStartLotteryRegistration={handleStartLotteryRegistration}
+                    />
             );
         }
 
@@ -107,6 +114,19 @@ function App() {
             }
             return (
                 <TicketPurchasePage
+                    eventId={selectedEventId}
+                    onBackToEvent={handleBackToEvent}
+                />
+            );
+        }
+
+        if (currentPage === "lottery-registration") {
+            if (!selectedEventId) {
+                return <EventSearchPage onSelectEvent={handleSelectEvent} />;
+            }
+
+            return (
+                <LotteryRegistrationPage
                     eventId={selectedEventId}
                     onBackToEvent={handleBackToEvent}
                 />

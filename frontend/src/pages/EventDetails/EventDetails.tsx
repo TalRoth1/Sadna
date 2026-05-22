@@ -16,7 +16,9 @@ type EventDetailsPageProps = {
     onBackToSearch: () => void;
     onStartPurchase: (eventId: string) => void;
     onBackToCompany?: (companyId: string) => void;
+    onStartLotteryRegistration: (eventId: string) => void;
 };
+
 
 type ActionResultMessage = {
     kind: "success" | "error";
@@ -162,8 +164,10 @@ export default function EventDetailsPage({
     eventId,
     onBackToSearch,
     onStartPurchase,
+    onStartLotteryRegistration,
     onBackToCompany,
 }: EventDetailsPageProps) {
+
     const [event, setEvent] = useState<Event | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [errorMessage, setErrorMessage] = useState("");
@@ -222,6 +226,11 @@ export default function EventDetailsPage({
         // until those flows ship.
         if (primaryAction.kind === "buy") {
             onStartPurchase(event.id);
+            return;
+        }
+
+        if (primaryAction.kind === "lottery") {
+            onStartLotteryRegistration(event.id);
             return;
         }
 
