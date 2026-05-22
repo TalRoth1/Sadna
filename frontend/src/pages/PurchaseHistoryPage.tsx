@@ -31,8 +31,10 @@ function PurchaseCard({ purchase }: { purchase: PurchaseHistoryItem }) {
         <article className="purchase-card">
             <div>
                 <h2>{purchase.eventName}</h2>
-                <p>{formatEventDate(purchase.eventDate)}</p>
-                <p>{purchase.eventLocation}</p>
+                <p>Event date: {formatEventDate(purchase.eventDate)}</p>
+                <p>Location: {purchase.eventLocation}</p>
+                <p>Purchased at: {formatEventDate(purchase.purchaseDate)}</p>
+                <p>Payment: {purchase.paymentInfo}</p>
             </div>
 
             <div className="purchase-details">
@@ -42,7 +44,6 @@ function PurchaseCard({ purchase }: { purchase: PurchaseHistoryItem }) {
         </article>
     );
 }
-
 export default function PurchaseHistoryPage() {
     const [purchases, setPurchases] = useState<PurchaseHistoryItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
