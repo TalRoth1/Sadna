@@ -1,19 +1,32 @@
 export type LoginRequest = {
-    username: string;
-    password: string;
+    email: string;
+    plainPassword: string;
 };
 
-export type LoginResult = {
+export type RegisterRequest = {
+    username: string;
+    email: string;
+    plainPassword: string;
+    age: number;
+};
+
+export type UserResponse = {
     userId: string;
     username: string;
+    email: string;
+    status: string;
+    role: string;
+    age: number;
 };
 
-export type RegistrationRequest = {
-    username: string;
-    password: string;
-};
-
-export type RegistrationResult = {
+export type AuthResponse = {
+    isSuccess: boolean;
+    message: string;
     userId: string;
-    username: string;
+    token: string;
+    user: UserResponse;
 };
+
+export type LoginResult = AuthResponse;
+
+export type RegistrationResult = AuthResponse;

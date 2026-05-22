@@ -8,21 +8,36 @@ type RegistrationPageProps = {
 
 type RegistrationErrors = {
     username?: string;
+    email?: string;
+    age?: string;
     password?: string;
     confirmPassword?: string;
 };
 
 function validateRegistrationForm(
     username: string,
+    email: string,
+    age: string,
     password: string,
     confirmPassword: string,
 ): RegistrationErrors {
     const errors: RegistrationErrors = {};
+    const parsedAge = Number(age);
 
     if (!username.trim()) {
         errors.username = "Username is required.";
     } else if (username.trim().length < 3) {
         errors.username = "Username must contain at least 3 characters.";
+    }
+
+    if (!email.trim()) {
+        errors.email = "Email is required.";
+    }
+
+    if (!age.trim()) {
+        errors.age = "Age is required.";
+    } else if (!Number.isInteger(parsedAge) || parsedAge <= 0) {
+        errors.age = "Age must be a positive number.";
     }
 
     if (!password) {
@@ -40,11 +55,36 @@ function validateRegistrationForm(
     return errors;
 }
 
+function getErrorMessage(error: unknown, fallback: string) {
+    if (
+        typeof error === "object" &&
+        error !== null &&
+        "response" in error &&
+        typeof error.response === "object" &&
+        error.response !== null &&
+        "data" in error.response &&
+        typeof error.response.data === "object" &&
+        error.response.data !== null &&
+        "message" in error.response.data &&
+        typeof error.response.data.message === "string"
+    ) {
+        return error.response.data.message;
+    }
+
+    if (error instanceof Error) {
+        return error.message;
+    }
+
+    return fallback;
+}
+
 export default function RegistrationPage({
                                              onRegistrationSuccess,
                                              onNavigateToLogin,
                                          }: RegistrationPageProps) {
     const [username, setUsername] = useState("");
+    const [email, setEmail] = useState("");
+    const [age, setAge] = useState("");
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
 
@@ -59,6 +99,8 @@ export default function RegistrationPage({
 
         const validationErrors = validateRegistrationForm(
             username,
+            email,
+            age,
             password,
             confirmPassword,
         );
@@ -74,17 +116,14 @@ export default function RegistrationPage({
 
             await registerUser({
                 username: username.trim(),
-                password,
+                email: email.trim(),
+                plainPassword: password,
+                age: Number(age),
             });
 
             onRegistrationSuccess();
         } catch (error) {
-            if (error instanceof Error) {
-                setErrorMessage(error.message);
-                return;
-            }
-
-            setErrorMessage("Registration failed.");
+            setErrorMessage(getErrorMessage(error, "Registration failed."));
         } finally {
             setIsSubmitting(false);
         }
@@ -107,6 +146,29 @@ export default function RegistrationPage({
                         placeholder="Choose username"
                     />
                     {errors.username && <small>{errors.username}</small>}
+                </label>
+
+                <label className="form-field">
+                    <span>Email</span>
+                    <input
+                        type="email"
+                        value={email}
+                        onChange={(event) => setEmail(event.target.value)}
+                        placeholder="Enter email"
+                    />
+                    {errors.email && <small>{errors.email}</small>}
+                </label>
+
+                <label className="form-field">
+                    <span>Age</span>
+                    <input
+                        type="number"
+                        min="1"
+                        value={age}
+                        onChange={(event) => setAge(event.target.value)}
+                        placeholder="Enter age"
+                    />
+                    {errors.age && <small>{errors.age}</small>}
                 </label>
 
                 <label className="form-field">

@@ -7,15 +7,15 @@ type LoginPageProps = {
 };
 
 type LoginErrors = {
-    username?: string;
+    email?: string;
     password?: string;
 };
 
-function validateLoginForm(username: string, password: string): LoginErrors {
+function validateLoginForm(email: string, password: string): LoginErrors {
     const errors: LoginErrors = {};
 
-    if (!username.trim()) {
-        errors.username = "Username is required.";
+    if (!email.trim()) {
+        errors.email = "Email is required.";
     }
 
     if (!password) {
@@ -25,11 +25,34 @@ function validateLoginForm(username: string, password: string): LoginErrors {
     return errors;
 }
 
+function getErrorMessage(error: unknown, fallback: string) {
+    if (
+        typeof error === "object" &&
+        error !== null &&
+        "response" in error &&
+        typeof error.response === "object" &&
+        error.response !== null &&
+        "data" in error.response &&
+        typeof error.response.data === "object" &&
+        error.response.data !== null &&
+        "message" in error.response.data &&
+        typeof error.response.data.message === "string"
+    ) {
+        return error.response.data.message;
+    }
+
+    if (error instanceof Error) {
+        return error.message;
+    }
+
+    return fallback;
+}
+
 export default function LoginPage({
                                       onLoginSuccess,
                                       onNavigateToRegistration,
                                   }: LoginPageProps) {
-    const [username, setUsername] = useState("");
+    const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
 
     const [errors, setErrors] = useState<LoginErrors>({});
@@ -41,7 +64,7 @@ export default function LoginPage({
 
         setErrorMessage("");
 
-        const validationErrors = validateLoginForm(username, password);
+        const validationErrors = validateLoginForm(email, password);
         setErrors(validationErrors);
 
         if (Object.keys(validationErrors).length > 0) {
@@ -52,18 +75,13 @@ export default function LoginPage({
             setIsSubmitting(true);
 
             await loginUser({
-                username: username.trim(),
-                password,
+                email: email.trim(),
+                plainPassword: password,
             });
 
             onLoginSuccess();
         } catch (error) {
-            if (error instanceof Error) {
-                setErrorMessage(error.message);
-                return;
-            }
-
-            setErrorMessage("Login failed.");
+            setErrorMessage(getErrorMessage(error, "Login failed."));
         } finally {
             setIsSubmitting(false);
         }
@@ -78,14 +96,14 @@ export default function LoginPage({
 
             <form className="auth-card" onSubmit={handleSubmit}>
                 <label className="form-field">
-                    <span>Username</span>
+                    <span>Email</span>
                     <input
-                        type="text"
-                        value={username}
-                        onChange={(event) => setUsername(event.target.value)}
-                        placeholder="Enter username"
+                        type="email"
+                        value={email}
+                        onChange={(event) => setEmail(event.target.value)}
+                        placeholder="Enter email"
                     />
-                    {errors.username && <small>{errors.username}</small>}
+                    {errors.email && <small>{errors.email}</small>}
                 </label>
 
                 <label className="form-field">
