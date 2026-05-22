@@ -25,7 +25,9 @@ import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.example.DomainLayer.UserAggregate.User;
 import org.example.DomainLayer.UserAggregate.UserRole;
 import org.example.DomainLayer.UserAggregate.UserStatus;
+import org.springframework.stereotype.Service;
 
+@Service
 public class PurchaseDomainService {
     private final IHistoryRepository historyRepository;
     private final IEventRepository eventRepository;

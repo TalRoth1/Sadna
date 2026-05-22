@@ -3,7 +3,9 @@ package org.example.ApplicationLayer;
 import java.util.logging.Logger;
 
 import org.example.DomainLayer.NotificationAggregate.INotifier;
+import org.springframework.stereotype.Service;
 
+@Service
 public class NotificationService {
     private static final Logger logger = Logger.getLogger(NotificationService.class.getName());
     private final INotifier notifier;
