@@ -458,21 +458,28 @@ public class EventService {
                 discountRules);
     }
 
-    private static PurchaseHistoryDTO toPurchaseHistoryDTO(PurchaseHistory history) {
+    private PurchaseHistoryDTO toPurchaseHistoryDTO(PurchaseHistory history) {
         PurchaseHistoryDTO dto = new PurchaseHistoryDTO();
         dto.userId = history.getUserId();
         dto.eventId = history.getEventId();
         dto.ticketIds = history.getTicketIds();
         dto.purchaseDate = history.getPurchaseDate();
+        dto.ticketsAmount = (dto.ticketIds == null) ? 0 : dto.ticketIds.size();
 
         if (history.getPayment() != null) {
             dto.paymentInfo = history.getPayment().toString();
+            dto.totalPrice = history.getPayment().getTotal();
         } else {
             dto.paymentInfo = "";
+            dto.totalPrice = 0.0;
         }
 
-        // אין כרגע getter ברור לסכום מתוך Payment, לכן נשאיר 0 עד שנראה את Payment.java
-        dto.totalPaid = 0.0;
+        Event event = eventManagementDomainService.findEventById(history.getEventId());
+        if (event != null) {
+            dto.eventName = event.getName();
+            dto.eventDate = event.getDate();
+            dto.eventLocation = event.getLocation();
+        }
 
         return dto;
     }

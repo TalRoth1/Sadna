@@ -230,6 +230,17 @@ public class EventManagementDomainService {
         return event;
     }
 
+    /**
+     * Null-safe lookup used by DTO mappers to denormalize event fields
+     * (name/date/location) without throwing when the id is unknown or null.
+     */
+    public Event findEventById(UUID eventId) {
+        if (eventId == null) {
+            return null;
+        }
+        return eventRepository.getById(eventId);
+    }
+
     /** UC filter events by criteria (companyId is just one optional filter). */
     public List<Event> searchEvents(EventSearchCriteria criteria) {
         EventSearchCriteria c = (criteria == null) ? EventSearchCriteria.empty() : criteria;
