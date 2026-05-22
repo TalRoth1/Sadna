@@ -14,7 +14,6 @@ import org.example.ApplicationLayer.IPaymentGateway;
 import org.example.ApplicationLayer.ITicketingGateway;
 import org.example.ApplicationLayer.PaymentDetails;
 import org.example.ApplicationLayer.dto.SalesReport;
-import org.example.ApplicationLayer.dto.TokenClaims;
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.DomainLayer.EventAggregate.Event;
@@ -24,6 +23,8 @@ import org.example.DomainLayer.PolicyManagment.DiscountPolicy;
 import org.example.DomainLayer.PurchaseHistoryAggregate.Payment;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.example.DomainLayer.UserAggregate.User;
+import org.example.DomainLayer.UserAggregate.UserRole;
+import org.example.DomainLayer.UserAggregate.UserStatus;
 
 public class PurchaseDomainService {
     private final IHistoryRepository historyRepository;
@@ -401,7 +402,7 @@ public class PurchaseDomainService {
         {
             cancelActivePurchase(activePurchaseId);
             throw new DomainException("Purchase canceled due to inactivity");
-        }        
+        }
 
         Event event = eventRepository.getById(activePurchase.getEventID());
 
@@ -434,28 +435,16 @@ public class PurchaseDomainService {
         return true;
     }
 
-    /**
-     * "Logged in" in the JWT world simply means: the request carried a
-     * verified, non-revoked, non-expired access token. By the time
-     * {@code claims} reaches us it has already been verified by
-     * {@code ITokenService.parseAndVerify}, so this collapses to a couple of
-     * field reads — no DB lookup, no aggregate state.
-     */
-    public boolean isMemberLoggedIn(TokenClaims claims) {
-        return claims != null
-            && claims.getTokenType() == TokenClaims.TokenType.ACCESS
-            && claims.getUserId() != null;
+    public boolean isMemberLoggedIn(UUID memberId) {
+        User user = userRepository.getUser(memberId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        return user.getStatus() == UserStatus.LOGGED_IN;
     }
 
-    /**
-     * "Member" means the token's {@code role} claim is {@code MEMBER} (or
-     * {@code ADMIN}, which is also a privileged member). Guests carry
-     * {@code role=GUEST} and fail this check.
-     */
-    public boolean isMember(TokenClaims claims) {
-        if (!isMemberLoggedIn(claims)) return false;
-        String role = claims.getRole();
-        return "MEMBER".equals(role) || "ADMIN".equals(role);
+    public boolean isMember(UUID memberId) {
+        User user = userRepository.getUser(memberId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        return user.getRole() == UserRole.MEMBER;
     }
 
 
@@ -487,23 +476,25 @@ public class PurchaseDomainService {
         return ChronoUnit.MINUTES.between(activePurchase.getLastUpdate(), LocalDateTime.now()) <= activePurchase.getMaxWaitTime();
     }
 
-    public void registerToLottery(UUID eventId, TokenClaims caller, int ticketAmount) {
-        if (eventId == null) {
-            throw new DomainException("Event ID is required");
+    public void registerToLottery(UUID eventId, UUID memberId, int ticketAmount) {
+        if (eventId == null || memberId == null) {
+            throw new DomainException("Event ID and member ID are required");
         }
+
         if (ticketAmount <= 0) {
             throw new DomainException("Ticket amount must be greater than zero");
         }
-        if (!isMemberLoggedIn(caller)) {
-            throw new DomainException("Member is not logged in");
+
+        if (!memberExists(memberId)) {
+            throw new DomainException("Member does not exist");
         }
-        if (!isMember(caller)) {
+
+        if (!isMember(memberId)) {
             throw new DomainException("User is not a member");
         }
 
-        UUID memberId = caller.getUserId();
-        if (!memberExists(memberId)) {
-            throw new DomainException("Member does not exist");
+        if (!isMemberLoggedIn(memberId)) {
+            throw new DomainException("Member is not logged in");
         }
 
         Event event = eventRepository.getById(eventId);
@@ -552,8 +543,8 @@ public class PurchaseDomainService {
 
         return winnerCodes;
     }
-    
-    
+
+
     public SalesReport getSalesReportForOwner(String ownerUsername, UUID companyId) {
         Company company = companyRepository.findByID(companyId).orElse(null);
         if (company == null) {

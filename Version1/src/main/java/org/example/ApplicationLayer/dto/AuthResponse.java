@@ -2,19 +2,27 @@ package org.example.ApplicationLayer.dto;
 
 import java.util.UUID;
 
+import org.example.ApplicationLayer.dto.UserDTOs.UserResponse;
+
+/**
+ * AuthResponse
+ *
+ * Payload returned by authentication endpoints (guest entry, register, login).
+ * Carries the signed JWT session token plus the user that the token represents.
+ *
+ * The legacy fields (isSuccess, message, userId) are preserved for backward
+ * compatibility with any existing callers.
+ */
 public class AuthResponse {
     public boolean isSuccess;
     public String message;
     public UUID userId;
 
-    /** Signed JWT to send back to the client. {@code null} on failure / when not applicable. */
+    /** Signed JWT session token (compact form). To be sent back by the client as Authorization: Bearer <token>. */
     public String token;
 
-    /** Auth scheme the client should use, e.g. {@code "Bearer"}. */
-    public String tokenType;
-
-    /** Token lifetime in seconds (matches OAuth2-style {@code expires_in}). */
-    public long expiresInSeconds;
+    /** Full user payload, so the client doesn't need a follow-up call to learn its identity/role. */
+    public UserResponse user;
 
     public AuthResponse() {
     }
@@ -25,17 +33,11 @@ public class AuthResponse {
         this.userId = memberId;
     }
 
-    public AuthResponse(boolean b,
-                        String message,
-                        UUID memberId,
-                        String token,
-                        String tokenType,
-                        long expiresInSeconds) {
-        this.isSuccess = b;
+    public AuthResponse(boolean isSuccess, String message, String token, UserResponse user) {
+        this.isSuccess = isSuccess;
         this.message = message;
-        this.userId = memberId;
         this.token = token;
-        this.tokenType = tokenType;
-        this.expiresInSeconds = expiresInSeconds;
+        this.user = user;
+        this.userId = user == null ? null : user.userId;
     }
 }

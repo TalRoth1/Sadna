@@ -2,8 +2,10 @@ package org.example.API;
 
 import java.util.UUID;
 
+import org.example.ApplicationLayer.JwtService;
 import org.example.ApplicationLayer.UserService;
 import org.example.ApplicationLayer.dto.ApiResponse;
+import org.example.ApplicationLayer.dto.AuthResponse;
 import org.example.ApplicationLayer.dto.UserDTOs.LoginRequest;
 import org.example.ApplicationLayer.dto.UserDTOs.RegisterRequest;
 import org.example.ApplicationLayer.dto.UserDTOs.UserResponse;
@@ -11,34 +13,69 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.servlet.http.HttpServletRequest;
+
 /**
  * UserController
  *
- * Every endpoint returns ResponseEntity<ApiResponse<UserResponse>> with a
- * consistent shape: { "success": boolean, "message": string, "data": UserResponse | null }
+ * Every authentication endpoint returns ResponseEntity<ApiResponse<AuthResponse>>
+ * with a consistent shape:
+ *   { "success": boolean, "message": string, "data": { token, user, ... } | null }
+ *
+ * The token is a signed JWT the client should send back as
+ *   Authorization: Bearer <token>
+ * on every subsequent request to a protected endpoint.
  */
 @RestController
 @RequestMapping("/api/users")
 public class UserController {
 
     private final UserService userService;
+    private final JwtService jwtService;
 
-    public UserController(UserService userService) {
+    public UserController(UserService userService, JwtService jwtService) {
         this.userService = userService;
+        this.jwtService = jwtService;
+    }
+
+    /**
+     * POST /api/users/guest
+     *
+     * Issues a guest identity + session token on first visit. The client should
+     * call this on app load (when it has no stored token) and store the returned
+     * token in memory / localStorage.
+     */
+    @PostMapping("/guest")
+    public ResponseEntity<ApiResponse<AuthResponse>> enterAsGuest() {
+        try {
+            UserResponse guest = userService.enterAsGuest();
+            String token = jwtService.generateToken(guest.userId, guest.username, guest.role);
+            AuthResponse body = new AuthResponse(true, "Guest session started", token, guest);
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.success("Guest session started", body));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Guest session failed: system exception"));
+        }
     }
 
     /**
      * POST /api/users/register
+     *
+     * Creates a new member account and immediately issues a member-level JWT.
      */
     @PostMapping("/register")
-    public ResponseEntity<ApiResponse<UserResponse>> register(@RequestBody RegisterRequest request) {
+    public ResponseEntity<ApiResponse<AuthResponse>> register(@RequestBody RegisterRequest request) {
         try {
             UserResponse user = userService.register(request);
+            String token = jwtService.generateToken(user.userId, user.username, user.role);
+            AuthResponse body = new AuthResponse(true, "Registered successfully", token, user);
             return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(ApiResponse.success("Registered successfully", user));
+                    .body(ApiResponse.success("Registered successfully", body));
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest()
-                    .body(ApiResponse.error(e.getMessage()));
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Register failed: system exception"));
@@ -47,12 +84,18 @@ public class UserController {
 
     /**
      * POST /api/users/login
+     *
+     * Verifies credentials and issues a fresh member-level JWT.
+     * The client should discard any previously held guest token and replace it
+     * with the one returned here.
      */
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<UserResponse>> login(@RequestBody LoginRequest request) {
+    public ResponseEntity<ApiResponse<AuthResponse>> login(@RequestBody LoginRequest request) {
         try {
             UserResponse user = userService.login(request);
-            return ResponseEntity.ok(ApiResponse.success("Login successful", user));
+            String token = jwtService.generateToken(user.userId, user.username, user.role);
+            AuthResponse body = new AuthResponse(true, "Login successful", token, user);
+            return ResponseEntity.ok(ApiResponse.success("Login successful", body));
         } catch (IllegalArgumentException e) {
             // Invalid credentials → 401 Unauthorized (more specific than 400)
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
@@ -64,16 +107,25 @@ public class UserController {
     }
 
     /**
-     * POST /api/users/{memberId}/logout
+     * POST /api/users/logout
+     *
+     * Reads the authenticated user id from the request (set by JwtAuthFilter)
+     * and flips the domain status. After this call the client should discard
+     * the token. Because JWTs are stateless, no server-side invalidation is
+     * performed; the token will continue to validate until it expires.
      */
-    @PostMapping("/{memberId}/logout")
-    public ResponseEntity<ApiResponse<UserResponse>> logout(@PathVariable UUID memberId) {
+    @PostMapping("/logout")
+    public ResponseEntity<ApiResponse<UserResponse>> logout(HttpServletRequest httpRequest) {
         try {
+            UUID memberId = (UUID) httpRequest.getAttribute("userId");
+            if (memberId == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(ApiResponse.error("Missing or invalid token"));
+            }
             UserResponse user = userService.logout(memberId);
             return ResponseEntity.ok(ApiResponse.success("Logout successful", user));
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest()
-                    .body(ApiResponse.error(e.getMessage()));
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Logout failed: system exception"));
