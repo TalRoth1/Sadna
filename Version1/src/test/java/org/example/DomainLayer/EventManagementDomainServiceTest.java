@@ -229,7 +229,7 @@ public class EventManagementDomainServiceTest {
 
         when(eventRepository.getById(eventId)).thenReturn(event);
 
-        boolean result = service.editEvent(
+        Set<UUID> result = service.editEvent(
                 eventId,
                 null,
                 newDate,
@@ -239,7 +239,6 @@ public class EventManagementDomainServiceTest {
                 EventStatus.CANCELED
         );
 
-        assertTrue(result);
         verify(event).setDate(newDate);
         verify(event).setLocation("Haifa");
         verify(event, never()).setArtist(any());

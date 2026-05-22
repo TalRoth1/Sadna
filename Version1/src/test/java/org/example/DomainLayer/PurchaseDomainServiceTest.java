@@ -12,11 +12,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -1419,6 +1415,11 @@ public class PurchaseDomainServiceTest {
         public boolean hasPermission(String username, UUID companyId, CompanyPermission permission, UUID eventId) {
             Optional<User> u = findByEmail(username);
             return u.map(user -> user.hasPremisions(companyId, permission, eventId)).orElse(false);
+        }
+
+        @Override
+        public Map<UUID, User> getAllUsers() {
+            return Map.of();
         }
     }
 

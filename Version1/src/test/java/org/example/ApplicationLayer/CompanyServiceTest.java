@@ -7,6 +7,7 @@ import org.example.ApplicationLayer.dto.CompanyDTOs.SalesReportResponse;
 import org.example.ApplicationLayer.dto.SalesReport;
 import org.example.DomainLayer.ICompanyRepository;
 import org.example.DomainLayer.IUserRepository;
+import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.PurchaseDomainService;
 import org.example.DomainLayer.RolesDomainService;
 import org.example.DomainLayer.CompanyAggregate.Company;
@@ -69,15 +70,19 @@ public class CompanyServiceTest {
     private String memberUsername;
     private UUID companyId;
 
+    private INotifier mockNotifier;
+
     @Before
     public void setUp() {
         rolesDomainServiceMock = mock(RolesDomainService.class);
         companyRepositoryMock = mock(ICompanyRepository.class);
         userRepositoryMock = mock(IUserRepository.class);
         purchaseDomainService = mock(PurchaseDomainService.class);
+        mockNotifier = mock(INotifier.class);
+
 
         rolesDomainService = new RolesDomainService(companyRepositoryMock, userRepositoryMock);
-        companyService = new CompanyService(rolesDomainService, purchaseDomainService);
+        companyService = new CompanyService(rolesDomainService, purchaseDomainService, mockNotifier);
 
         adminUsername = "admin";
         regularUsername = "regularUser";
@@ -105,7 +110,7 @@ public class CompanyServiceTest {
     @Test
     public void testCreateCompany_NullUsername_ThrowsException() {
         CompanyService serviceWithMock =
-                new CompanyService(rolesDomainServiceMock, purchaseDomainService);
+                new CompanyService(rolesDomainServiceMock, purchaseDomainService, mockNotifier);
 
         assertThrows(
                 IllegalArgumentException.class,
@@ -116,7 +121,7 @@ public class CompanyServiceTest {
     @Test
     public void testCreateCompany_BlankUsername_ThrowsException() {
         CompanyService serviceWithMock =
-                new CompanyService(rolesDomainServiceMock, purchaseDomainService);
+                new CompanyService(rolesDomainServiceMock, purchaseDomainService, mockNotifier);
 
         assertThrows(
                 IllegalArgumentException.class,
@@ -127,7 +132,7 @@ public class CompanyServiceTest {
     @Test
     public void testCreateCompany_BlankCompanyName_ThrowsException() {
         CompanyService serviceWithMock =
-                new CompanyService(rolesDomainServiceMock, purchaseDomainService);
+                new CompanyService(rolesDomainServiceMock, purchaseDomainService, mockNotifier);
 
         assertThrows(
                 IllegalArgumentException.class,
@@ -142,7 +147,7 @@ public class CompanyServiceTest {
     @Test
     public void testSuccessfulCompanyClosureAsAdmin_CallsDomainService() {
         CompanyService serviceWithMock =
-                new CompanyService(rolesDomainServiceMock, purchaseDomainService);
+                new CompanyService(rolesDomainServiceMock, purchaseDomainService, mockNotifier);
 
         serviceWithMock.closeCompanyAsAdmin(adminUsername, companyId);
 
@@ -157,7 +162,7 @@ public class CompanyServiceTest {
                 .closeCompanyAsAdmin(adminUsername, companyId);
 
         CompanyService serviceWithMock =
-                new CompanyService(rolesDomainServiceMock, purchaseDomainService);
+                new CompanyService(rolesDomainServiceMock, purchaseDomainService, mockNotifier);
 
         assertThrows(
                 IllegalArgumentException.class,
@@ -172,7 +177,7 @@ public class CompanyServiceTest {
                 .closeCompanyAsAdmin(regularUsername, companyId);
 
         CompanyService serviceWithMock =
-                new CompanyService(rolesDomainServiceMock, purchaseDomainService);
+                new CompanyService(rolesDomainServiceMock, purchaseDomainService, mockNotifier);
 
         assertThrows(
                 IllegalArgumentException.class,
@@ -314,7 +319,7 @@ public class CompanyServiceTest {
     @Test
     public void testSuccessfulUserRemovalAsAdmin_CallsDomainService() {
         CompanyService serviceWithMock =
-                new CompanyService(rolesDomainServiceMock, purchaseDomainService);
+                new CompanyService(rolesDomainServiceMock, purchaseDomainService, mockNotifier);
 
         serviceWithMock.removeCompanyMemberAsAdmin(adminUsername, memberUsername);
 
@@ -329,7 +334,7 @@ public class CompanyServiceTest {
                 .removeCompanyMemberAsAdmin(adminUsername, "missingUser");
 
         CompanyService serviceWithMock =
-                new CompanyService(rolesDomainServiceMock, purchaseDomainService);
+                new CompanyService(rolesDomainServiceMock, purchaseDomainService, mockNotifier);
 
         assertThrows(
                 IllegalArgumentException.class,
@@ -872,7 +877,7 @@ public class CompanyServiceTest {
     @Test
     public void testCircularAppointmentPrevention_Blocked() {
         CompanyService serviceWithMock =
-                new CompanyService(rolesDomainServiceMock, purchaseDomainService);
+                new CompanyService(rolesDomainServiceMock, purchaseDomainService, mockNotifier);
 
         UUID cid = UUID.randomUUID();
         String appointer = "ownerA";
@@ -895,7 +900,7 @@ public class CompanyServiceTest {
     @Test
     public void testAppointmentToNonExistentUser_NoInvitationCreated() {
         CompanyService serviceWithMock =
-                new CompanyService(rolesDomainServiceMock, purchaseDomainService);
+                new CompanyService(rolesDomainServiceMock, purchaseDomainService, mockNotifier);
 
         UUID cid = UUID.randomUUID();
         String appointer = "ownerUser";
@@ -922,7 +927,7 @@ public class CompanyServiceTest {
     @Test
     public void testChangeManagerPermissions_Valid_UpdatesPermissions() {
         CompanyService serviceWithMock =
-                new CompanyService(rolesDomainServiceMock, purchaseDomainService);
+                new CompanyService(rolesDomainServiceMock, purchaseDomainService, mockNotifier);
 
         UUID cid = UUID.randomUUID();
 
@@ -1022,7 +1027,7 @@ public class CompanyServiceTest {
     @Test
     public void testUnauthorizedOwnershipRemoval_BlockedWhenNotDirectAppointer() {
         CompanyService serviceWithMock =
-                new CompanyService(rolesDomainServiceMock, purchaseDomainService);
+                new CompanyService(rolesDomainServiceMock, purchaseDomainService, mockNotifier);
 
         UUID cid = UUID.randomUUID();
 
@@ -1045,7 +1050,7 @@ public class CompanyServiceTest {
     @Test
     public void testGetCompanyHierarchyMermaid_ReturnsHierarchyResponse() {
         CompanyService serviceWithMock =
-                new CompanyService(rolesDomainServiceMock, purchaseDomainService);
+                new CompanyService(rolesDomainServiceMock, purchaseDomainService, mockNotifier);
 
         UUID cid = UUID.randomUUID();
         String requester = "ownerUser";

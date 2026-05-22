@@ -4,6 +4,7 @@ import org.example.ApplicationLayer.dto.UserDTOs.LoginRequest;
 import org.example.ApplicationLayer.dto.UserDTOs.RegisterRequest;
 import org.example.ApplicationLayer.dto.UserDTOs.UserResponse;
 import org.example.DomainLayer.IUserRepository;
+import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.UserAggregate.User;
 import org.example.DomainLayer.UserAggregate.UserStatus;
 import org.junit.Before;
@@ -24,12 +25,13 @@ public class UserServiceTest {
     private IUserRepository userRepositoryMock;
     private IAuthenticationGateway authGatewayMock;
     private UserService userService;
+    private INotifier notifier;
 
     @Before
     public void setUp() {
         userRepositoryMock = mock(IUserRepository.class);
         authGatewayMock = mock(IAuthenticationGateway.class);
-        userService = new UserService(userRepositoryMock, authGatewayMock);
+        userService = new UserService(userRepositoryMock, authGatewayMock, notifier);
     }
 
     // ================================================================

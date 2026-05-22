@@ -1,8 +1,8 @@
 package org.example.ApplicationLayer;
 
-import org.example.ApplicationLayer.dto.AuthResponse;
-import org.example.ApplicationLayer.dto.LoginRequest;
-import org.example.ApplicationLayer.dto.RegisterRequest;
+import org.example.ApplicationLayer.dto.UserDTOs.LoginRequest;
+import org.example.ApplicationLayer.dto.UserDTOs.RegisterRequest;
+import org.example.ApplicationLayer.dto.UserDTOs.UserResponse;
 import org.example.DomainLayer.IUserRepository;
 import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.UserAggregate.User;
@@ -11,11 +11,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Logger;
 
-import org.example.ApplicationLayer.dto.UserDTOs.LoginRequest;
-import org.example.ApplicationLayer.dto.UserDTOs.RegisterRequest;
-import org.example.ApplicationLayer.dto.UserDTOs.UserResponse;
-import org.example.DomainLayer.IUserRepository;
-import org.example.DomainLayer.UserAggregate.User;
+
 import org.springframework.stereotype.Service;
 
 @Service

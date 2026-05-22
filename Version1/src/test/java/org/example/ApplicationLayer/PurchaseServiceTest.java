@@ -35,11 +35,14 @@ public class PurchaseServiceTest {
     private PurchaseService purchaseService;
     private Broadcaster broadcaster;
 
+    private INotifier notifier;
+
     @Mock
     private QueueManager queueManagerMock;
 
     @Before
     public void setUp() {
+        notifier = mock(INotifier.class);
         queueManagerMock = mock(QueueManager.class);
         purchaseDomainServiceMock = mock(PurchaseDomainService.class);
         broadcaster = new Broadcaster();
@@ -51,7 +54,7 @@ public class PurchaseServiceTest {
         purchaseService = new PurchaseService(
                 purchaseDomainServiceMock,
                 eventPublisher,
-                queueManagerMock
+                queueManagerMock, notifier
         );
     }
 
@@ -719,7 +722,7 @@ public class PurchaseServiceTest {
                 new PurchaseService(
                         setup.purchaseDomainService,
                         eventPublisher,
-                        setup.queueManager
+                        setup.queueManager, notifier
                 );
         return setup;
     }
@@ -1331,7 +1334,7 @@ public class PurchaseServiceTest {
 
         ActivePurchaseCleaner cleaner = new ActivePurchaseCleaner(
                 setup.purchaseService,
-                setup.inMemoryPurchaseRepository
+                setup.inMemoryPurchaseRepository, notifier
         );
 
         cleaner.start();
@@ -1458,6 +1461,11 @@ public class PurchaseServiceTest {
         @Override
         public boolean hasPermission(String username, UUID companyId, CompanyPermission permission, UUID eventId) {
             return false;
+        }
+
+        @Override
+        public Map<UUID, User> getAllUsers() {
+            return Map.of();
         }
     }
     private static class InMemoryCompanyRepository implements ICompanyRepository

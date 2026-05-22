@@ -17,6 +17,7 @@ import org.example.DomainLayer.EventAggregate.EventSearchCriteria;
 import org.example.DomainLayer.EventAggregate.EventStatus;
 import org.example.DomainLayer.EventAggregate.SittingArea;
 import org.example.DomainLayer.EventAggregate.StandingArea;
+import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.PolicyManagment.IDiscountRule;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.junit.Before;
@@ -47,13 +48,7 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.atLeast;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @RunWith(MockitoJUnitRunner.class)
 public class EventServiceTest {
@@ -75,11 +70,15 @@ public class EventServiceTest {
     private UUID discountId;
     private String ownerUsername;
 
+    private INotifier notifier;
+
     @Before
     public void setUp() {
+
+        notifier = mock(INotifier.class);
         EventManagementDomainService eventManagementDomainService =
                 new EventManagementDomainService(eventRepository, historyRepository, companyRepository, userRepository);
-        eventService = new EventService(eventManagementDomainService);
+        eventService = new EventService(eventManagementDomainService, notifier);
 
         eventId = UUID.randomUUID();
         userId = UUID.randomUUID();
