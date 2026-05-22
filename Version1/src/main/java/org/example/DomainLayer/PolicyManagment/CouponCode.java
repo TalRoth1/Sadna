@@ -31,6 +31,18 @@ public class CouponCode implements IDiscountRule {
         return this.couponCode;
     }
 
+    public float getDiscountPercent() {
+        return this.discoutPrecent;
+    }
+
+    public LocalDate getFromDate() {
+        return this.fromDate;
+    }
+
+    public LocalDate getToDate() {
+        return this.toDate;
+    }
+
     public float apply(ActivePurchase purchase) 
     {
         if(!purchase.getCoupon().equals(couponCode) || LocalDate.now().isBefore(fromDate) || LocalDate.now().isAfter(toDate))

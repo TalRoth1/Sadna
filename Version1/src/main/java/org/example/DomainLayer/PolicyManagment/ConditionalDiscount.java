@@ -34,6 +34,26 @@ public class ConditionalDiscount implements IDiscountRule
         return this.id;
     }
 
+    public float getDiscountPercent() {
+        return this.discoutPrecent;
+    }
+
+    public LocalDate getFromDate() {
+        return this.fromDate;
+    }
+
+    public LocalDate getToDate() {
+        return this.toDate;
+    }
+
+    public int getRequiredTickets() {
+        return this.requiredTickets;
+    }
+
+    public int getAppliedTickets() {
+        return this.appliedTickets;
+    }
+
     public float apply(ActivePurchase purchase)
     {
         float price = purchase.getPrice();

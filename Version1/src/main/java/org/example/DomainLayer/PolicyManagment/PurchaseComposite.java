@@ -41,6 +41,9 @@ public class PurchaseComposite implements IPurchaseRule {
     public IPurchaseRule getLeftRule() { return leftRule; }
     public IPurchaseRule getRightRule() { return rightRule; }
 
+    /** True iff the composition operator is AND; false means OR. */
+    public boolean isAnd() { return operator; }
+
     public IPurchaseRule removeRule(UUID ruleId)
     {
         if (ruleId == id)

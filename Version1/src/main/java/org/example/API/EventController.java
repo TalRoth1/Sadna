@@ -75,7 +75,7 @@ public class EventController {
 
     @PutMapping("/{eventId}")
     public ResponseEntity<ApiResponse<EventSummaryDto>> editEvent(
-            @PathVariable UUID eventId,
+            @PathVariable("eventId") UUID eventId,
             @RequestBody EditEventRequest request) {
         try {
             EventSummaryDto event = eventService.editEvent(
@@ -91,7 +91,7 @@ public class EventController {
     }
 
     @DeleteMapping("/{eventId}")
-    public ResponseEntity<ApiResponse<Void>> deleteEvent(@PathVariable UUID eventId) {
+    public ResponseEntity<ApiResponse<Void>> deleteEvent(@PathVariable("eventId") UUID eventId) {
         try {
             eventService.deleteEvent(eventId);
             return ResponseEntity.ok(ApiResponse.success("Event deleted successfully"));
@@ -109,8 +109,8 @@ public class EventController {
 
     @PostMapping("/{eventId}/areas/{areaId}/tickets/standing")
     public ResponseEntity<ApiResponse<Void>> addStandingTickets(
-            @PathVariable UUID eventId,
-            @PathVariable UUID areaId,
+            @PathVariable("eventId") UUID eventId,
+            @PathVariable("areaId") UUID areaId,
             @RequestBody AddStandingTicketsRequest request) {
         try {
             eventService.addStandingTickets(eventId, areaId, request.count);
@@ -126,8 +126,8 @@ public class EventController {
 
     @PostMapping("/{eventId}/areas/{areaId}/tickets/sitting")
     public ResponseEntity<ApiResponse<Void>> addSittingTickets(
-            @PathVariable UUID eventId,
-            @PathVariable UUID areaId,
+            @PathVariable("eventId") UUID eventId,
+            @PathVariable("areaId") UUID areaId,
             @RequestBody AddSittingTicketsRequest request) {
         try {
             eventService.addSittingTickets(eventId, areaId, request.rows, request.seatsPerRow);
@@ -147,7 +147,7 @@ public class EventController {
 
     @PostMapping("/{eventId}/policy")
     public ResponseEntity<ApiResponse<Void>> addPolicyRule(
-            @PathVariable UUID eventId,
+            @PathVariable("eventId") UUID eventId,
             @RequestBody AddEventPolicyRuleRequest request) {
         try {
             eventService.addPolicyRule(
@@ -165,8 +165,8 @@ public class EventController {
 
     @DeleteMapping("/{eventId}/policy/{ruleId}")
     public ResponseEntity<ApiResponse<Void>> deletePolicyRule(
-            @PathVariable UUID eventId,
-            @PathVariable UUID ruleId,
+            @PathVariable("eventId") UUID eventId,
+            @PathVariable("ruleId") UUID ruleId,
             @RequestBody DeleteEventPolicyRuleRequest request) {
         try {
             eventService.deletePolicyRule(
@@ -189,7 +189,7 @@ public class EventController {
 
     @PostMapping("/{eventId}/discounts/overt")
     public ResponseEntity<ApiResponse<Void>> addOvertDiscount(
-            @PathVariable UUID eventId,
+            @PathVariable("eventId") UUID eventId,
             @RequestBody AddEventOvertDiscountRequest request) {
         try {
             eventService.addOvertDiscount(
@@ -207,7 +207,7 @@ public class EventController {
 
     @PostMapping("/{eventId}/discounts/conditional")
     public ResponseEntity<ApiResponse<Void>> addConditionalDiscount(
-            @PathVariable UUID eventId,
+            @PathVariable("eventId") UUID eventId,
             @RequestBody AddEventConditionalDiscountRequest request) {
         try {
             eventService.addConditionalDiscount(
@@ -226,7 +226,7 @@ public class EventController {
 
     @PostMapping("/{eventId}/discounts/coupon")
     public ResponseEntity<ApiResponse<Void>> addCouponCode(
-            @PathVariable UUID eventId,
+            @PathVariable("eventId") UUID eventId,
             @RequestBody AddEventCouponRequest request) {
         try {
             eventService.addCouponCode(
@@ -244,8 +244,8 @@ public class EventController {
 
     @DeleteMapping("/{eventId}/discounts/{discountId}")
     public ResponseEntity<ApiResponse<Void>> removeDiscount(
-            @PathVariable UUID eventId,
-            @PathVariable UUID discountId,
+            @PathVariable("eventId") UUID eventId,
+            @PathVariable("discountId") UUID discountId,
             @RequestBody RemoveEventDiscountRequest request) {
         try {
             eventService.removeDiscount(request.username, request.companyId, eventId, discountId);
@@ -264,7 +264,7 @@ public class EventController {
 
     @PostMapping("/{eventId}/ratings")
     public ResponseEntity<ApiResponse<Void>> rateEvent(
-            @PathVariable UUID eventId,
+            @PathVariable("eventId") UUID eventId,
             @RequestBody RateEventRequest request) {
         try {
             eventService.rateEvent(request.userId, eventId, request.rating);
@@ -295,10 +295,15 @@ public class EventController {
     }
 
     @GetMapping("/{eventId}")
-    public ResponseEntity<ApiResponse<EventDetailsDto>> getEventDetails(@PathVariable UUID eventId) {
+    public ResponseEntity<ApiResponse<EventDetailsDto>> getEventDetails(@PathVariable("eventId") UUID eventId) {
         try {
             EventDetailsDto event = eventService.getEventDetails(eventId);
             return ResponseEntity.ok(ApiResponse.success("Event details fetched", event));
+        } catch (org.example.DomainLayer.DomainException e) {
+            // "Event not found" is a business rejection, not a server failure —
+            // surface it as 404 so the frontend can render its empty state.
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error(e.getMessage()));
         } catch (IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
@@ -324,7 +329,7 @@ public class EventController {
 
     @PostMapping("/search/companies/{companyId}")
     public ResponseEntity<ApiResponse<List<EventSummaryDto>>> searchEventsByCompany(
-            @PathVariable UUID companyId,
+            @PathVariable("companyId") UUID companyId,
             @RequestBody EventSearchCriteriaRequest request) {
         try {
             EventSearchCriteria criteria = toDomainCriteria(request);
@@ -344,7 +349,7 @@ public class EventController {
 
     @GetMapping("/{eventId}/history/owner")
     public ResponseEntity<ApiResponse<List<PurchaseHistoryDTO>>> getEventPurchaseHistoryForOwner(
-            @PathVariable UUID eventId,
+            @PathVariable("eventId") UUID eventId,
             @RequestParam String ownerName) {
         try {
             List<PurchaseHistoryDTO> history = eventService.getEventPurchaseHistoryForOwner(ownerName, eventId);

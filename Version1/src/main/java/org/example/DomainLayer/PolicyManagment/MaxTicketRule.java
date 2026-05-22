@@ -28,4 +28,7 @@ public class MaxTicketRule implements IPurchaseRule {
         return ticketNum <= this.maxTicket;
     }
 
+    public int getMaxTicket() {
+        return this.maxTicket;
+    }
 }

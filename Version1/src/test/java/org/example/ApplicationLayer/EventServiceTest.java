@@ -512,9 +512,10 @@ public class EventServiceTest {
         eventService.addPolicyRule(ownerUsername, companyId, eventId, Optional.empty(), Optional.empty(), Optional.empty(), Optional.of(true), true);
 
         EventDetailsDto details = eventService.getEventDetails(eventId);
-        
-        // Assert that we have items exposed (adjust the expected number if your DTO flattens leaf nodes or tracks composition nodes)
-        assertFalse(details.purchaseRuleNames().isEmpty());
+
+        // Assert that we have items exposed (toDetails flattens the rule tree
+        // into one entry per leaf, so we expect at least one).
+        assertFalse(details.purchasePolicy().rules().isEmpty());
     }
 
     @Test
@@ -525,7 +526,7 @@ public class EventServiceTest {
                 LocalDate.now(), LocalDate.now().plusDays(7), 10f);
 
         EventDetailsDto details = eventService.getEventDetails(eventId);
-        assertEquals(1, details.discountRuleNames().size());
+        assertEquals(1, details.discountPolicy().rules().size());
     }
 
     @Test
@@ -536,7 +537,7 @@ public class EventServiceTest {
                 LocalDate.now(), LocalDate.now().plusDays(7), 10f, 3, 2);
 
         EventDetailsDto details = eventService.getEventDetails(eventId);
-        assertEquals(1, details.discountRuleNames().size());
+        assertEquals(1, details.discountPolicy().rules().size());
     }
 
     @Test
@@ -547,7 +548,7 @@ public class EventServiceTest {
                 LocalDate.now(), LocalDate.now().plusDays(7), 25f, "SUMMER25");
 
         EventDetailsDto details = eventService.getEventDetails(eventId);
-        assertEquals(1, details.discountRuleNames().size());
+        assertEquals(1, details.discountPolicy().rules().size());
     }
 
     @Test
@@ -561,7 +562,7 @@ public class EventServiceTest {
         eventService.removeDiscount(ownerUsername, companyId, eventId, realDiscountId);
 
         EventDetailsDto details = eventService.getEventDetails(eventId);
-        assertEquals(0, details.discountRuleNames().size());
+        assertEquals(0, details.discountPolicy().rules().size());
     }
 
     @Test
@@ -647,8 +648,8 @@ public class EventServiceTest {
         }
         assertTrue(kinds.contains("STANDING"));
         assertTrue(kinds.contains("SITTING"));
-        assertEquals(1, details.purchaseRuleNames().size());
-        assertEquals(1, details.discountRuleNames().size());
+        assertEquals(1, details.purchasePolicy().rules().size());
+        assertEquals(1, details.discountPolicy().rules().size());
     }
 
     @Test
@@ -1076,7 +1077,7 @@ public class EventServiceTest {
 
         EventDetailsDto details = eventService.getEventDetails(eventId);
         assertFalse("at least one discount must remain in the DTO after the storm",
-                details.discountRuleNames().isEmpty());
+                details.discountPolicy().rules().isEmpty());
     }
 
     @Test(timeout = 15000)
