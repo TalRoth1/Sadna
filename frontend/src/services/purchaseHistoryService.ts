@@ -1,34 +1,43 @@
+import api from "./api";
 import type { PurchaseHistoryItem } from "../types/purchase";
 
-const mockPurchasesByUserId: Record<string, PurchaseHistoryItem[]> = {
-    "user-1": [
-        {
-            id: "1",
-            eventName: "Summer Music Festival",
-            eventDate: "2026-06-20T20:30:00",
-            eventLocation: "Tel Aviv Park",
-            ticketsAmount: 2,
-            totalPrice: 240,
-        },
-        {
-            id: "2",
-            eventName: "Standup Night",
-            eventDate: "2026-04-07T21:00:00",
-            eventLocation: "Haifa Theater",
-            ticketsAmount: 1,
-            totalPrice: 90,
-        },
-    ],
+type PurchaseHistoryDto = {
+    userId: string;
+    eventId: string;
+    ticketIds: string[];
+    eventName: string;
+    eventDate: string;
+    eventLocation: string;
+    ticketsAmount: number;
+    totalPrice: number;
+    paymentInfo: string;
+    purchaseDate: string;
 };
 
-// TODO: Replace mock data with the real communication layer once the protocol/API is implemented.
-// This function should request purchase history for the current authenticated user only.
 export async function getPurchaseHistory(
-    userId: string,
+    memberId: string,
 ): Promise<PurchaseHistoryItem[]> {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            resolve(mockPurchasesByUserId[userId] ?? []);
-        }, 400);
-    });
+    const response = await api.get(`/purchases/history/members/${memberId}`);
+    const purchases = response.data.data as PurchaseHistoryDto[];
+
+    return purchases.map(mapPurchaseHistoryDto);
+}
+
+function mapPurchaseHistoryDto(
+    dto: PurchaseHistoryDto,
+    index: number,
+): PurchaseHistoryItem {
+    return {
+        id: `${dto.eventId}-${dto.purchaseDate}-${index}`,
+        userId: dto.userId,
+        eventId: dto.eventId,
+        ticketIds: dto.ticketIds ?? [],
+        eventName: dto.eventName,
+        eventDate: dto.eventDate,
+        eventLocation: dto.eventLocation,
+        ticketsAmount: dto.ticketsAmount ?? dto.ticketIds?.length ?? 0,
+        totalPrice: dto.totalPrice,
+        paymentInfo: dto.paymentInfo,
+        purchaseDate: dto.purchaseDate,
+    };
 }
