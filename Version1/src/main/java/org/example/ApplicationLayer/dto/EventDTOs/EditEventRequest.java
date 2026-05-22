@@ -9,6 +9,7 @@ import org.example.DomainLayer.EventAggregate.EventStatus;
  * only the non-null ones will be applied.
  */
 public class EditEventRequest {
+    public String name;
     public LocalDateTime date;
     public String location;
     public String artist;

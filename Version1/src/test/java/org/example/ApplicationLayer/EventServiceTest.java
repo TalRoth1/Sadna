@@ -279,7 +279,7 @@ public class EventServiceTest {
     @Test
     public void GivenNullEventId_WhenAddEvent_ThenIllegalArgumentExceptionIsThrown() {
         assertThrows(IllegalArgumentException.class,
-                () -> eventService.addEvent(null, companyId, LocalDateTime.now().plusDays(10),
+                () -> eventService.addEvent(null, companyId, "name", LocalDateTime.now().plusDays(10),
                         "Tel Aviv", "Some Artist", "concert", EventStatus.ACTIVE));
         verifyNoInteractions(eventRepository);
     }
@@ -287,7 +287,7 @@ public class EventServiceTest {
     @Test
     public void GivenNullCompanyId_WhenAddEvent_ThenIllegalArgumentExceptionIsThrown() {
         assertThrows(IllegalArgumentException.class,
-                () -> eventService.addEvent(eventId, null, LocalDateTime.now().plusDays(10),
+                () -> eventService.addEvent(eventId, null, "name", LocalDateTime.now().plusDays(10),
                         "Tel Aviv", "Some Artist", "concert", EventStatus.ACTIVE));
         verifyNoInteractions(eventRepository);
     }
@@ -295,7 +295,7 @@ public class EventServiceTest {
     @Test
     public void GivenNullEventId_WhenEditEvent_ThenIllegalArgumentExceptionIsThrown() {
         assertThrows(IllegalArgumentException.class,
-                () -> eventService.editEvent(null, null, null, null, null, null));
+                () -> eventService.editEvent(null, null, null, null, null, null, null));
         verifyNoInteractions(eventRepository);
     }
 
@@ -419,6 +419,7 @@ public class EventServiceTest {
         EventDetailsDto result = eventService.addEvent(
                 eventId,
                 companyId,
+                "Headline Show",
                 date,
                 "Tel Aviv",
                 "Some Artist",
@@ -437,15 +438,17 @@ public class EventServiceTest {
         when(eventRepository.getById(eventId)).thenReturn(event);
         LocalDateTime newDate = LocalDateTime.now().plusDays(60);
 
-        EventSummaryDto result = eventService.editEvent(eventId, newDate, "Haifa",
+        EventSummaryDto result = eventService.editEvent(eventId, "Renamed Show", newDate, "Haifa",
                 "New Artist", "festival", EventStatus.CANCELED);
 
         assertNotNull(result);
+        assertEquals("Renamed Show", result.name());
         assertEquals(newDate, result.date());
         assertEquals("Haifa", result.location());
         assertEquals("New Artist", result.artist());
         assertEquals("festival", result.eventType());
         EventDetailsDto details = eventService.getEventDetails(eventId);
+        assertEquals("Renamed Show", details.name());
         assertEquals(newDate, details.date());
         assertEquals("Haifa", details.location());
         assertEquals("New Artist", details.artist());
@@ -458,7 +461,7 @@ public class EventServiceTest {
         Event event = newRealEvent();
         when(eventRepository.getById(eventId)).thenReturn(event);
 
-        EventSummaryDto result = eventService.editEvent(eventId, null, null, null, null, null);
+        EventSummaryDto result = eventService.editEvent(eventId, null, null, null, null, null, null);
 
         assertNotNull(result);
         verify(eventRepository).save(any(Event.class));
@@ -891,7 +894,7 @@ public class EventServiceTest {
         when(eventRepository.getById(eventId)).thenReturn(newRealEvent());
 
         assertThrows(DomainException.class,
-                () -> eventService.addEvent(eventId, companyId, LocalDateTime.now().plusDays(10),
+                () -> eventService.addEvent(eventId, companyId, "name", LocalDateTime.now().plusDays(10),
                         "Tel Aviv", "Some Artist", "concert", EventStatus.ACTIVE));
         verify(eventRepository, never()).save(any(Event.class));
     }
@@ -901,7 +904,7 @@ public class EventServiceTest {
         when(eventRepository.getById(eventId)).thenReturn(null);
 
         assertThrows(DomainException.class,
-                () -> eventService.editEvent(eventId, null, null, null, null, null));
+                () -> eventService.editEvent(eventId, null, null, null, null, null, null));
         verify(eventRepository, never()).save(any(Event.class));
     }
 

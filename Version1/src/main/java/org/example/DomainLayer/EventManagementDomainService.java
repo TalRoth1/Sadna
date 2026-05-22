@@ -138,20 +138,26 @@ public class EventManagementDomainService {
         eventRepository.save(event);
     }
 
-    public void addEvent(UUID eventId, UUID companyId, LocalDateTime date, String location,
+    public void addEvent(UUID eventId, UUID companyId, String name, LocalDateTime date, String location,
             String artist, String type, EventStatus status) {
         if (eventRepository.getById(eventId) != null) {
             throw new DomainException("Event already exists: " + eventId);
         }
         Event event = new Event(eventId, companyId, date, location, artist, type, status);
+        if (name != null) {
+            event.setName(name);
+        }
         eventRepository.save(event);
     }
 
-    public boolean editEvent(UUID eventId, LocalDateTime date, String location,
+    public boolean editEvent(UUID eventId, String name, LocalDateTime date, String location,
             String artist, String type, EventStatus status) {
         Event event = eventRepository.getById(eventId);
         if (event == null) {
             throw new DomainException("Event not found");
+        }
+        if (name != null) {
+            event.setName(name);
         }
         if (date != null) {
             event.setDate(date);
@@ -239,6 +245,20 @@ public class EventManagementDomainService {
             return null;
         }
         return eventRepository.getById(eventId);
+    }
+
+    /**
+     * Null-safe lookup used by DTO mappers to denormalize company fields
+     * (name/rating) onto event summaries. Returns null when the id is
+     * unknown, null, or when the repository hands us a null Optional
+     * (defensive: some mocks return null instead of Optional.empty()).
+     */
+    public Company findCompanyById(UUID companyId) {
+        if (companyId == null) {
+            return null;
+        }
+        Optional<Company> result = companyRepository.findByID(companyId);
+        return (result == null) ? null : result.orElse(null);
     }
 
     /** UC filter events by criteria (companyId is just one optional filter). */

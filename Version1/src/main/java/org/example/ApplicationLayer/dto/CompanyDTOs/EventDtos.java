@@ -71,16 +71,29 @@ public final class EventDtos {
             List<EventSummaryDto> events) {
     }
 
-    /** UC 2.1 (catalog child) and UC 2.3.1 / UC 2.3.2 (search result row). */
+    /**
+     * UC 2.1 (catalog child) and UC 2.3.1 / UC 2.3.2 (search result row).
+     *
+     * Carries everything the Event Search card needs to render without a
+     * follow-up call: company name + rating (for the "Production: X" line
+     * and the company-rating filter readout), the price range across the
+     * event's areas, and the ticket inventory counts.
+     */
     public record EventSummaryDto(
             UUID eventId,
             UUID companyId,
+            String companyName,
+            double companyRating,
             String name,
             String artist,
             String eventType,
             LocalDateTime date,
             String location,
-            double rating) {
+            double rating,
+            double priceMin,
+            double priceMax,
+            int availableTickets,
+            int totalTickets) {
     }
 
     /** Area summary for the UC 2.1 extended view ("STANDING" or "SITTING"). */

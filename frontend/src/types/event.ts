@@ -94,6 +94,35 @@ export type Event = {
     description?: string;
 };
 
+/**
+ * Mirrors the backend EventSummaryDto (UC 2.3.1 / UC 2.3.2 search result row).
+ * This is the lightweight shape returned by `POST /api/events/search` —
+ * exactly what the Event Search card needs to render, with no follow-up call.
+ */
+export type EventSummary = {
+    id: string;
+    companyId: string;
+    companyName: string;
+    companyRating: number;
+    name: string;
+    artist: string;
+    type: string;
+    date: string;
+    location: string;
+    rating: number;
+    priceMin: number;
+    priceMax: number;
+    availableTickets: number;
+    totalTickets: number;
+};
+
+export function formatSummaryPriceRange(summary: EventSummary): string {
+    if (summary.priceMin === summary.priceMax) {
+        return `${summary.priceMin} NIS`;
+    }
+    return `${summary.priceMin}–${summary.priceMax} NIS`;
+}
+
 // Mirrors EventSearchCriteria.java. All fields are stored as strings so they
 // bind directly to controlled <input> elements and are normalised at filter
 // time.

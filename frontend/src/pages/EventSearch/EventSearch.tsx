@@ -1,18 +1,30 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import type { ChangeEvent } from "react";
-import { getEvents, searchEvents } from "../../services/eventSearchService";
+import { searchEvents } from "../../services/eventSearchService";
 import {
     EMPTY_EVENT_SEARCH_FILTERS,
-    getAvailableTicketsCount,
-    getPriceRange,
-    type Event,
+    formatSummaryPriceRange,
     type EventSearchFilters,
+    type EventSummary,
 } from "../../types/event";
 import "./EventSearch.css";
+
+// The page is bound to the assignment requirement:
+//   חיפוש גלובלי (ללא התמקדות בחברת הפקה ספציפית) — חיפוש לפי
+//   שם האירוע, שם האמן, קטגוריה או מילות מפתח, וסינון לפי טווח
+//   מחירים, טווח תאריכים, מיקום/אזור ודירוג אירוע/חברת הפקה.
+//
+// The single text input maps to the backend's "text" filter, which scans
+// the event name, artist, type and tags. Every other input maps 1:1 to a
+// dedicated EventSearchCriteria slot on the server.
 
 type EventSearchPageProps = {
     onSelectEvent: (eventId: string) => void;
 };
+
+// Debounce window for live filtering. Short enough to feel responsive,
+// long enough to avoid hammering the backend on every keystroke.
+const SEARCH_DEBOUNCE_MS = 300;
 
 function formatEventDate(date: string) {
     const eventDate = new Date(date);
@@ -27,21 +39,14 @@ function formatEventDate(date: string) {
     });
 }
 
-function formatPriceRange(event: Event) {
-    const { min, max } = getPriceRange(event);
-    if (min === max) {
-        return `${min} NIS`;
-    }
-    return `${min}–${max} NIS`;
-}
-
 type EventCardProps = {
-    event: Event;
-    onSelect: (event: Event) => void;
+    event: EventSummary;
+    onSelect: (event: EventSummary) => void;
 };
 
 function EventCard({ event, onSelect }: EventCardProps) {
-    const availableTickets = getAvailableTicketsCount(event);
+    const availableTickets = event.availableTickets;
+    const displayName = event.name.trim() === "" ? "Untitled event" : event.name;
 
     return (
         <article
@@ -58,7 +63,7 @@ function EventCard({ event, onSelect }: EventCardProps) {
         >
             <div className="event-card-main">
                 <div className="event-card-heading">
-                    <h2>{event.name}</h2>
+                    <h2>{displayName}</h2>
                     <span className="event-category-badge">{event.type}</span>
                 </div>
                 <p className="event-artist">{event.artist}</p>
@@ -70,7 +75,7 @@ function EventCard({ event, onSelect }: EventCardProps) {
             </div>
 
             <div className="event-card-side">
-                <span className="event-price">{formatPriceRange(event)}</span>
+                <span className="event-price">{formatSummaryPriceRange(event)}</span>
                 <span className="event-rating" aria-label={`Rating ${event.rating}`}>
                     ★ {event.rating.toFixed(1)}
                 </span>
@@ -115,7 +120,7 @@ function SearchFiltersForm({
                     <span>Search</span>
                     <input
                         type="search"
-                        placeholder="Event, artist, type or keywords"
+                        placeholder="Event, artist, category or keywords"
                         value={filters.text}
                         onChange={handleInputChange("text")}
                     />
@@ -228,46 +233,54 @@ function SearchFiltersForm({
 export default function EventSearchPage({
     onSelectEvent,
 }: EventSearchPageProps) {
-    const [events, setEvents] = useState<Event[]>([]);
+    const [events, setEvents] = useState<EventSummary[]>([]);
     const [filters, setFilters] = useState<EventSearchFilters>(
         EMPTY_EVENT_SEARCH_FILTERS,
     );
     const [isLoading, setIsLoading] = useState(true);
     const [errorMessage, setErrorMessage] = useState("");
 
+    // Re-run the search whenever the filters change. We debounce so the
+    // backend isn't called on every keystroke, and we use an "isStale" flag
+    // to ignore responses for filter sets that the user has since changed.
     useEffect(() => {
-        async function loadEvents() {
+        let isStale = false;
+
+        const timer = window.setTimeout(async () => {
             try {
                 setIsLoading(true);
                 setErrorMessage("");
 
-                const eventCatalog = await getEvents();
-                setEvents(eventCatalog);
+                const results = await searchEvents(filters);
+                if (!isStale) {
+                    setEvents(results);
+                }
             } catch {
-                setErrorMessage("Failed to load events.");
+                if (!isStale) {
+                    setErrorMessage("Failed to load events.");
+                }
             } finally {
-                setIsLoading(false);
+                if (!isStale) {
+                    setIsLoading(false);
+                }
             }
-        }
+        }, SEARCH_DEBOUNCE_MS);
 
-        loadEvents();
-    }, []);
+        return () => {
+            isStale = true;
+            window.clearTimeout(timer);
+        };
+    }, [filters]);
 
-    const visibleEvents = useMemo(
-        () => searchEvents(events, filters),
-        [events, filters],
-    );
-
-    const hasActiveFilters = useMemo(
-        () => Object.values(filters).some((value) => value !== ""),
-        [filters],
+    const hasActiveFilters = Object.values(filters).some(
+        (value) => value !== "",
     );
 
     function handleResetFilters() {
         setFilters(EMPTY_EVENT_SEARCH_FILTERS);
     }
 
-    function handleEventSelect(event: Event) {
+    function handleEventSelect(event: EventSummary) {
         onSelectEvent(event.id);
     }
 
@@ -276,9 +289,9 @@ export default function EventSearchPage({
             <section className="page-header">
                 <h1>Find Your Next Event</h1>
                 <p>
-                    Search the catalog by name, artist, type or keywords, then
-                    narrow the results down to your preferred dates, price and
-                    location.
+                    Search the catalog by name, artist, category or keywords,
+                    then narrow the results down by date range, price range,
+                    location and event/company rating.
                 </p>
             </section>
 
@@ -302,7 +315,7 @@ export default function EventSearchPage({
                 </section>
             )}
 
-            {!isLoading && !errorMessage && visibleEvents.length === 0 && (
+            {!isLoading && !errorMessage && events.length === 0 && (
                 <section className="empty-state">
                     <h2>No matching events found</h2>
                     <p>
@@ -321,18 +334,18 @@ export default function EventSearchPage({
                 </section>
             )}
 
-            {!isLoading && !errorMessage && visibleEvents.length > 0 && (
+            {!isLoading && !errorMessage && events.length > 0 && (
                 <section className="event-results">
                     <header className="event-results-header">
                         <h2>Results</h2>
                         <span className="event-results-count">
-                            {visibleEvents.length} event
-                            {visibleEvents.length === 1 ? "" : "s"}
+                            {events.length} event
+                            {events.length === 1 ? "" : "s"}
                         </span>
                     </header>
 
                     <div className="event-list">
-                        {visibleEvents.map((event) => (
+                        {events.map((event) => (
                             <EventCard
                                 key={event.id}
                                 event={event}

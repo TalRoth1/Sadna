@@ -1,14 +1,147 @@
+import api from "./api";
 import type {
     Area,
     Event,
     EventSearchFilters,
+    EventSummary,
     Ticket,
     TicketStatus,
 } from "../types/event";
-import { getPriceRange } from "../types/event";
 
-// Helpers to mint the mock dataset. Real backend uses java.util.UUID for
-// every id; here we just produce stable strings so React keys are sensible.
+// =============================================================================
+// REAL BACKEND CALLS (UC 2.3.1 — Event Search)
+//
+// `EventController` exposes:
+//   POST /api/events/search          — body: EventSearchCriteriaRequest
+//   GET  /api/events/{eventId}       — details for a single event
+//
+// We follow the same pattern as companyService.ts:
+//   - import the shared `api` axios client (baseURL already ends in /api)
+//   - return `response.data.data` so callers receive the unwrapped payload
+//   - keep request field names identical to the backend DTO
+// =============================================================================
+
+/**
+ * Wire format returned by `EventService.toSummary` on the server. The shape
+ * is intentionally flat — one row per event, with everything the search card
+ * needs already denormalised (company name, price range, ticket counts).
+ */
+type EventSummaryResponse = {
+    eventId: string;
+    companyId: string;
+    companyName: string;
+    companyRating: number;
+    name: string;
+    artist: string;
+    eventType: string;
+    date: string;
+    location: string;
+    rating: number;
+    priceMin: number;
+    priceMax: number;
+    availableTickets: number;
+    totalTickets: number;
+};
+
+/**
+ * Wire format consumed by `POST /api/events/search`. All fields are optional —
+ * the backend treats null as "no filter on this dimension". We never send
+ * empty strings; the backend wants nulls or omitted keys to mean "skip".
+ */
+type EventSearchCriteriaRequest = {
+    text: string | null;
+    location: string | null;
+    priceMin: number | null;
+    priceMax: number | null;
+    dateFrom: string | null;
+    dateTo: string | null;
+    minEventRating: number | null;
+    minCompanyRating: number | null;
+    companyId: string | null;
+};
+
+const UUID_PATTERN =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function parseOptionalNumber(raw: string): number | null {
+    if (raw.trim() === "") {
+        return null;
+    }
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) ? parsed : null;
+}
+
+function parseOptionalString(raw: string): string | null {
+    const trimmed = raw.trim();
+    return trimmed === "" ? null : trimmed;
+}
+
+/**
+ * Convert the UI's string-based filters into the JSON shape the backend's
+ * `EventSearchCriteriaRequest` expects. `<input type="date">` produces
+ * `YYYY-MM-DD`; we widen those to a full-day window so the LocalDateTime
+ * comparison on the server includes the boundary dates.
+ */
+function buildSearchRequest(
+    filters: EventSearchFilters,
+): EventSearchCriteriaRequest {
+    const companyIdRaw = filters.companyId.trim();
+    const companyId = UUID_PATTERN.test(companyIdRaw) ? companyIdRaw : null;
+
+    return {
+        text: parseOptionalString(filters.text),
+        location: parseOptionalString(filters.location),
+        priceMin: parseOptionalNumber(filters.priceMin),
+        priceMax: parseOptionalNumber(filters.priceMax),
+        dateFrom: filters.dateFrom ? `${filters.dateFrom}T00:00:00` : null,
+        dateTo: filters.dateTo ? `${filters.dateTo}T23:59:59` : null,
+        minEventRating: parseOptionalNumber(filters.minEventRating),
+        minCompanyRating: parseOptionalNumber(filters.minCompanyRating),
+        companyId,
+    };
+}
+
+function toEventSummary(response: EventSummaryResponse): EventSummary {
+    return {
+        id: response.eventId,
+        companyId: response.companyId,
+        companyName: response.companyName,
+        companyRating: response.companyRating,
+        name: response.name ?? "",
+        artist: response.artist,
+        type: response.eventType,
+        date: response.date,
+        location: response.location,
+        rating: response.rating,
+        priceMin: response.priceMin,
+        priceMax: response.priceMax,
+        availableTickets: response.availableTickets,
+        totalTickets: response.totalTickets,
+    };
+}
+
+/**
+ * Fetch search results from the backend. Passing the empty filter object
+ * returns every publicly-visible event (UC 2.3 entry view).
+ */
+export async function searchEvents(
+    filters: EventSearchFilters,
+): Promise<EventSummary[]> {
+    const body = buildSearchRequest(filters);
+    const response = await api.post("/events/search", body);
+    const rows = (response.data.data ?? []) as EventSummaryResponse[];
+    return rows.map(toEventSummary);
+}
+
+// =============================================================================
+// LEGACY MOCK (still used by the EventDetails screen).
+//
+// The Event Search page no longer reads from this dataset — it queries the
+// backend directly. We keep the mock in place so `getEventById` (consumed by
+// the EventDetails screen, which has not yet been migrated to the real API)
+// continues to work. Remove this block once EventDetails is integrated.
+// =============================================================================
+
 function makeAvailableTickets(
     eventId: string,
     area: Area,
@@ -29,9 +162,6 @@ function makeAvailableTickets(
     return tickets;
 }
 
-// Mirrors Event.addSittingTickets(areaId, rows, seatsPerRow) on the backend:
-// one ticket per (row, seat) coordinate. Optional pre-populated
-// reserved / sold lists make the seat grid look realistic in the demo.
 function makeSittingTickets(
     eventId: string,
     area: Area,
@@ -74,122 +204,38 @@ function makeSittingTickets(
 }
 
 const summerFestivalAreas: Area[] = [
-    {
-        id: "area-evt-1-pit",
-        name: "Pit",
-        kind: "STANDING",
-        price: 320,
-        ticketIds: [],
-    },
-    {
-        id: "area-evt-1-floor",
-        name: "Floor",
-        kind: "STANDING",
-        price: 220,
-        ticketIds: [],
-    },
-    {
-        id: "area-evt-1-back",
-        name: "Back lawn",
-        kind: "STANDING",
-        price: 120,
-        ticketIds: [],
-    },
+    { id: "area-evt-1-pit", name: "Pit", kind: "STANDING", price: 320, ticketIds: [] },
+    { id: "area-evt-1-floor", name: "Floor", kind: "STANDING", price: 220, ticketIds: [] },
+    { id: "area-evt-1-back", name: "Back lawn", kind: "STANDING", price: 120, ticketIds: [] },
 ];
 
 const standupNightAreas: Area[] = [
-    {
-        id: "area-evt-2-stalls",
-        name: "Stalls",
-        kind: "SITTING",
-        price: 160,
-        ticketIds: [],
-    },
-    {
-        id: "area-evt-2-balcony",
-        name: "Balcony",
-        kind: "SITTING",
-        price: 90,
-        ticketIds: [],
-    },
+    { id: "area-evt-2-stalls", name: "Stalls", kind: "SITTING", price: 160, ticketIds: [] },
+    { id: "area-evt-2-balcony", name: "Balcony", kind: "SITTING", price: 90, ticketIds: [] },
 ];
 
 const hamletAreas: Area[] = [
-    {
-        id: "area-evt-3-orchestra",
-        name: "Orchestra",
-        kind: "SITTING",
-        price: 260,
-        ticketIds: [],
-    },
-    {
-        id: "area-evt-3-mezzanine",
-        name: "Mezzanine",
-        kind: "SITTING",
-        price: 180,
-        ticketIds: [],
-    },
+    { id: "area-evt-3-orchestra", name: "Orchestra", kind: "SITTING", price: 260, ticketIds: [] },
+    { id: "area-evt-3-mezzanine", name: "Mezzanine", kind: "SITTING", price: 180, ticketIds: [] },
 ];
 
 const aiCloudAreas: Area[] = [
-    {
-        id: "area-evt-4-keynote",
-        name: "Keynote pass",
-        kind: "SITTING",
-        price: 850,
-        ticketIds: [],
-    },
-    {
-        id: "area-evt-4-general",
-        name: "General admission",
-        kind: "STANDING",
-        price: 350,
-        ticketIds: [],
-    },
+    { id: "area-evt-4-keynote", name: "Keynote pass", kind: "SITTING", price: 850, ticketIds: [] },
+    { id: "area-evt-4-general", name: "General admission", kind: "STANDING", price: 350, ticketIds: [] },
 ];
 
 const jazzRooftopAreas: Area[] = [
-    {
-        id: "area-evt-5-window",
-        name: "Window seats",
-        kind: "SITTING",
-        price: 240,
-        ticketIds: [],
-    },
-    {
-        id: "area-evt-5-bar",
-        name: "Bar",
-        kind: "STANDING",
-        price: 140,
-        ticketIds: [],
-    },
+    { id: "area-evt-5-window", name: "Window seats", kind: "SITTING", price: 240, ticketIds: [] },
+    { id: "area-evt-5-bar", name: "Bar", kind: "STANDING", price: 140, ticketIds: [] },
 ];
 
 const indieFestAreas: Area[] = [
-    {
-        id: "area-evt-6-vip",
-        name: "VIP",
-        kind: "STANDING",
-        price: 480,
-        ticketIds: [],
-    },
-    {
-        id: "area-evt-6-ga",
-        name: "General",
-        kind: "STANDING",
-        price: 200,
-        ticketIds: [],
-    },
+    { id: "area-evt-6-vip", name: "VIP", kind: "STANDING", price: 480, ticketIds: [] },
+    { id: "area-evt-6-ga", name: "General", kind: "STANDING", price: 200, ticketIds: [] },
 ];
 
 const meetupAreas: Area[] = [
-    {
-        id: "area-evt-7-room",
-        name: "Main room",
-        kind: "SITTING",
-        price: 50,
-        ticketIds: [],
-    },
+    { id: "area-evt-7-room", name: "Main room", kind: "SITTING", price: 50, ticketIds: [] },
 ];
 
 const mockEvents: Event[] = [
@@ -332,7 +378,6 @@ const mockEvents: Event[] = [
         type: "Conference",
         rating: 4.0,
         companyRating: 4.2,
-        // High demand event - lottery is the only way in.
         lotteryId: "lottery-evt-4",
         layout: { areas: aiCloudAreas },
         purchasePolicy: {
@@ -366,7 +411,6 @@ const mockEvents: Event[] = [
         rating: 4.8,
         companyRating: 4.5,
         layout: { areas: jazzRooftopAreas },
-        // Sold-out event - drives the queue CTA.
         purchasePolicy: {
             minTicketsPerPurchase: 1,
             maxTicketsPerPurchase: 4,
@@ -444,139 +488,8 @@ const mockEvents: Event[] = [
     },
 ];
 
-function matchesText(event: Event, rawText: string): boolean {
-    const needle = rawText.trim().toLowerCase();
-    if (!needle) {
-        return true;
-    }
-
-    const haystack = [
-        event.name,
-        event.artist,
-        event.type,
-        event.location,
-        ...event.tags,
-    ]
-        .join(" ")
-        .toLowerCase();
-
-    return haystack.includes(needle);
-}
-
-function matchesPriceRange(
-    event: Event,
-    priceMin: string,
-    priceMax: string,
-): boolean {
-    const min = priceMin === "" ? null : Number(priceMin);
-    const max = priceMax === "" ? null : Number(priceMax);
-    const range = getPriceRange(event);
-
-    if (min !== null && !Number.isNaN(min) && range.max < min) {
-        return false;
-    }
-    if (max !== null && !Number.isNaN(max) && range.min > max) {
-        return false;
-    }
-    return true;
-}
-
-function matchesDateRange(
-    event: Event,
-    dateFrom: string,
-    dateTo: string,
-): boolean {
-    const eventTime = new Date(event.date).getTime();
-    if (Number.isNaN(eventTime)) {
-        return false;
-    }
-
-    if (dateFrom) {
-        const fromTime = new Date(dateFrom).getTime();
-        if (!Number.isNaN(fromTime) && eventTime < fromTime) {
-            return false;
-        }
-    }
-    if (dateTo) {
-        const toTime = new Date(`${dateTo}T23:59:59`).getTime();
-        if (!Number.isNaN(toTime) && eventTime > toTime) {
-            return false;
-        }
-    }
-    return true;
-}
-
-function matchesSubstring(value: string, filter: string): boolean {
-    const normalised = filter.trim().toLowerCase();
-    if (!normalised) {
-        return true;
-    }
-    return value.toLowerCase().includes(normalised);
-}
-
-// Mirrors Event.matches(EventSearchCriteria, ...) on the backend, plus the
-// "publicly visible" gate (status must be ACTIVE for catalog search).
-export function searchEvents(
-    events: Event[],
-    filters: EventSearchFilters,
-): Event[] {
-    const minEventRating =
-        filters.minEventRating === "" ? null : Number(filters.minEventRating);
-    const minCompanyRating =
-        filters.minCompanyRating === ""
-            ? null
-            : Number(filters.minCompanyRating);
-
-    return events.filter((event) => {
-        if (event.status !== "ACTIVE") {
-            return false;
-        }
-        if (filters.companyId && event.companyId !== filters.companyId) {
-            return false;
-        }
-        if (!matchesText(event, filters.text)) {
-            return false;
-        }
-        if (!matchesSubstring(event.location, filters.location)) {
-            return false;
-        }
-        if (!matchesPriceRange(event, filters.priceMin, filters.priceMax)) {
-            return false;
-        }
-        if (!matchesDateRange(event, filters.dateFrom, filters.dateTo)) {
-            return false;
-        }
-        if (
-            minEventRating !== null &&
-            !Number.isNaN(minEventRating) &&
-            event.rating < minEventRating
-        ) {
-            return false;
-        }
-        if (
-            minCompanyRating !== null &&
-            !Number.isNaN(minCompanyRating) &&
-            event.companyRating < minCompanyRating
-        ) {
-            return false;
-        }
-        return true;
-    });
-}
-
-// TODO: Replace the in-memory mock with the real communication layer once
-// the protocol/API is implemented (UC 2.3.1 / UC 2.3.2).
-export async function getEvents(): Promise<Event[]> {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            resolve(mockEvents);
-        }, 400);
-    });
-}
-
-// TODO: Replace with a real GET /events/{id} call when the API exists.
-// The Event Details screen (Issue #100) reads through this entrypoint, so
-// it is the single place we will need to swap for the real implementation.
+// TODO: Replace with a real GET /events/{id} call once the EventDetails
+// screen is migrated. The Event Search page no longer relies on this.
 export async function getEventById(eventId: string): Promise<Event | null> {
     return new Promise((resolve) => {
         setTimeout(() => {
