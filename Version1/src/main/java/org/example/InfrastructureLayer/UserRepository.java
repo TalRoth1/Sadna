@@ -1,15 +1,15 @@
 package org.example.InfrastructureLayer;
 
-import org.example.DomainLayer.IUserRepository;
-import org.example.DomainLayer.AdminAggregate.Admin;
-import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
-import org.example.DomainLayer.UserAggregate.User;
-
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+
+import org.example.DomainLayer.AdminAggregate.Admin;
+import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
+import org.example.DomainLayer.IUserRepository;
+import org.example.DomainLayer.UserAggregate.User;
 
 public class UserRepository implements IUserRepository {
     private final Map<UUID, User> users = new HashMap<>();
@@ -59,7 +59,7 @@ public class UserRepository implements IUserRepository {
                 return Optional.ofNullable(entry.getValue());
             }
         }
-        return null;
+        return Optional.empty();
     }
 
     @Override

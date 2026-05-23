@@ -81,7 +81,9 @@ export default function NavigationMenu({
 
     async function handleLogout() {
         try {
+            console.log("Initiating logout process..."); // for debugging
             await logoutUser();
+            console.log("Logout successful, clearing user state..."); // for debugging
         } finally {
             setCurrentUser(null);
             setIsAdmin(false);

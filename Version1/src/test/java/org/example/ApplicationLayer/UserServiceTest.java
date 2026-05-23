@@ -352,6 +352,44 @@ public class UserServiceTest {
         verify(userRepositoryMock, never()).add(any(User.class));
     }
 
+    @Test
+    public void testLogoutThenLogin_SucceedsAfterStatusReset() {
+        UUID memberId = UUID.randomUUID();
+
+        User user = new User(
+                memberId,
+                "JohnDoe",
+                "john@example.com",
+                "hashed_password",
+                25
+        );
+        user.login();
+
+        when(userRepositoryMock.getUser(memberId)).thenReturn(Optional.of(user));
+
+        UserResponse logoutResponse = userService.logout(memberId);
+
+        assertNotNull(logoutResponse);
+        assertEquals(UserStatus.NOT_LOGGED_IN, user.getStatus());
+
+        LoginRequest loginRequest = new LoginRequest();
+        loginRequest.email = "john@example.com";
+        loginRequest.plainPassword = "Password123";
+
+        when(userRepositoryMock.findByEmail(loginRequest.email)).thenReturn(Optional.of(user));
+        when(authGatewayMock.verifyPassword(loginRequest.plainPassword, "hashed_password"))
+                .thenReturn(true);
+
+        UserResponse loginResponse = userService.login(loginRequest);
+
+        assertNotNull(loginResponse);
+        assertEquals(UserStatus.LOGGED_IN, user.getStatus());
+        verify(userRepositoryMock, times(1)).getUser(memberId);
+        verify(userRepositoryMock, times(2)).add(user);
+        verify(userRepositoryMock, times(1)).findByEmail(loginRequest.email);
+        verify(authGatewayMock, times(1)).verifyPassword(loginRequest.plainPassword, "hashed_password");
+    }
+
     // ================================================================
     // Helpers
     // Works with either public-field DTOs or Java records.

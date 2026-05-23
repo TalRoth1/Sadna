@@ -24,7 +24,12 @@ public class UserService {
         this.userRepository = userRepository;
         this.authGateway = authGateway;
         this.notifier = notifier;
-        // notifyAll(); // why is this here? should it be? if so, what should it do? currently it crashes the app on startup because the user repository is empty and it tries to notify all users. If we want to keep it, we should probably remove the notifyAll() call and instead have a method that admins can call to send a message to all users, which would be more useful than sending a message on startup.
+        // notifyAll(); // why is this here? should it be? if so, what should it do?
+        // currently it crashes the app on startup because the user repository is empty
+        // and it tries to notify all users. If we want to keep it, we should probably
+        // remove the notifyAll() call and instead have a method that admins can call to
+        // send a message to all users, which would be more useful than sending a
+        // message on startup.
     }
 
     /**
@@ -63,6 +68,7 @@ public class UserService {
                 request.username)) {
             throw new IllegalArgumentException("One or more of the details is incorrect.");
         }
+        logger.info("Registering new user: " + request.username + " with email: " + request.email);
 
         String hashedPassword = authGateway.hashPassword(request.plainPassword);
         User newUser = new User(
@@ -71,7 +77,7 @@ public class UserService {
                 request.email,
                 hashedPassword,
                 request.age);
-
+        newUser.login(); // users created via registration are immediately logged in
         userRepository.add(newUser);
         return toResponse(newUser);
     }
@@ -89,8 +95,7 @@ public class UserService {
         User user = userRepository.findByEmail(request.email)
                 .orElseThrow(() -> new IllegalArgumentException("Incorrect email or password."));
 
-        boolean isPasswordCorrect =
-                authGateway.verifyPassword(request.plainPassword, user.getPasswordHash());
+        boolean isPasswordCorrect = authGateway.verifyPassword(request.plainPassword, user.getPasswordHash());
 
         if (!isPasswordCorrect) {
             logger.warning("Failed login attempt for user: " + request.email);
@@ -98,16 +103,16 @@ public class UserService {
         }
 
         user.login();
-        userRepository.add(user);
 
         return toResponse(user);
     }
 
     public UserResponse logout(UUID memberId) {
         if (memberId == null) {
+            logger.warning("Logout attempt with null memberId");
             throw new IllegalArgumentException("Member ID is required");
         }
-
+        logger.info("Attempting to logout user with ID: " + memberId); // for debugging
         User user = userRepository.getUser(memberId)
                 .orElseThrow(() -> new IllegalArgumentException("User does not exist."));
 
@@ -127,24 +132,19 @@ public class UserService {
                 user.getAge());
     }
 
-    public void adminMessage(String username, String message)
-    {
+    public void adminMessage(String username, String message) {
         try {
-            if(username == null)
+            if (username == null)
                 throw new IllegalArgumentException("Username Is null");
-            else if(!userRepository.isSystemAdmin(username))
+            else if (!userRepository.isSystemAdmin(username))
                 throw new IllegalArgumentException("User is not admin");
-            else
-            {
-                for(Map.Entry<UUID, User> user: userRepository.getAllUsers().entrySet())
-                {
-                     notifier.notifyUser(user.getKey(), message);
+            else {
+                for (Map.Entry<UUID, User> user : userRepository.getAllUsers().entrySet()) {
+                    notifier.notifyUser(user.getKey(), message);
                 }
             }
             logger.info("Admin: " + username + " sent message:" + message);
-        }
-        catch(Exception e)
-        {
+        } catch (Exception e) {
             logger.severe(e.toString());
             throw e;
         }

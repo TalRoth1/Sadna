@@ -71,12 +71,27 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         String token = authHeader.substring(BEARER_PREFIX.length()).trim();
 
         try {
+            logger.info("Received token: " + previewToken(token) + " (length=" + token.length() + ")"); // for debugging
             Claims claims = jwtService.parseAndValidate(token);
             UUID userId = UUID.fromString(claims.getSubject());
             request.setAttribute("userId", userId);
             request.setAttribute("username", claims.get("username"));
             request.setAttribute("role", claims.get("role"));
+            request.setAttribute("tokenJti", claims.getId());
         } catch (Exception e) {
+            logger.warn("Rejected JWT on "
+                + request.getMethod()
+                + " "
+                + request.getRequestURI()
+                + ": "
+                + e.getClass().getSimpleName()
+                + " - "
+                + e.getMessage()
+                + " (tokenPreview="
+                + previewToken(token)
+                + ", tokenLength="
+                + token.length()
+                + ")");
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.setContentType("application/json");
             response.getWriter().write(
@@ -85,5 +100,14 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         }
 
         chain.doFilter(request, response);
+    }
+
+    private String previewToken(String token) {
+        if (token == null || token.isBlank()) {
+            return "<empty>";
+        }
+        int previewLength = Math.min(16, token.length());
+        String preview = token.substring(0, previewLength);
+        return token.length() > previewLength ? preview + "..." : preview;
     }
 }

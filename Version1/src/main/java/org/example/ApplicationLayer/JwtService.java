@@ -34,15 +34,18 @@ public class JwtService {
 
     private final SecretKey signingKey;
     private final long expirationMs;
+    private final ITokenBlacklist blacklist;
 
     public JwtService(
             @Value("${jwt.secret:change-me-please-this-is-a-development-only-default-secret-key-1234567890}") String secret,
-            @Value("${jwt.expiration-ms:86400000}") long expirationMs) {
+            @Value("${jwt.expiration-ms:3600000}") long expirationMs,
+            ITokenBlacklist blacklist) {
         // HS256 needs at least 256 bits (32 bytes). The default above is long enough; if
         // a real secret is provided via properties/env it should also be at least 32 bytes.
         byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
         this.signingKey = Keys.hmacShaKeyFor(keyBytes);
         this.expirationMs = expirationMs;
+        this.blacklist = blacklist;
     }
 
     /**
@@ -64,6 +67,7 @@ public class JwtService {
         Date expiry = new Date(now.getTime() + expirationMs);
 
         return Jwts.builder()
+            .id(UUID.randomUUID().toString())
                 .subject(userId.toString())
                 .claim("username", username)
                 .claim("role", role)
@@ -84,11 +88,18 @@ public class JwtService {
         if (token == null || token.isBlank()) {
             throw new IllegalArgumentException("Token is required");
         }
-        return Jwts.parser()
+        Claims claims = Jwts.parser()
                 .verifyWith(signingKey)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
+
+        String jti = claims.getId();
+        if (jti != null && blacklist != null && blacklist.isRevoked(jti)) {
+            throw new io.jsonwebtoken.JwtException("Token has been revoked");
+        }
+
+        return claims;
     }
 
     /** Convenience: returns the user id (JWT subject) from a valid token. */

@@ -2,6 +2,7 @@ package org.example.API;
 
 import java.util.UUID;
 
+import org.example.ApplicationLayer.ITokenBlacklist;
 import org.example.ApplicationLayer.JwtService;
 import org.example.ApplicationLayer.UserService;
 import org.example.ApplicationLayer.dto.ApiResponse;
@@ -11,8 +12,12 @@ import org.example.ApplicationLayer.dto.UserDTOs.RegisterRequest;
 import org.example.ApplicationLayer.dto.UserDTOs.UserResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
+import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpServletRequest;
 
 /**
@@ -32,10 +37,12 @@ public class UserController {
 
     private final UserService userService;
     private final JwtService jwtService;
+    private final ITokenBlacklist tokenBlacklist;
 
-    public UserController(UserService userService, JwtService jwtService) {
+    public UserController(UserService userService, JwtService jwtService, ITokenBlacklist tokenBlacklist) {
         this.userService = userService;
         this.jwtService = jwtService;
+        this.tokenBlacklist = tokenBlacklist;
     }
 
     /**
@@ -57,7 +64,7 @@ public class UserController {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("Guest session failed: system exception"));
+                    .body(ApiResponse.error("Guest session failed: system exception\n" + e.getMessage()));
         }
     }
 
@@ -78,7 +85,7 @@ public class UserController {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("Register failed: system exception"));
+                    .body(ApiResponse.error("Register failed: system exception\n" + e.getMessage()));
         }
     }
 
@@ -102,7 +109,7 @@ public class UserController {
                     .body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("Login failed: system exception"));
+                    .body(ApiResponse.error("Login failed: system exception\n" + e.getMessage()));
         }
     }
 
@@ -123,12 +130,22 @@ public class UserController {
                         .body(ApiResponse.error("Missing or invalid token"));
             }
             UserResponse user = userService.logout(memberId);
+
+            String authHeader = httpRequest.getHeader("Authorization");
+            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                String token = authHeader.substring("Bearer ".length()).trim();
+                Claims claims = jwtService.parseAndValidate(token);
+                if (claims.getId() != null && claims.getExpiration() != null) {
+                    tokenBlacklist.revoke(claims.getId(), claims.getExpiration().toInstant());
+                }
+            }
+
             return ResponseEntity.ok(ApiResponse.success("Logout successful", user));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("Logout failed: system exception"));
+                    .body(ApiResponse.error("Logout failed: system exception\n" + e.getMessage()));
         }
     }
 }

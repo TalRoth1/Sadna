@@ -48,7 +48,7 @@ api.interceptors.response.use(
             }
 
             if (status >= 500) {
-                console.error("Internal server error on the Java backend (Internal Server Error)");
+                console.error("Internal server error on the Java backend (Internal Server Error)\n" + error.response.data.message); // Assuming the backend sends a message in the response body for server errors
             }
         } else if (error.request) {
             console.error("Server is not responding. Make sure the Spring Boot project is running and the port is correct.");
