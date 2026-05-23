@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getCurrentUser, type CurrentUser } from "../../services/currentUserService";
+import { getMyCompanies, type CompanyMembership as CompanyMembershipDto } from "../../services/companyService";
 import "./MyCompaniesPage.css";
 
 type CompanyStatus = "active" | "suspended" | "closed";
@@ -14,28 +15,21 @@ type CompanyMembership = {
 const COMPANY_DETAILS_BASE_PATH = "/company";
 const COMPANY_CREATION_PATH = "/companies/new";
 
-const MOCK_COMPANIES_BY_USER_ID: Record<string, CompanyMembership[]> = {
-    "user-1": [
-        {
-            id: "company-101",
-            name: "Northern Lights Events",
-            role: "Owner",
-            status: "active",
-        },
-        {
-            id: "company-102",
-            name: "Urban Stage Collective",
-            role: "Manager",
-            status: "suspended",
-        },
-        {
-            id: "company-103",
-            name: "Coastal Vibe Productions",
-            role: "Member",
-            status: "closed",
-        },
-    ],
-};
+function mapCompanyMembership(dto: CompanyMembershipDto): CompanyMembership {
+    const normalizedStatus = dto.status.toLowerCase() as CompanyStatus;
+
+    return {
+        id: dto.companyId,
+        name: dto.companyName,
+        role: dto.role,
+        status:
+            normalizedStatus === "active" ||
+            normalizedStatus === "suspended" ||
+            normalizedStatus === "closed"
+                ? normalizedStatus
+                : "active",
+    };
+}
 
 function getCompanyStatusLabel(status: CompanyStatus) {
     if (status === "active") {
@@ -135,7 +129,8 @@ export default function MyCompaniesPage() {
                     return;
                 }
 
-                setCompanies(MOCK_COMPANIES_BY_USER_ID[user.id] ?? []);
+                const memberships = await getMyCompanies(user.email);
+                setCompanies(memberships.map(mapCompanyMembership));
             } finally {
                 setIsLoading(false);
             }

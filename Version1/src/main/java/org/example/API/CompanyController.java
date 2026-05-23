@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.UUID;
 
 import org.example.ApplicationLayer.CompanyService;
+import org.example.ApplicationLayer.JwtService;
 import org.example.ApplicationLayer.dto.ApiResponse;
 import org.example.ApplicationLayer.dto.CompanyDTOs.AddConditionalDiscountRequest;
 import org.example.ApplicationLayer.dto.CompanyDTOs.AddCouponRequest;
@@ -36,6 +37,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpServletRequest;
 
 /**
@@ -49,9 +51,11 @@ import jakarta.servlet.http.HttpServletRequest;
 public class CompanyController {
 
     private final CompanyService companyService;
+    private final JwtService jwtService;
 
-    public CompanyController(CompanyService companyService) {
+    public CompanyController(CompanyService companyService, JwtService jwtService) {
         this.companyService = companyService;
+        this.jwtService = jwtService;
     }
 
     // ================================================================
@@ -75,13 +79,8 @@ public class CompanyController {
     public ResponseEntity<ApiResponse<List<CompanyMembershipResponse>>> getMyCompanies(
             HttpServletRequest request) {
         try {
-            String username = (String) request.getAttribute("username");
-            if (username == null || username.isBlank()) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(ApiResponse.error("Missing or invalid token"));
-            }
-
-            List<CompanyMembershipResponse> memberships = companyService.getUserCompanies(username);
+            String email = resolveEmail(request);
+            List<CompanyMembershipResponse> memberships = companyService.getUserCompanies(email);
             return ResponseEntity.ok(ApiResponse.<List<CompanyMembershipResponse>>success(memberships));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
@@ -89,6 +88,27 @@ public class CompanyController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to load user companies"));
         }
+    }
+
+    private String resolveEmail(HttpServletRequest request) {
+        String emailParam = request.getParameter("userEmail");
+        if (emailParam != null && !emailParam.isBlank()) {
+            return emailParam;
+        }
+
+        String authHeader = request.getHeader("Authorization");
+        String token = null;
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            token = authHeader.substring("Bearer ".length()).trim();
+        }
+
+        Claims claims = (token == null) ? null : jwtService.parseAllowingExpired(token);
+        if (claims == null) {
+            return null;
+        }
+
+        Object emailClaim = claims.get("email");
+        return emailClaim == null ? null : emailClaim.toString();
     }
 
     @DeleteMapping("/{companyId}/admin")

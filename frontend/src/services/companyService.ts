@@ -5,6 +5,13 @@ export type CreateCompanyRequest = {
 	companyName: string;
 };
 
+export type CompanyMembership = {
+	companyId: string;
+	companyName: string;
+	role: string;
+	status: string;
+};
+
 export type CompanyResponse = {
 	id: string;
 	name: string;
@@ -36,4 +43,12 @@ export async function getCompanyHierarchy(
 	});
 
 	return response.data.data as CompanyHierarchyResponse;
+}
+
+export async function getMyCompanies(userEmail: string): Promise<CompanyMembership[]> {
+	const response = await api.get("/companies/me/companies", {
+		params: { userEmail },
+	});
+
+	return response.data.data as CompanyMembership[];
 }

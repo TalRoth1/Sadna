@@ -36,12 +36,7 @@ api.interceptors.response.use(
             const status = error.response.status;
 
             if (status === 401) {
-                // Skip the auto-redirect when the failing request is logout
-                // itself — otherwise a 401 on /logout would wipe the token and
-                // bounce the user to /login, which then loops because the
-                // server still thinks they're logged in. Logout has its own
-                // cleanup in authService.ts and the server is now tolerant of
-                // any token state.
+
                 const url = error.config?.url ?? "";
                 const isLogout = url.includes("/users/logout");
 
@@ -49,7 +44,7 @@ api.interceptors.response.use(
                     console.error("User not authenticated or token expired - redirecting to login page");
                     localStorage.removeItem('token');
                     // מומלץ להשאיר את זה דולק כדי שהאפליקציה תגיב בזמן אמת לפקיעת טוקן
-                    window.location.href = '/login';
+                    // window.location.href = '/login';
                 }
             }
 

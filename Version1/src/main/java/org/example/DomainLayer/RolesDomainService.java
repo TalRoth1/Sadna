@@ -353,15 +353,15 @@ public class RolesDomainService {
         return requesterUser.getHierarchyMermaid(companyId);
     }
 
-    public List<CompanyMembershipResponse> getUserCompanies(String username) {
-        if (username == null || username.isBlank()) {
-            throw new IllegalArgumentException("Username is required");
+    public List<CompanyMembershipResponse> getUserCompanies(String userEmail) {
+        if (userEmail == null || userEmail.isBlank()) {
+            throw new IllegalArgumentException("Email is required");
         }
-        List<UUID> companyIds = userRepository.getCompaniesIdsByMember(username);
+        List<UUID> companyIds = userRepository.getCompaniesIdsByMember(userEmail);
         return companyIds.stream()
                 .map(companyId -> {
                     Company company = companyRepository.findByID(companyId).get();
-                    ICompanyMember userRole = userRepository.findByEmail(username).get().getCompanyRole(companyId);
+                    ICompanyMember userRole = userRepository.findByEmail(userEmail).get().getCompanyRole(companyId);
                     return new CompanyMembershipResponse(
                             company.getId(),
                             company.getName(),

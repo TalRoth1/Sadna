@@ -327,10 +327,10 @@ public class CompanyService {
         }
     }
 
-    public List<CompanyMembershipResponse> getUserCompanies(String username) {
-        if (username == null || username.isBlank()) {
-            throw new IllegalArgumentException("Username is required");
+    public List<CompanyMembershipResponse> getUserCompanies(String userEmail) {
+        if (userEmail == null || userEmail.isBlank()) {
+            throw new IllegalArgumentException("Email is required");
         }
-        return rolesDomainService.getUserCompanies(username);
+        return rolesDomainService.getUserCompanies(userEmail);
     }
 }
