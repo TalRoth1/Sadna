@@ -33,11 +33,22 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
     private static final String BEARER_PREFIX = "Bearer ";
 
-    /** Endpoints that must be reachable without a token. */
+    /**
+     * Endpoints that must be reachable without a (valid) token.
+     *
+     * - guest / login / register: nothing to authenticate yet, that's where
+     *   tokens are obtained.
+     * - logout: must always succeed in ending the server-side session even
+     *   when the client's token is missing, expired, or revoked. The
+     *   {@code UserController.logout} method does its own lenient parsing
+     *   via {@code JwtService.parseAllowingExpired}, so we don't want the
+     *   filter to reject the request before the controller gets a chance.
+     */
     private static final Set<String> PUBLIC_PATHS = Set.of(
             "/api/users/guest",
             "/api/users/login",
-            "/api/users/register"
+            "/api/users/register",
+            "/api/users/logout"
     );
 
     private final JwtService jwtService;

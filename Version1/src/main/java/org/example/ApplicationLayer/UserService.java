@@ -11,6 +11,7 @@ import org.example.DomainLayer.IUserRepository;
 import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.UserAggregate.User;
 import org.example.DomainLayer.UserAggregate.UserRole;
+import org.example.DomainLayer.UserAggregate.UserStatus;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -151,7 +152,16 @@ public class UserService {
                 throw new IllegalArgumentException("Incorrect email or password.");
             }
 
-            user.login();
+            // Idempotent: if the user is already LOGGED_IN, that's fine — just
+            // issue a fresh token (the controller does that after we return).
+            // Calling user.login() in that state would throw IllegalStateException,
+            // which is overly strict and traps users whose previous logout failed
+            // silently (e.g. a 401 from a wiped-token interceptor on the client).
+            if (user.getStatus() != UserStatus.LOGGED_IN) {
+                user.login();
+            } else {
+                logger.info("Login re-issued for already-logged-in user id=" + user.getId());
+            }
             return toResponse(user);
         }
     }
@@ -173,6 +183,15 @@ public class UserService {
             // of logout from a guest's point of view.
             if (user.getRole() == UserRole.GUEST) {
                 logger.info("Logout no-op for guest id=" + memberId);
+                return toResponse(user);
+            }
+
+            // Idempotent: if the user is already NOT_LOGGED_IN, return cleanly
+            // instead of letting user.logout() throw IllegalStateException.
+            // This makes double-logout (e.g. an effect re-running, or a client
+            // retry) safe instead of erroring out with a 500.
+            if (user.getStatus() == UserStatus.NOT_LOGGED_IN) {
+                logger.info("Logout no-op for already-logged-out user id=" + memberId);
                 return toResponse(user);
             }
 

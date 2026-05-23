@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -126,6 +127,40 @@ public class JwtService {
             return true;
         } catch (JwtException | IllegalArgumentException e) {
             return false;
+        }
+    }
+
+    /**
+     * Parse a token, accepting it even if it has expired.
+     *
+     * <p>Used by endpoints like {@code POST /api/users/logout} where we still
+     * want the user identity that the token was minted with, even if the token
+     * is no longer cryptographically "valid" for normal authentication.
+     * Signature, malformedness and revocation are still enforced — only the
+     * {@code exp} check is relaxed.
+     *
+     * @return the claims, or {@code null} if the token is missing/malformed
+     *         /tampered-with/revoked.
+     */
+    public Claims parseAllowingExpired(String token) {
+        if (token == null || token.isBlank()) {
+            return null;
+        }
+        try {
+            return parseAndValidate(token);
+        } catch (ExpiredJwtException expired) {
+            // ExpiredJwtException still carries the original claims — that's
+            // exactly what we want here.
+            Claims claims = expired.getClaims();
+            // Still honour the blacklist: if the (now-expired) token was
+            // explicitly revoked, treat it as unusable.
+            if (claims != null && claims.getId() != null
+                    && blacklist != null && blacklist.isRevoked(claims.getId())) {
+                return null;
+            }
+            return claims;
+        } catch (JwtException | IllegalArgumentException ex) {
+            return null;
         }
     }
 }
