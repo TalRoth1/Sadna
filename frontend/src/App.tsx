@@ -12,7 +12,6 @@ import EventDetailsPage from "./pages/EventDetails/EventDetails";
 import EventSearchPage from "./pages/EventSearch/EventSearch";
 import PurchaseHistoryPage from "./pages/PurchaseHistoryPage";
 import TicketPurchasePage from "./pages/TicketPurchase/TicketPurchase";
-import MyCompaniesPage from "./pages/myCompanies/MyCompaniesPage";
 import CompanyCreationPage from "./pages/createCompany/CompanyCreationPage";
 import CompanyPage from "./pages/companyPage/CompanyPage";
 import UserProfilePage from "./pages/UserProfilePage";
