@@ -1,65 +1,109 @@
+import api from "./api";
 import type { UserNotification } from "../types/notification";
 
-const mockUnreadNotificationsByUserId: Record<string, UserNotification[]> = {
-    "user-1": [
-        {
-            id: "notification-1",
-            title: "Purchase completed",
-            message: "Your purchase for Summer Music Festival was completed successfully.",
-            createdAt: "2026-05-14T20:15:00",
-            isRead: false,
-        },
-        {
-            id: "notification-2",
-            title: "Queue update",
-            message: "You moved forward in the queue for Big Arena Show.",
-            createdAt: "2026-05-14T20:45:00",
-            isRead: false,
-        },
-        {
-            id: "notification-3",
-            title: "Event reminder",
-            message: "Standup Night starts soon. Please check your ticket details.",
-            createdAt: "2026-05-14T21:10:00",
-            isRead: false,
-        },
-    ],
+type NotificationDto = {
+    id: string;
+    recipientId: string;
+    type?: string;
+    message: string;
+    targetUrl?: string | null;
+    createdAt: string;
+    read: boolean;
+    readAt?: string | null;
 };
 
-// TODO: Replace this mock implementation with a real communication call once the protocol/API is implemented.
-// The server should return unread notifications for the provided userId, including notifications received while the user was offline.
+const API_BASE_URL =
+    import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api";
+
+function titleFromMessage(message: string): string {
+    if (message.includes("turn has arrived")) return "Your turn has arrived";
+    if (message.includes("Purchase")) return "Purchase update";
+    if (message.includes("changed")) return "Event updated";
+    if (message.includes("SOLD OUT")) return "Sold out";
+    return "Notification";
+}
+
+function mapDto(dto: NotificationDto): UserNotification {
+    return {
+        id: dto.id,
+        title: titleFromMessage(dto.message),
+        message: dto.message,
+        createdAt: dto.createdAt,
+        isRead: dto.read,
+    };
+}
+
+function fromStreamData(raw: string): UserNotification {
+    try {
+        const parsed = JSON.parse(raw);
+
+        if (parsed.id && parsed.message) {
+            return mapDto(parsed as NotificationDto);
+        }
+
+        if (parsed.notification) {
+            return mapDto(parsed.notification as NotificationDto);
+        }
+    } catch {
+        // In the current backend, live notifications may arrive as plain text.
+    }
+
+    return {
+        id: crypto.randomUUID(),
+        title: titleFromMessage(raw),
+        message: raw,
+        createdAt: new Date().toISOString(),
+        isRead: false,
+    };
+}
+
 export async function getUnreadNotifications(
     userId: string,
 ): Promise<UserNotification[]> {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            resolve(mockUnreadNotificationsByUserId[userId] ?? []);
-        }, 300);
+    const response = await api.get(`/notifications/users/${userId}`, {
+        params: { unreadOnly: true },
     });
+
+    const rows = (response.data.data ?? []) as NotificationDto[];
+    return rows.map(mapDto);
 }
 
-// TODO: Replace this mock implementation with a real server command once communication is implemented.
-// The server should mark the selected notification as read for the provided userId.
 export async function markNotificationAsRead(
     userId: string,
     notificationId: string,
 ): Promise<void> {
-    const notifications = mockUnreadNotificationsByUserId[userId] ?? [];
-
-    mockUnreadNotificationsByUserId[userId] = notifications.map((notification) =>
-        notification.id === notificationId
-            ? { ...notification, isRead: true }
-            : notification,
-    );
+    await api.patch(`/notifications/${notificationId}/read`, null, {
+        params: { userId },
+    });
 }
 
-// TODO: Replace this mock implementation with a real server command once communication is implemented.
-// The server should mark all unread notifications as read for the provided userId.
 export async function markAllNotificationsAsRead(userId: string): Promise<void> {
-    const notifications = mockUnreadNotificationsByUserId[userId] ?? [];
+    await api.patch(`/notifications/users/${userId}/read-all`);
+}
 
-    mockUnreadNotificationsByUserId[userId] = notifications.map((notification) => ({
-        ...notification,
-        isRead: true,
-    }));
+export function connectNotificationStream(
+    userId: string,
+    onNotification: (notification: UserNotification) => void,
+): () => void {
+    const source = new EventSource(
+        `${API_BASE_URL}/notifications/stream/${userId}`,
+    );
+
+    source.addEventListener("notification", (event) => {
+        onNotification(fromStreamData(event.data));
+    });
+
+    source.addEventListener("delayed-notification", (event) => {
+        onNotification(fromStreamData(event.data));
+    });
+
+    source.addEventListener("connected", (event) => {
+        console.log("Notifications stream connected:", event.data);
+    });
+
+    source.onerror = (error) => {
+        console.warn("Notifications stream error:", error);
+    };
+
+    return () => source.close();
 }

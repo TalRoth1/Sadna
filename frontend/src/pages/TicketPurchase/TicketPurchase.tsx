@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getEventById } from "../../services/eventSearchService";
+
+import { getCurrentUser } from "../../services/currentUserService";
+import {
+    selectSittingTickets,
+    selectStandingTickets,
+    type ActivePurchaseDTO,
+} from "../../services/ticketPurchaseService";
+
 import {
     isEventBookable,
     type Area,
@@ -11,6 +19,8 @@ import "./TicketPurchase.css";
 // ---------------------------------------------------------------------------
 // Types & constants
 // ---------------------------------------------------------------------------
+
+
 
 type TicketPurchasePageProps = {
     eventId: string;
@@ -997,6 +1007,9 @@ export default function TicketPurchasePage({
     const [isPerformingAction, setIsPerformingAction] = useState(false);
     const [actionMessage, setActionMessage] =
         useState<ActionResultMessage | null>(null);
+    const [activePurchaseId, setActivePurchaseId] = useState<string | null>(null);
+    const [showQueueMessage, setShowQueueMessage] = useState(false);
+    const [queueMessage, setQueueMessage] = useState("");
 
     // Pinned the moment the user commits the cart (clicks "Continue to
     // checkout"). Null while they are still browsing — no lock, no timer.
@@ -1076,31 +1089,87 @@ export default function TicketPurchasePage({
         });
     }
 
-    function handleContinueToCheckout() {
+    async function handleContinueToCheckout() {
         if (!event) {
             return;
         }
-        // TODO: Replace with the real reservation call once the API exists.
-        // Backend mirror: this is the moment we call
-        //   PurchaseService.selectSittingTickets(eventId, ticketIds, userId)
-        //   PurchaseService.selectStandingTickets(eventId, areaId, amount, userId)
-        // The backend creates an ActivePurchase with endTime = now + 10 min
-        // and flips the chosen tickets from AVAILABLE to RESERVED. The
-        // response would carry { activePurchaseId, reservationExpiresAt }.
+
         setIsPerformingAction(true);
         setActionMessage(null);
-        setTimeout(() => {
-            setIsPerformingAction(false);
-            // Pin the deadline only on first commit. Subsequent "Change
-            // seats" round-trips preserve it, matching the backend's
-            // updateActivePurchase…Tickets behaviour (endTime is not
-            // refreshed there).
-            setReservationDeadline((current) =>
-                current ??
-                new Date(Date.now() + PURCHASE_WINDOW_MINUTES * 60 * 1000),
+        setShowQueueMessage(false);
+        setQueueMessage("");
+
+        try {
+            const currentUser = await getCurrentUser();
+
+            if (!currentUser) {
+                setActionMessage({
+                    kind: "error",
+                    text: "You must be logged in to reserve tickets.",
+                });
+                return;
+            }
+
+            const sittingTicketIds = getSelectedTicketIds(selection);
+            const standingEntries = Object.entries(selection.standingCountByArea)
+                .filter(([, amount]) => amount > 0);
+
+            let activePurchase: ActivePurchaseDTO | null = null;
+
+            if (sittingTicketIds.length > 0) {
+                activePurchase = await selectSittingTickets(
+                    eventId,
+                    sittingTicketIds,
+                    currentUser.id,
+                    true,
+                );
+            } else if (standingEntries.length > 0) {
+                const [areaId, amount] = standingEntries[0];
+
+                activePurchase = await selectStandingTickets(
+                    eventId,
+                    areaId,
+                    amount,
+                    currentUser.id,
+                    true,
+                );
+            } else {
+                setActionMessage({
+                    kind: "error",
+                    text: "Select at least one ticket to continue.",
+                });
+                return;
+            }
+
+            setActivePurchaseId(activePurchase.activePurchaseId);
+
+            setReservationDeadline(
+                activePurchase.endTime
+                    ? new Date(activePurchase.endTime)
+                    : new Date(Date.now() + PURCHASE_WINDOW_MINUTES * 60 * 1000),
             );
+
             setStep("checkout");
-        }, MOCK_RESERVATION_DELAY_MS);
+        } catch (error: any) {
+            const message = error.response?.data?.message ?? "";
+
+            if (message.includes("User is waiting in queue")) {
+                setQueueMessage(message);
+                setShowQueueMessage(true);
+                setActionMessage({
+                    kind: "error",
+                    text: message,
+                });
+                return;
+            }
+
+            setActionMessage({
+                kind: "error",
+                text: message || "Failed to reserve tickets.",
+            });
+        } finally {
+            setIsPerformingAction(false);
+        }
     }
 
     function handleChangeSeats() {
@@ -1223,6 +1292,14 @@ export default function TicketPurchasePage({
             </button>
 
             <EventSummaryCard event={event} />
+
+            {showQueueMessage && (
+                <section className="purchase-action-message tone-warning" role="status">
+                    <h2>You are waiting in queue</h2>
+                    <p>{queueMessage}</p>
+                    <p>You will be notified when your turn arrives.</p>
+                </section>
+            )}
 
             {/* The timer is the visible counterpart of the backend lock. It
                 only renders once a reservation exists (deadline pinned) and
