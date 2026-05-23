@@ -12,9 +12,23 @@ type CompanyMembership = {
     status: CompanyStatus;
 };
 
+type CompanyPermissionName =
+    | "Manage inventory"
+    | "Configure layout"
+    | "Manage policies"
+    | "Customer service"
+    | "View history"
+    | "Generate sales reports";
+
 type MyCompaniesPageProps = {
     onCreateCompany: () => void;
-    onOpenCompany: (companyId: string, companyName: string) => void;
+    onOpenCompany: (
+        companyId: string,
+        companyName: string,
+        role: string,
+        status: CompanyStatus,
+        permissions: CompanyPermissionName[],
+    ) => void;
 };
 
 function mapCompanyMembership(dto: CompanyMembershipDto): CompanyMembership {
@@ -49,12 +63,39 @@ function getCompanyStatusClass(status: CompanyStatus) {
     return `company-status company-status--${status}`;
 }
 
+function getPermissionsForRole(role: string): CompanyPermissionName[] {
+    const normalizedRole = role.trim().toLowerCase();
+
+    if (normalizedRole === "manager") {
+        return [
+            "Manage inventory",
+            "Customer service",
+            "View history",
+        ];
+    }
+
+    return [
+        "Manage inventory",
+        "Configure layout",
+        "Manage policies",
+        "Customer service",
+        "View history",
+        "Generate sales reports",
+    ];
+}
+
 function CompanyCard({
     company,
     onOpenCompany,
 }: {
     company: CompanyMembership;
-    onOpenCompany: (companyId: string, companyName: string) => void;
+    onOpenCompany: (
+        companyId: string,
+        companyName: string,
+        role: string,
+        status: CompanyStatus,
+        permissions: CompanyPermissionName[],
+    ) => void;
 }) {
     return (
         <article className="company-card">
@@ -62,7 +103,15 @@ function CompanyCard({
                 <button
                     type="button"
                     className="company-name-link"
-                    onClick={() => onOpenCompany(company.id, company.name)}
+                    onClick={() =>
+                        onOpenCompany(
+                            company.id,
+                            company.name,
+                            company.role,
+                            company.status,
+                            getPermissionsForRole(company.role),
+                        )
+                    }
                 >
                     {company.name}
                 </button>

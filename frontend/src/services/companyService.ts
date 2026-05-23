@@ -21,6 +21,23 @@ export type CompanyResponse = {
 	eventIds: string[];
 };
 
+export type CompanyPermissionName =
+	| "MANAGE_INVENTORY"
+	| "CONFIGURE_LAYOUT"
+	| "MANAGE_POLICIES"
+	| "CUSTOMER_SERVICE"
+	| "VIEW_HISTORY"
+	| "REPORTS_GENERATION";
+
+export type CompanyAccessResponse = {
+	companyId: string;
+	companyName: string;
+	userEmail: string;
+	role: string;
+	status: string;
+	grantedPermissions: CompanyPermissionName[];
+};
+
 export type CompanyHierarchyResponse = {
 	companyId: string;
 	mermaidChart: string;
@@ -43,6 +60,17 @@ export async function getCompanyHierarchy(
 	});
 
 	return response.data.data as CompanyHierarchyResponse;
+}
+
+export async function getCompanyPermissions(
+	companyId: string,
+	userEmail: string,
+): Promise<CompanyAccessResponse> {
+	const response = await api.get(`/companies/${companyId}/permissions`, {
+		params: { userEmail },
+	});
+
+	return response.data.data as CompanyAccessResponse;
 }
 
 export async function getMyCompanies(userEmail: string): Promise<CompanyMembership[]> {

@@ -1,6 +1,7 @@
 package org.example.DomainLayer;
 
 import java.time.LocalDate;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -8,6 +9,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 
+import org.example.ApplicationLayer.dto.CompanyDTOs.CompanyAccessResponse;
 import org.example.ApplicationLayer.dto.CompanyDTOs.CompanyMembershipResponse;
 import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
@@ -386,5 +388,49 @@ public class RolesDomainService {
                     );
                 })
                 .toList();
+    }
+
+    public CompanyAccessResponse getCompanyAccess(UUID companyId, String userEmail) {
+        if (companyId == null) {
+            throw new IllegalArgumentException("Company ID is required");
+        }
+        if (userEmail == null || userEmail.isBlank()) {
+            throw new IllegalArgumentException("Email is required");
+        }
+
+        Company company = companyRepository.findByID(companyId)
+                .orElseThrow(() -> new IllegalArgumentException("Company not found"));
+
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        ICompanyMember role = user.getCompanyRole(companyId);
+        if (role == null) {
+            throw new IllegalArgumentException("User is not a member of the company");
+        }
+
+        List<CompanyPermission> grantedPermissions = Arrays.stream(CompanyPermission.values())
+                .filter(permission -> hasCompanyPermission(role, permission))
+                .toList();
+
+        return new CompanyAccessResponse(
+                company.getId(),
+                company.getName(),
+                userEmail,
+                role.getRoleName(),
+                company.getStatus().name(),
+                grantedPermissions);
+    }
+
+    private boolean hasCompanyPermission(ICompanyMember role, CompanyPermission permission) {
+        if (role instanceof CompanyFounder || role instanceof CompanyOwner) {
+            return true;
+        }
+
+        if (role instanceof CompanyManager manager) {
+            return manager.getPremissions().contains(permission);
+        }
+
+        return false;
     }
 }

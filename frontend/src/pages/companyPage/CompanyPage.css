@@ -1,0 +1,131 @@
+.company-page {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+}
+
+.company-page-header {
+    max-width: 960px;
+}
+
+.company-summary-grid {
+    max-width: 960px;
+    width: 100%;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.company-summary-card,
+.company-permissions-card {
+    padding: 22px 24px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+}
+
+.company-summary-label {
+    display: inline-block;
+    margin-bottom: 8px;
+    color: #6b7280;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.company-summary-value {
+    display: block;
+    color: #111827;
+    font-size: 20px;
+}
+
+.company-status {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.company-status--active {
+    color: #166534;
+    background: rgba(34, 197, 94, 0.14);
+}
+
+.company-status--suspended {
+    color: #92400e;
+    background: rgba(251, 191, 36, 0.18);
+}
+
+.company-status--closed {
+    color: #7f1d1d;
+    background: rgba(220, 38, 38, 0.12);
+}
+
+.company-permissions-card {
+    max-width: 960px;
+    width: 100%;
+    margin: 0 auto;
+}
+
+.company-permissions-card h2 {
+    margin: 0 0 10px;
+    font-size: 24px;
+}
+
+.company-permissions-card p {
+    margin: 0;
+    color: #6b7280;
+    line-height: 1.5;
+}
+
+.company-permissions-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 18px;
+}
+
+.company-permission-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 12px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.company-permission-chip--granted {
+    background: rgba(34, 197, 94, 0.14);
+    color: #166534;
+}
+
+.company-permission-chip--denied {
+    background: rgba(220, 38, 38, 0.12);
+    color: #7f1d1d;
+}
+
+.company-page-actions {
+    max-width: 960px;
+    width: 100%;
+    margin: 0 auto;
+    display: flex;
+    justify-content: flex-start;
+}
+
+@media (max-width: 720px) {
+    .company-summary-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .company-page-actions {
+        justify-content: center;
+    }
+}

@@ -7,6 +7,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Logger;
 
+import org.example.ApplicationLayer.dto.CompanyDTOs.CompanyAccessResponse;
 import org.example.ApplicationLayer.dto.CompanyDTOs.CompanyMembershipResponse;
 import org.example.ApplicationLayer.dto.CompanyDTOs.CompanyResponse;
 import org.example.ApplicationLayer.dto.CompanyDTOs.HierarchyResponse;
@@ -331,5 +332,16 @@ public class CompanyService {
             throw new IllegalArgumentException("Email is required");
         }
         return rolesDomainService.getUserCompanies(userEmail);
+    }
+
+    public CompanyAccessResponse getCompanyAccess(UUID companyId, String userEmail) {
+        if (companyId == null) {
+            throw new IllegalArgumentException("Company ID is required");
+        }
+        if (userEmail == null || userEmail.isBlank()) {
+            throw new IllegalArgumentException("Email is required");
+        }
+
+        return rolesDomainService.getCompanyAccess(companyId, userEmail);
     }
 }

@@ -12,6 +12,7 @@ import org.example.ApplicationLayer.dto.CompanyDTOs.AddOvertDiscountRequest;
 import org.example.ApplicationLayer.dto.CompanyDTOs.AddPolicyRuleRequest;
 import org.example.ApplicationLayer.dto.CompanyDTOs.ChangeManagerPermissionsRequest;
 import org.example.ApplicationLayer.dto.CompanyDTOs.CloseCompanyRequest;
+import org.example.ApplicationLayer.dto.CompanyDTOs.CompanyAccessResponse;
 import org.example.ApplicationLayer.dto.CompanyDTOs.CompanyMembershipResponse;
 import org.example.ApplicationLayer.dto.CompanyDTOs.CompanyResponse;
 import org.example.ApplicationLayer.dto.CompanyDTOs.CreateCompanyRequest;
@@ -87,6 +88,21 @@ public class CompanyController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to load user companies"));
+        }
+    }
+
+    @GetMapping("/{companyId}/permissions")
+    public ResponseEntity<ApiResponse<CompanyAccessResponse>> getCompanyPermissions(
+            @PathVariable("companyId") UUID companyId,
+            @RequestParam String userEmail) {
+        try {
+            CompanyAccessResponse access = companyService.getCompanyAccess(companyId, userEmail);
+            return ResponseEntity.ok(ApiResponse.success("Company permissions loaded successfully", access));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to load company permissions"));
         }
     }
 
