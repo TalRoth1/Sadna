@@ -1,36 +1,5 @@
 package org.example.ApplicationLayer;
 
-import org.example.ApplicationLayer.dto.CompanyDTOs.CompanyResponse;
-import org.example.ApplicationLayer.dto.CompanyDTOs.HierarchyResponse;
-import org.example.ApplicationLayer.dto.CompanyDTOs.InvitationResponse;
-import org.example.ApplicationLayer.dto.CompanyDTOs.SalesReportResponse;
-import org.example.ApplicationLayer.dto.SalesReport;
-import org.example.DomainLayer.ICompanyRepository;
-import org.example.DomainLayer.IUserRepository;
-import org.example.DomainLayer.NotificationAggregate.INotifier;
-import org.example.DomainLayer.PurchaseDomainService;
-import org.example.DomainLayer.RolesDomainService;
-import org.example.DomainLayer.CompanyAggregate.Company;
-import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
-import org.example.DomainLayer.PolicyManagment.AgeRule;
-import org.example.DomainLayer.PolicyManagment.IPurchaseRule;
-import org.example.DomainLayer.PolicyManagment.LoneSeatRule;
-import org.example.DomainLayer.PolicyManagment.MinTicketRule;
-import org.example.DomainLayer.PolicyManagment.OvertDiscount;
-import org.example.DomainLayer.PolicyManagment.PurchaseComposite;
-import org.example.DomainLayer.UserAggregate.CompanyFounder;
-import org.example.DomainLayer.UserAggregate.CompanyManager;
-import org.example.DomainLayer.UserAggregate.CompanyOwner;
-import org.example.DomainLayer.UserAggregate.User;
-
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
-import org.mockito.quality.Strictness;
-
 import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.List;
@@ -41,9 +10,51 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.junit.Assert.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import org.example.ApplicationLayer.dto.CompanyDTOs.HierarchyResponse;
+import org.example.ApplicationLayer.dto.CompanyDTOs.InvitationResponse;
+import org.example.ApplicationLayer.dto.CompanyDTOs.SalesReportResponse;
+import org.example.ApplicationLayer.dto.SalesReport;
+import org.example.DomainLayer.CompanyAggregate.Company;
+import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
+import org.example.DomainLayer.ICompanyRepository;
+import org.example.DomainLayer.IUserRepository;
+import org.example.DomainLayer.NotificationAggregate.INotifier;
+import org.example.DomainLayer.PolicyManagment.AgeRule;
+import org.example.DomainLayer.PolicyManagment.IPurchaseRule;
+import org.example.DomainLayer.PolicyManagment.LoneSeatRule;
+import org.example.DomainLayer.PolicyManagment.MinTicketRule;
+import org.example.DomainLayer.PolicyManagment.OvertDiscount;
+import org.example.DomainLayer.PolicyManagment.PurchaseComposite;
+import org.example.DomainLayer.PurchaseDomainService;
+import org.example.DomainLayer.RolesDomainService;
+import org.example.DomainLayer.UserAggregate.CompanyFounder;
+import org.example.DomainLayer.UserAggregate.CompanyManager;
+import org.example.DomainLayer.UserAggregate.CompanyOwner;
+import org.example.DomainLayer.UserAggregate.User;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import static org.mockito.ArgumentMatchers.any;
+import org.mockito.Mock;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
+import org.mockito.quality.Strictness;
 
 public class CompanyServiceTest {
 
@@ -196,7 +207,7 @@ public class CompanyServiceTest {
         companyService.closeCompanyAsAdmin(adminUsername, companyId);
 
         verify(userRepositoryMock).isSystemAdmin(adminUsername);
-        verify(companyRepositoryMock).findByID(companyId);
+                verify(companyRepositoryMock, times(2)).findByID(companyId);
         verify(company).AdminClose();
         verify(companyRepositoryMock).save(company);
     }

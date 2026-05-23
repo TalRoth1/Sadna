@@ -69,9 +69,9 @@ public class CompanyService {
                 throw new IllegalArgumentException("Company ID is required");
             }
 
-            String owner = rolesDomainService.getCompanyOwner(companyId);
-
             rolesDomainService.closeCompanyAsAdmin(adminUsername, companyId);
+
+            String owner = rolesDomainService.getCompanyOwner(companyId);
 
             notifier.notifyUser(owner, "Company: " + companyId + " has been closed");
 

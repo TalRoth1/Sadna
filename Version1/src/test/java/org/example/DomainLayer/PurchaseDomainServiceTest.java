@@ -1,22 +1,37 @@
 package org.example.DomainLayer;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
-import org.example.DomainLayer.EventAggregate.*;
+import org.example.DomainLayer.EventAggregate.Event;
+import org.example.DomainLayer.EventAggregate.EventStatus;
+import org.example.DomainLayer.EventAggregate.SittingArea;
+import org.example.DomainLayer.EventAggregate.SittingTicket;
+import org.example.DomainLayer.EventAggregate.TicketStatus;
 import org.example.DomainLayer.LotteryAggregate.PuchaseLottery;
 import org.example.DomainLayer.PurchaseHistoryAggregate.Payment;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.example.DomainLayer.UserAggregate.User;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import org.junit.Before;
 import org.junit.Test;
-
-import java.time.LocalDateTime;
-import java.util.*;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 
 public class PurchaseDomainServiceTest {
@@ -68,6 +83,7 @@ public class PurchaseDomainServiceTest {
 
         Event event = eventWithOneSittingTicket(eventId, companyId, areaId, ticketId);
         eventRepository.save(event);
+        userRepository.add(new User(userId, "user", "user@mail.com", "pass", 20));
 
         PuchaseLottery lottery = new PuchaseLottery(
                 UUID.randomUUID(),
@@ -101,6 +117,7 @@ public class PurchaseDomainServiceTest {
 
         Event event = eventWithOneSittingTicket(eventId, companyId, areaId, ticketId);
         eventRepository.save(event);
+        userRepository.add(new User(userId, "user", "user@mail.com", "pass", 20));
 
         PuchaseLottery lottery = new PuchaseLottery(
                 UUID.randomUUID(),
@@ -136,6 +153,7 @@ public class PurchaseDomainServiceTest {
 
         Event event = eventWithOneSittingTicket(eventId, companyId, areaId, ticketId);
         eventRepository.save(event);
+        userRepository.add(new User(userId, "user", "user@mail.com", "pass", 20));
 
         PuchaseLottery lottery = new PuchaseLottery(
                 UUID.randomUUID(),
@@ -177,6 +195,7 @@ public class PurchaseDomainServiceTest {
 
         Event event = eventWithOneSittingTicket(eventId, companyId, areaId, ticketId);
         eventRepository.save(event);
+        userRepository.add(new User(userId, "user", "user@mail.com", "pass", 20));
 
         PuchaseLottery lottery = new PuchaseLottery(
                 UUID.randomUUID(),
@@ -704,6 +723,7 @@ public class PurchaseDomainServiceTest {
         event.getLayout().addArea(new org.example.DomainLayer.EventAggregate.SittingArea(areaId, 100f));
         event.addTicket(new org.example.DomainLayer.EventAggregate.SittingTicket(ticketId, eventId, areaId, 100f, 1, 1));
         eventRepository.save(event);
+        userRepository.add(new User(userId, "user", "user@mail.com", "pass", 20));
 
         purchaseDomainService.selectSittingTickets(eventId, List.of(ticketId), userId, true);
 
@@ -752,6 +772,7 @@ public class PurchaseDomainServiceTest {
         event.getLayout().addArea(new org.example.DomainLayer.EventAggregate.StandingArea(areaId, 100f));
         event.addStandingTickets(areaId, 2);
         eventRepository.save(event);
+        userRepository.add(new User(userId, "user", "mail", "pass", 20));
 
         purchaseDomainService.selectStandingTickets(eventId, 1, userId, areaId, false);
 
@@ -778,10 +799,9 @@ public class PurchaseDomainServiceTest {
         event.addTicket(new org.example.DomainLayer.EventAggregate.SittingTicket(ticketId, eventId, areaId, 100f, 1, 1));
         eventRepository.save(event);
 
+        userRepository.add(new User(userId, "user", "mail", "pass", 20));
         purchaseDomainService.selectSittingTickets(eventId, List.of(ticketId), userId, true);
         ActivePurchase purchase = purchaseRepository.findByUserID(userId);
-
-        userRepository.add(new User(userId, "user", "mail", "pass", 20));
 
         purchaseDomainService.setPaymentGateway((uid, amount, details) -> true);
         purchaseDomainService.setTicketingGateway((uid, eid, ticketIds) -> {});
@@ -913,10 +933,10 @@ public class PurchaseDomainServiceTest {
         event.addTicket(new org.example.DomainLayer.EventAggregate.SittingTicket(ticketId, eventId, areaId, 100f, 1, 1));
         eventRepository.save(event);
 
+        userRepository.add(new User(userId, "user", "mail", "pass", 20));
+
         purchaseDomainService.selectSittingTickets(eventId, List.of(ticketId), userId, true);
         ActivePurchase purchase = purchaseRepository.findByUserID(userId);
-
-        userRepository.add(new User(userId, "user", "mail", "pass", 20));
 
         purchaseDomainService.setPaymentGateway((uid, amount, details) -> false);
         purchaseDomainService.setTicketingGateway((uid, eid, ticketIds) -> fail("Ticketing should not be called when payment fails"));
@@ -950,6 +970,8 @@ public class PurchaseDomainServiceTest {
         event.addTicket(new org.example.DomainLayer.EventAggregate.SittingTicket(newTicketId, eventId, areaId, 120f, 1, 2));
         eventRepository.save(event);
 
+        userRepository.add(new User(userId, "user", "mail", "pass", 20));
+
         purchaseDomainService.selectSittingTickets(eventId, List.of(oldTicketId), userId, false);
         ActivePurchase purchase = purchaseRepository.findByUserID(userId);
 
@@ -980,6 +1002,8 @@ public class PurchaseDomainServiceTest {
         event.addStandingTickets(areaId, 3);
         eventRepository.save(event);
 
+        userRepository.add(new User(userId, "user", "mail", "pass", 20));
+
         purchaseDomainService.selectStandingTickets(eventId, 1, userId, areaId, false);
         ActivePurchase purchase = purchaseRepository.findByUserID(userId);
 
@@ -1006,6 +1030,8 @@ public class PurchaseDomainServiceTest {
         event.getLayout().addArea(new org.example.DomainLayer.EventAggregate.SittingArea(areaId, 100f));
         event.addTicket(new org.example.DomainLayer.EventAggregate.SittingTicket(ticketId, eventId, areaId, 100f, 1, 1));
         eventRepository.save(event);
+
+        userRepository.add(new User(userId, "user", "mail", "pass", 20));
 
         purchaseDomainService.selectSittingTickets(eventId, List.of(ticketId), userId, false);
         ActivePurchase purchase = purchaseRepository.findByUserID(userId);
@@ -1036,6 +1062,8 @@ public class PurchaseDomainServiceTest {
         event.getLayout().addArea(new org.example.DomainLayer.EventAggregate.SittingArea(areaId, 100f));
         event.addTicket(new org.example.DomainLayer.EventAggregate.SittingTicket(ticketId, eventId, areaId, 100f, 1, 1));
         eventRepository.save(event);
+
+        userRepository.add(new User(userId, "user", "mail", "pass", 20));
 
         purchaseDomainService.selectSittingTickets(eventId, List.of(ticketId), userId, false);
         ActivePurchase purchase = purchaseRepository.findByUserID(userId);
@@ -1146,6 +1174,8 @@ public class PurchaseDomainServiceTest {
         event.addTicket(ticket);
 
         eventRepository.save(event);
+        userRepository.add(new User(firstUserId, "user1", "user1@mail.com", "pass", 20));
+        userRepository.add(new User(secondUserId, "user2", "user2@mail.com", "pass", 20));
 
         // משתמש ראשון משריין
         purchaseDomainService.selectSittingTickets(
@@ -1206,6 +1236,8 @@ public class PurchaseDomainServiceTest {
         );
 
         eventRepository.save(event);
+    userRepository.add(new User(user1Id, "user1", "user1@mail.com", "pass", 20));
+    userRepository.add(new User(user2Id, "user2", "user2@mail.com", "pass", 20));
 
         CountDownLatch startTogether = new CountDownLatch(1);
 
@@ -1378,6 +1410,11 @@ public class PurchaseDomainServiceTest {
         @Override
         public boolean exists(UUID userId) {
             return usersById.containsKey(userId);
+        }
+
+        @Override
+        public boolean existsByUsername(String username) {
+            return usersById.values().stream().anyMatch(user -> user.getUsername().equals(username));
         }
 
         @Override
