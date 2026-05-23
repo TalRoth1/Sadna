@@ -164,7 +164,7 @@ public class PurchaseService {
 
             return toActivePurchaseDTO(activePurchase);
         } catch (DomainException e) {
-            throw new IllegalStateException("couldn't select the sitting tickets");
+            throw new IllegalStateException("Couldn't select the sitting tickets: " + e.getMessage());
         }
     }
 
@@ -190,7 +190,7 @@ public class PurchaseService {
 
             return toActivePurchaseDTO(activePurchase);
         } catch (DomainException e) {
-            throw new IllegalStateException("couldn't select the standing tickets");
+            throw new IllegalStateException("Couldn't select the standing tickets: " + e.getMessage());
         }
     }
 
@@ -224,7 +224,7 @@ public class PurchaseService {
         catch (DomainException e) {
             logger.severe("Critical failure in completePurchase for ID " + activePurchaseID +
                     ". Reason: " + e.getMessage());
-            throw new IllegalStateException("couldn't complete purchase");
+            throw new IllegalStateException("Couldn't complete purchase: " + e.getMessage());
         }
     }
 
@@ -327,6 +327,29 @@ public class PurchaseService {
             throw new IllegalStateException(e.getMessage());
         }
     }
+
+    /**
+     * Resume-lookup: returns the user's in-progress active purchase for
+     * the given event, or {@code null} if no live reservation exists.
+     * Used by the TicketPurchase page on mount so the React client can
+     * restore the cart + timer after the user navigated away and came
+     * back within the 10-minute window.
+     */
+    public ActivePurchaseDTO viewActivePurchaseForEvent(UUID userId, UUID eventId) {
+        if (userId == null) {
+            throw new IllegalArgumentException("User ID is required");
+        }
+        if (eventId == null) {
+            throw new IllegalArgumentException("Event ID is required");
+        }
+        try {
+            ActivePurchase purchase =
+                    purchaseDomainService.findActivePurchaseByUserAndEvent(userId, eventId);
+            return purchase == null ? null : toActivePurchaseDTO(purchase);
+        } catch (DomainException e) {
+            throw new IllegalStateException(e.getMessage());
+        }
+    }
     public void cancelActivePurchase(UUID activePurchaseId)
     {
         logger.info("Attempting to cancel active purchase: ID=" + activePurchaseId);
@@ -343,7 +366,7 @@ public class PurchaseService {
         catch (DomainException e)
         {
             logger.severe("Failed to cancel active purchase " + activePurchaseId + ". Reason: " + e.getMessage());
-            throw new IllegalStateException("Couldn't cancel purchase");
+            throw new IllegalStateException("Couldn't cancel purchase: " + e.getMessage());
         }
     }
     public void updateActivePurchaseSittingTickets(UUID activePurchaseId, List<UUID> newTicketIds)
@@ -366,7 +389,7 @@ public class PurchaseService {
         catch (DomainException e)
         {
             logger.severe("Failed to update sitting tickets for purchase " + activePurchaseId + ". Reason: " + e.getMessage());
-            throw new IllegalStateException("Couldn't update active purchase");
+            throw new IllegalStateException("Couldn't update sitting tickets: " + e.getMessage());
         }
     }
 
@@ -387,7 +410,7 @@ public class PurchaseService {
             logger.info("Successfully updated standing tickets for active purchase: " + activePurchaseId);
         } catch (DomainException e) {
             logger.severe("Failed to update standing tickets for purchase " + activePurchaseId + ". Reason: " + e.getMessage());
-            throw new IllegalStateException("Couldn't update active purchase");
+            throw new IllegalStateException("Couldn't update standing tickets: " + e.getMessage());
         }
     }
 

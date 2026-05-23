@@ -1,13 +1,23 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getEventById } from "../../services/eventSearchService";
 
-import { getCurrentUser } from "../../services/currentUserService";
 import {
+    ensureGuestSession,
+    getStoredUserId,
+    isLoggedInMember,
+    isSessionInvalidError,
+} from "../../services/authService";
+import {
+    cancelActivePurchase,
+    completePurchase,
+    getActivePurchaseForEvent,
+    registerToLottery,
     selectSittingTickets,
     selectStandingTickets,
-    type ActivePurchaseDTO,
-} from "../../services/ticketPurchaseService";
-
+    updateSittingTickets,
+    updateStandingTickets,
+    type ActivePurchaseResponse,
+} from "../../services/purchaseService";
 import {
     isEventBookable,
     type Area,
@@ -57,9 +67,6 @@ type ValidationResult = {
     warnings: string[];
 };
 
-const PURCHASE_WINDOW_MINUTES = 10;
-const MOCK_RESERVATION_DELAY_MS = 400;
-
 // Pattern B: the user browses freely in "select" mode (no backend lock,
 // no timer) and only commits to a reservation when they click "Continue
 // to checkout". That commit is what mints the reservationDeadline and
@@ -67,6 +74,20 @@ const MOCK_RESERVATION_DELAY_MS = 400;
 // PurchaseService.select{Sitting,Standing}Tickets creates the
 // ActivePurchase with a fixed endTime.
 type PurchaseStep = "select" | "checkout";
+
+// The backend's purchase API offers two select endpoints — sitting (by
+// ticket ids) and standing (single area + amount) — and the domain
+// invariant "one active purchase per (user, event)" means we can have at
+// most one shape live at a time. The UI mirrors that on the client.
+type ActiveShape =
+    | { kind: "sitting"; ticketIds: string[] }
+    | { kind: "standing"; areaId: string; amount: number };
+
+type ActivePurchaseState = {
+    activePurchaseId: string;
+    endTime: Date;
+    shape: ActiveShape;
+};
 
 // ---------------------------------------------------------------------------
 // Pure helpers — small, side-effect-free, easy to reason about / test later.
@@ -178,6 +199,96 @@ function detectLoneSeats(
     return lone;
 }
 
+/**
+ * Map the current cart to one of the two shapes the backend can reserve:
+ *   - sitting: a flat list of ticket ids (any number of sitting areas)
+ *   - standing: a single area + amount
+ * Returns null if the cart mixes sitting and standing, or spreads
+ * standing across more than one area — both of which violate the
+ * "one active purchase per (user, event)" domain invariant and would
+ * be impossible to send via select{Sitting,Standing}Tickets.
+ */
+function deriveActiveShape(selection: SeatSelection): ActiveShape | null {
+    const sittingIds = getSelectedTicketIds(selection);
+    const standingEntries = Object.entries(selection.standingCountByArea).filter(
+        ([, count]) => count > 0,
+    );
+
+    if (sittingIds.length > 0 && standingEntries.length === 0) {
+        return { kind: "sitting", ticketIds: sittingIds };
+    }
+    if (sittingIds.length === 0 && standingEntries.length === 1) {
+        const [areaId, amount] = standingEntries[0];
+        return { kind: "standing", areaId, amount };
+    }
+    return null;
+}
+
+/**
+ * Rebuild the in-page selection + shape from an ActivePurchaseResponse, so
+ * the resume flow can drop the user back into the exact state they left.
+ *
+ *   - Sitting tickets are recognised by `row`/`seat` being present in the
+ *     event's ticket pool (matches eventSearchService.toTicket).
+ *   - Standing tickets land in the same pool but with `row`/`seat` absent;
+ *     the domain invariant guarantees they all share one area, so we
+ *     count entries by areaId.
+ *
+ * Returns null when none of the reserved ticket ids can be located in the
+ * event (e.g. a stale reservation against an event whose tickets were
+ * regenerated) — the caller treats that as "don't resume, show a clean
+ * slate".
+ */
+function reconstructFromActivePurchase(
+    response: ActivePurchaseResponse,
+    event: Event,
+): { selection: SeatSelection; shape: ActiveShape } | null {
+    const sittingTicketIds: Record<string, true> = {};
+    const standingCountByArea: Record<string, number> = {};
+    const orderedSittingIds: string[] = [];
+    let standingAreaId: string | null = null;
+
+    for (const ticketId of Object.keys(response.ticketPrices)) {
+        const ticket = event.tickets.find((t) => t.id === ticketId);
+        if (!ticket) {
+            continue;
+        }
+        if (ticket.row !== undefined && ticket.seat !== undefined) {
+            sittingTicketIds[ticketId] = true;
+            orderedSittingIds.push(ticketId);
+        } else {
+            standingCountByArea[ticket.areaId] =
+                (standingCountByArea[ticket.areaId] ?? 0) + 1;
+            standingAreaId = ticket.areaId;
+        }
+    }
+
+    const selection: SeatSelection = { sittingTicketIds, standingCountByArea };
+    const standingAreaCount = Object.keys(standingCountByArea).length;
+
+    if (orderedSittingIds.length > 0 && standingAreaCount === 0) {
+        return {
+            selection,
+            shape: { kind: "sitting", ticketIds: orderedSittingIds },
+        };
+    }
+    if (
+        orderedSittingIds.length === 0 &&
+        standingAreaCount === 1 &&
+        standingAreaId
+    ) {
+        return {
+            selection,
+            shape: {
+                kind: "standing",
+                areaId: standingAreaId,
+                amount: standingCountByArea[standingAreaId],
+            },
+        };
+    }
+    return null;
+}
+
 function validateSelection(
     selection: SeatSelection,
     event: Event,
@@ -209,6 +320,14 @@ function validateSelection(
                 `This event allows at most ${policy.maxTicketsPerPurchase} ticket${
                     policy.maxTicketsPerPurchase === 1 ? "" : "s"
                 } per purchase.`,
+            );
+        }
+        // Single-shape constraint — the backend select endpoints accept
+        // either a list of sitting ticket ids OR one standing area at a
+        // time. Mixing is impossible per the domain invariant.
+        if (totalCount > 0 && deriveActiveShape(selection) === null) {
+            blockers.push(
+                "Please pick either sitting tickets or standing tickets in a single area — not both.",
             );
         }
     }
@@ -649,13 +768,15 @@ type PurchaseSummaryProps = {
     agreedToTerms: boolean;
     onToggleTerms: (next: boolean) => void;
     onContinueToCheckout: () => void;
-    onJoinLottery: () => void;
+    onJoinLottery: (ticketAmount: number) => void;
     onConfirmPayment: () => void;
     onChangeSeats: () => void;
     onCancelReservation: () => void;
     isPerformingAction: boolean;
     isPaymentComplete: boolean;
     actionMessage: ActionResultMessage | null;
+    isLotteryAvailable: boolean;
+    canEnterLottery: boolean;
 };
 
 function PurchaseSummary({
@@ -674,9 +795,12 @@ function PurchaseSummary({
     isPerformingAction,
     isPaymentComplete,
     actionMessage,
+    isLotteryAvailable,
+    canEnterLottery,
 }: PurchaseSummaryProps) {
     const totalCount = getTotalSelectedCount(selection);
     const totalPrice = getTotalPrice(selection, event);
+    const [lotteryTicketAmount, setLotteryTicketAmount] = useState<number>(1);
 
     const sittingItems = useMemo<SittingSummaryItem[]>(() => {
         const ticketsById = new Map(
@@ -876,15 +1000,51 @@ function PurchaseSummary({
                                 : "Continue to checkout"}
                     </button>
 
-                    {event.lotteryId && (
-                        <button
-                            type="button"
-                            className="purchase-action-secondary"
-                            onClick={onJoinLottery}
-                            disabled={isPerformingAction}
-                        >
-                            Or join the lottery instead
-                        </button>
+                    {isLotteryAvailable && (
+                        <div className="purchase-lottery">
+                            {canEnterLottery ? (
+                                <>
+                                    <label className="purchase-lottery-amount">
+                                        <span>Tickets to enter the lottery for</span>
+                                        <input
+                                            type="number"
+                                            min={1}
+                                            value={lotteryTicketAmount}
+                                            onChange={(event_) => {
+                                                const parsed = Number(
+                                                    event_.target.value,
+                                                );
+                                                setLotteryTicketAmount(
+                                                    Number.isFinite(parsed) &&
+                                                        parsed >= 1
+                                                        ? Math.floor(parsed)
+                                                        : 1,
+                                                );
+                                            }}
+                                        />
+                                    </label>
+                                    <button
+                                        type="button"
+                                        className="purchase-action-secondary"
+                                        onClick={() =>
+                                            onJoinLottery(lotteryTicketAmount)
+                                        }
+                                        disabled={
+                                            isPerformingAction ||
+                                            lotteryTicketAmount < 1
+                                        }
+                                    >
+                                        Or join the lottery instead
+                                    </button>
+                                </>
+                            ) : (
+                                <p className="purchase-lottery-locked">
+                                    This event has a lottery. Log in as a
+                                    member to enter it — guests can only buy
+                                    standard tickets.
+                                </p>
+                            )}
+                        </div>
                     )}
                 </>
             ) : (
@@ -930,13 +1090,20 @@ function PurchaseSummary({
 
 type PaymentDetailsCardProps = {
     isPaymentComplete: boolean;
+    couponCode: string;
+    onCouponCodeChange: (next: string) => void;
 };
 
-// Mock payment form for the checkout step. Disabled inputs are deliberate —
-// when the API arrives we'll wire this to a real payment provider (Stripe
-// Elements or similar) and feed the resulting tokenized payment details to
-// PurchaseService.completePurchase.
-function PaymentDetailsCard({ isPaymentComplete }: PaymentDetailsCardProps) {
+// Payment form for the checkout step. The card-detail inputs stay disabled
+// on purpose — V2 of the assignment only requires calling an external
+// payment service and surfacing its yes/no result, so the body POSTed to
+// /complete is an empty PaymentDetails record. The one live input is the
+// coupon code (Appendix §3c: "הרוכש מזין את הקוד במעמד התשלום").
+function PaymentDetailsCard({
+    isPaymentComplete,
+    couponCode,
+    onCouponCodeChange,
+}: PaymentDetailsCardProps) {
     return (
         <section className="payment-details-card">
             <header className="payment-details-header">
@@ -979,9 +1146,23 @@ function PaymentDetailsCard({ isPaymentComplete }: PaymentDetailsCardProps) {
                             disabled
                         />
                     </label>
+                    <label className="payment-field">
+                        <span>Coupon code (optional)</span>
+                        <input
+                            type="text"
+                            placeholder="Enter a discount code"
+                            value={couponCode}
+                            onChange={(event_) =>
+                                onCouponCodeChange(event_.target.value)
+                            }
+                            autoComplete="off"
+                        />
+                    </label>
                     <p className="payment-form-notice">
-                        Payment form is a mock for this milestone. Click
-                        "Confirm payment" to simulate a successful purchase.
+                        Card fields are illustrative — for this milestone the
+                        backend's external payment gateway is contacted with
+                        empty details and always approves. Coupon codes are
+                        validated server-side at checkout.
                     </p>
                 </form>
             )}
@@ -1007,38 +1188,89 @@ export default function TicketPurchasePage({
     const [isPerformingAction, setIsPerformingAction] = useState(false);
     const [actionMessage, setActionMessage] =
         useState<ActionResultMessage | null>(null);
-    const [activePurchaseId, setActivePurchaseId] = useState<string | null>(null);
+    const [couponCode, setCouponCode] = useState<string>("");
+    // Queue feature (from main): when the backend reports the user is
+    // waiting in a virtual queue, we surface a dedicated banner instead
+    // of the generic error toast.
     const [showQueueMessage, setShowQueueMessage] = useState(false);
     const [queueMessage, setQueueMessage] = useState("");
 
-    // Pinned the moment the user commits the cart (clicks "Continue to
-    // checkout"). Null while they are still browsing — no lock, no timer.
-    // When the API exists this becomes reservationExpiresAt returned by
-    // POST /events/{id}/reservations (i.e. ActivePurchase.endTime). The
-    // backend pins endTime once and does NOT refresh it on subsequent
-    // updateActivePurchase…Tickets calls, so "Change seats" preserves it.
-    const [reservationDeadline, setReservationDeadline] =
-        useState<Date | null>(null);
+    // The server-issued active purchase. Holds the canonical endTime the
+    // PurchaseTimer should track and the last-known reservation shape, so
+    // we can pick between updateSitting/updateStanding (or fall back to a
+    // cancel+select round-trip when the user changes shape entirely).
+    const [activePurchase, setActivePurchase] =
+        useState<ActivePurchaseState | null>(null);
 
     useEffect(() => {
         let isCancelled = false;
 
-        async function loadEvent() {
+        // App.tsx remounts this component (via key={eventId}) when the
+        // user navigates between events, so per-event state is fresh on
+        // arrival — no manual resets needed here.
+        async function loadEventAndResume() {
             try {
                 setIsLoading(true);
-                setErrorMessage("");
-                setActionMessage(null);
 
                 const result = await getEventById(eventId);
                 if (isCancelled) {
                     return;
                 }
                 if (!result) {
-                    setEvent(null);
                     setErrorMessage("This event could not be found.");
                     return;
                 }
                 setEvent(result);
+
+                // Resume: if a guest/member session is cached, ask the
+                // backend whether the user has an in-flight reservation
+                // for THIS specific event. Per spec (general doc, page 2),
+                // a user can have at most one active purchase per event,
+                // so this query is unambiguous. The server keeps the
+                // 10-minute timer running while the page was unmounted,
+                // and ActivePurchaseCleaner sweeps it when it lapses —
+                // in which case we get null here and act as a fresh page.
+                const userId = getStoredUserId();
+                if (!userId) {
+                    return;
+                }
+                try {
+                    const activeResponse = await getActivePurchaseForEvent(
+                        eventId,
+                        userId,
+                    );
+                    if (isCancelled || !activeResponse) {
+                        return;
+                    }
+                    const restored = reconstructFromActivePurchase(
+                        activeResponse,
+                        result,
+                    );
+                    if (!restored) {
+                        // The reservation still exists server-side but its
+                        // ticket ids don't match anything we can render
+                        // (e.g. event tickets were regenerated). Bail out
+                        // of resume; the user can either wait for the
+                        // server-side timer to expire or cancel manually
+                        // through "My tickets" once that page lands.
+                        return;
+                    }
+                    setSelection(restored.selection);
+                    // The user already accepted terms when they made this
+                    // reservation; the backend wouldn't have created it
+                    // otherwise. Reinstating the checkbox keeps the
+                    // "Confirm payment" button enabled.
+                    setAgreedToTerms(true);
+                    setStep("checkout");
+                    setActivePurchase({
+                        activePurchaseId: activeResponse.activePurchaseId,
+                        endTime: new Date(activeResponse.endTime),
+                        shape: restored.shape,
+                    });
+                } catch {
+                    // Best-effort resume. A transient lookup failure must
+                    // not block the read-only event view.
+                }
             } catch {
                 if (!isCancelled) {
                     setErrorMessage("Failed to load event details.");
@@ -1050,7 +1282,7 @@ export default function TicketPurchasePage({
             }
         }
 
-        loadEvent();
+        loadEventAndResume();
         return () => {
             isCancelled = true;
         };
@@ -1089,83 +1321,160 @@ export default function TicketPurchasePage({
         });
     }
 
+    // Translate a backend ActivePurchaseDTO into our local state. Pinning
+    // the deadline to `endTime` (rather than computing it client-side) is
+    // what keeps the timer in lockstep with ActivePurchaseCleaner on the
+    // server — see PurchaseService.toActivePurchaseDTO.
+    function adoptActivePurchase(
+        response: ActivePurchaseResponse,
+        shape: ActiveShape,
+    ): ActivePurchaseState {
+        const state: ActivePurchaseState = {
+            activePurchaseId: response.activePurchaseId,
+            endTime: new Date(response.endTime),
+            shape,
+        };
+        setActivePurchase(state);
+        return state;
+    }
+
+    // Issue the actual select* call against a known userId. Pulled out so
+    // we can retry it with a fresh session if the first attempt fails
+    // because the cached guest userId is no longer recognised by the
+    // server (e.g. after a backend restart wiped the in-memory user repo).
+    async function selectForShape(
+        event_: Event,
+        shape: ActiveShape,
+        userId: string,
+    ): Promise<ActivePurchaseResponse> {
+        return shape.kind === "sitting"
+            ? await selectSittingTickets(
+                  event_.id,
+                  shape.ticketIds,
+                  userId,
+                  agreedToTerms,
+              )
+            : await selectStandingTickets(
+                  event_.id,
+                  shape.areaId,
+                  shape.amount,
+                  userId,
+                  agreedToTerms,
+              );
+    }
+
+    // Run a select* call (cancelling any leftover reservation first, so we
+    // honour "at most one active purchase per (user, event)") and stash
+    // the resulting active purchase. Returns false on failure with the
+    // backend message surfaced as actionMessage.
+    async function createReservation(
+        event_: Event,
+        shape: ActiveShape,
+    ): Promise<boolean> {
+        try {
+            if (activePurchase) {
+                try {
+                    await cancelActivePurchase(activePurchase.activePurchaseId);
+                } catch {
+                    // Best-effort: even if the old reservation has already
+                    // expired or been swept, we still try to open a fresh
+                    // one. Any persistent problem will resurface on the
+                    // select* call below.
+                }
+                setActivePurchase(null);
+            }
+
+            let session = await ensureGuestSession();
+            let response: ActivePurchaseResponse;
+            try {
+                response = await selectForShape(event_, shape, session.userId);
+            } catch (error) {
+                // Self-heal: if the backend says the cached guest is
+                // stale, mint a fresh session and try exactly once more.
+                const message =
+                    error instanceof Error ? error.message : "";
+                if (!isSessionInvalidError(message)) {
+                    throw error;
+                }
+                session = await ensureGuestSession(true);
+                response = await selectForShape(event_, shape, session.userId);
+            }
+
+            adoptActivePurchase(response, shape);
+            return true;
+        } catch (error) {
+            setActionMessage({
+                kind: "error",
+                text:
+                    error instanceof Error
+                        ? error.message
+                        : "Failed to reserve tickets.",
+            });
+            return false;
+        }
+    }
+
     async function handleContinueToCheckout() {
         if (!event) {
+            return;
+        }
+        const shape = deriveActiveShape(selection);
+        if (!shape) {
             return;
         }
 
         setIsPerformingAction(true);
         setActionMessage(null);
+        // Queue feature: clear any banner from a previous attempt so a
+        // successful retry doesn't leave stale UI behind.
         setShowQueueMessage(false);
         setQueueMessage("");
 
         try {
-            const currentUser = await getCurrentUser();
-
-            if (!currentUser) {
-                setActionMessage({
-                    kind: "error",
-                    text: "You must be logged in to reserve tickets.",
-                });
-                return;
-            }
-
-            const sittingTicketIds = getSelectedTicketIds(selection);
-            const standingEntries = Object.entries(selection.standingCountByArea)
-                .filter(([, amount]) => amount > 0);
-
-            let activePurchase: ActivePurchaseDTO | null = null;
-
-            if (sittingTicketIds.length > 0) {
-                activePurchase = await selectSittingTickets(
-                    eventId,
-                    sittingTicketIds,
-                    currentUser.id,
-                    true,
+            if (!activePurchase) {
+                const ok = await createReservation(event, shape);
+                if (!ok) return;
+            } else if (
+                activePurchase.shape.kind === "sitting" &&
+                shape.kind === "sitting"
+            ) {
+                await updateSittingTickets(
+                    activePurchase.activePurchaseId,
+                    shape.ticketIds,
                 );
-            } else if (standingEntries.length > 0) {
-                const [areaId, amount] = standingEntries[0];
-
-                activePurchase = await selectStandingTickets(
-                    eventId,
-                    areaId,
-                    amount,
-                    currentUser.id,
-                    true,
+                setActivePurchase({ ...activePurchase, shape });
+            } else if (
+                activePurchase.shape.kind === "standing" &&
+                shape.kind === "standing"
+            ) {
+                await updateStandingTickets(
+                    activePurchase.activePurchaseId,
+                    shape.areaId,
+                    shape.amount,
                 );
+                setActivePurchase({ ...activePurchase, shape });
             } else {
-                setActionMessage({
-                    kind: "error",
-                    text: "Select at least one ticket to continue.",
-                });
-                return;
+                // Shape changed (sitting <-> standing). The domain forbids
+                // mixing, so we cancel and open a fresh reservation — this
+                // unavoidably restarts the 10-min window, which is the
+                // correct semantic.
+                const ok = await createReservation(event, shape);
+                if (!ok) return;
             }
-
-            setActivePurchaseId(activePurchase.activePurchaseId);
-
-            setReservationDeadline(
-                activePurchase.endTime
-                    ? new Date(activePurchase.endTime)
-                    : new Date(Date.now() + PURCHASE_WINDOW_MINUTES * 60 * 1000),
-            );
 
             setStep("checkout");
-        } catch (error: any) {
-            const message = error.response?.data?.message ?? "";
-
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "";
+            // Queue feature (from main): surface a dedicated banner when
+            // the backend tells us the user is waiting in queue, so the
+            // UI can match the rest of the queue UX.
             if (message.includes("User is waiting in queue")) {
                 setQueueMessage(message);
                 setShowQueueMessage(true);
-                setActionMessage({
-                    kind: "error",
-                    text: message,
-                });
-                return;
             }
-
             setActionMessage({
                 kind: "error",
-                text: message || "Failed to reserve tickets.",
+                text: message || "Could not continue to checkout.",
             });
         } finally {
             setIsPerformingAction(false);
@@ -1173,74 +1482,138 @@ export default function TicketPurchasePage({
     }
 
     function handleChangeSeats() {
-        // Backend mirror: PurchaseService.updateActivePurchaseSittingTickets
-        // / updateActivePurchaseStandingTickets release old tickets, reserve
-        // new ones, and keep ActivePurchase.endTime pinned. The deadline
-        // therefore continues to tick during this round-trip.
+        // The active purchase stays alive server-side with its original
+        // endTime — the next "Continue to checkout" click will route to
+        // updateSitting/updateStanding (or cancel+select on shape change).
         setStep("select");
         setActionMessage(null);
     }
 
-    function handleCancelReservation() {
-        // Backend mirror: PurchaseService.cancelActivePurchase releases all
-        // reserved tickets back to AVAILABLE and deletes the ActivePurchase.
-        setStep("select");
-        setReservationDeadline(null);
-        setSelection(EMPTY_SELECTION);
-        setAgreedToTerms(false);
-        setActionMessage({
-            kind: "success",
-            text: "Reservation cancelled. Your seats have been released.",
-        });
+    async function handleCancelReservation() {
+        if (!activePurchase) {
+            // Defensive: keep the UI consistent even if state slipped.
+            setStep("select");
+            setSelection(EMPTY_SELECTION);
+            setAgreedToTerms(false);
+            return;
+        }
+
+        setIsPerformingAction(true);
+        setActionMessage(null);
+
+        try {
+            await cancelActivePurchase(activePurchase.activePurchaseId);
+            setActivePurchase(null);
+            setStep("select");
+            setSelection(EMPTY_SELECTION);
+            setAgreedToTerms(false);
+            setCouponCode("");
+            setActionMessage({
+                kind: "success",
+                text: "Reservation cancelled. Your seats have been released.",
+            });
+        } catch (error) {
+            setActionMessage({
+                kind: "error",
+                text:
+                    error instanceof Error
+                        ? error.message
+                        : "Could not cancel the reservation.",
+            });
+        } finally {
+            setIsPerformingAction(false);
+        }
     }
 
     function handleTimerExpire() {
-        // Backend mirror: ActivePurchaseCleaner sweeps any ActivePurchase
-        // whose endTime has passed and releases its tickets.
+        // Mirrors ActivePurchaseCleaner: the server has already released
+        // the tickets, so we just reset the local view.
+        setActivePurchase(null);
         setStep("select");
-        setReservationDeadline(null);
         setSelection(EMPTY_SELECTION);
         setAgreedToTerms(false);
+        setCouponCode("");
         setActionMessage({
             kind: "error",
             text: "Your 10-minute reservation has expired. The seats have been released — please pick again.",
         });
     }
 
-    function handleConfirmPayment() {
-        if (!event) {
+    async function handleConfirmPayment() {
+        if (!event || !activePurchase) {
             return;
         }
-        // TODO: Replace with PurchaseService.completePurchase(
-        //   activePurchaseId, paymentDetails, couponCode
-        // ). On success the backend flips RESERVED -> SOLD and deletes the
-        // ActivePurchase.
+
         setIsPerformingAction(true);
         setActionMessage(null);
-        setTimeout(() => {
-            setIsPerformingAction(false);
+
+        try {
+            const trimmedCoupon = couponCode.trim();
+            await completePurchase(
+                activePurchase.activePurchaseId,
+                trimmedCoupon === "" ? null : trimmedCoupon,
+            );
             const total = getTotalPrice(selection, event);
             const count = getTotalSelectedCount(selection);
             setIsPaymentComplete(true);
-            setReservationDeadline(null);
+            setActivePurchase(null);
             setActionMessage({
                 kind: "success",
                 text: `Payment confirmed for ${count} ticket${count === 1 ? "" : "s"} (${total} NIS). Your tickets are on the way.`,
             });
-        }, MOCK_RESERVATION_DELAY_MS);
+        } catch (error) {
+            setActionMessage({
+                kind: "error",
+                text:
+                    error instanceof Error
+                        ? error.message
+                        : "Payment failed. Please try again.",
+            });
+        } finally {
+            setIsPerformingAction(false);
+        }
     }
 
-    function handleJoinLottery() {
-        // TODO: Replace with POST /lotteries/{lotteryId}/registrations.
+    async function handleJoinLottery(ticketAmount: number) {
+        if (!event || !event.lotteryId) {
+            return;
+        }
+        const memberId = getStoredUserId();
+        if (!memberId || !isLoggedInMember()) {
+            setActionMessage({
+                kind: "error",
+                text: "Please log in as a member to enter the lottery.",
+            });
+            return;
+        }
+        if (!Number.isFinite(ticketAmount) || ticketAmount < 1) {
+            setActionMessage({
+                kind: "error",
+                text: "Choose how many tickets you want to enter for (at least 1).",
+            });
+            return;
+        }
+
         setIsPerformingAction(true);
         setActionMessage(null);
-        setTimeout(() => {
-            setIsPerformingAction(false);
+
+        try {
+            await registerToLottery(event.id, memberId, Math.floor(ticketAmount));
             setActionMessage({
                 kind: "success",
-                text: "You have been entered into the lottery. We'll notify you when results are drawn.",
+                text: "You have been entered into the lottery. We'll notify you if you're drawn.",
             });
-        }, MOCK_RESERVATION_DELAY_MS);
+        } catch (error) {
+            setActionMessage({
+                kind: "error",
+                text:
+                    error instanceof Error
+                        ? error.message
+                        : "Failed to register for the lottery.",
+            });
+        } finally {
+            setIsPerformingAction(false);
+        }
     }
 
     if (isLoading) {
@@ -1302,11 +1675,11 @@ export default function TicketPurchasePage({
             )}
 
             {/* The timer is the visible counterpart of the backend lock. It
-                only renders once a reservation exists (deadline pinned) and
-                hides again once the payment has settled. */}
-            {bookable && reservationDeadline && !isPaymentComplete && (
+                only renders once a reservation exists (deadline pinned to
+                ActivePurchase.endTime) and hides once payment has settled. */}
+            {bookable && activePurchase && !isPaymentComplete && (
                 <PurchaseTimer
-                    targetDate={reservationDeadline}
+                    targetDate={activePurchase.endTime}
                     onExpire={handleTimerExpire}
                 />
             )}
@@ -1335,6 +1708,8 @@ export default function TicketPurchasePage({
                     ) : (
                         <PaymentDetailsCard
                             isPaymentComplete={isPaymentComplete}
+                            couponCode={couponCode}
+                            onCouponCodeChange={setCouponCode}
                         />
                     )}
 
@@ -1354,6 +1729,8 @@ export default function TicketPurchasePage({
                         isPerformingAction={isPerformingAction}
                         isPaymentComplete={isPaymentComplete}
                         actionMessage={actionMessage}
+                        isLotteryAvailable={Boolean(event.lotteryId)}
+                        canEnterLottery={isLoggedInMember()}
                     />
                 </div>
             )}

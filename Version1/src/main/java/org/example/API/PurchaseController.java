@@ -103,6 +103,34 @@ public class PurchaseController {
         }
     }
 
+    /**
+     * Resume-lookup for the TicketPurchase page. The browser calls this
+     * on mount with its cached userId and the event whose page it's about
+     * to render. The body is always 200 OK with the standard ApiResponse
+     * envelope; {@code data} is the active purchase if one is in flight,
+     * or {@code null} if the user has nothing reserved for this event.
+     *
+     * TODO (V3): replace the userId query param with the JWT subject.
+     */
+    @GetMapping("/events/{eventId}/active")
+    public ResponseEntity<ApiResponse<ActivePurchaseDTO>> viewActivePurchaseForEvent(
+            @PathVariable("eventId") UUID eventId,
+            @RequestParam("userId") UUID userId) {
+        try {
+            ActivePurchaseDTO activePurchase =
+                    purchaseService.viewActivePurchaseForEvent(userId, eventId);
+            String message = activePurchase == null
+                    ? "No active purchase for this event"
+                    : "Active purchase fetched";
+            return ResponseEntity.ok(ApiResponse.success(message, activePurchase));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to fetch active purchase: system exception"));
+        }
+    }
+
     @PostMapping("/active/{activePurchaseId}/complete")
     public ResponseEntity<ApiResponse<Void>> completePurchase(
             @PathVariable("activePurchaseId") UUID activePurchaseId,

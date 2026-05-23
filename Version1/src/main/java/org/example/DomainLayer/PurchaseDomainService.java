@@ -48,12 +48,33 @@ public class PurchaseDomainService {
                                  ICompanyRepository companyRepository,
                                  IUserRepository userRepository,
                                  ILotteryRepository lotteryRepository) {
+        this(historyRepository, eventRepository, purchaseRepository,
+                companyRepository, userRepository, lotteryRepository,
+                null, null);
+    }
+
+    /**
+     * Constructor with the external gateways pre-wired. {@code BeanConfig}
+     * uses this one so Spring guarantees both gateways are non-null before
+     * any request can hit {@link #completePurchase}. Tests keep using the
+     * 6-arg constructor above and inject custom lambdas via the setters.
+     */
+    public PurchaseDomainService(IHistoryRepository historyRepository,
+                                 IEventRepository eventRepository,
+                                 IPurchaseRepository purchaseRepository,
+                                 ICompanyRepository companyRepository,
+                                 IUserRepository userRepository,
+                                 ILotteryRepository lotteryRepository,
+                                 IPaymentGateway paymentGateway,
+                                 ITicketingGateway ticketingGateway) {
         this.historyRepository = historyRepository;
         this.eventRepository = eventRepository;
         this.purchaseRepository = purchaseRepository;
         this.companyRepository = companyRepository;
         this.userRepository = userRepository;
         this.lotteryRepository = lotteryRepository;
+        this.paymentGateway = paymentGateway;
+        this.ticketingGateway = ticketingGateway;
     }
 
     public void addPurchaseToHistory(UUID userId, List<UUID> ticketIds, UUID eventId, Payment payment) {
@@ -89,7 +110,7 @@ public class PurchaseDomainService {
 
     public ActivePurchase selectSittingTickets(UUID eventID, List<UUID> ticketIDs, UUID userID,
                                                boolean guestAgeConfirmed, String accessCode) {
-        ensureUserHasNoOtherActivePurchases(userID);
+        ensureUserHasNoOtherActivePurchaseForEvent(userID, eventID);
 
         validateSelectionEligibility(eventID, userID, accessCode);
 
@@ -129,7 +150,7 @@ public class PurchaseDomainService {
 
     public ActivePurchase selectStandingTickets(UUID eventID, int amount, UUID userID, UUID areaID,
                                                 boolean guestAgeConfirmed, String accessCode) {
-        ensureUserHasNoOtherActivePurchases(userID);
+        ensureUserHasNoOtherActivePurchaseForEvent(userID, eventID);
 
         validateSelectionEligibility(eventID, userID, accessCode);
 
@@ -174,7 +195,14 @@ public class PurchaseDomainService {
         Event event = eventRepository.getById(activePurchase.getEventID());
 
         synchronized (event) {
-            User user = userRepository.getUser(activePurchase.getUserID()).get();
+            // Use orElseThrow so that a stale userID (e.g. cached in a
+            // browser session after the in-memory user repository was
+            // wiped on a server restart) surfaces as a clean
+            // DomainException -> 400 instead of an opaque
+            // NoSuchElementException -> 500.
+            User user = userRepository.getUser(activePurchase.getUserID())
+                    .orElseThrow(() -> new DomainException(
+                            "Your session is no longer valid. Please refresh the page and try again."));
 
             try {
                 if (event.getPurchasePolicy() != null) {
@@ -197,18 +225,35 @@ public class PurchaseDomainService {
 
             float finalPrice = relevantDiscountPolicy.applyDiscount(activePurchase);
 
-            boolean paymentSucceeded = paymentGateway.pay(activePurchase.getUserID(), finalPrice, paymentDetails);
-
-            if (!paymentSucceeded)
-                throw new DomainException("Payment failed");
-
-            try {
-                ticketingGateway.issueTickets(activePurchase.getUserID(), activePurchase.getEventID(), activePurchase.getTicketIDs().keySet());
-            } catch (DomainException e) {
-                event.releaseTickets(activePurchase.getTicketIDs());
-                throw e;
+            // Step 1: charge the user. A "declined" outcome is a normal
+            // business answer (not an exception), so we leave the
+            // reservation in place and let the user retry with a
+            // different card. ActivePurchaseCleaner will eventually
+            // sweep it if they give up.
+            boolean paymentSucceeded =
+                    paymentGateway.pay(activePurchase.getUserID(), finalPrice, paymentDetails);
+            if (!paymentSucceeded) {
+                throw new DomainException(
+                        "Payment was declined. Please try a different payment method.");
             }
 
+            // Step 2: ask the ticketing system to issue the tickets. If
+            // this throws AFTER we successfully charged the user, we owe
+            // them a refund — this is the cancellation + refund path the
+            // assignment asks us to exercise.
+            try {
+                ticketingGateway.issueTickets(
+                        activePurchase.getUserID(),
+                        activePurchase.getEventID(),
+                        activePurchase.getTicketIDs().keySet());
+            } catch (RuntimeException ticketingFailure) {
+                compensateFailedTicketing(activePurchase, finalPrice, paymentDetails, ticketingFailure);
+                // unreachable — compensateFailedTicketing always throws. We
+                // throw here too so the compiler is satisfied without anyone
+                // mistakenly reading this as a "silent failure" return.
+                throw new IllegalStateException(
+                        "compensateFailedTicketing should always throw");
+            }
 
             event.sellTickets(activePurchase.getTicketIDs().keySet());
             purchaseRepository.deleteByID(activePurchaseID);
@@ -231,6 +276,44 @@ public class PurchaseDomainService {
 
     }
 
+    /**
+     * Compensating transaction invoked when ticketing fails after a
+     * successful charge: refund the payment, release the held tickets,
+     * delete the active purchase and surface a user-friendly message.
+     *
+     * If the refund itself fails we log loudly and surface a different
+     * message — at that point operator intervention is required, so we
+     * don't want to swallow it under "tickets could not be issued".
+     */
+    private void compensateFailedTicketing(ActivePurchase activePurchase,
+                                           float chargedAmount,
+                                           PaymentDetails paymentDetails,
+                                           RuntimeException originalFailure) {
+        boolean refunded;
+        try {
+            refunded = paymentGateway.refund(
+                    activePurchase.getUserID(), chargedAmount, paymentDetails);
+        } catch (RuntimeException refundError) {
+            refunded = false;
+        }
+
+        Event event = eventRepository.getById(activePurchase.getEventID());
+        if (event != null) {
+            event.releaseTickets(activePurchase.getTicketIDs());
+        }
+        purchaseRepository.deleteByID(activePurchase.getActivePurchaseId());
+
+        if (refunded) {
+            throw new DomainException(
+                    "Tickets could not be issued (" + originalFailure.getMessage()
+                            + "). Your payment of " + chargedAmount + " has been refunded.");
+        }
+        throw new DomainException(
+                "Tickets could not be issued AND the refund failed. "
+                        + "Please contact customer support — charge of " + chargedAmount
+                        + " is pending manual reversal.");
+    }
+
     public void validateSelectionEligibility(UUID eventId, UUID userId, String accessCode) {
         if (eventId == null) {
             throw new DomainException("Event ID is required");
@@ -238,6 +321,14 @@ public class PurchaseDomainService {
 
         if (userId == null) {
             throw new DomainException("User ID is required");
+        }
+
+        // If the user no longer exists (in-memory repo wiped after a
+        // restart, account removed, etc.) we must reject early — otherwise
+        // we'd happily create an ActivePurchase that can never be completed.
+        if (!userRepository.exists(userId)) {
+            throw new DomainException(
+                    "Your session is no longer valid. Please refresh the page and try again.");
         }
 
         Event event = eventRepository.getById(eventId);
@@ -321,10 +412,43 @@ public class PurchaseDomainService {
         return userRepository.getUser(userId).isPresent();
     }
 
-    private void ensureUserHasNoOtherActivePurchases(UUID userID)
+    /**
+     * Spec invariant (general doc, page 2):
+     *   "לרוכש יכולה להיות לכל היותר הזמנה פעילה אחת עבור אירוע יחיד בכל רגע נתון."
+     *   A buyer may have at most one active purchase PER SINGLE EVENT at any moment.
+     *
+     * Different events for the same user are explicitly allowed — the 10-minute
+     * auto-expiry on each ActivePurchase is what prevents abuse.
+     */
+    private void ensureUserHasNoOtherActivePurchaseForEvent(UUID userID, UUID eventID)
     {
-        if (purchaseRepository.findByUserID(userID) != null)
-            throw new DomainException("Cannot start a new purchase while there is another active purcahse in the system");
+        if (purchaseRepository.findByUserAndEvent(userID, eventID) != null)
+            throw new DomainException("You already have an active purchase for this event. Resume or cancel it before starting a new one.");
+    }
+
+    /**
+     * Read-only lookup used by the "resume in-progress purchase" flow on
+     * TicketPurchase: returns the user's active purchase for this event,
+     * or {@code null} if none exists or it has already expired and been
+     * swept by ActivePurchaseCleaner.
+     */
+    public ActivePurchase findActivePurchaseByUserAndEvent(UUID userID, UUID eventID) {
+        if (userID == null) {
+            throw new DomainException("User ID is required");
+        }
+        if (eventID == null) {
+            throw new DomainException("Event ID is required");
+        }
+        ActivePurchase purchase = purchaseRepository.findByUserAndEvent(userID, eventID);
+        if (purchase == null) {
+            return null;
+        }
+        if (purchase.isExpired(LocalDateTime.now())) {
+            // Defensive: if the cleaner hasn't swept yet, don't hand a
+            // dead reservation back to the client.
+            return null;
+        }
+        return purchase;
     }
 
     public void updateActivePurchaseSittingTickets(UUID activePurchaseID, List<UUID> newTicketIDs) {
