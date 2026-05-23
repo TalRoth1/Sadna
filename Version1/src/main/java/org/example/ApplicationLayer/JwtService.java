@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -34,15 +35,18 @@ public class JwtService {
 
     private final SecretKey signingKey;
     private final long expirationMs;
+    private final ITokenBlacklist blacklist;
 
     public JwtService(
             @Value("${jwt.secret:change-me-please-this-is-a-development-only-default-secret-key-1234567890}") String secret,
-            @Value("${jwt.expiration-ms:86400000}") long expirationMs) {
+            @Value("${jwt.expiration-ms:3600000}") long expirationMs,
+            ITokenBlacklist blacklist) {
         // HS256 needs at least 256 bits (32 bytes). The default above is long enough; if
         // a real secret is provided via properties/env it should also be at least 32 bytes.
         byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
         this.signingKey = Keys.hmacShaKeyFor(keyBytes);
         this.expirationMs = expirationMs;
+        this.blacklist = blacklist;
     }
 
     /**
@@ -64,6 +68,7 @@ public class JwtService {
         Date expiry = new Date(now.getTime() + expirationMs);
 
         return Jwts.builder()
+            .id(UUID.randomUUID().toString())
                 .subject(userId.toString())
                 .claim("username", username)
                 .claim("role", role)
@@ -84,11 +89,18 @@ public class JwtService {
         if (token == null || token.isBlank()) {
             throw new IllegalArgumentException("Token is required");
         }
-        return Jwts.parser()
+        Claims claims = Jwts.parser()
                 .verifyWith(signingKey)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
+
+        String jti = claims.getId();
+        if (jti != null && blacklist != null && blacklist.isRevoked(jti)) {
+            throw new io.jsonwebtoken.JwtException("Token has been revoked");
+        }
+
+        return claims;
     }
 
     /** Convenience: returns the user id (JWT subject) from a valid token. */
@@ -115,6 +127,40 @@ public class JwtService {
             return true;
         } catch (JwtException | IllegalArgumentException e) {
             return false;
+        }
+    }
+
+    /**
+     * Parse a token, accepting it even if it has expired.
+     *
+     * <p>Used by endpoints like {@code POST /api/users/logout} where we still
+     * want the user identity that the token was minted with, even if the token
+     * is no longer cryptographically "valid" for normal authentication.
+     * Signature, malformedness and revocation are still enforced — only the
+     * {@code exp} check is relaxed.
+     *
+     * @return the claims, or {@code null} if the token is missing/malformed
+     *         /tampered-with/revoked.
+     */
+    public Claims parseAllowingExpired(String token) {
+        if (token == null || token.isBlank()) {
+            return null;
+        }
+        try {
+            return parseAndValidate(token);
+        } catch (ExpiredJwtException expired) {
+            // ExpiredJwtException still carries the original claims — that's
+            // exactly what we want here.
+            Claims claims = expired.getClaims();
+            // Still honour the blacklist: if the (now-expired) token was
+            // explicitly revoked, treat it as unusable.
+            if (claims != null && claims.getId() != null
+                    && blacklist != null && blacklist.isRevoked(claims.getId())) {
+                return null;
+            }
+            return claims;
+        } catch (JwtException | IllegalArgumentException ex) {
+            return null;
         }
     }
 }

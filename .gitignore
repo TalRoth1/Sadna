@@ -8,3 +8,4 @@ Version1/target/
 .vs/
 .vscode/
 *.slnx
+.fake

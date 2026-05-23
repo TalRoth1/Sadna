@@ -7,18 +7,17 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Logger;
 
+import org.example.ApplicationLayer.dto.CompanyDTOs.CompanyMembershipResponse;
 import org.example.ApplicationLayer.dto.CompanyDTOs.CompanyResponse;
 import org.example.ApplicationLayer.dto.CompanyDTOs.HierarchyResponse;
 import org.example.ApplicationLayer.dto.CompanyDTOs.InvitationResponse;
 import org.example.ApplicationLayer.dto.CompanyDTOs.SalesReportResponse;
 import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
-import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.DomainException;
+import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.PurchaseDomainService;
 import org.example.DomainLayer.RolesDomainService;
 import org.springframework.stereotype.Service;
-
-import org.example.ApplicationLayer.dto.CompanyDTOs.InvitationResponse;
 
 @Service
 public class CompanyService {
@@ -70,9 +69,9 @@ public class CompanyService {
                 throw new IllegalArgumentException("Company ID is required");
             }
 
-            String owner = rolesDomainService.getCompanyOwner(companyId);
-
             rolesDomainService.closeCompanyAsAdmin(adminUsername, companyId);
+
+            String owner = rolesDomainService.getCompanyOwner(companyId);
 
             notifier.notifyUser(owner, "Company: " + companyId + " has been closed");
 
@@ -326,5 +325,12 @@ public class CompanyService {
         if (discountPercent < 0.0f || discountPercent > 100.0f) {
             throw new IllegalArgumentException("Discount percent must be between 0 and 100");
         }
+    }
+
+    public List<CompanyMembershipResponse> getUserCompanies(String username) {
+        if (username == null || username.isBlank()) {
+            throw new IllegalArgumentException("Username is required");
+        }
+        return rolesDomainService.getUserCompanies(username);
     }
 }

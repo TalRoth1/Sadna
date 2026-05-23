@@ -36,11 +36,21 @@ api.interceptors.response.use(
             const status = error.response.status;
 
             if (status === 401) {
-                console.error("User not authenticated or token expired - redirecting to login page");
-                localStorage.removeItem('token');
-                
-                // מומלץ להשאיר את זה דולק כדי שהאפליקציה תגיב בזמן אמת לפקיעת טוקן
-                window.location.href = '/login'; 
+                // Skip the auto-redirect when the failing request is logout
+                // itself — otherwise a 401 on /logout would wipe the token and
+                // bounce the user to /login, which then loops because the
+                // server still thinks they're logged in. Logout has its own
+                // cleanup in authService.ts and the server is now tolerant of
+                // any token state.
+                const url = error.config?.url ?? "";
+                const isLogout = url.includes("/users/logout");
+
+                if (!isLogout) {
+                    console.error("User not authenticated or token expired - redirecting to login page");
+                    localStorage.removeItem('token');
+                    // מומלץ להשאיר את זה דולק כדי שהאפליקציה תגיב בזמן אמת לפקיעת טוקן
+                    window.location.href = '/login';
+                }
             }
 
             if (status === 403) {
@@ -48,7 +58,7 @@ api.interceptors.response.use(
             }
 
             if (status >= 500) {
-                console.error("Internal server error on the Java backend (Internal Server Error)");
+                console.error("Internal server error on the Java backend (Internal Server Error)\n" + error.response.data.message); // Assuming the backend sends a message in the response body for server errors
             }
         } else if (error.request) {
             console.error("Server is not responding. Make sure the Spring Boot project is running and the port is correct.");

@@ -2,6 +2,7 @@ package org.example.API;
 
 import java.util.UUID;
 
+import org.example.ApplicationLayer.ITokenBlacklist;
 import org.example.ApplicationLayer.JwtService;
 import org.example.ApplicationLayer.UserService;
 import org.example.ApplicationLayer.dto.ApiResponse;
@@ -11,8 +12,12 @@ import org.example.ApplicationLayer.dto.UserDTOs.RegisterRequest;
 import org.example.ApplicationLayer.dto.UserDTOs.UserResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
+import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpServletRequest;
 
 /**
@@ -32,10 +37,12 @@ public class UserController {
 
     private final UserService userService;
     private final JwtService jwtService;
+    private final ITokenBlacklist tokenBlacklist;
 
-    public UserController(UserService userService, JwtService jwtService) {
+    public UserController(UserService userService, JwtService jwtService, ITokenBlacklist tokenBlacklist) {
         this.userService = userService;
         this.jwtService = jwtService;
+        this.tokenBlacklist = tokenBlacklist;
     }
 
     /**
@@ -57,7 +64,7 @@ public class UserController {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("Guest session failed: system exception"));
+                    .body(ApiResponse.error("Guest session failed: system exception\n" + e.getMessage()));
         }
     }
 
@@ -78,7 +85,7 @@ public class UserController {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("Register failed: system exception"));
+                    .body(ApiResponse.error("Register failed: system exception\n" + e.getMessage()));
         }
     }
 
@@ -102,33 +109,71 @@ public class UserController {
                     .body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("Login failed: system exception"));
+                    .body(ApiResponse.error("Login failed: system exception\n" + e.getMessage()));
         }
     }
 
     /**
      * POST /api/users/logout
      *
-     * Reads the authenticated user id from the request (set by JwtAuthFilter)
-     * and flips the domain status. After this call the client should discard
-     * the token. Because JWTs are stateless, no server-side invalidation is
-     * performed; the token will continue to validate until it expires.
+     * Tolerant logout: this endpoint is in JwtAuthFilter#PUBLIC_PATHS, so the
+     * filter never rejects it. We parse the bearer token *leniently* (accepting
+     * expired tokens, returning null on bad ones) so that ending a session
+     * works in every realistic state — fresh, expired, revoked, or even
+     * missing.
+     *
+     * Behaviour matrix:
+     *   - Valid token       → log the user out, revoke the token, 200.
+     *   - Expired token     → log the user out (their identity is still in the
+     *                         claims), don't bother revoking (already invalid), 200.
+     *   - Revoked / bad     → can't extract a user id; treat as already-logged-out
+     *                         success (200 with null user) so the client can move on.
+     *   - No Authorization  → same as revoked/bad: 200, no-op.
+     *
+     * The point is: a logout call must NEVER trap the client in a half-state
+     * where the server still thinks they're logged in but the client has
+     * already discarded its token.
      */
     @PostMapping("/logout")
     public ResponseEntity<ApiResponse<UserResponse>> logout(HttpServletRequest httpRequest) {
         try {
-            UUID memberId = (UUID) httpRequest.getAttribute("userId");
-            if (memberId == null) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(ApiResponse.error("Missing or invalid token"));
+            String authHeader = httpRequest.getHeader("Authorization");
+            String token = null;
+            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                token = authHeader.substring("Bearer ".length()).trim();
             }
+
+            Claims claims = (token == null) ? null : jwtService.parseAllowingExpired(token);
+            if (claims == null) {
+                // Missing / malformed / revoked token: nothing actionable on the
+                // server. Returning 200 lets the client finish its local cleanup
+                // without us cascading into a 401 + force-redirect loop.
+                return ResponseEntity.ok(ApiResponse.success("Already logged out", null));
+            }
+
+            UUID memberId;
+            try {
+                memberId = UUID.fromString(claims.getSubject());
+            } catch (Exception e) {
+                return ResponseEntity.ok(ApiResponse.success("Already logged out", null));
+            }
+
             UserResponse user = userService.logout(memberId);
+
+            // Best-effort revocation: only blacklist a token that is still live.
+            // Revoking an already-expired token is pointless (it's invalid anyway)
+            // and just bloats the in-memory blacklist.
+            if (claims.getId() != null && claims.getExpiration() != null
+                    && claims.getExpiration().toInstant().isAfter(java.time.Instant.now())) {
+                tokenBlacklist.revoke(claims.getId(), claims.getExpiration().toInstant());
+            }
+
             return ResponseEntity.ok(ApiResponse.success("Logout successful", user));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("Logout failed: system exception"));
+                    .body(ApiResponse.error("Logout failed: system exception\n" + e.getMessage()));
         }
     }
 }

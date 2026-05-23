@@ -5,7 +5,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 
+import org.example.ApplicationLayer.dto.CompanyDTOs.CompanyMembershipResponse;
 import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
 import org.example.DomainLayer.UserAggregate.CompanyFounder;
@@ -15,9 +18,6 @@ import org.example.DomainLayer.UserAggregate.ICompanyMember;
 import org.example.DomainLayer.UserAggregate.User;
 import org.springframework.stereotype.Service;
 
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.ReentrantLock;
-import org.springframework.stereotype.Service;
 
 @Service
 public class RolesDomainService {
@@ -351,5 +351,24 @@ public class RolesDomainService {
         User requesterUser = userRepository.findByEmail(requesterUsername)
                 .orElseThrow(() -> new IllegalArgumentException("Requester user not found"));
         return requesterUser.getHierarchyMermaid(companyId);
+    }
+
+    public List<CompanyMembershipResponse> getUserCompanies(String username) {
+        if (username == null || username.isBlank()) {
+            throw new IllegalArgumentException("Username is required");
+        }
+        List<UUID> companyIds = userRepository.getCompaniesIdsByMember(username);
+        return companyIds.stream()
+                .map(companyId -> {
+                    Company company = companyRepository.findByID(companyId).get();
+                    ICompanyMember userRole = userRepository.findByEmail(username).get().getCompanyRole(companyId);
+                    return new CompanyMembershipResponse(
+                            company.getId(),
+                            company.getName(),
+                            userRole.getRoleName(),
+                            company.getStatus().toString()
+                    );
+                })
+                .toList();
     }
 }

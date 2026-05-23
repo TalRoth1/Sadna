@@ -12,6 +12,7 @@ import EventDetailsPage from "./pages/EventDetails/EventDetails";
 import EventSearchPage from "./pages/EventSearch/EventSearch";
 import PurchaseHistoryPage from "./pages/PurchaseHistoryPage";
 import TicketPurchasePage from "./pages/TicketPurchase/TicketPurchase";
+import MyCompaniesPage from "./pages/myCompanies/MyCompaniesPage";
 import UserProfilePage from "./pages/UserProfilePage";
 import LoginPage from "./pages/LoginPage";
 import RegistrationPage from "./pages/RegistrationPage";
@@ -173,12 +174,7 @@ function App() {
         }
 
         if (currentPage === "my-companies") {
-            return (
-                <PlaceholderPage
-                    title="My Companies"
-                    description="Companies that the current user belongs to."
-                />
-            );
+            return <MyCompaniesPage />;
         }
 
         if (currentPage === "profile") {

@@ -8,6 +8,7 @@ import org.example.DomainLayer.EventAggregate.*;
 import org.example.DomainLayer.LotteryAggregate.PuchaseLottery;
 import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
+import org.example.DomainLayer.UserAggregate.CompanyFounder;
 import org.example.DomainLayer.UserAggregate.User;
 import org.example.InfrastructureLayer.Broadcaster;
 import org.example.InfrastructureLayer.NotificationRepository;
@@ -233,6 +234,7 @@ public class PurchaseServiceTest {
         );
 
         setup.inMemoryLotteryRepository.save(lottery);
+        setup.innMemoryUserRepository.add(new User(userId, "winner", "winner", "pass", 25));
 
         setup.purchaseService.selectSittingTicketsWithLotteryCode(
                 eventId,
@@ -716,14 +718,14 @@ public class PurchaseServiceTest {
         setup.inMemoryLotteryRepository = new InMemoryLotteryRepository();
         setup.notificationRepository = new NotificationRepository();
         setup.broadcaster = new Broadcaster();
-        setup.notifer = new Notifier(broadcaster, notificationRepository);
+        setup.notifer = new Notifier(setup.broadcaster, setup.notificationRepository);
 
 
         setup.queueManager = new QueueManager();
         setup.purchaseDomainService = new PurchaseDomainService(setup.inMemoryHistoryRepository, setup.inMemoryEventRepository, setup.inMemoryPurchaseRepository, setup.inMemoryCompanyRepository, setup.innMemoryUserRepository, setup.inMemoryLotteryRepository);
         setup.broadcaster = new Broadcaster();
         INotifier notifier =new WebSocketNotificationSender(setup.broadcaster);
-        NotificationService notificationService =new NotificationService(notifier, notificationRepository);
+        NotificationService notificationService =new NotificationService(notifier, setup.notificationRepository);
         EventListener eventListener =new EventListener(notificationService);
         EventPublisher eventPublisher =new EventPublisher();
         eventPublisher.subscribe(eventListener::handle);
@@ -981,11 +983,13 @@ public class PurchaseServiceTest {
         UUID userId = UUID.randomUUID();
         UUID companyId = UUID.randomUUID();
         UUID ticketId = UUID.randomUUID();
+        UUID secondTicketId = UUID.randomUUID();
         UUID areaID = UUID.randomUUID();
 
         Event event = new Event(eventId, companyId, LocalDateTime.now(), "dssdsd", "sdsdsd", "sdsd", EventStatus.ACTIVE);
         event.getLayout().addArea(new StandingArea(areaID, 100f));
         event.addTicket(new StandingTicket(ticketId, eventId, areaID, 100f));
+        event.addTicket(new StandingTicket(secondTicketId, eventId, areaID, 100f));
 
         setup.inMemoryEventRepository.save(event);
 
@@ -1017,7 +1021,11 @@ public class PurchaseServiceTest {
 
         setup.inMemoryEventRepository.save(event);
 
+    User founder = new User(UUID.randomUUID(), "founderUser", "founderUser", "pass", 35);
+    founder.getCompanyRoles().put(companyId, new CompanyFounder("founderUser"));
+
         User user = new User(userId, "hello", "hello", "hello", 20);
+    setup.innMemoryUserRepository.add(founder);
         setup.innMemoryUserRepository.add(user);
 
         //יש רק ticket אחד ב-event ואנחנו מנסים לקנות 2
@@ -1449,7 +1457,17 @@ public class PurchaseServiceTest {
         }
 
         @Override
+        public boolean existsByUsername(String username) {
+            return false;
+        }
+
+        @Override
         public Optional<User> findByEmail(String email) {
+            for (User user : usersByID.values()) {
+                if (email.equals(user.getEmail()) || email.equals(user.getUsername())) {
+                    return Optional.of(user);
+                }
+            }
             return Optional.empty();
         }
 
@@ -1480,6 +1498,11 @@ public class PurchaseServiceTest {
     }
     private static class InMemoryCompanyRepository implements ICompanyRepository
     {
+        private final Map<UUID, Company> companiesByID = new LinkedHashMap<>();
+
+        public void save(UUID companyId, Company company) {
+            companiesByID.put(companyId, company);
+        }
 
         @Override
         public UUID createCompany(String founderUsername, String companyName) {
@@ -1488,12 +1511,12 @@ public class PurchaseServiceTest {
 
         @Override
         public Optional<Company> findByID(UUID companyId) {
-            return Optional.empty();
+            return Optional.ofNullable(companiesByID.get(companyId));
         }
 
         @Override
         public void save(Company company) {
-
+            companiesByID.put(company.getId(), company);
         }
     }
     public static class InMemoryHistoryRepository implements IHistoryRepository

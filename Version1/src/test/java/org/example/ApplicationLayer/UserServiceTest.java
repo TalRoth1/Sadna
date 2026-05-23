@@ -1,5 +1,10 @@
 package org.example.ApplicationLayer;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.util.Optional;
+import java.util.UUID;
+
 import org.example.ApplicationLayer.dto.UserDTOs.LoginRequest;
 import org.example.ApplicationLayer.dto.UserDTOs.RegisterRequest;
 import org.example.ApplicationLayer.dto.UserDTOs.UserResponse;
@@ -7,18 +12,20 @@ import org.example.DomainLayer.IUserRepository;
 import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.UserAggregate.User;
 import org.example.DomainLayer.UserAggregate.UserStatus;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThrows;
 import org.junit.Before;
 import org.junit.Test;
-
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.util.Optional;
-import java.util.UUID;
-
-import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 public class UserServiceTest {
 
@@ -142,6 +149,12 @@ public class UserServiceTest {
         request.age = 25;
 
         when(userRepositoryMock.existsByEmail(request.email)).thenReturn(true);
+        when(authGatewayMock.verifyUserDetails(
+            request.email,
+            request.plainPassword,
+            request.age,
+            request.username
+        )).thenReturn(true);
 
         assertThrows(
                 IllegalArgumentException.class,
@@ -210,7 +223,7 @@ public class UserServiceTest {
 
         verify(userRepositoryMock, times(1)).findByEmail(request.email);
         verify(authGatewayMock, times(1)).verifyPassword(request.plainPassword, "hashed_password");
-        verify(userRepositoryMock, times(1)).add(existingUser);
+        verify(userRepositoryMock, never()).add(any(User.class));
     }
 
     @Test
@@ -266,7 +279,7 @@ public class UserServiceTest {
         );
 
         verify(userRepositoryMock, times(1)).findByEmail(request.email);
-        verify(authGatewayMock, never()).verifyPassword(anyString(), anyString());
+        verify(authGatewayMock, times(1)).verifyPassword(anyString(), anyString());
     }
 
     @Test
@@ -324,7 +337,7 @@ public class UserServiceTest {
         assertEquals(UserStatus.NOT_LOGGED_IN.toString(), status(response));
 
         verify(userRepositoryMock, times(1)).getUser(memberId);
-        verify(userRepositoryMock, times(1)).add(loggedInUser);
+        verify(userRepositoryMock, never()).add(any(User.class));
     }
 
     @Test
@@ -350,6 +363,44 @@ public class UserServiceTest {
 
         verify(userRepositoryMock, times(1)).getUser(fakeId);
         verify(userRepositoryMock, never()).add(any(User.class));
+    }
+
+    @Test
+    public void testLogoutThenLogin_SucceedsAfterStatusReset() {
+        UUID memberId = UUID.randomUUID();
+
+        User user = new User(
+                memberId,
+                "JohnDoe",
+                "john@example.com",
+                "hashed_password",
+                25
+        );
+        user.login();
+
+        when(userRepositoryMock.getUser(memberId)).thenReturn(Optional.of(user));
+
+        UserResponse logoutResponse = userService.logout(memberId);
+
+        assertNotNull(logoutResponse);
+        assertEquals(UserStatus.NOT_LOGGED_IN, user.getStatus());
+
+        LoginRequest loginRequest = new LoginRequest();
+        loginRequest.email = "john@example.com";
+        loginRequest.plainPassword = "Password123";
+
+        when(userRepositoryMock.findByEmail(loginRequest.email)).thenReturn(Optional.of(user));
+        when(authGatewayMock.verifyPassword(loginRequest.plainPassword, "hashed_password"))
+                .thenReturn(true);
+
+        UserResponse loginResponse = userService.login(loginRequest);
+
+        assertNotNull(loginResponse);
+        assertEquals(UserStatus.LOGGED_IN, user.getStatus());
+        verify(userRepositoryMock, times(1)).getUser(memberId);
+        verify(userRepositoryMock, never()).add(any(User.class));
+        verify(userRepositoryMock, times(1)).findByEmail(loginRequest.email);
+        verify(authGatewayMock, times(1)).verifyPassword(loginRequest.plainPassword, "hashed_password");
     }
 
     // ================================================================

@@ -1,30 +1,42 @@
 package org.example.API;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.example.ApplicationLayer.CompanyService;
 import org.example.ApplicationLayer.dto.ApiResponse;
-import org.example.ApplicationLayer.dto.CompanyDTOs.CompanyResponse;
 import org.example.ApplicationLayer.dto.CompanyDTOs.AddConditionalDiscountRequest;
 import org.example.ApplicationLayer.dto.CompanyDTOs.AddCouponRequest;
 import org.example.ApplicationLayer.dto.CompanyDTOs.AddOvertDiscountRequest;
 import org.example.ApplicationLayer.dto.CompanyDTOs.AddPolicyRuleRequest;
 import org.example.ApplicationLayer.dto.CompanyDTOs.ChangeManagerPermissionsRequest;
 import org.example.ApplicationLayer.dto.CompanyDTOs.CloseCompanyRequest;
+import org.example.ApplicationLayer.dto.CompanyDTOs.CompanyMembershipResponse;
+import org.example.ApplicationLayer.dto.CompanyDTOs.CompanyResponse;
 import org.example.ApplicationLayer.dto.CompanyDTOs.CreateCompanyRequest;
 import org.example.ApplicationLayer.dto.CompanyDTOs.DeletePolicyRuleRequest;
+import org.example.ApplicationLayer.dto.CompanyDTOs.HierarchyResponse;
+import org.example.ApplicationLayer.dto.CompanyDTOs.InvitationResponse;
 import org.example.ApplicationLayer.dto.CompanyDTOs.InviteManagerRequest;
 import org.example.ApplicationLayer.dto.CompanyDTOs.InviteOwnerRequest;
 import org.example.ApplicationLayer.dto.CompanyDTOs.RateCompanyRequest;
 import org.example.ApplicationLayer.dto.CompanyDTOs.RemoveDiscountRequest;
 import org.example.ApplicationLayer.dto.CompanyDTOs.RemoveMemberAdminRequest;
 import org.example.ApplicationLayer.dto.CompanyDTOs.RemoveMemberOwnerRequest;
-import org.example.ApplicationLayer.dto.CompanyDTOs.HierarchyResponse;
-import org.example.ApplicationLayer.dto.CompanyDTOs.InvitationResponse;
 import org.example.ApplicationLayer.dto.CompanyDTOs.SalesReportResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import jakarta.servlet.http.HttpServletRequest;
 
 /**
  * CompanyController
@@ -56,6 +68,26 @@ public class CompanyController {
                     .body(ApiResponse.success("Company created successfully", company));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @GetMapping("/me/companies")
+    public ResponseEntity<ApiResponse<List<CompanyMembershipResponse>>> getMyCompanies(
+            HttpServletRequest request) {
+        try {
+            String username = (String) request.getAttribute("username");
+            if (username == null || username.isBlank()) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(ApiResponse.error("Missing or invalid token"));
+            }
+
+            List<CompanyMembershipResponse> memberships = companyService.getUserCompanies(username);
+            return ResponseEntity.ok(ApiResponse.<List<CompanyMembershipResponse>>success(memberships));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to load user companies"));
         }
     }
 

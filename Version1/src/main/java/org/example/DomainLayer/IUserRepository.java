@@ -19,6 +19,8 @@ public interface IUserRepository {
 
     public boolean existsByEmail(String email);
 
+    public boolean existsByUsername(String username);
+
     public Optional<User> findByEmail(String email);
 
     boolean existsAdmin(UUID adminId);

@@ -1,22 +1,44 @@
 package org.example.ApplicationLayer;
 
+import java.util.Map;
+import java.util.UUID;
+import java.util.logging.Logger;
+
 import org.example.ApplicationLayer.dto.UserDTOs.LoginRequest;
 import org.example.ApplicationLayer.dto.UserDTOs.RegisterRequest;
 import org.example.ApplicationLayer.dto.UserDTOs.UserResponse;
 import org.example.DomainLayer.IUserRepository;
 import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.UserAggregate.User;
-
-import java.util.Map;
-import java.util.UUID;
-import java.util.logging.Logger;
-
-
+import org.example.DomainLayer.UserAggregate.UserRole;
+import org.example.DomainLayer.UserAggregate.UserStatus;
 import org.springframework.stereotype.Service;
 
 @Service
 public class UserService {
     private static final Logger logger = Logger.getLogger(UserService.class.getName());
+
+    /**
+     * A bcrypt-shaped placeholder hash used during login when the supplied email
+     * doesn't match any user. We still run verifyPassword against this dummy so
+     * the response time of a "wrong email" attempt is similar to a "wrong
+     * password" attempt — closing the user-enumeration timing side channel.
+     */
+    private static final String DUMMY_PASSWORD_HASH =
+            "$2a$10$0000000000000000000000.0000000000000000000000000000";
+
+    /**
+     * Lock for the register/login/logout lifecycle. The in-memory IUserRepository
+     * uses a plain HashMap, so without a lock two concurrent registrations could
+     * both pass existsByEmail() and both succeed (creating duplicates). The same
+     * lock also protects login/logout from interleaving with a concurrent
+     * registration on the same email.
+     *
+     * This is a coarse-grained, single-JVM lock. With a real database we'd
+     * replace this with a UNIQUE constraint on email + handling the resulting
+     * exception, plus transactional repositories.
+     */
+    private final Object userLifecycleLock = new Object();
 
     private final IUserRepository userRepository;
     private final IAuthenticationGateway authGateway;
@@ -53,10 +75,8 @@ public class UserService {
             throw new IllegalArgumentException("Missing details.");
         }
 
-        if (userRepository.existsByEmail(request.email)) {
-            throw new IllegalArgumentException("User email already exists.");
-        }
-
+        // Run input validation outside the lock — it's the heavy/expensive check
+        // and doesn't touch the repository.
         if (!authGateway.verifyUserDetails(
                 request.email,
                 request.plainPassword,
@@ -65,16 +85,32 @@ public class UserService {
             throw new IllegalArgumentException("One or more of the details is incorrect.");
         }
 
-        String hashedPassword = authGateway.hashPassword(request.plainPassword);
-        User newUser = new User(
-                UUID.randomUUID(),
-                request.username,
-                request.email,
-                hashedPassword,
-                request.age);
+        // Critical section: existence-check + add must be atomic to prevent two
+        // concurrent registrations with the same email or username from both
+        // passing the check and both succeeding.
+        synchronized (userLifecycleLock) {
+            if (userRepository.existsByEmail(request.email)) {
+                throw new IllegalArgumentException("User email already exists.");
+            }
+            if (userRepository.existsByUsername(request.username)) {
+                throw new IllegalArgumentException("Username already exists.");
+            }
 
-        userRepository.add(newUser);
-        return toResponse(newUser);
+            String hashedPassword = authGateway.hashPassword(request.plainPassword);
+            User newUser = new User(
+                    UUID.randomUUID(),
+                    request.username,
+                    request.email,
+                    hashedPassword,
+                    request.age);
+            newUser.login(); // users created via registration are immediately logged in
+            userRepository.add(newUser);
+
+            // Log only the new user's UUID — no PII (no email, no username).
+            logger.info("Registered new user id=" + newUser.getId());
+
+            return toResponse(newUser);
+        }
     }
 
     public UserResponse login(LoginRequest request) {
@@ -87,35 +123,80 @@ public class UserService {
             throw new IllegalArgumentException("Email or password is empty.");
         }
 
-        User user = userRepository.findByEmail(request.email)
-                .orElseThrow(() -> new IllegalArgumentException("Incorrect email or password."));
+        synchronized (userLifecycleLock) {
+            // Look the user up *without* short-circuiting on "not found". We always
+            // proceed to verifyPassword (against a dummy hash if necessary) so the
+            // response time can't be used to enumerate which emails exist.
+            User user = userRepository.findByEmail(request.email).orElse(null);
+            String hashToCheck = (user != null) ? user.getPasswordHash() : DUMMY_PASSWORD_HASH;
 
-        boolean isPasswordCorrect =
-                authGateway.verifyPassword(request.plainPassword, user.getPasswordHash());
+            boolean isPasswordCorrect;
+            try {
+                isPasswordCorrect = authGateway.verifyPassword(request.plainPassword, hashToCheck);
+            } catch (Exception ex) {
+                // Defensive: if the gateway can't handle the dummy hash (different
+                // scheme, malformed input, ...) treat it as "wrong password" rather
+                // than leaking a 500 that reveals the email doesn't exist.
+                isPasswordCorrect = false;
+            }
 
-        if (!isPasswordCorrect) {
-            logger.warning("Failed login attempt for user: " + request.email);
-            throw new IllegalArgumentException("Incorrect email or password.");
+            if (user == null || !isPasswordCorrect) {
+                // Log only that *a* login attempt failed, no email/username PII.
+                logger.warning("Failed login attempt");
+                throw new IllegalArgumentException("Incorrect email or password.");
+            }
+
+            // Idempotent: if the user is already LOGGED_IN, that's fine — just
+            // issue a fresh token (the controller does that after we return).
+            // Calling user.login() in that state would throw IllegalStateException,
+            // which is overly strict and traps users whose previous logout failed
+            // silently (e.g. a 401 from a wiped-token interceptor on the client).
+            if (user.getStatus() != UserStatus.LOGGED_IN) {
+                user.login();
+            } else {
+                logger.info("Login re-issued for already-logged-in user id=" + user.getId());
+            }
+            return toResponse(user);
         }
-
-        user.login();
-        userRepository.add(user);
-
-        return toResponse(user);
     }
 
     public UserResponse logout(UUID memberId) {
         if (memberId == null) {
+            logger.warning("Logout attempt with null memberId");
             throw new IllegalArgumentException("Member ID is required");
         }
 
-        User user = userRepository.getUser(memberId)
-                .orElseThrow(() -> new IllegalArgumentException("User does not exist."));
+        synchronized (userLifecycleLock) {
+            User user = userRepository.getUser(memberId)
+                    .orElseThrow(() -> new IllegalArgumentException("User does not exist."));
 
-        user.logout();
-        userRepository.add(user);
+            // Guests were never "logged in" (their status is NOT_LOGGED_IN from
+            // construction). Treat a logout call from a guest as a no-op so the
+            // client gets a clean response instead of a 409. The controller will
+            // still hand them a fresh guest token, which is the only real outcome
+            // of logout from a guest's point of view.
+            if (user.getRole() == UserRole.GUEST) {
+                logger.info("Logout no-op for guest id=" + memberId);
+                return toResponse(user);
+            }
 
-        return toResponse(user);
+            // Idempotent: if the user is already NOT_LOGGED_IN, return cleanly
+            // instead of letting user.logout() throw IllegalStateException.
+            // This makes double-logout (e.g. an effect re-running, or a client
+            // retry) safe instead of erroring out with a 500.
+            if (user.getStatus() == UserStatus.NOT_LOGGED_IN) {
+                logger.info("Logout no-op for already-logged-out user id=" + memberId);
+                return toResponse(user);
+            }
+
+            user.logout();
+            // No userRepository.add(user) here — the in-memory repo holds the same
+            // reference under the user's UUID, so add() is a no-op. With a JPA-style
+            // repo this would be replaced by an explicit save() inside a transaction.
+
+            logger.info("Logged out user id=" + memberId);
+            return toResponse(user);
+        }
     }
 
     private UserResponse toResponse(User user) {
@@ -128,24 +209,19 @@ public class UserService {
                 user.getAge());
     }
 
-    public void adminMessage(String username, String message)
-    {
+    public void adminMessage(String username, String message) {
         try {
-            if(username == null)
+            if (username == null)
                 throw new IllegalArgumentException("Username Is null");
-            else if(!userRepository.isSystemAdmin(username))
+            else if (!userRepository.isSystemAdmin(username))
                 throw new IllegalArgumentException("User is not admin");
-            else
-            {
-                for(Map.Entry<UUID, User> user: userRepository.getAllUsers().entrySet())
-                {
-                     notifier.notifyUser(user.getKey(), message);
+            else {
+                for (Map.Entry<UUID, User> user : userRepository.getAllUsers().entrySet()) {
+                    notifier.notifyUser(user.getKey(), message);
                 }
             }
             logger.info("Admin: " + username + " sent message:" + message);
-        }
-        catch(Exception e)
-        {
+        } catch (Exception e) {
             logger.severe(e.toString());
             throw e;
         }

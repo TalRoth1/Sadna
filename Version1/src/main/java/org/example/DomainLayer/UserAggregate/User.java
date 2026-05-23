@@ -57,7 +57,6 @@ public class User {
             throw new IllegalStateException("The user is already logged in.");
         }
         this.status = UserStatus.LOGGED_IN;
-        this.role = UserRole.MEMBER;
     }
 
     public void logout() {
@@ -65,7 +64,6 @@ public class User {
             throw new IllegalStateException("The user is already logged out.");
         }
         this.status = UserStatus.NOT_LOGGED_IN;
-        this.role = UserRole.GUEST;
     }
 
     // company role management

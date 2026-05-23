@@ -153,6 +153,10 @@ export async function registerUser(
 export async function logoutUser(): Promise<void> {
     try {
         await api.post("/users/logout");
+    }
+    catch (error) {
+        console.error("Logout failed:", error);
+        // We proceed with local logout even if the server request fails, to ensure the user is logged out on the client side.
     } finally {
         localStorage.removeItem("token");
         clearCurrentUser();
