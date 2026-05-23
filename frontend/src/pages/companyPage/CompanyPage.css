@@ -18,7 +18,8 @@
 }
 
 .company-summary-card,
-.company-permissions-card {
+.company-permissions-card,
+.company-hierarchy-card {
     padding: 22px 24px;
     background: #ffffff;
     border: 1px solid #e5e7eb;
@@ -74,12 +75,29 @@
     margin: 0 auto;
 }
 
+.company-hierarchy-card {
+    max-width: 960px;
+    width: 100%;
+    margin: 0 auto;
+}
+
 .company-permissions-card h2 {
     margin: 0 0 10px;
     font-size: 24px;
 }
 
+.company-hierarchy-card h2 {
+    margin: 0 0 10px;
+    font-size: 24px;
+}
+
 .company-permissions-card p {
+    margin: 0;
+    color: #6b7280;
+    line-height: 1.5;
+}
+
+.company-hierarchy-card p {
     margin: 0;
     color: #6b7280;
     line-height: 1.5;
@@ -118,6 +136,83 @@
     margin: 0 auto;
     display: flex;
     justify-content: flex-start;
+}
+
+.company-hierarchy-tree {
+    margin-top: 18px;
+    padding: 14px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: #f9fafb;
+}
+
+.company-hierarchy-list {
+    list-style: none;
+    margin: 0;
+    padding-left: 18px;
+}
+
+.company-hierarchy-list > li {
+    position: relative;
+    margin: 10px 0;
+}
+
+.company-hierarchy-list > li::before {
+    content: "";
+    position: absolute;
+    left: -12px;
+    top: 16px;
+    width: 10px;
+    border-top: 1px solid #cbd5e1;
+}
+
+.company-hierarchy-node {
+    display: inline-flex;
+    align-items: center;
+    padding: 7px 10px;
+    border-radius: 9px;
+    border: 1px solid #d1d5db;
+    background: #ffffff;
+    color: #111827;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.company-hierarchy-children {
+    margin-top: 8px;
+    margin-left: 8px;
+    border-left: 1px dashed #cbd5e1;
+    padding-left: 8px;
+}
+
+.company-hierarchy-error {
+    margin-top: 16px;
+    color: #b91c1c;
+    font-weight: 600;
+}
+
+.company-hierarchy-empty {
+    margin-top: 16px;
+}
+
+.company-hierarchy-source {
+    margin-top: 14px;
+}
+
+.company-hierarchy-source summary {
+    cursor: pointer;
+    color: #374151;
+    font-weight: 700;
+}
+
+.company-hierarchy-source pre {
+    margin: 10px 0 0;
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid #e5e7eb;
+    background: #f8fafc;
+    color: #334155;
+    overflow-x: auto;
 }
 
 @media (max-width: 720px) {

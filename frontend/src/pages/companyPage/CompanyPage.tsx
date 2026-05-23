@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
-import { getCompanyPermissions, type CompanyAccessResponse, type CompanyPermissionName as BackendCompanyPermissionName } from "../../services/companyService";
+import {
+    getCompanyHierarchy,
+    getCompanyPermissions,
+    type CompanyAccessResponse,
+    type CompanyPermissionName as BackendCompanyPermissionName,
+} from "../../services/companyService";
 import { getCurrentUser, type CurrentUser } from "../../services/currentUserService";
 import "./CompanyPage.css";
 
@@ -39,6 +44,15 @@ type CompanyPageState = {
     company: CompanyViewModel;
     errorMessage: string;
     isLoading: boolean;
+    hierarchyRoots: HierarchyNode[];
+    hierarchyErrorMessage: string;
+    hierarchySource: string;
+};
+
+type HierarchyNode = {
+    id: string;
+    label: string;
+    children: HierarchyNode[];
 };
 
 function getPermissionLabel(permission: BackendCompanyPermissionName): CompanyPermissionName {
@@ -112,6 +126,81 @@ function getStatusClass(status: CompanyStatus) {
     return `company-status company-status--${status.toLowerCase()}`;
 }
 
+function isHierarchyViewerRole(role: string) {
+    const normalizedRole = role.trim().toLowerCase();
+    return normalizedRole === "founder" || normalizedRole === "owner";
+}
+
+function normalizeMermaidLabel(value: string) {
+    const withoutQuotes = value.trim().replace(/^"|"$/g, "");
+    return withoutQuotes.replace(/\\n/g, " ").trim();
+}
+
+function parseMermaidHierarchy(chart: string): HierarchyNode[] {
+    const labelById = new Map<string, string>();
+    const childrenById = new Map<string, Set<string>>();
+    const allIds = new Set<string>();
+    const childIds = new Set<string>();
+
+    const lines = chart
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => line !== "");
+
+    for (const line of lines) {
+        const edgeMatch = line.match(/^([A-Za-z0-9_]+)\s*-->\s*([A-Za-z0-9_]+)$/);
+        if (edgeMatch) {
+            const parentId = edgeMatch[1];
+            const childId = edgeMatch[2];
+
+            allIds.add(parentId);
+            allIds.add(childId);
+            childIds.add(childId);
+
+            if (!childrenById.has(parentId)) {
+                childrenById.set(parentId, new Set<string>());
+            }
+            childrenById.get(parentId)?.add(childId);
+            continue;
+        }
+
+        const nodeMatch = line.match(/^([A-Za-z0-9_]+)\[(.+)\]$/);
+        if (nodeMatch) {
+            const nodeId = nodeMatch[1];
+            const rawLabel = nodeMatch[2];
+
+            allIds.add(nodeId);
+            labelById.set(nodeId, normalizeMermaidLabel(rawLabel));
+        }
+    }
+
+    if (allIds.size === 0) {
+        return [];
+    }
+
+    const rootIds = [...allIds].filter((id) => !childIds.has(id));
+    const rootsToBuild = rootIds.length > 0 ? rootIds : [...allIds];
+
+    function buildNode(nodeId: string, visited: Set<string>): HierarchyNode {
+        const label = labelById.get(nodeId) ?? nodeId;
+
+        if (visited.has(nodeId)) {
+            return { id: nodeId, label, children: [] };
+        }
+
+        const nextVisited = new Set(visited);
+        nextVisited.add(nodeId);
+
+        const children = [...(childrenById.get(nodeId) ?? new Set<string>())].map((childId) =>
+            buildNode(childId, nextVisited),
+        );
+
+        return { id: nodeId, label, children };
+    }
+
+    return rootsToBuild.map((rootId) => buildNode(rootId, new Set<string>()));
+}
+
 function isPermissionGranted(
     companyPermissions: CompanyPermissionName[],
     permission: CompanyPermissionName,
@@ -128,6 +217,9 @@ export default function CompanyPage({
         company,
         errorMessage: "",
         isLoading: true,
+        hierarchyRoots: [],
+        hierarchyErrorMessage: "",
+        hierarchySource: "",
     });
 
     useEffect(() => {
@@ -158,10 +250,39 @@ export default function CompanyPage({
                     return;
                 }
 
+                const mappedCompany = mapAccessToViewModel(access, company);
+                let hierarchyRoots: HierarchyNode[] = [];
+                let hierarchyErrorMessage = "";
+                let hierarchySource = "";
+
+                if (isHierarchyViewerRole(mappedCompany.role)) {
+                    try {
+                        const hierarchyResponse = await getCompanyHierarchy(company.id, user.email);
+                        if (isStale) {
+                            return;
+                        }
+
+                        hierarchySource = hierarchyResponse.mermaidChart;
+                        hierarchyRoots = parseMermaidHierarchy(hierarchyResponse.mermaidChart);
+                    } catch (error) {
+                        if (isStale) {
+                            return;
+                        }
+
+                        hierarchyErrorMessage = getErrorMessage(
+                            error,
+                            "Failed to load the company hierarchy.",
+                        );
+                    }
+                }
+
                 setState({
-                    company: mapAccessToViewModel(access, company),
+                    company: mappedCompany,
                     errorMessage: "",
                     isLoading: false,
+                    hierarchyRoots,
+                    hierarchyErrorMessage,
+                    hierarchySource,
                 });
             } catch (error) {
                 if (isStale) {
@@ -172,6 +293,9 @@ export default function CompanyPage({
                     ...currentState,
                     isLoading: false,
                     errorMessage: getErrorMessage(error, "Failed to load company permissions."),
+                    hierarchyRoots: [],
+                    hierarchyErrorMessage: "",
+                    hierarchySource: "",
                 }));
             }
         }
@@ -258,11 +382,62 @@ export default function CompanyPage({
                 </div>
             </section>
 
+            {isHierarchyViewerRole(state.company.role) && (
+                <section className="company-hierarchy-card">
+                    <h2>Company hierarchy</h2>
+                    <p>
+                        Team structure for this company based on the current role graph.
+                    </p>
+
+                    {state.hierarchyErrorMessage && (
+                        <p className="company-hierarchy-error">{state.hierarchyErrorMessage}</p>
+                    )}
+
+                    {!state.hierarchyErrorMessage && state.hierarchyRoots.length === 0 && (
+                        <p className="company-hierarchy-empty">
+                            No hierarchy data is available yet for this company.
+                        </p>
+                    )}
+
+                    {!state.hierarchyErrorMessage && state.hierarchyRoots.length > 0 && (
+                        <div className="company-hierarchy-tree" aria-label="Company hierarchy tree">
+                            {state.hierarchyRoots.map((rootNode) => (
+                                <HierarchyBranch key={rootNode.id} node={rootNode} />
+                            ))}
+                        </div>
+                    )}
+
+                    {state.hierarchySource && (
+                        <details className="company-hierarchy-source">
+                            <summary>Mermaid source</summary>
+                            <pre>{state.hierarchySource}</pre>
+                        </details>
+                    )}
+                </section>
+            )}
+
             <section className="company-page-actions">
                 <button type="button" className="event-filters-reset" onClick={onBackToCompanies}>
                     Back to My Companies
                 </button>
             </section>
         </main>
+    );
+}
+
+function HierarchyBranch({ node }: { node: HierarchyNode }) {
+    return (
+        <ul className="company-hierarchy-list">
+            <li>
+                <div className="company-hierarchy-node">{node.label}</div>
+                {node.children.length > 0 && (
+                    <div className="company-hierarchy-children">
+                        {node.children.map((childNode) => (
+                            <HierarchyBranch key={childNode.id} node={childNode} />
+                        ))}
+                    </div>
+                )}
+            </li>
+        </ul>
     );
 }

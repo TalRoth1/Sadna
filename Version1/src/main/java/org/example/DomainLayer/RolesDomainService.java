@@ -362,11 +362,11 @@ public class RolesDomainService {
         companyRepository.save(company);
     }
 
-    public String getCompanyHierarchyMermaid(UUID companyId, String requesterUsername) {
+    public String getCompanyHierarchyMermaid(UUID companyId, String requesterEmail) {
         Company company = companyRepository.findByID(companyId).get();
         if (company == null)
             throw new IllegalArgumentException("Company not found");
-        User requesterUser = userRepository.findByEmail(requesterUsername)
+        User requesterUser = userRepository.findByEmail(requesterEmail)
                 .orElseThrow(() -> new IllegalArgumentException("Requester user not found"));
         return requesterUser.getHierarchyMermaid(companyId);
     }

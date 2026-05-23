@@ -297,12 +297,12 @@ public class CompanyService {
         }
     }
 
-    public HierarchyResponse getCompanyHierarchyMermaid(UUID companyId, String requesterUsername) {
-        if (requesterUsername == null || requesterUsername.isBlank()) {
-            throw new IllegalArgumentException("Requester username is required");
+    public HierarchyResponse getCompanyHierarchyMermaid(UUID companyId, String requesterEmail) {
+        if (requesterEmail == null || requesterEmail.isBlank()) {
+            throw new IllegalArgumentException("Requester email is required");
         }
 
-        String mermaid = rolesDomainService.getCompanyHierarchyMermaid(companyId, requesterUsername);
+        String mermaid = rolesDomainService.getCompanyHierarchyMermaid(companyId, requesterEmail);
         return new HierarchyResponse(companyId, mermaid);
     }
 
