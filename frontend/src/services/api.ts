@@ -36,19 +36,29 @@ api.interceptors.response.use(
             const status = error.response.status;
 
             if (status === 401) {
-                // Skip the auto-redirect when the failing request is logout
-                // itself — otherwise a 401 on /logout would wipe the token and
-                // bounce the user to /login, which then loops because the
-                // server still thinks they're logged in. Logout has its own
-                // cleanup in authService.ts and the server is now tolerant of
-                // any token state.
+                // Skip the auto-redirect when the failing request is the
+                // user's authentication flow itself. These endpoints
+                // legitimately return 401 as a user-facing outcome
+                // ("incorrect email or password"), not as the
+                // "token expired" signal the redirect is meant for.
+                //   - /users/login    : bad credentials → caller shows error
+                //   - /users/logout   : a 401 on logout would otherwise wipe
+                //                       the token and loop back to /login
+                //   - /users/register : duplicate email returns 401-ish
+                //                       errors that the form should display
+                //   - /users/guest    : guest bootstrap never has a token to
+                //                       be expired in the first place
                 const url = error.config?.url ?? "";
-                const isLogout = url.includes("/users/logout");
+                const isAuthEndpoint =
+                    url.includes("/users/login")
+                    || url.includes("/users/logout")
+                    || url.includes("/users/register")
+                    || url.includes("/users/guest");
 
-                if (!isLogout) {
+                if (!isAuthEndpoint) {
                     console.error("User not authenticated or token expired - redirecting to login page");
                     localStorage.removeItem('token');
-                    // מומלץ להשאיר את זה דולק כדי שהאפליקציה תגיב בזמן אמת לפקיעת טוקן
+                    // It is recommended to leave this on to react to the token expiration in real time
                     window.location.href = '/login';
                 }
             }

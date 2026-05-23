@@ -87,10 +87,19 @@ public class BeanConfig {
     // ---------------------------------------------------------------------
 
     /**
-     * Concrete bean type intentionally exposed so {@code DevStubController}
-     * can flip outcomes via the stub's setters. The interface bean below
-     * points at the same instance, so the domain layer sees only
-     * {@code IPaymentGateway}.
+     * Payment + ticketing gateways are exposed by their *concrete* stub
+     * types so {@code DevStubController} can flip outcomes via the
+     * setters on the stubs. The concrete classes implement
+     * {@code IPaymentGateway} / {@code ITicketingGateway}, so anywhere
+     * the domain layer asks for the interface, Spring injects the same
+     * stub bean by type — no need for a separate interface-typed bean.
+     *
+     * We deliberately avoid declaring a second {@code @Bean} of type
+     * {@code IPaymentGateway} (or {@code ITicketingGateway}) here: that
+     * would create two beans assignable to the same interface, and
+     * Spring 6.1+ no longer falls back to parameter-name matching at
+     * runtime when the project is compiled without {@code -parameters},
+     * which would break {@link #purchaseDomainService}'s autowiring.
      */
     @Bean
     public SimulatedPaymentGateway simulatedPaymentGateway() {
@@ -102,15 +111,6 @@ public class BeanConfig {
         return new SimulatedTicketingGateway();
     }
 
-    @Bean
-    public IPaymentGateway paymentGateway(SimulatedPaymentGateway simulatedPaymentGateway) {
-        return simulatedPaymentGateway;
-    }
-
-    @Bean
-    public ITicketingGateway ticketingGateway(SimulatedTicketingGateway simulatedTicketingGateway) {
-        return simulatedTicketingGateway;
-    }
 
     @Bean
     public IAuthenticationGateway authenticationGateway() {
