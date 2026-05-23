@@ -691,6 +691,44 @@
     border-color: rgba(220, 38, 38, 0.6);
 }
 
+.purchase-lottery {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px 14px;
+    background: rgba(99, 102, 241, 0.05);
+    border: 1px dashed rgba(99, 102, 241, 0.35);
+    border-radius: 10px;
+}
+
+.purchase-lottery-amount {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 13px;
+    color: #374151;
+    font-weight: 600;
+}
+
+.purchase-lottery-amount input {
+    width: 80px;
+    padding: 8px 10px;
+    font: inherit;
+    font-size: 14px;
+    color: #111827;
+    background: #ffffff;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+}
+
+.purchase-lottery-locked {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #4b5563;
+}
+
 /* =========================
    Payment details card (checkout step)
    ========================= */
