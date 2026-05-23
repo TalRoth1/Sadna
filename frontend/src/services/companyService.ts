@@ -1,7 +1,7 @@
 import api from "./api";
 
 export type CreateCompanyRequest = {
-	founderUsername: string;
+	founderEmail: string;
 	companyName: string;
 };
 
@@ -15,7 +15,7 @@ export type CompanyMembership = {
 export type CompanyResponse = {
 	id: string;
 	name: string;
-	founderUsername: string;
+	founderEmail: string;
 	rating: number;
 	isActive: boolean;
 	eventIds: string[];

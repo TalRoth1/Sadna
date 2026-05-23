@@ -1,14 +1,13 @@
 package org.example.DomainLayer;
 
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.example.DomainLayer.CompanyAggregate.Company;
 
-import java.util.List;
-import java.util.Optional;
-
 public interface ICompanyRepository {
-    UUID createCompany(String founderUsername, String companyName);
+    UUID createCompany(String founderEmail, String companyName);
     Optional<Company> findByID(UUID companyId);
     void save(Company company);
     /**Declared as a default method returning an empty

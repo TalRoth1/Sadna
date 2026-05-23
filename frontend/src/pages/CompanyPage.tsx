@@ -1,19 +1,19 @@
+import type { CompanyResponse } from "../services/companyService";
+
 type CompanyPageProps = {
-    companyId: string;
-    companyName: string;
+    company: CompanyResponse;
     onBackToCompanies: () => void;
 };
 
 export default function CompanyPage({
-    companyId,
-    companyName,
+    company,
     onBackToCompanies,
 }: CompanyPageProps) {
     return (
         <main className="app-page">
             <section className="page-header">
-                <h1>{companyName}</h1>
-                <p>Company ID: {companyId}</p>
+                <h1>{company.name}</h1>
+                <p>Company ID: {company.id}</p>
             </section>
 
             <section className="empty-state">

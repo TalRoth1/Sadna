@@ -33,8 +33,24 @@ public class RolesDomainService {
         this.userRepository = userRepository;
     }
 
-    public UUID createCompany(String founderUsername, String companyName) {
-        return companyRepository.createCompany(founderUsername, companyName);
+    public UUID createCompany(String founderEmail, String companyName) {
+        if (founderEmail == null || founderEmail.isBlank()) {
+            throw new IllegalArgumentException("Founder email is required");
+        }
+        if (companyName == null || companyName.isBlank()) {
+            throw new IllegalArgumentException("Company name is required");
+        }
+
+        User founder = userRepository.findByEmail(founderEmail)
+                .orElseThrow(() -> new IllegalArgumentException("Founder user not found"));
+
+        UUID companyId = companyRepository.createCompany(founderEmail, companyName);
+
+        synchronized (founder) {
+            founder.getCompanyRoles().put(companyId, new CompanyFounder(founderEmail));
+        }
+
+        return companyId;
     }
 
     public void closeCompanyAsAdmin(String adminUsername, UUID companyId) {
@@ -76,7 +92,7 @@ public class RolesDomainService {
             throw new IllegalArgumentException("Company ID is required");
         }
         Company company = companyRepository.findByID(companyId).get();
-        return company.getFounderUsername();
+        return company.getFounderEmail();
     }
 
     public void removeCompanyMemberAsAdmin(String adminUsername, String usernameToRemove) {

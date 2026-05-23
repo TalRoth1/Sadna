@@ -67,7 +67,7 @@ public class CompanyController {
             @RequestBody CreateCompanyRequest request) {
         try {
             CompanyResponse company = companyService.createCompany(
-                    request.founderUsername, request.companyName);
+                    request.founderEmail, request.companyName);
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(ApiResponse.success("Company created successfully", company));
         } catch (IllegalArgumentException e) {

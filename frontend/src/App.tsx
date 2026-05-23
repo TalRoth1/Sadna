@@ -20,6 +20,7 @@ import LoginPage from "./pages/LoginPage";
 import RegistrationPage from "./pages/RegistrationPage";
 import LotteryRegistrationPage from "./pages/LotteryRegistrationPage";
 
+import type { CompanyResponse } from "./services/companyService";
 import type { AdminActionId } from "./types/admin";
 import "./App.css";
 
@@ -40,15 +41,10 @@ function PlaceholderPage({
     );
 }
 
-type SelectedCompany = {
-    id: string;
-    name: string;
-};
-
 function App() {
     const [currentPage, setCurrentPage] = useState<AppPage>("event-search");
     const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
-    const [selectedCompany, setSelectedCompany] = useState<SelectedCompany | null>(null);
+    const [selectedCompany, setSelectedCompany] = useState<CompanyResponse | null>(null);
 
     function navigate(page: AppPage) {
         if (page !== "event-details" && page !== "event-purchase") {
@@ -98,12 +94,20 @@ function App() {
     }
 
     function handleOpenCompany(companyId: string, companyName: string) {
-        setSelectedCompany({ id: companyId, name: companyName });
+        setSelectedCompany({
+            id: companyId,
+            name: companyName,
+            founderEmail: "",
+            rating: 0,
+            isActive: true,
+            eventIds: [],
+        });
         setCurrentPage("company-details");
     }
 
-    function handleCompanyCreationSuccess(companyId: string, companyName: string) {
-        handleOpenCompany(companyId, companyName);
+    function handleCompanyCreationSuccess(company: CompanyResponse) {
+        setSelectedCompany(company);
+        setCurrentPage("company-details");
     }
 
     function handleBackToEvent() {
@@ -222,8 +226,7 @@ function App() {
 
             return (
                 <CompanyPage
-                    companyId={selectedCompany.id}
-                    companyName={selectedCompany.name}
+                    company={selectedCompany}
                     onBackToCompanies={() => setCurrentPage("my-companies")}
                 />
             );

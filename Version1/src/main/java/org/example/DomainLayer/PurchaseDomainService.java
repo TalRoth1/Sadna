@@ -6,7 +6,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -365,8 +364,8 @@ public class PurchaseDomainService {
         Event event = eventRepository.getById(eventId);
         UUID companyId = event.getCompanyId();
         Company company = companyRepository.findByID(companyId).get();
-        String founderUsername = company.getFounderUsername();
-        User founder = userRepository.findByEmail(founderUsername).get();
+        String founderEmail = company.getFounderEmail();
+        User founder = userRepository.findByEmail(founderEmail).get();
         if (founder == null)
             throw new IllegalArgumentException();
         ICompanyMember founderRole = founder.getCompanyRole(companyId);

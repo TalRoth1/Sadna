@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getCurrentUser, type CurrentUser } from "../../services/currentUserService";
+import { createCompany, type CompanyResponse } from "../../services/companyService";
 import "./CompanyCreationPage.css";
 
 type CompanyCreationFormErrors = {
@@ -7,7 +8,7 @@ type CompanyCreationFormErrors = {
 };
 
 type CompanyCreationPageProps = {
-    onCreationSuccess: (companyId: string, companyName: string) => void;
+    onCreationSuccess: (company: CompanyResponse) => void;
 };
 
 function getErrorMessage(error: unknown, fallback: string) {
@@ -31,37 +32,6 @@ function getErrorMessage(error: unknown, fallback: string) {
     }
 
     return fallback;
-}
-
-function generateCompanyId() {
-    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-        return crypto.randomUUID();
-    }
-
-    return `company-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
-
-function simulateCreateCompany(companyName: string) {
-    return new Promise<{ companyId: string }>((resolve, reject) => {
-        window.setTimeout(() => {
-            const normalizedName = companyName.trim().toLowerCase();
-
-            if (normalizedName === "error") {
-                reject({
-                    response: {
-                        data: {
-                            message: `Failed to create ${companyName.trim()}. Please try again.`,
-                        },
-                    },
-                });
-                return;
-            }
-
-            resolve({
-                companyId: generateCompanyId(),
-            });
-        }, 700);
-    });
 }
 
 function GuestAccessCard() {
@@ -134,11 +104,12 @@ export default function CompanyCreationPage({
         try {
             setIsSubmitting(true);
 
-            const response = await simulateCreateCompany(
-                companyName,
-            );
+            const response = await createCompany({
+                founderEmail: currentUser.email,
+                companyName: companyName.trim(),
+            });
 
-            onCreationSuccess(response.companyId, companyName.trim());
+            onCreationSuccess(response);
         } catch (error) {
             setErrorMessage(getErrorMessage(error, "Company creation failed."));
         } finally {
@@ -192,7 +163,7 @@ export default function CompanyCreationPage({
 
                         <p className="company-creation-note">
                             After a successful creation, the site will forward you to the
-                            company page!
+                            dedicated company page.
                         </p>
                     </section>
 
