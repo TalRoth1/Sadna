@@ -1,66 +1,55 @@
+import api from "../api";
 import type { Complaint } from "../../types/admin";
-import { verifyPlatformAdmin } from "./adminAuthService";
 
-const mockComplaints: Complaint[] = [
-    {
-        id: "complaint-1",
-        title: "Fake ticket report",
-        message: "The user reported a suspicious ticket for an event.",
-        reporterName: "Ofek",
-        status: "open",
-    },
-    {
-        id: "complaint-2",
-        title: "Event was cancelled without notice",
-        message: "A buyer claims they did not receive a cancellation notice.",
-        reporterName: "Maya",
-        status: "open",
-    },
-];
+type AdminComplaintDto = {
+    id: string;
+    reporterUserId: string;
+    reporterUsername: string;
+    title: string;
+    description: string;
+    status: string;
+    adminResponse?: string;
+    responderAdminUsername?: string;
+    createdAt?: string;
+    respondedAt?: string;
+};
 
-// TODO: Replace this mock implementation with a real server call.
-// The server must verify admin permissions before returning complaints.
-export async function getComplaints(userId: string): Promise<Complaint[]> {
-    const isAdmin = await verifyPlatformAdmin(userId);
-
-    if (!isAdmin) {
-        throw new Error("User is not a platform admin");
-    }
-
-    return mockComplaints;
+function mapComplaint(dto: AdminComplaintDto): Complaint {
+    return {
+        id: dto.id,
+        title: dto.title,
+        message: dto.description,
+        reporterName: dto.reporterUsername,
+        status: dto.status.toLowerCase() as Complaint["status"],
+        adminResponse: dto.adminResponse,
+        responderAdminUsername: dto.responderAdminUsername,
+        createdAt: dto.createdAt,
+        respondedAt: dto.respondedAt,
+    };
 }
 
-// TODO: Replace this mock implementation with a real server command.
-// The server must verify admin permissions and store/send the admin response.
+export async function getComplaints(_userId: string): Promise<Complaint[]> {
+    const response = await api.get("/admin/complaints");
+    const complaints = response.data.data as AdminComplaintDto[];
+
+    return complaints.map(mapComplaint);
+}
+
 export async function respondToComplaint(
-    userId: string,
+    _userId: string,
     complaintId: string,
-    response: string,
+    responseText: string,
 ): Promise<void> {
-    const isAdmin = await verifyPlatformAdmin(userId);
-
-    if (!isAdmin) {
-        throw new Error("User is not a platform admin");
-    }
-
-    console.log("Complaint response request:", {
-        userId,
-        complaintId,
-        response,
+    await api.patch(`/admin/complaints/${complaintId}/response`, {
+        response: responseText,
     });
 }
 
-// TODO: Replace this mock implementation with a real server command.
-// The server must verify admin permissions and send the system message to the selected audience.
 export async function sendSystemMessage(
-    userId: string,
+    _userId: string,
     message: string,
 ): Promise<void> {
-    const isAdmin = await verifyPlatformAdmin(userId);
-
-    if (!isAdmin) {
-        throw new Error("User is not a platform admin");
-    }
-
-    console.log("System message request:", { userId, message });
+    await api.post("/admin/messages/system", {
+        message,
+    });
 }
