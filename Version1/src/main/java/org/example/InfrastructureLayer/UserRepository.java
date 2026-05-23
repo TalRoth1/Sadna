@@ -59,7 +59,7 @@ public class UserRepository implements IUserRepository {
                 return Optional.ofNullable(entry.getValue());
             }
         }
-        return null;
+        return Optional.empty();
     }
 
     @Override

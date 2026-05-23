@@ -1,7 +1,7 @@
+import api from "../api";
 import type { AdminAction } from "../../types/admin";
-import { verifyPlatformAdmin } from "./adminAuthService";
 
-const mockAdminActions: AdminAction[] = [
+const adminActions: AdminAction[] = [
     {
         id: "companies",
         title: "Close Production Company",
@@ -39,18 +39,7 @@ const mockAdminActions: AdminAction[] = [
     },
 ];
 
-// TODO: Replace this mock implementation with a real communication call.
-// The server must return admin actions only if the provided userId is a platform admin.
-export async function getAdminActions(userId: string): Promise<AdminAction[]> {
-    const isAdmin = await verifyPlatformAdmin(userId);
-
-    if (!isAdmin) {
-        throw new Error("User is not a platform admin");
-    }
-
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            resolve(mockAdminActions);
-        }, 250);
-    });
+export async function getAdminActions(_userId: string): Promise<AdminAction[]> {
+    await api.get("/admin/dashboard");
+    return adminActions;
 }

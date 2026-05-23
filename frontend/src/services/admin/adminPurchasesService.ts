@@ -1,38 +1,32 @@
+import api from "../api";
 import type { GlobalPurchaseRecord } from "../../types/admin";
-import { verifyPlatformAdmin } from "./adminAuthService";
 
-const mockGlobalPurchases: GlobalPurchaseRecord[] = [
-    {
-        id: "purchase-1",
-        buyerName: "Ofek",
-        companyName: "Live Nation Israel",
-        eventName: "Summer Music Festival",
-        ticketsAmount: 2,
-        totalPrice: 240,
-        purchaseDate: "2026-05-10T18:20:00",
-    },
-    {
-        id: "purchase-2",
-        buyerName: "Maya",
-        companyName: "Urban Events",
-        eventName: "Standup Night",
-        ticketsAmount: 1,
-        totalPrice: 90,
-        purchaseDate: "2026-04-01T12:15:00",
-    },
-];
+type PurchaseHistoryDto = {
+    userId: string;
+    eventId: string;
+    ticketIds: string[];
+    eventName: string;
+    eventDate: string;
+    eventLocation: string;
+    ticketsAmount: number;
+    totalPrice: number;
+    paymentInfo: string;
+    purchaseDate: string;
+};
 
-// TODO: Replace this mock implementation with a real server call.
-// The server must verify admin permissions and return global purchase history,
-// including filtering by buyer, company, or event when supported.
 export async function getGlobalPurchaseHistory(
-    userId: string,
+    _userId: string,
 ): Promise<GlobalPurchaseRecord[]> {
-    const isAdmin = await verifyPlatformAdmin(userId);
+    const response = await api.get("/admin/purchases");
+    const purchases = response.data.data as PurchaseHistoryDto[];
 
-    if (!isAdmin) {
-        throw new Error("User is not a platform admin");
-    }
-
-    return mockGlobalPurchases;
+    return purchases.map((purchase, index) => ({
+        id: `${purchase.userId}-${purchase.eventId}-${purchase.purchaseDate}-${index}`,
+        buyerName: purchase.userId,
+        companyName: "Unknown company",
+        eventName: purchase.eventName || purchase.eventId,
+        ticketsAmount: purchase.ticketsAmount ?? purchase.ticketIds?.length ?? 0,
+        totalPrice: purchase.totalPrice,
+        purchaseDate: purchase.purchaseDate,
+    }));
 }

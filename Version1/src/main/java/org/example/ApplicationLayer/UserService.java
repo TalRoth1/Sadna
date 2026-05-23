@@ -26,7 +26,6 @@ public class UserService {
         this.userRepository = userRepository;
         this.authGateway = authGateway;
         this.notifier = notifier;
-        notifyAll();
     }
 
     /**

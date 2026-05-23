@@ -1,24 +1,29 @@
+import api from "../api";
 import type { SystemAnalytics } from "../../types/admin";
-import { verifyPlatformAdmin } from "./adminAuthService";
 
-const mockAnalytics: SystemAnalytics = {
-    activeVisitors: 128,
-    newSubscribersRate: 14,
-    ticketReservationRate: 42,
-    ticketPurchaseRate: 31,
-    activeQueues: 3,
+type AdminAnalyticsDto = {
+    registeredUsersCount: number;
+    loggedInUsersCount: number;
+    activeCompaniesCount: number;
+    activeQueuesCount: number;
+    activePurchasesCount: number;
+    totalPurchasesCount: number;
+    createdAt: string;
 };
 
-// TODO: Replace this mock implementation with a real server call.
-// The server must verify admin permissions and return live/historical system analytics.
 export async function getSystemAnalytics(
-    userId: string,
+    _userId: string,
 ): Promise<SystemAnalytics> {
-    const isAdmin = await verifyPlatformAdmin(userId);
+    const response = await api.get("/admin/analytics");
+    const data = response.data.data as AdminAnalyticsDto;
 
-    if (!isAdmin) {
-        throw new Error("User is not a platform admin");
-    }
-
-    return mockAnalytics;
+    return {
+        registeredUsersCount: data.registeredUsersCount,
+        loggedInUsersCount: data.loggedInUsersCount,
+        activeCompaniesCount: data.activeCompaniesCount,
+        activeQueuesCount: data.activeQueuesCount,
+        activePurchasesCount: data.activePurchasesCount,
+        totalPurchasesCount: data.totalPurchasesCount,
+        createdAt: data.createdAt,
+    };
 }
