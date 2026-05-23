@@ -32,7 +32,11 @@ export type Complaint = {
     title: string;
     message: string;
     reporterName: string;
-    status: "open" | "answered";
+    status: "open" | "answered" | "closed";
+    adminResponse?: string;
+    responderAdminUsername?: string;
+    createdAt?: string;
+    respondedAt?: string;
 };
 
 export type GlobalPurchaseRecord = {
@@ -46,11 +50,13 @@ export type GlobalPurchaseRecord = {
 };
 
 export type SystemAnalytics = {
-    activeVisitors: number;
-    newSubscribersRate: number;
-    ticketReservationRate: number;
-    ticketPurchaseRate: number;
-    activeQueues: number;
+    registeredUsersCount: number;
+    loggedInUsersCount: number;
+    activeCompaniesCount: number;
+    activeQueuesCount: number;
+    activePurchasesCount: number;
+    totalPurchasesCount: number;
+    createdAt: string;
 };
 
 export type QueueInfo = {
@@ -58,5 +64,6 @@ export type QueueInfo = {
     eventName: string;
     waitingUsers: number;
     flowRatePerMinute: number;
+    activeSelectorsCount: number;
     status: "active" | "cleared";
 };

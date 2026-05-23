@@ -248,8 +248,11 @@ public class PurchaseDomainService {
                         activePurchase.getTicketIDs().keySet());
             } catch (RuntimeException ticketingFailure) {
                 compensateFailedTicketing(activePurchase, finalPrice, paymentDetails, ticketingFailure);
-                // unreachable — compensateFailedTicketing always throws
-                return;
+                // unreachable — compensateFailedTicketing always throws. We
+                // throw here too so the compiler is satisfied without anyone
+                // mistakenly reading this as a "silent failure" return.
+                throw new IllegalStateException(
+                        "compensateFailedTicketing should always throw");
             }
 
             event.sellTickets(activePurchase.getTicketIDs().keySet());

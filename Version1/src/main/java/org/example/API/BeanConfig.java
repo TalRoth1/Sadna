@@ -199,7 +199,8 @@ public class BeanConfig {
     @Bean(initMethod = "start", destroyMethod = "interrupt")
     public ActivePurchaseCleaner activePurchaseCleaner(
             PurchaseService purchaseService,
-            IPurchaseRepository purchaseRepository) {
-        return new ActivePurchaseCleaner(purchaseService, purchaseRepository);
+            IPurchaseRepository purchaseRepository,
+            INotifier notifier) {
+        return new ActivePurchaseCleaner(purchaseService, purchaseRepository, notifier);
     }
 }
