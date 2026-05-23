@@ -234,19 +234,15 @@ export default function EventDetailsPage({
             return;
         }
 
-        // TODO: Replace with real flows once the protocol/API is implemented:
-        //   lottery -> POST /lotteries/{lotteryId}/registrations
-        //   queue   -> POST /events/{id}/queue
+        // TODO: Replace with the real flow once the protocol/API is implemented:
+        //   queue -> POST /events/{id}/queue
+        // (The lottery path used to be mocked here too, but it now goes
+        // through the real onStartLotteryRegistration call above.)
         setIsPerformingAction(true);
         setActionMessage(null);
         setTimeout(() => {
             setIsPerformingAction(false);
-            if (primaryAction.kind === "lottery") {
-                setActionMessage({
-                    kind: "success",
-                    text: "You have been entered into the lottery. We'll notify you when results are drawn.",
-                });
-            } else if (primaryAction.kind === "queue") {
+            if (primaryAction.kind === "queue") {
                 setActionMessage({
                     kind: "success",
                     text: "You're in the queue. We'll let you know as soon as a ticket becomes available.",

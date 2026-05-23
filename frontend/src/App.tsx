@@ -114,7 +114,15 @@ function App() {
                 return <EventSearchPage onSelectEvent={handleSelectEvent} />;
             }
             return (
+                // `key` forces React to remount TicketPurchasePage when the
+                // user switches events. That way each event page gets its
+                // own state (selection, resumed reservation, timer) and
+                // they don't bleed into each other — which is critical for
+                // the "parallel independence" requirement, since the
+                // backend can now hold concurrent reservations across
+                // different events for the same user.
                 <TicketPurchasePage
+                    key={selectedEventId}
                     eventId={selectedEventId}
                     onBackToEvent={handleBackToEvent}
                 />

@@ -2,6 +2,7 @@ package org.example.DomainLayer.EventAggregate;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -29,7 +30,7 @@ public class Layout {
             throw new IllegalArgumentException("area must not be null");
         }
         for (Area existing : areas) {
-            if (existing.getAreaId() == area.getAreaId()) {
+            if (Objects.equals(existing.getAreaId(), area.getAreaId())) {
                 throw new IllegalStateException("duplicate area id: " + area.getAreaId());
             }
         }
@@ -39,7 +40,7 @@ public class Layout {
     public Area requireArea(UUID areaId) 
     {
         for (Area a : areas) {
-            if (areaId == a.getAreaId()) {
+            if (Objects.equals(areaId, a.getAreaId())) {
                 return a;
             }
         }

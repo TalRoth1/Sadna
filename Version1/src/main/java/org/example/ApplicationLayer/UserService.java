@@ -48,12 +48,6 @@ public class UserService {
         this.userRepository = userRepository;
         this.authGateway = authGateway;
         this.notifier = notifier;
-        // notifyAll(); // why is this here? should it be? if so, what should it do?
-        // currently it crashes the app on startup because the user repository is empty
-        // and it tries to notify all users. If we want to keep it, we should probably
-        // remove the notifyAll() call and instead have a method that admins can call to
-        // send a message to all users, which would be more useful than sending a
-        // message on startup.
     }
 
     /**

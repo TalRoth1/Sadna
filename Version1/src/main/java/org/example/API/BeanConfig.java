@@ -1,10 +1,12 @@
 package org.example.API;
 
+import org.example.ApplicationLayer.ActivePurchaseCleaner;
 import org.example.ApplicationLayer.EventPublisher;
 import org.example.ApplicationLayer.IAuthenticationGateway;
 import org.example.ApplicationLayer.IPaymentGateway;
 import org.example.ApplicationLayer.ITicketingGateway;
 import org.example.ApplicationLayer.ITokenBlacklist;
+import org.example.ApplicationLayer.PurchaseService;
 import org.example.ApplicationLayer.QueueManager;
 import org.example.DomainLayer.EventManagementDomainService;
 import org.example.DomainLayer.ICompanyRepository;
@@ -16,6 +18,7 @@ import org.example.DomainLayer.IUserRepository;
 import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.PurchaseDomainService;
 import org.example.DomainLayer.RolesDomainService;
+import org.example.InfrastructureLayer.*;
 import org.example.InfrastructureLayer.Broadcaster;
 import org.example.InfrastructureLayer.CompanyRepository;
 import org.example.InfrastructureLayer.HistoryRepository;
@@ -23,8 +26,8 @@ import org.example.InfrastructureLayer.InMemoryEventRepository;
 import org.example.InfrastructureLayer.InMemoryPurchaseRepository;
 import org.example.InfrastructureLayer.InMemoryTokenBlacklist;
 import org.example.InfrastructureLayer.LotteryRepository;
-import org.example.InfrastructureLayer.NoopPaymentGateway;
-import org.example.InfrastructureLayer.NoopTicketingGateway;
+import org.example.InfrastructureLayer.SimulatedPaymentGateway;
+import org.example.InfrastructureLayer.SimulatedTicketingGateway;
 import org.example.InfrastructureLayer.PlainTextAuthenticationGateway;
 import org.example.InfrastructureLayer.UserRepository;
 import org.example.InfrastructureLayer.WebSocketNotificationSender;
@@ -83,14 +86,30 @@ public class BeanConfig {
     // purchase / auth flows can be exercised locally.
     // ---------------------------------------------------------------------
 
+    /**
+     * Concrete bean type intentionally exposed so {@code DevStubController}
+     * can flip outcomes via the stub's setters. The interface bean below
+     * points at the same instance, so the domain layer sees only
+     * {@code IPaymentGateway}.
+     */
     @Bean
-    public IPaymentGateway paymentGateway() {
-        return new NoopPaymentGateway();
+    public SimulatedPaymentGateway simulatedPaymentGateway() {
+        return new SimulatedPaymentGateway();
     }
 
     @Bean
-    public ITicketingGateway ticketingGateway() {
-        return new NoopTicketingGateway();
+    public SimulatedTicketingGateway simulatedTicketingGateway() {
+        return new SimulatedTicketingGateway();
+    }
+
+    @Bean
+    public IPaymentGateway paymentGateway(SimulatedPaymentGateway simulatedPaymentGateway) {
+        return simulatedPaymentGateway;
+    }
+
+    @Bean
+    public ITicketingGateway ticketingGateway(SimulatedTicketingGateway simulatedTicketingGateway) {
+        return simulatedTicketingGateway;
     }
 
     @Bean
@@ -109,8 +128,14 @@ public class BeanConfig {
     }
 
     @Bean
-    public INotifier notifier(Broadcaster broadcaster) {
-        return new WebSocketNotificationSender(broadcaster);
+    public NotificationRepository notificationRepository() {
+        return new NotificationRepository();
+    }
+
+    @Bean
+    public INotifier notifier(Broadcaster broadcaster,
+                              NotificationRepository notificationRepository) {
+        return new Notifier(broadcaster, notificationRepository);
     }
 
     // ---------------------------------------------------------------------
@@ -141,10 +166,13 @@ public class BeanConfig {
             IPurchaseRepository purchaseRepository,
             ICompanyRepository companyRepository,
             IUserRepository userRepository,
-            ILotteryRepository lotteryRepository) {
+            ILotteryRepository lotteryRepository,
+            IPaymentGateway paymentGateway,
+            ITicketingGateway ticketingGateway) {
         return new PurchaseDomainService(
                 historyRepository, eventRepository, purchaseRepository,
-                companyRepository, userRepository, lotteryRepository);
+                companyRepository, userRepository, lotteryRepository,
+                paymentGateway, ticketingGateway);
     }
 
     // ---------------------------------------------------------------------
@@ -157,7 +185,22 @@ public class BeanConfig {
     }
 
     @Bean
-    public QueueManager queueManager() {
-        return new QueueManager();
+    public QueueManager queueManager(INotifier notifier) {
+        return new QueueManager(notifier);
+    }
+
+    // ---------------------------------------------------------------------
+    // Background sweep — releases tickets from reservations whose 10-minute
+    // wait window has lapsed. Spring calls start() right after construction
+    // (initMethod) and interrupt() on context shutdown (destroyMethod), so
+    // the thread mirrors the application's lifecycle.
+    // ---------------------------------------------------------------------
+
+    @Bean(initMethod = "start", destroyMethod = "interrupt")
+    public ActivePurchaseCleaner activePurchaseCleaner(
+            PurchaseService purchaseService,
+            IPurchaseRepository purchaseRepository,
+            INotifier notifier) {
+        return new ActivePurchaseCleaner(purchaseService, purchaseRepository, notifier);
     }
 }

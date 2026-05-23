@@ -10,6 +10,8 @@ import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.example.DomainLayer.UserAggregate.User;
 import org.example.InfrastructureLayer.Broadcaster;
+import org.example.InfrastructureLayer.NotificationRepository;
+import org.example.InfrastructureLayer.Notifier;
 import org.example.InfrastructureLayer.WebSocketNotificationSender;
 import org.junit.Before;
 import org.junit.Test;
@@ -40,14 +42,17 @@ public class PurchaseServiceTest {
     @Mock
     private QueueManager queueManagerMock;
 
+    private NotificationRepository notificationRepository;
+
     @Before
     public void setUp() {
         notifier = mock(INotifier.class);
         queueManagerMock = mock(QueueManager.class);
         purchaseDomainServiceMock = mock(PurchaseDomainService.class);
         broadcaster = new Broadcaster();
+        notificationRepository = new NotificationRepository();
         INotifier notifier =new WebSocketNotificationSender(broadcaster);
-        NotificationService notificationService =new NotificationService(notifier);
+        NotificationService notificationService =new NotificationService(notifier, notificationRepository);
         EventListener eventListener =new EventListener(notificationService);
         EventPublisher eventPublisher =new EventPublisher();
         eventPublisher.subscribe(eventListener::handle);
@@ -691,7 +696,8 @@ public class PurchaseServiceTest {
         InMemoryHistoryRepository inMemoryHistoryRepository;
         InMemoryPurchaseRepository inMemoryPurchaseRepository;
         InMemoryLotteryRepository inMemoryLotteryRepository;
-
+        Notifier notifer;
+        NotificationRepository notificationRepository;
 
         QueueManager queueManager;
         PurchaseDomainService purchaseDomainService;
@@ -708,12 +714,16 @@ public class PurchaseServiceTest {
         setup.inMemoryHistoryRepository = new InMemoryHistoryRepository();
         setup.inMemoryPurchaseRepository = new InMemoryPurchaseRepository();
         setup.inMemoryLotteryRepository = new InMemoryLotteryRepository();
+        setup.notificationRepository = new NotificationRepository();
+        setup.broadcaster = new Broadcaster();
+        setup.notifer = new Notifier(broadcaster, notificationRepository);
+
 
         setup.queueManager = new QueueManager();
         setup.purchaseDomainService = new PurchaseDomainService(setup.inMemoryHistoryRepository, setup.inMemoryEventRepository, setup.inMemoryPurchaseRepository, setup.inMemoryCompanyRepository, setup.innMemoryUserRepository, setup.inMemoryLotteryRepository);
         setup.broadcaster = new Broadcaster();
         INotifier notifier =new WebSocketNotificationSender(setup.broadcaster);
-        NotificationService notificationService =new NotificationService(notifier);
+        NotificationService notificationService =new NotificationService(notifier, notificationRepository);
         EventListener eventListener =new EventListener(notificationService);
         EventPublisher eventPublisher =new EventPublisher();
         eventPublisher.subscribe(eventListener::handle);
