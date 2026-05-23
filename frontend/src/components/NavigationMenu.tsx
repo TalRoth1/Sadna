@@ -75,6 +75,10 @@ export default function NavigationMenu({
         setIsMenuOpen(false);
     }
 
+    const visibleMainLinks = isLoggedIn
+        ? mainLinks
+        : mainLinks.filter((link) => link.page !== "my-companies");
+
     async function handleLogout() {
         try {
             await logoutUser();
@@ -137,7 +141,7 @@ export default function NavigationMenu({
                 </div>
 
                 <nav className="side-navigation-links">
-                    {mainLinks.map((link) => (
+                    {visibleMainLinks.map((link) => (
                         <button
                             key={link.page}
                             type="button"

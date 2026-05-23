@@ -53,6 +53,8 @@ public abstract class ICompanyMember {
 
     public abstract boolean isInChargeOfEvent(UUID eventId);
 
+    public abstract String getRoleName();
+
     public void removeFromCompanyHyrarchy(){
         if (Appointer == null) {
             throw new IllegalStateException("Cannot remove the founder from the company hyrarchy, try closeing the company instead");

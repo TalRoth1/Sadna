@@ -19,4 +19,9 @@ public class CompanyFounder extends CompanyOwner {
     public CompanyFounder getFounder() {
         return this;
     }
+
+    @Override
+    public String getRoleName() {
+        return "Founder";
+    }
 }

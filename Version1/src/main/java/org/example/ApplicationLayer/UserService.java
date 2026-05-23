@@ -1,17 +1,15 @@
 package org.example.ApplicationLayer;
 
+import java.util.Map;
+import java.util.UUID;
+import java.util.logging.Logger;
+
 import org.example.ApplicationLayer.dto.UserDTOs.LoginRequest;
 import org.example.ApplicationLayer.dto.UserDTOs.RegisterRequest;
 import org.example.ApplicationLayer.dto.UserDTOs.UserResponse;
 import org.example.DomainLayer.IUserRepository;
 import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.UserAggregate.User;
-
-import java.util.Map;
-import java.util.UUID;
-import java.util.logging.Logger;
-
-
 import org.springframework.stereotype.Service;
 
 @Service
@@ -26,7 +24,7 @@ public class UserService {
         this.userRepository = userRepository;
         this.authGateway = authGateway;
         this.notifier = notifier;
-        notifyAll();
+        // notifyAll(); // why is this here? should it be? if so, what should it do? currently it crashes the app on startup because the user repository is empty and it tries to notify all users. If we want to keep it, we should probably remove the notifyAll() call and instead have a method that admins can call to send a message to all users, which would be more useful than sending a message on startup.
     }
 
     /**

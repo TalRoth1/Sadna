@@ -73,4 +73,9 @@ public class CompanyManager extends ICompanyMember {
         }
         return null;
     }
+
+    @Override
+    public String getRoleName() {
+        return "Manager";
+    }
 }

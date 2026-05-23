@@ -95,4 +95,9 @@ public class CompanyOwner extends ICompanyMember {
 
         return null;
     }
+
+    @Override
+    public String getRoleName() {
+        return "Owner";
+    }
 }
