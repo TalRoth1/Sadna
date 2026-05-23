@@ -219,11 +219,19 @@ public class DevDataSeeder implements CommandLineRunner {
         // anonymous implementation rather than introducing a concrete
         // class just for the seeder — this matches what the existing
         // tests do.
+        //
+        // CRITICAL: getUsername() must return the User's `username`
+        // field (e.g. "admin"), NOT the email. The JWT auth filter puts
+        // claims.get("username") into the request attribute, and
+        // AdminService.validateAdmin compares that against
+        // Admin.getUsername() via UserRepository.isSystemAdmin(...). If
+        // the Admin record were keyed by email, every admin endpoint
+        // would 403 even for a valid admin login.
         Admin adminImpl = new Admin() {
             @Override
             public UUID getId() { return adminUser.getId(); }
             @Override
-            public String getUsername() { return adminUser.getEmail(); }
+            public String getUsername() { return adminUser.getUsername(); }
         };
         userRepository.addAdmin(adminImpl);
     }
@@ -528,8 +536,12 @@ public class DevDataSeeder implements CommandLineRunner {
     // exercises the admin-close path on RolesDomainService.
     // =================================================================
     private void closeClosedCompany() {
+        // Pass the admin's USERNAME (not email) so the call matches the
+        // canonical key used by UserRepository.isSystemAdmin(...) — i.e.
+        // Admin.getUsername(), which seedAdmin() set to the User's
+        // username field above.
         rolesDomainService.closeCompanyAsAdmin(
-                "admin@demo.test",
+                usersByEmail.get("admin@demo.test").getUsername(),
                 companiesByName.get("Closed Co."));
     }
 
@@ -559,6 +571,10 @@ public class DevDataSeeder implements CommandLineRunner {
     private void seedComplaints() {
         User carol = usersByEmail.get("carol@demo.test");
         User alice = usersByEmail.get("alice@demo.test");
+        // Use the admin's username, matching how the runtime AdminService
+        // identifies the responder — keeps the seeded responses
+        // indistinguishable from ones produced via the live API.
+        String adminUsername = usersByEmail.get("admin@demo.test").getUsername();
 
         // OPEN — needs admin attention.
         AdminComplaint openComplaint = new AdminComplaint(
@@ -572,7 +588,7 @@ public class DevDataSeeder implements CommandLineRunner {
                 carol.getId(), carol.getEmail(),
                 "Refund not received",
                 "I paid for tickets to a canceled event 3 weeks ago and haven't seen the refund yet.");
-        answeredComplaint.respond("admin@demo.test",
+        answeredComplaint.respond(adminUsername,
                 "We've located your transaction and the refund will be processed within 5 business days.");
         adminRepository.saveComplaint(answeredComplaint);
 
@@ -581,7 +597,7 @@ public class DevDataSeeder implements CommandLineRunner {
                 alice.getId(), alice.getEmail(),
                 "Wrong seat allocated",
                 "I bought seat A12 but the ticket says A21. Mid-priority — already exchanged with another buyer.");
-        closedComplaint.respond("admin@demo.test",
+        closedComplaint.respond(adminUsername,
                 "Apologies for the confusion. We've corrected the assignment in our records.");
         closedComplaint.close();
         adminRepository.saveComplaint(closedComplaint);

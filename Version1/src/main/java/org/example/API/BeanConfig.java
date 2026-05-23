@@ -6,6 +6,7 @@ import org.example.ApplicationLayer.IAuthenticationGateway;
 import org.example.ApplicationLayer.IPaymentGateway;
 import org.example.ApplicationLayer.ITicketingGateway;
 import org.example.ApplicationLayer.ITokenBlacklist;
+import org.example.ApplicationLayer.JwtService;
 import org.example.ApplicationLayer.PurchaseService;
 import org.example.ApplicationLayer.QueueManager;
 import org.example.DomainLayer.EventManagementDomainService;
@@ -202,5 +203,29 @@ public class BeanConfig {
             IPurchaseRepository purchaseRepository,
             INotifier notifier) {
         return new ActivePurchaseCleaner(purchaseService, purchaseRepository, notifier);
+    }
+
+    // ---------------------------------------------------------------------
+    // Web layer — JWT authentication filter.
+    //
+    // {@link JwtAuthFilter} reads the {@code Authorization: Bearer …}
+    // header, validates the token via {@link JwtService}, and exposes
+    // {@code userId} / {@code username} / {@code role} as request
+    // attributes that controllers (notably {@link AdminController}) read
+    // back to identify the caller.
+    //
+    // The filter is framework-free — no {@code @Component} annotation —
+    // so it must be wired explicitly here. Spring Boot auto-registers
+    // any {@code Filter} bean as a servlet filter for {@code /*}; the
+    // filter's own {@code shouldNotFilter} / {@code PUBLIC_PATHS}
+    // handles the endpoints that must remain reachable without a token
+    // (guest / login / register / logout), and a missing Authorization
+    // header is a benign pass-through (so static resources and the
+    // dev-stub controller aren't affected).
+    // ---------------------------------------------------------------------
+
+    @Bean
+    public JwtAuthFilter jwtAuthFilter(JwtService jwtService) {
+        return new JwtAuthFilter(jwtService);
     }
 }
