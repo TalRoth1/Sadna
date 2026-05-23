@@ -7,6 +7,12 @@ export type CurrentUser = {
     status: string;
     role: string;
     age: number;
+    /**
+     * True when the backend has this user registered as a system admin.
+     * The User aggregate's `role` only distinguishes GUEST / MEMBER —
+     * the admin facet is orthogonal and arrives on this flag.
+     */
+    isAdmin: boolean;
 };
 
 const CURRENT_USER_STORAGE_KEY = "currentUser";
@@ -19,6 +25,10 @@ function mapUserResponseToCurrentUser(user: UserResponse): CurrentUser {
         status: user.status,
         role: user.role,
         age: user.age,
+        // Default to false for older sessions that pre-date the field —
+        // those callers will see the admin features stay hidden until
+        // they log in again, which is the safer default.
+        isAdmin: Boolean(user.isAdmin),
     };
 }
 

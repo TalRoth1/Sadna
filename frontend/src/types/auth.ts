@@ -17,6 +17,7 @@ export type UserResponse = {
     status: string;
     role: string;
     age: number;
+    isAdmin: boolean;
 };
 
 export type AuthResponse = {
