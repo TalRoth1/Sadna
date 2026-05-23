@@ -114,6 +114,11 @@
     font-size: 22px;
     font-weight: 700;
     text-decoration: none;
+    background: transparent;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    text-align: left;
 }
 
 .company-name-link:hover {

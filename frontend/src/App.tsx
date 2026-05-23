@@ -13,6 +13,8 @@ import EventSearchPage from "./pages/EventSearch/EventSearch";
 import PurchaseHistoryPage from "./pages/PurchaseHistoryPage";
 import TicketPurchasePage from "./pages/TicketPurchase/TicketPurchase";
 import MyCompaniesPage from "./pages/myCompanies/MyCompaniesPage";
+import CompanyCreationPage from "./pages/createCompany/CompanyCreationPage";
+import CompanyPage from "./pages/CompanyPage";
 import UserProfilePage from "./pages/UserProfilePage";
 import LoginPage from "./pages/LoginPage";
 import RegistrationPage from "./pages/RegistrationPage";
@@ -38,13 +40,22 @@ function PlaceholderPage({
     );
 }
 
+type SelectedCompany = {
+    id: string;
+    name: string;
+};
+
 function App() {
     const [currentPage, setCurrentPage] = useState<AppPage>("event-search");
     const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+    const [selectedCompany, setSelectedCompany] = useState<SelectedCompany | null>(null);
 
     function navigate(page: AppPage) {
         if (page !== "event-details" && page !== "event-purchase") {
             setSelectedEventId(null);
+        }
+        if (page !== "company-details") {
+            setSelectedCompany(null);
         }
         setCurrentPage(page);
     }
@@ -80,6 +91,19 @@ function App() {
     function handleStartLotteryRegistration(eventId: string) {
         setSelectedEventId(eventId);
         setCurrentPage("lottery-registration");
+    }
+
+    function handleStartCompanyCreation() {
+        setCurrentPage("company-creation");
+    }
+
+    function handleOpenCompany(companyId: string, companyName: string) {
+        setSelectedCompany({ id: companyId, name: companyName });
+        setCurrentPage("company-details");
+    }
+
+    function handleCompanyCreationSuccess(companyId: string, companyName: string) {
+        handleOpenCompany(companyId, companyName);
     }
 
     function handleBackToEvent() {
@@ -174,7 +198,35 @@ function App() {
         }
 
         if (currentPage === "my-companies") {
-            return <MyCompaniesPage />;
+            return (
+                <MyCompaniesPage
+                    onCreateCompany={handleStartCompanyCreation}
+                    onOpenCompany={handleOpenCompany}
+                />
+            );
+        }
+
+        if (currentPage === "company-creation") {
+            return <CompanyCreationPage onCreationSuccess={handleCompanyCreationSuccess} />;
+        }
+
+        if (currentPage === "company-details") {
+            if (!selectedCompany) {
+                return (
+                    <MyCompaniesPage
+                        onCreateCompany={handleStartCompanyCreation}
+                        onOpenCompany={handleOpenCompany}
+                    />
+                );
+            }
+
+            return (
+                <CompanyPage
+                    companyId={selectedCompany.id}
+                    companyName={selectedCompany.name}
+                    onBackToCompanies={() => setCurrentPage("my-companies")}
+                />
+            );
         }
 
         if (currentPage === "profile") {

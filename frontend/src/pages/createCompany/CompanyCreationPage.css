@@ -1,0 +1,179 @@
+.company-creation-page {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+}
+
+.company-creation-header {
+    max-width: 980px;
+}
+
+.company-creation-eyebrow {
+    margin: 0 0 10px;
+    color: #4338ca;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.company-creation-layout {
+    max-width: 1040px;
+    width: 100%;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: minmax(280px, 0.95fr) minmax(320px, 1.05fr);
+    gap: 20px;
+    align-items: start;
+}
+
+.company-creation-panel {
+    padding: 24px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+}
+
+.company-creation-summary-card h2,
+.company-creation-form h2 {
+    margin: 0 0 10px;
+    font-size: 24px;
+}
+
+.company-creation-summary-card p,
+.company-creation-form-lead,
+.company-creation-note,
+.company-creation-hint {
+    margin: 0;
+    color: #6b7280;
+    line-height: 1.5;
+}
+
+.company-creation-details {
+    display: grid;
+    gap: 14px;
+    margin: 20px 0 0;
+}
+
+.company-creation-details div {
+    padding: 14px 16px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+}
+
+.company-creation-details dt {
+    margin: 0 0 6px;
+    color: #6b7280;
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.company-creation-details dd {
+    margin: 0;
+    color: #111827;
+    font-size: 16px;
+    font-weight: 700;
+    word-break: break-word;
+}
+
+.company-creation-note {
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.company-creation-form {
+    max-width: none;
+    margin: 0;
+}
+
+.company-creation-form-lead {
+    margin-bottom: 4px;
+}
+
+.company-creation-form .form-field input {
+    font-size: 17px;
+}
+
+.company-creation-hint {
+    margin-top: -6px;
+    font-size: 14px;
+}
+
+.company-creation-guest-card {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    align-items: center;
+}
+
+.company-creation-guest-card p {
+    max-width: 680px;
+}
+
+.company-creation-auth-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.company-creation-action-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 16px;
+    border-radius: 10px;
+    border: 1px solid #111827;
+    background: #111827;
+    color: #ffffff;
+    font: inherit;
+    font-size: 15px;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.05s ease, border-color 0.15s ease;
+}
+
+.company-creation-action-link:hover {
+    background: #374151;
+    border-color: #374151;
+}
+
+.company-creation-action-link:active {
+    transform: translateY(1px);
+}
+
+.company-creation-action-link--secondary {
+    background: #ffffff;
+    color: #111827;
+}
+
+.company-creation-action-link--secondary:hover {
+    background: #f3f4f6;
+    border-color: #cbd5e1;
+}
+
+@media (max-width: 900px) {
+    .company-creation-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .company-creation-panel {
+        padding: 20px;
+    }
+
+    .company-creation-auth-actions {
+        width: 100%;
+    }
+
+    .company-creation-action-link {
+        width: 100%;
+    }
+}
