@@ -40,7 +40,7 @@ public class UserRepository implements IUserRepository {
     public boolean existsByEmail(String email)
     {
         if (email == null) return false;
-        
+
         for (Map.Entry<UUID, User> entry : users.entrySet()) {
             if (email.equals(entry.getValue().getEmail())) {
                 return true;
@@ -50,13 +50,28 @@ public class UserRepository implements IUserRepository {
     }
 
     @Override
+    public boolean existsByUsername(String username)
+    {
+        if (username == null) return false;
+
+        for (Map.Entry<UUID, User> entry : users.entrySet()) {
+            if (username.equals(entry.getValue().getUsername())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Override
     public Optional<User> findByEmail(String email)
     {
-        if (email == null) return null;
-        
+        // Must never return null — the interface promises Optional<User> and
+        // callers chain .orElseThrow() / .orElse(...) which NPE on null.
+        if (email == null) return Optional.empty();
+
         for (Map.Entry<UUID, User> entry : users.entrySet()) {
             if (email.equals(entry.getValue().getEmail())) {
-                return Optional.ofNullable(entry.getValue());
+                return Optional.of(entry.getValue());
             }
         }
         return Optional.empty();
