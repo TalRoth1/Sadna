@@ -45,4 +45,9 @@ public class CompanyRepository implements ICompanyRepository {
         }
         return result;
     }
+
+    @Override
+    public List<Company> getAll() {
+        return new ArrayList<>(companies.values());
+    }
 }

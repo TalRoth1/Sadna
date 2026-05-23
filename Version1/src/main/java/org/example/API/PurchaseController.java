@@ -6,19 +6,10 @@ import java.util.UUID;
 
 import org.example.ApplicationLayer.PurchaseService;
 import org.example.ApplicationLayer.dto.ApiResponse;
-import org.example.ApplicationLayer.dto.PurchaseDTOs.ActivePurchaseDTO;
-import org.example.ApplicationLayer.dto.PurchaseDTOs.CompletePurchaseRequest;
-import org.example.ApplicationLayer.dto.PurchaseDTOs.LotteryDrawRequest;
-import org.example.ApplicationLayer.dto.PurchaseDTOs.LotteryRegisterRequest;
-import org.example.ApplicationLayer.dto.PurchaseDTOs.PurchaseHistoryDTO;
-import org.example.ApplicationLayer.dto.PurchaseDTOs.SelectSittingRequest;
-import org.example.ApplicationLayer.dto.PurchaseDTOs.SelectStandingRequest;
-import org.example.ApplicationLayer.dto.PurchaseDTOs.UpdateSittingRequest;
-import org.example.ApplicationLayer.dto.PurchaseDTOs.UpdateStandingRequest;
+import org.example.ApplicationLayer.dto.PurchaseDTOs.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.example.ApplicationLayer.dto.PurchaseDTOs.PurchaseHistoryDTO;
 
 /**
  * PurchaseController
@@ -231,64 +222,7 @@ public class PurchaseController {
 
     // TODO (V3): Extract adminId / ownerName / memberId from JWT instead of params
 
-    @GetMapping("/history/all")
-    public ResponseEntity<ApiResponse<List<PurchaseHistoryDTO>>> getAllHistory(
-            @RequestParam UUID adminId) {
-        try {
-            List<PurchaseHistoryDTO> history = purchaseService.getAllHistory(adminId);
-            return ResponseEntity.ok(ApiResponse.success("All history fetched", history));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("Failed to fetch history: system exception"));
-        }
-    }
 
-    @GetMapping("/history/users/{userId}")
-    public ResponseEntity<ApiResponse<List<PurchaseHistoryDTO>>> getHistoryByUser(
-            @PathVariable("userId") UUID userId,
-            @RequestParam UUID adminId) {
-        try {
-            List<PurchaseHistoryDTO> history = purchaseService.getHistoryByUser(adminId, userId);
-            return ResponseEntity.ok(ApiResponse.success("User history fetched", history));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("Failed to fetch user history: system exception"));
-        }
-    }
-
-    @GetMapping("/history/events/{eventId}")
-    public ResponseEntity<ApiResponse<List<PurchaseHistoryDTO>>> getHistoryByEvent(
-            @PathVariable("eventId") UUID eventId,
-            @RequestParam UUID adminId) {
-        try {
-            List<PurchaseHistoryDTO> history = purchaseService.getHistoryByEvent(adminId, eventId);
-            return ResponseEntity.ok(ApiResponse.success("Event history fetched", history));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("Failed to fetch event history: system exception"));
-        }
-    }
-
-    @GetMapping("/history/companies/{companyId}")
-    public ResponseEntity<ApiResponse<List<PurchaseHistoryDTO>>> getHistoryByCompany(
-            @PathVariable("companyId") UUID companyId,
-            @RequestParam UUID adminId) {
-        try {
-            List<PurchaseHistoryDTO> history = purchaseService.getHistoryByCompany(adminId, companyId);
-            return ResponseEntity.ok(ApiResponse.success("Company history fetched", history));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("Failed to fetch company history: system exception"));
-        }
-    }
 
     @GetMapping("/history/members/{memberId}")
     public ResponseEntity<ApiResponse<List<PurchaseHistoryDTO>>> getPurchaseHistoryForMember(

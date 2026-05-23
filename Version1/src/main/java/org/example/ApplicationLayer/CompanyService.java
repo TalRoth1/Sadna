@@ -55,38 +55,6 @@ public class CompanyService {
         );
     }
 
-    public void closeCompanyAsAdmin(String adminUsername, UUID companyId) {
-        logger.info("caller=" + adminUsername
-                + ", action=closeCompanyAsAdmin"
-                + ", target=RolesDomainService.closeCompanyAsAdmin"
-                + ", params={adminUsername=" + adminUsername + ", companyId=" + companyId + "}");
-
-        try {
-            if (adminUsername == null || adminUsername.isBlank()) {
-                throw new IllegalArgumentException("Admin username is required");
-            }
-            if (companyId == null) {
-                throw new IllegalArgumentException("Company ID is required");
-            }
-
-            rolesDomainService.closeCompanyAsAdmin(adminUsername, companyId);
-
-            String owner = rolesDomainService.getCompanyOwner(companyId);
-
-            notifier.notifyUser(owner, "Company: " + companyId + " has been closed");
-
-            logger.info("action=closeCompanyAsAdmin completed successfully"
-                    + ", params={adminUsername=" + adminUsername + ", companyId=" + companyId + "}");
-
-        } catch (RuntimeException e) {
-            logger.severe("action=closeCompanyAsAdmin failed"
-                    + ", caller=" + adminUsername
-                    + ", target=RolesDomainService.closeCompanyAsAdmin"
-                    + ", params={adminUsername=" + adminUsername + ", companyId=" + companyId + "}"
-                    + ", error=" + e.getMessage());
-            throw e;
-        }
-}
 
     public InvitationResponse inviteCompanyManager(String ownerUsername,
                                                    UUID companyId,

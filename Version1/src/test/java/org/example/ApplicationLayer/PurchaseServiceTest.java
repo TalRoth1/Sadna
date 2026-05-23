@@ -280,7 +280,10 @@ public class PurchaseServiceTest {
         verify(queueManagerMock).finishAccess(userId, eventId);
         verify(queueManagerMock).releaseBatch(eventId, 1);
     }
-
+/*
+     * Admin purchase history filter tests
+     */
+    /*
     @Test
     public void getHistoryByFilter_whenFilterIsUser_returnsUserHistory() {
         UUID adminId = UUID.randomUUID();
@@ -387,11 +390,12 @@ public class PurchaseServiceTest {
         verify(purchaseDomainServiceMock).validateAdmin(adminId);
         verify(purchaseDomainServiceMock).getHistoryByUser(userId);
     }
+    */
 
     /*
      * Admin purchase history
      */
-
+/*
     @Test
     public void getHistoryByFilter_whenAdminIdIsNull_throwsExceptionAndDoesNotFetchHistory() {
         assertThrows(IllegalArgumentException.class, () ->

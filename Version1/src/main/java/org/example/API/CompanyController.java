@@ -10,7 +10,6 @@ import org.example.ApplicationLayer.dto.CompanyDTOs.AddCouponRequest;
 import org.example.ApplicationLayer.dto.CompanyDTOs.AddOvertDiscountRequest;
 import org.example.ApplicationLayer.dto.CompanyDTOs.AddPolicyRuleRequest;
 import org.example.ApplicationLayer.dto.CompanyDTOs.ChangeManagerPermissionsRequest;
-import org.example.ApplicationLayer.dto.CompanyDTOs.CloseCompanyRequest;
 import org.example.ApplicationLayer.dto.CompanyDTOs.CompanyMembershipResponse;
 import org.example.ApplicationLayer.dto.CompanyDTOs.CompanyResponse;
 import org.example.ApplicationLayer.dto.CompanyDTOs.CreateCompanyRequest;
@@ -21,7 +20,6 @@ import org.example.ApplicationLayer.dto.CompanyDTOs.InviteManagerRequest;
 import org.example.ApplicationLayer.dto.CompanyDTOs.InviteOwnerRequest;
 import org.example.ApplicationLayer.dto.CompanyDTOs.RateCompanyRequest;
 import org.example.ApplicationLayer.dto.CompanyDTOs.RemoveDiscountRequest;
-import org.example.ApplicationLayer.dto.CompanyDTOs.RemoveMemberAdminRequest;
 import org.example.ApplicationLayer.dto.CompanyDTOs.RemoveMemberOwnerRequest;
 import org.example.ApplicationLayer.dto.CompanyDTOs.SalesReportResponse;
 import org.springframework.http.HttpStatus;
@@ -91,20 +89,6 @@ public class CompanyController {
         }
     }
 
-    @DeleteMapping("/{companyId}/admin")
-    public ResponseEntity<ApiResponse<Void>> closeCompanyAsAdmin(
-            @PathVariable("companyId") UUID companyId,
-            @RequestBody CloseCompanyRequest request) {
-        try {
-            companyService.closeCompanyAsAdmin(request.adminUsername, companyId);
-            return ResponseEntity.ok(ApiResponse.success("Company closed successfully"));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(ApiResponse.error("Not authorized to close this company"));
-        }
-    }
 
     // ================================================================
     //  Invitations
@@ -181,20 +165,6 @@ public class CompanyController {
         }
     }
 
-    @DeleteMapping("/members/admin")
-    public ResponseEntity<ApiResponse<Void>> removeMemberAsAdmin(
-            @RequestBody RemoveMemberAdminRequest request) {
-        try {
-            companyService.removeCompanyMemberAsAdmin(
-                    request.adminUsername, request.usernameToRemove);
-            return ResponseEntity.ok(ApiResponse.success("Member removed by admin successfully"));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(ApiResponse.error("Not authorized to perform admin removal"));
-        }
-    }
 
     @PatchMapping("/{companyId}/managers/permissions")
     public ResponseEntity<ApiResponse<Void>> changeManagerPermissions(

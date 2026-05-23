@@ -228,51 +228,6 @@ public class PurchaseService {
         }
     }
 
-    public List<PurchaseHistoryDTO> getAllHistory(UUID adminId) {
-        validateAdmin(adminId);
-        return toPurchaseHistoryDTOs(purchaseDomainService.getAllHistory());
-    }
-
-    public List<PurchaseHistoryDTO> getHistoryByUser(UUID adminId, UUID userId) {
-        if (userId == null) {
-            throw new IllegalArgumentException("User ID is required");
-        }
-        validateAdmin(adminId);
-
-        return toPurchaseHistoryDTOs(purchaseDomainService.getHistoryByUser(userId));
-    }
-
-    public List<PurchaseHistoryDTO> getHistoryByFilter(UUID adminId, String filterType, UUID filterId) {
-        if (filterType == null || filterType.isBlank()) {
-            throw new IllegalArgumentException("Filter type is required");
-        }
-
-        return switch (filterType.toLowerCase()) {
-            case "user" -> getHistoryByUser(adminId, filterId);
-            case "event" -> getHistoryByEvent(adminId, filterId);
-            case "company" -> getHistoryByCompany(adminId, filterId);
-            case "all" -> getAllHistory(adminId);
-            default -> throw new IllegalArgumentException("Invalid filter type");
-        };
-    }
-
-
-    public List<PurchaseHistoryDTO> getHistoryByEvent(UUID adminId, UUID eventId) {
-        if (eventId == null) {
-            throw new IllegalArgumentException("Event ID is required");
-        }
-        validateAdmin(adminId);
-        return toPurchaseHistoryDTOs(purchaseDomainService.getHistoryByEvent(eventId));
-    }
-
-    public List<PurchaseHistoryDTO> getHistoryByCompany(UUID adminId, UUID companyId) {
-        if (companyId == null) {
-            throw new IllegalArgumentException("Company ID is required");
-        }
-        validateAdmin(adminId);
-        return toPurchaseHistoryDTOs(purchaseDomainService.getHistoryByCompany(companyId));
-    }
-
     public List<PurchaseHistoryDTO> getPurchaseHistoryForMember(UUID memberId) {
         logger.info("caller=" + memberId
                 + ", action=getPurchaseHistoryForMember"
