@@ -6,6 +6,7 @@ import org.example.ApplicationLayer.IAuthenticationGateway;
 import org.example.ApplicationLayer.IPaymentGateway;
 import org.example.ApplicationLayer.ITicketingGateway;
 import org.example.ApplicationLayer.ITokenBlacklist;
+import org.example.ApplicationLayer.JwtService;
 import org.example.ApplicationLayer.PurchaseService;
 import org.example.ApplicationLayer.QueueManager;
 import org.example.DomainLayer.EventManagementDomainService;
@@ -87,10 +88,19 @@ public class BeanConfig {
     // ---------------------------------------------------------------------
 
     /**
-     * Concrete bean type intentionally exposed so {@code DevStubController}
-     * can flip outcomes via the stub's setters. The interface bean below
-     * points at the same instance, so the domain layer sees only
-     * {@code IPaymentGateway}.
+     * Payment + ticketing gateways are exposed by their *concrete* stub
+     * types so {@code DevStubController} can flip outcomes via the
+     * setters on the stubs. The concrete classes implement
+     * {@code IPaymentGateway} / {@code ITicketingGateway}, so anywhere
+     * the domain layer asks for the interface, Spring injects the same
+     * stub bean by type — no need for a separate interface-typed bean.
+     *
+     * We deliberately avoid declaring a second {@code @Bean} of type
+     * {@code IPaymentGateway} (or {@code ITicketingGateway}) here: that
+     * would create two beans assignable to the same interface, and
+     * Spring 6.1+ no longer falls back to parameter-name matching at
+     * runtime when the project is compiled without {@code -parameters},
+     * which would break {@link #purchaseDomainService}'s autowiring.
      */
     @Bean
     public SimulatedPaymentGateway simulatedPaymentGateway() {
@@ -102,15 +112,6 @@ public class BeanConfig {
         return new SimulatedTicketingGateway();
     }
 
-    @Bean
-    public IPaymentGateway paymentGateway(SimulatedPaymentGateway simulatedPaymentGateway) {
-        return simulatedPaymentGateway;
-    }
-
-    @Bean
-    public ITicketingGateway ticketingGateway(SimulatedTicketingGateway simulatedTicketingGateway) {
-        return simulatedTicketingGateway;
-    }
 
     @Bean
     public IAuthenticationGateway authenticationGateway() {
@@ -202,5 +203,29 @@ public class BeanConfig {
             IPurchaseRepository purchaseRepository,
             INotifier notifier) {
         return new ActivePurchaseCleaner(purchaseService, purchaseRepository, notifier);
+    }
+
+    // ---------------------------------------------------------------------
+    // Web layer — JWT authentication filter.
+    //
+    // {@link JwtAuthFilter} reads the {@code Authorization: Bearer …}
+    // header, validates the token via {@link JwtService}, and exposes
+    // {@code userId} / {@code username} / {@code role} as request
+    // attributes that controllers (notably {@link AdminController}) read
+    // back to identify the caller.
+    //
+    // The filter is framework-free — no {@code @Component} annotation —
+    // so it must be wired explicitly here. Spring Boot auto-registers
+    // any {@code Filter} bean as a servlet filter for {@code /*}; the
+    // filter's own {@code shouldNotFilter} / {@code PUBLIC_PATHS}
+    // handles the endpoints that must remain reachable without a token
+    // (guest / login / register / logout), and a missing Authorization
+    // header is a benign pass-through (so static resources and the
+    // dev-stub controller aren't affected).
+    // ---------------------------------------------------------------------
+
+    @Bean
+    public JwtAuthFilter jwtAuthFilter(JwtService jwtService) {
+        return new JwtAuthFilter(jwtService);
     }
 }

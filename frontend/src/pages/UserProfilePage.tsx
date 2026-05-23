@@ -2,7 +2,20 @@ import { useEffect, useState } from "react";
 import { getCurrentUserProfile } from "../services/userProfileService";
 import type { UserProfile } from "../types/userProfile";
 
-function formatUserRole(role: string) {
+/**
+ * Compute the user-facing role label.
+ *
+ * The `isAdmin` flag takes precedence over the raw `role` string,
+ * because system-admin status is an orthogonal capability on top of
+ * MEMBER — the User aggregate's `role` field can only be GUEST or
+ * MEMBER, never ADMIN. Without this override, admins would always be
+ * displayed as "Member".
+ */
+function formatUserRole(role: string, isAdmin: boolean) {
+    if (isAdmin) {
+        return "System Admin";
+    }
+
     if (role === "ADMIN" || role === "SYSTEM_ADMIN") {
         return "System Admin";
     }
@@ -126,7 +139,7 @@ export default function UserProfilePage() {
 
                     <div className="profile-row">
                         <span>Role</span>
-                        <strong>{formatUserRole(profile.role)}</strong>
+                        <strong>{formatUserRole(profile.role, profile.isAdmin)}</strong>
                     </div>
                 </div>
             </section>

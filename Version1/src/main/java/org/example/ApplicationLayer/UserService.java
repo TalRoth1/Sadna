@@ -200,13 +200,19 @@ public class UserService {
     }
 
     private UserResponse toResponse(User user) {
+        // System-admin status lives outside the User aggregate, in
+        // UserRepository's admin map. Surface it as a boolean on the
+        // DTO so the frontend doesn't need a separate round-trip to
+        // distinguish a regular member from an admin.
+        boolean isAdmin = userRepository.existsAdmin(user.getId());
         return new UserResponse(
                 user.getId(),
                 user.getUsername(),
                 user.getEmail(),
                 user.getStatus().toString(),
                 user.getRole().toString(),
-                user.getAge());
+                user.getAge(),
+                isAdmin);
     }
 
     public void adminMessage(String username, String message) {

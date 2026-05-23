@@ -267,31 +267,9 @@ function App() {
 
         if (currentPage === "my-companies") {
             return (
-                <MyCompaniesPage
-                    onCreateCompany={handleStartCompanyCreation}
-                    onOpenCompany={handleOpenCompany}
-                />
-            );
-        }
-
-        if (currentPage === "company-creation") {
-            return <CompanyCreationPage onCreationSuccess={handleCompanyCreationSuccess} />;
-        }
-
-        if (currentPage === "company-details") {
-            if (!selectedCompany) {
-                return (
-                    <MyCompaniesPage
-                        onCreateCompany={handleStartCompanyCreation}
-                        onOpenCompany={handleOpenCompany}
-                    />
-                );
-            }
-
-            return (
-                <CompanyPage
-                    company={selectedCompany}
-                    onBackToCompanies={() => setCurrentPage("my-companies")}
+                <PlaceholderPage
+                    title="My Companies"
+                    description="Companies that the current user belongs to."
                 />
             );
         }

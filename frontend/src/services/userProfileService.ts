@@ -15,5 +15,6 @@ export async function getCurrentUserProfile(): Promise<UserProfile | null> {
         age: currentUser.age,
         status: currentUser.status,
         role: currentUser.role,
+        isAdmin: currentUser.isAdmin,
     };
 }
