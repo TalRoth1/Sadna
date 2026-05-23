@@ -1,6 +1,8 @@
 package org.example.ApplicationLayer;
 
 import org.example.DomainLayer.DomainException;
+import org.example.DomainLayer.NotificationAggregate.INotifier;
+import org.springframework.context.annotation.Bean;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -19,6 +21,19 @@ public class QueueManager
 
     private static final Logger logger = Logger.getLogger(EventService.class.getName());
 
+    private INotifier notifier;
+
+    public QueueManager() {
+
+    }
+
+
+    public QueueManager(INotifier notifier) {
+        this.notifier = notifier;
+    }
+    public QueueManager queueManager(INotifier notifier) {
+        return new QueueManager(notifier);
+    }
 
     public synchronized QueueAccessResult requestSelectionAccess(UUID userId, UUID eventId)
     {
@@ -135,13 +150,21 @@ public class QueueManager
         //נוציא את ה-users מהתור ונעביר אותם לרשימת הבוחרים
         for (int i = 0; i < actualBatchSize; i++) {
 
-            //נשחרר כל משתמש
             UUID releasedUserID = currentEventQueue.poll();
+
             allowedForEvent.put(
                     releasedUserID,
                     LocalDateTime.now().plusMinutes(howManyMinutesToStartSelection)
             );
+
             releasedUsers.add(releasedUserID);
+
+            if (notifier != null) {
+                notifier.notifyUser(
+                        releasedUserID,
+                        "Your turn has arrived. You can now select tickets for event " + eventId
+                );
+            }
         }
         logger.info("Successfully released " + releasedUsers.size() + " users from queue for event " + eventId);
         return releasedUsers;

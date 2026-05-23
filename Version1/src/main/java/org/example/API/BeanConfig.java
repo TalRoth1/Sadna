@@ -16,18 +16,7 @@ import org.example.DomainLayer.IUserRepository;
 import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.PurchaseDomainService;
 import org.example.DomainLayer.RolesDomainService;
-import org.example.InfrastructureLayer.Broadcaster;
-import org.example.InfrastructureLayer.CompanyRepository;
-import org.example.InfrastructureLayer.HistoryRepository;
-import org.example.InfrastructureLayer.InMemoryEventRepository;
-import org.example.InfrastructureLayer.InMemoryPurchaseRepository;
-import org.example.InfrastructureLayer.InMemoryTokenBlacklist;
-import org.example.InfrastructureLayer.LotteryRepository;
-import org.example.InfrastructureLayer.NoopPaymentGateway;
-import org.example.InfrastructureLayer.NoopTicketingGateway;
-import org.example.InfrastructureLayer.PlainTextAuthenticationGateway;
-import org.example.InfrastructureLayer.UserRepository;
-import org.example.InfrastructureLayer.WebSocketNotificationSender;
+import org.example.InfrastructureLayer.*;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -109,8 +98,14 @@ public class BeanConfig {
     }
 
     @Bean
-    public INotifier notifier(Broadcaster broadcaster) {
-        return new WebSocketNotificationSender(broadcaster);
+    public NotificationRepository notificationRepository() {
+        return new NotificationRepository();
+    }
+
+    @Bean
+    public INotifier notifier(Broadcaster broadcaster,
+                              NotificationRepository notificationRepository) {
+        return new Notifier(broadcaster, notificationRepository);
     }
 
     // ---------------------------------------------------------------------
@@ -157,7 +152,7 @@ public class BeanConfig {
     }
 
     @Bean
-    public QueueManager queueManager() {
-        return new QueueManager();
+    public QueueManager queueManager(INotifier notifier) {
+        return new QueueManager(notifier);
     }
 }

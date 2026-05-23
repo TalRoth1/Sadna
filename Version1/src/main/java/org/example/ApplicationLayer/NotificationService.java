@@ -1,39 +1,114 @@
 package org.example.ApplicationLayer;
 
+import java.util.List;
+import java.util.UUID;
 import java.util.logging.Logger;
 
+import org.example.ApplicationLayer.dto.NotificationDTOs.NotificationDTO;
 import org.example.DomainLayer.NotificationAggregate.INotifier;
+import org.example.DomainLayer.NotificationAggregate.NotificationType;
+import org.example.InfrastructureLayer.NotificationRepository;
+import org.example.InfrastructureLayer.Notifier;
 import org.springframework.stereotype.Service;
 
 @Service
 public class NotificationService {
-    private static final Logger logger = Logger.getLogger(NotificationService.class.getName());
-    private final INotifier notifier;
 
-    public NotificationService(INotifier notifier) {
+    private static final Logger logger = Logger.getLogger(NotificationService.class.getName());
+
+    private final INotifier notifier;
+    private final NotificationRepository notificationRepository;
+
+    public NotificationService(INotifier notifier,
+                               NotificationRepository notificationRepository) {
         if (notifier == null) {
-            logger.severe("Failed to initialize NotificationService: Notifier is null");
             throw new IllegalArgumentException("Notifier is required");
         }
+        if (notificationRepository == null) {
+            throw new IllegalArgumentException("Notification repository is required");
+        }
+
         this.notifier = notifier;
+        this.notificationRepository = notificationRepository;
+    }
+
+    public boolean notifyUser(UUID userId, String message) {
+        if (userId == null) {
+            throw new IllegalArgumentException("User ID is required");
+        }
+        return notifyUser(userId.toString(), message);
     }
 
     public boolean notifyUser(String userId, String message) {
-        if (userId == null) {
-            logger.warning("Failed to notify user: User ID is null");
-            throw new IllegalArgumentException("User ID is required");
+        validateUserAndMessage(userId, message);
+
+        boolean deliveredNow = notifier.notifyUser(userId, message);
+
+        if (!deliveredNow) {
+            logger.info("Notification saved as delayed notification for user ID: " + userId);
         }
+
+        return deliveredNow;
+    }
+
+    public boolean notifyUser(String userId,
+                              NotificationType type,
+                              String message,
+                              String targetUrl) {
+        validateUserAndMessage(userId, message);
+
+        if (notifier instanceof Notifier concreteNotifier) {
+            return concreteNotifier.notifyUser(userId, type, message, targetUrl);
+        }
+
+        return notifier.notifyUser(userId, message);
+    }
+
+
+    public List<NotificationDTO> getAllNotifications(String userId) {
+        validateUserId(userId);
+
+        return notificationRepository.findByRecipient(userId)
+                .stream()
+                .map(NotificationDTO::new)
+                .toList();
+    }
+
+    public List<NotificationDTO> getUnreadNotifications(String userId) {
+        validateUserId(userId);
+
+        return notificationRepository.findUnreadByRecipient(userId)
+                .stream()
+                .map(NotificationDTO::new)
+                .toList();
+    }
+
+    public void markAsRead(String userId, UUID notificationId) {
+        validateUserId(userId);
+
+        if (notificationId == null) {
+            throw new IllegalArgumentException("Notification ID is required");
+        }
+
+        notificationRepository.markAsRead(userId, notificationId);
+    }
+
+    public int markAllAsRead(String userId) {
+        validateUserId(userId);
+        return notificationRepository.markAllAsRead(userId);
+    }
+
+    private void validateUserAndMessage(String userId, String message) {
+        validateUserId(userId);
 
         if (message == null || message.isBlank()) {
-            logger.warning("Failed to notify user: Notification message is null or blank");
             throw new IllegalArgumentException("Notification message is required");
         }
+    }
 
-        boolean result = notifier.notifyUser(userId, message);
-        if (!result) {
-            logger.info("No listeners found for user ID: " + userId);
+    private void validateUserId(String userId) {
+        if (userId == null || userId.isBlank()) {
+            throw new IllegalArgumentException("User ID is required");
         }
-        logger.info("Notification sent to user ID: " + userId + " with message: " + message);
-        return result;
     }
 }

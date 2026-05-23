@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {
+    connectNotificationStream,
     getUnreadNotifications,
     markAllNotificationsAsRead,
     markNotificationAsRead,
@@ -11,32 +12,39 @@ type NotificationsPopupProps = {
     currentUser: CurrentUser | null;
 };
 
-function formatNotificationDate(date: string) {
-    const parsedDate = new Date(date);
+function mergeNotification(
+    currentNotifications: UserNotification[],
+    incoming: UserNotification,
+): UserNotification[] {
+    const alreadyExists = currentNotifications.some(
+        (notification) => notification.id === incoming.id,
+    );
 
-    if (Number.isNaN(parsedDate.getTime())) {
-        return "Unknown date";
+    if (alreadyExists) {
+        return currentNotifications.map((notification) =>
+            notification.id === incoming.id ? incoming : notification,
+        );
     }
 
-    return parsedDate.toLocaleString("he-IL", {
-        dateStyle: "short",
-        timeStyle: "short",
-    });
+    return [incoming, ...currentNotifications];
 }
 
 export default function NotificationsPopup({
-                                               currentUser,
-                                           }: NotificationsPopupProps) {
+    currentUser,
+}: NotificationsPopupProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [notifications, setNotifications] = useState<UserNotification[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [errorMessage, setErrorMessage] = useState("");
 
     useEffect(() => {
-        async function loadNotificationsAfterLogin() {
+        let disconnect: (() => void) | undefined;
+        let isCancelled = false;
+
+        async function initNotifications() {
             if (!currentUser) {
                 setNotifications([]);
-                setIsOpen(false);
+                setErrorMessage("");
                 return;
             }
 
@@ -44,24 +52,50 @@ export default function NotificationsPopup({
                 setIsLoading(true);
                 setErrorMessage("");
 
-                const unreadNotifications = await getUnreadNotifications(currentUser.id);
-                const unreadOnly = unreadNotifications.filter(
-                    (notification) => !notification.isRead,
+                const unreadNotifications = await getUnreadNotifications(
+                    currentUser.id,
                 );
 
-                setNotifications(unreadOnly);
-
-                if (unreadOnly.length > 0) {
-                    setIsOpen(true);
+                if (!isCancelled) {
+                    setNotifications(
+                        unreadNotifications.filter(
+                            (notification) => !notification.isRead,
+                        ),
+                    );
                 }
+
+                disconnect = connectNotificationStream(
+                    currentUser.id,
+                    (notification) => {
+                        setNotifications((currentNotifications) =>
+                            mergeNotification(
+                                currentNotifications,
+                                notification,
+                            ),
+                        );
+
+                        // Temporary in-app feedback.
+                        // Later we can replace this with a styled toast.
+                        console.log("New notification:", notification.message);
+                    },
+                );
             } catch {
-                setErrorMessage("Failed to load notifications.");
+                if (!isCancelled) {
+                    setErrorMessage("Failed to load notifications.");
+                }
             } finally {
-                setIsLoading(false);
+                if (!isCancelled) {
+                    setIsLoading(false);
+                }
             }
         }
 
-        loadNotificationsAfterLogin();
+        initNotifications();
+
+        return () => {
+            isCancelled = true;
+            disconnect?.();
+        };
     }, [currentUser?.id]);
 
     async function handleMarkAsRead(notificationId: string) {
@@ -87,21 +121,21 @@ export default function NotificationsPopup({
         setNotifications([]);
     }
 
-    if (!currentUser) {
-        return null;
-    }
+    const unreadCount = notifications.filter(
+        (notification) => !notification.isRead,
+    ).length;
 
     return (
         <div className="notifications-wrapper">
             <button
                 type="button"
                 className="notifications-button"
-                onClick={() => setIsOpen((currentValue) => !currentValue)}
+                onClick={() => setIsOpen((current) => !current)}
                 aria-label="Open notifications"
             >
                 🔔
-                {notifications.length > 0 && (
-                    <span className="notifications-badge">{notifications.length}</span>
+                {unreadCount > 0 && (
+                    <span className="notifications-badge">{unreadCount}</span>
                 )}
             </button>
 
@@ -130,45 +164,65 @@ export default function NotificationsPopup({
                     )}
 
                     {!isLoading && errorMessage && (
-                        <div className="notifications-empty-state">{errorMessage}</div>
-                    )}
-
-                    {!isLoading && !errorMessage && notifications.length === 0 && (
                         <div className="notifications-empty-state">
-                            No unread notifications.
+                            {errorMessage}
                         </div>
                     )}
 
-                    {!isLoading && !errorMessage && notifications.length > 0 && (
-                        <>
-                            <div className="notifications-list">
-                                {notifications.map((notification) => (
-                                    <article key={notification.id} className="notification-item">
-                                        <div>
-                                            <h3>{notification.title}</h3>
-                                            <p>{notification.message}</p>
-                                            <span>{formatNotificationDate(notification.createdAt)}</span>
-                                        </div>
-
-                                        <button
-                                            type="button"
-                                            onClick={() => handleMarkAsRead(notification.id)}
-                                        >
-                                            Mark as read
-                                        </button>
-                                    </article>
-                                ))}
+                    {!isLoading &&
+                        !errorMessage &&
+                        notifications.length === 0 && (
+                            <div className="notifications-empty-state">
+                                No unread notifications.
                             </div>
+                        )}
 
-                            <button
-                                type="button"
-                                className="mark-all-read-button"
-                                onClick={handleMarkAllAsRead}
-                            >
-                                Mark all as read
-                            </button>
-                        </>
-                    )}
+                    {!isLoading &&
+                        !errorMessage &&
+                        notifications.length > 0 && (
+                            <>
+                                <div className="notifications-list">
+                                    {notifications.map((notification) => (
+                                        <article
+                                            key={notification.id}
+                                            className="notification-card"
+                                        >
+                                            <div className="notification-card-content">
+                                                <strong>
+                                                    {notification.title}
+                                                </strong>
+                                                <p>{notification.message}</p>
+                                                <small>
+                                                    {new Date(
+                                                        notification.createdAt,
+                                                    ).toLocaleString()}
+                                                </small>
+                                            </div>
+
+                                            <button
+                                                type="button"
+                                                className="notification-read-button"
+                                                onClick={() =>
+                                                    handleMarkAsRead(
+                                                        notification.id,
+                                                    )
+                                                }
+                                            >
+                                                Mark as read
+                                            </button>
+                                        </article>
+                                    ))}
+                                </div>
+
+                                <button
+                                    type="button"
+                                    className="notifications-mark-all-button"
+                                    onClick={handleMarkAllAsRead}
+                                >
+                                    Mark all as read
+                                </button>
+                            </>
+                        )}
                 </section>
             )}
         </div>
