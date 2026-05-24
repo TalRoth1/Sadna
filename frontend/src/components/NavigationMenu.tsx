@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import NotificationsPopup from "./NotificationsPopup";
 import {
-    getCurrentUser,
+    validateCurrentUserWithServer,
     type CurrentUser,
 } from "../services/currentUserService";
 import { verifyPlatformAdmin } from "../services/admin/adminAuthService";
@@ -56,7 +56,11 @@ export default function NavigationMenu({
     useEffect(() => {
         async function loadUserPermissions() {
             try {
-                const user = await getCurrentUser();
+                // Validate against the server, not just localStorage.
+                // This catches stale sessions after a server restart: the JWT
+                // is still cryptographically valid but the in-memory user data
+                // is gone, so /api/users/me returns 401 and we get null here.
+                const user = await validateCurrentUserWithServer();
 
                 console.log("[NavigationMenu] current user:", user);
 

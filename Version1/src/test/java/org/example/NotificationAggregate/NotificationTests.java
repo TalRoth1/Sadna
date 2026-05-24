@@ -12,6 +12,7 @@ import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.example.DomainLayer.RolesDomainService;
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 import org.example.DomainLayer.CompanyAggregate.Company;
+import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
 import org.example.DomainLayer.EventAggregate.EventStatus;
 import org.example.DomainLayer.Events.PurchaseCompletedEvent;
 import org.example.DomainLayer.NotificationAggregate.INotifier;
@@ -326,26 +327,25 @@ public class NotificationTests {
     @Test
     void changeManagerPermissions_shouldNotifyManager_requirement() {
         RolesDomainService rolesDomainService = mock(RolesDomainService.class);
+        PurchaseDomainService purchaseDomainService = mock(PurchaseDomainService.class);
         INotifier notifier = mock(INotifier.class);
 
         UUID companyId = UUID.randomUUID();
-        UUID managerId = UUID.randomUUID();
+        String ownerEmail = "owner@demo.test";
+        String managerEmail = "manager@demo.test";
 
-        /*
-         * Example desired behavior after implementation:
-         *
-         * rolesService.changeManagerPermissions(
-         *      appointerEmail,
-         *      companyId,
-         *      managerEmail,
-         *      newPermissions
-         * );
-         *
-         * verify(notifier).notifyUser(managerId, "Your manager permissions have changed.");
-         */
+        CompanyService companyService = new CompanyService(
+                rolesDomainService, purchaseDomainService, notifier);
+
+        companyService.changeManagerPermissions(
+                ownerEmail,
+                companyId,
+                managerEmail,
+                Set.of()
+        );
 
         verify(notifier).notifyUser(
-                managerId,
+                managerEmail,
                 "Your manager permissions have changed."
         );
     }

@@ -1,4 +1,5 @@
 import type { UserResponse } from "../types/auth";
+import api from "./api";
 
 export type CurrentUser = {
     id: string;
@@ -54,4 +55,55 @@ export function setCurrentUserFromResponse(user: UserResponse): void {
 
 export function clearCurrentUser(): void {
     localStorage.removeItem(CURRENT_USER_STORAGE_KEY);
+}
+
+/**
+ * Validates the stored session against the server by calling GET /api/users/me.
+ *
+ * Why this is needed
+ * ------------------
+ * The backend uses in-memory storage. After a server restart all user data is
+ * wiped, but the JWT in localStorage is still cryptographically valid (same
+ * signing key). Without a server-side check the frontend would read the stale
+ * localStorage and show the user as logged-in while every protected API call
+ * silently fails.
+ *
+ * Behaviour
+ * ---------
+ * - No token in localStorage → clears any leftover user data → returns null.
+ * - Token present, server confirms the user → refreshes localStorage with the
+ *   latest user data from the server → returns the CurrentUser.
+ * - Token present, but server rejects (401 = invalid/expired token or user
+ *   gone after restart; network error = server down/restarted) → clears ALL
+ *   auth keys from localStorage → returns null so the UI shows "logged out".
+ */
+export async function validateCurrentUserWithServer(): Promise<CurrentUser | null> {
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+        // No token at all — make sure no stale user data lingers.
+        clearCurrentUser();
+        return null;
+    }
+
+    try {
+        const response = await api.get("/users/me");
+        const user = response.data.data as UserResponse;
+
+        // Refresh localStorage with the latest data from the server.
+        setCurrentUserFromResponse(user);
+        localStorage.setItem("userId", user.userId);
+        localStorage.setItem("userRole", user.role);
+
+        return await getCurrentUser();
+    } catch {
+        // Server rejected the session (stale after restart, expired token,
+        // or unreachable server). Clear every auth key so the UI reflects
+        // the true state.
+        localStorage.removeItem("token");
+        localStorage.removeItem("userId");
+        localStorage.removeItem("userRole");
+        clearCurrentUser();
+        return null;
+    }
 }
