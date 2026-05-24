@@ -4,6 +4,8 @@ import java.util.UUID;
 
 import org.example.ApplicationLayer.ITokenBlacklist;
 import org.example.ApplicationLayer.JwtService;
+import org.example.ApplicationLayer.RateLimitExceededException;
+import org.example.ApplicationLayer.SessionService;
 import org.example.ApplicationLayer.UserService;
 import org.example.ApplicationLayer.dto.ApiResponse;
 import org.example.ApplicationLayer.dto.AuthResponse;
@@ -35,14 +37,19 @@ import jakarta.servlet.http.HttpServletRequest;
 @RequestMapping("/api/users")
 public class UserController {
 
-    private final UserService userService;
-    private final JwtService jwtService;
-    private final ITokenBlacklist tokenBlacklist;
+    private final UserService      userService;
+    private final JwtService       jwtService;
+    private final ITokenBlacklist  tokenBlacklist;
+    private final SessionService   sessionService;
 
-    public UserController(UserService userService, JwtService jwtService, ITokenBlacklist tokenBlacklist) {
-        this.userService = userService;
-        this.jwtService = jwtService;
+    public UserController(UserService     userService,
+                          JwtService      jwtService,
+                          ITokenBlacklist tokenBlacklist,
+                          SessionService  sessionService) {
+        this.userService    = userService;
+        this.jwtService     = jwtService;
         this.tokenBlacklist = tokenBlacklist;
+        this.sessionService = sessionService;
     }
 
     /**
@@ -56,7 +63,7 @@ public class UserController {
     public ResponseEntity<ApiResponse<AuthResponse>> enterAsGuest() {
         try {
             UserResponse guest = userService.enterAsGuest();
-            String token = jwtService.generateToken(guest.userId, guest.username, guest.role);
+            String token = jwtService.mintSession(guest.userId, guest.username, guest.role).token();
             AuthResponse body = new AuthResponse(true, "Guest session started", token, guest);
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(ApiResponse.success("Guest session started", body));
@@ -77,7 +84,7 @@ public class UserController {
     public ResponseEntity<ApiResponse<AuthResponse>> register(@RequestBody RegisterRequest request) {
         try {
             UserResponse user = userService.register(request);
-            String token = jwtService.generateToken(user.userId, user.username, user.role);
+            String token = jwtService.mintSession(user.userId, user.username, user.role).token();
             AuthResponse body = new AuthResponse(true, "Registered successfully", token, user);
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(ApiResponse.success("Registered successfully", body));
@@ -99,12 +106,15 @@ public class UserController {
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<AuthResponse>> login(@RequestBody LoginRequest request) {
         try {
-            UserResponse user = userService.login(request);
-            String token = jwtService.generateToken(user.userId, user.username, user.role);
-            AuthResponse body = new AuthResponse(true, "Login successful", token, user);
+            SessionService.AuthResult result = sessionService.login(request);
+            AuthResponse body = new AuthResponse(true, "Login successful", result.token(), result.user());
             return ResponseEntity.ok(ApiResponse.success("Login successful", body));
+        } catch (RateLimitExceededException e) {
+            // Too many failed attempts for this account → 429 Too Many Requests
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(ApiResponse.error(e.getMessage()));
         } catch (IllegalArgumentException e) {
-            // Invalid credentials → 401 Unauthorized (more specific than 400)
+            // Invalid credentials → 401 Unauthorized
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
