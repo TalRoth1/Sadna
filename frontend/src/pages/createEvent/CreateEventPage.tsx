@@ -111,6 +111,18 @@ export default function CreateEventPage({
     const [artist, setArtist] = useState("");
     const [type, setType] = useState("");
     const [status, setStatus] = useState("ACTIVE");
+    const [minAge, setMinAge] = useState("");
+    const [minTickets, setMinTickets] = useState("");
+    const [maxTickets, setMaxTickets] = useState("");
+    const [allowLoneSeat, setAllowLoneSeat] = useState("");
+
+    const [discountType, setDiscountType] = useState("NONE");
+    const [discountPercent, setDiscountPercent] = useState("");
+    const [discountFromDate, setDiscountFromDate] = useState("");
+    const [discountToDate, setDiscountToDate] = useState("");
+    const [couponCode, setCouponCode] = useState("");
+    const [requiredTickets, setRequiredTickets] = useState("");
+    const [appliedTickets, setAppliedTickets] = useState("");
 
     const [ticketAreas, setTicketAreas] = useState<TicketAreaDraft[]>([
         {
@@ -242,6 +254,18 @@ export default function CreateEventPage({
             },
         ]);
         setErrors({});
+        setMinAge("");
+        setMinTickets("");
+        setMaxTickets("");
+        setAllowLoneSeat("");
+
+        setDiscountType("NONE");
+        setDiscountPercent("");
+        setDiscountFromDate("");
+        setDiscountToDate("");
+        setCouponCode("");
+        setRequiredTickets("");
+        setAppliedTickets("");
     }
 
     function addTicketArea(areaType: TicketAreaType) {
@@ -269,6 +293,129 @@ export default function CreateEventPage({
             ),
         );
     }
+    async function addEventPolicyRule(
+            eventId: string,
+            companyId: string,
+            username: string,
+        ) {
+            const hasPolicy =
+                minAge.trim() ||
+                minTickets.trim() ||
+                maxTickets.trim() ||
+                allowLoneSeat !== "";
+
+            if (!hasPolicy) {
+                return;
+            }
+
+            const response = await fetch(`/api/events/${eventId}/policy`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    username,
+                    companyId,
+                    age: minAge.trim() ? Number(minAge) : null,
+                    minTicket: minTickets.trim() ? Number(minTickets) : null,
+                    maxTicket: maxTickets.trim() ? Number(maxTickets) : null,
+                    allowLoneSeat: allowLoneSeat === "" ? null : allowLoneSeat === "true",
+                }),
+            });
+
+            const body = await response.json();
+
+            if (!response.ok || !body.success) {
+                throw new Error(body.message || "Failed to create event policy.");
+            }
+        }
+
+        async function addEventDiscount(
+            eventId: string,
+            companyId: string,
+            username: string,
+        ) {
+            if (discountType === "NONE") {
+                return;
+            }
+
+            if (!discountPercent.trim() || !discountToDate) {
+                throw new Error("Discount percent and end date are required.");
+            }
+
+            if (discountType === "OVERT") {
+                const response = await fetch(`/api/events/${eventId}/discounts/overt`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        username,
+                        companyId,
+                        fromDate: discountFromDate || null,
+                        toDate: discountToDate,
+                        discountPercent: Number(discountPercent),
+                    }),
+                });
+
+                const body = await response.json();
+
+                if (!response.ok || !body.success) {
+                    throw new Error(body.message || "Failed to create overt discount.");
+                }
+
+                return;
+            }
+
+            if (discountType === "COUPON") {
+                if (!couponCode.trim()) {
+                    throw new Error("Coupon code is required.");
+                }
+
+                const response = await fetch(`/api/events/${eventId}/discounts/coupon`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        username,
+                        companyId,
+                        fromDate: discountFromDate || null,
+                        toDate: discountToDate,
+                        discountPercent: Number(discountPercent),
+                        code: couponCode.trim(),
+                    }),
+                });
+
+                const body = await response.json();
+
+                if (!response.ok || !body.success) {
+                    throw new Error(body.message || "Failed to create coupon discount.");
+                }
+
+                return;
+            }
+
+            if (discountType === "CONDITIONAL") {
+                if (!requiredTickets.trim() || !appliedTickets.trim()) {
+                    throw new Error("Required tickets and applied tickets are required.");
+                }
+
+                const response = await fetch(`/api/events/${eventId}/discounts/conditional`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        username,
+                        companyId,
+                        fromDate: discountFromDate || null,
+                        toDate: discountToDate,
+                        discountPercent: Number(discountPercent),
+                        requiredTickets: Number(requiredTickets),
+                        appliedTickets: Number(appliedTickets),
+                    }),
+                });
+
+                const body = await response.json();
+
+                if (!response.ok || !body.success) {
+                    throw new Error(body.message || "Failed to create conditional discount.");
+                }
+            }
+        }
 
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
@@ -318,8 +465,10 @@ export default function CreateEventPage({
                 }
             }
 
-            setSuccessMessage("Event and ticket areas created successfully.");
+            await addEventPolicyRule(createdEventId, companyId, currentUser.email);
+            await addEventDiscount(createdEventId, companyId, currentUser.email);   
 
+            setSuccessMessage("Event, ticket areas, policies and discounts created successfully.");
             resetForm();
 
             if (onEventCreated) {
@@ -607,6 +756,156 @@ export default function CreateEventPage({
                                         </section>
                                     ))}
                                 </div>
+                            </section>
+                            <section className="policy-panel">
+                                <h2>Event policy</h2>
+
+                                <p className="form-note">
+                                    Optional purchase restrictions for this event.
+                                </p>
+
+                                <label className="form-field">
+                                    <span>Minimum age</span>
+                                    <input
+                                        type="number"
+                                        min={0}
+                                        step="1"
+                                        value={minAge}
+                                        onChange={(e) => setMinAge(e.target.value)}
+                                        placeholder="Optional, e.g. 18"
+                                    />
+                                </label>
+
+                                <label className="form-field">
+                                    <span>Minimum tickets per purchase</span>
+                                    <input
+                                        type="number"
+                                        min={1}
+                                        step="1"
+                                        value={minTickets}
+                                        onChange={(e) => setMinTickets(e.target.value)}
+                                        placeholder="Optional"
+                                    />
+                                </label>
+
+                                <label className="form-field">
+                                    <span>Maximum tickets per purchase</span>
+                                    <input
+                                        type="number"
+                                        min={1}
+                                        step="1"
+                                        value={maxTickets}
+                                        onChange={(e) => setMaxTickets(e.target.value)}
+                                        placeholder="Optional, e.g. 4"
+                                    />
+                                </label>
+
+                                <label className="form-field">
+                                    <span>Allow lone seat</span>
+                                    <select
+                                        value={allowLoneSeat}
+                                        onChange={(e) => setAllowLoneSeat(e.target.value)}
+                                    >
+                                        <option value="">No restriction</option>
+                                        <option value="true">Allow lone seats</option>
+                                        <option value="false">Block lone seats</option>
+                                    </select>
+                                </label>
+                            </section>
+                            <section className="policy-panel">
+                                <h2>Discount</h2>
+
+                                <p className="form-note">
+                                    Optional discount rule for this event.
+                                </p>
+
+                                <label className="form-field">
+                                    <span>Discount type</span>
+                                    <select
+                                        value={discountType}
+                                        onChange={(e) => setDiscountType(e.target.value)}
+                                    >
+                                        <option value="NONE">No discount</option>
+                                        <option value="OVERT">Overt discount</option>
+                                        <option value="COUPON">Coupon code</option>
+                                        <option value="CONDITIONAL">Conditional discount</option>
+                                    </select>
+                                </label>
+
+                                {discountType !== "NONE" && (
+                                    <>
+                                        <label className="form-field">
+                                            <span>Discount percent</span>
+                                            <input
+                                                type="number"
+                                                min={0}
+                                                max={100}
+                                                step="1"
+                                                value={discountPercent}
+                                                onChange={(e) => setDiscountPercent(e.target.value)}
+                                                placeholder="e.g. 15"
+                                            />
+                                        </label>
+
+                                        <label className="form-field">
+                                            <span>From date</span>
+                                            <input
+                                                type="date"
+                                                value={discountFromDate}
+                                                onChange={(e) => setDiscountFromDate(e.target.value)}
+                                            />
+                                        </label>
+
+                                        <label className="form-field">
+                                            <span>To date</span>
+                                            <input
+                                                type="date"
+                                                value={discountToDate}
+                                                onChange={(e) => setDiscountToDate(e.target.value)}
+                                            />
+                                        </label>
+                                    </>
+                                )}
+
+                                {discountType === "COUPON" && (
+                                    <label className="form-field">
+                                        <span>Coupon code</span>
+                                        <input
+                                            type="text"
+                                            value={couponCode}
+                                            onChange={(e) => setCouponCode(e.target.value)}
+                                            placeholder="e.g. JAZZ20"
+                                        />
+                                    </label>
+                                )}
+
+                                {discountType === "CONDITIONAL" && (
+                                    <>
+                                        <label className="form-field">
+                                            <span>Required tickets</span>
+                                            <input
+                                                type="number"
+                                                min={1}
+                                                step="1"
+                                                value={requiredTickets}
+                                                onChange={(e) => setRequiredTickets(e.target.value)}
+                                                placeholder="e.g. 3"
+                                            />
+                                        </label>
+
+                                        <label className="form-field">
+                                            <span>Applied free/discounted tickets</span>
+                                            <input
+                                                type="number"
+                                                min={1}
+                                                step="1"
+                                                value={appliedTickets}
+                                                onChange={(e) => setAppliedTickets(e.target.value)}
+                                                placeholder="e.g. 1"
+                                            />
+                                        </label>
+                                    </>
+                                )}
                             </section>
                         </div>
 
