@@ -333,6 +333,10 @@ public class CompanyService {
         if (userEmail == null || userEmail.isBlank()) {
             throw new IllegalArgumentException("Email is required");
         }
+        logger.info("caller=" + userEmail
+                + ", action=getUserCompanies"
+                + ", target=RolesDomainService.getUserCompanies"
+                + ", params={userEmail=" + userEmail + "}");
         return rolesDomainService.getUserCompanies(userEmail);
     }
 

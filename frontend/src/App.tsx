@@ -19,6 +19,7 @@ import LoginPage from "./pages/LoginPage";
 import RegistrationPage from "./pages/RegistrationPage";
 import LotteryRegistrationPage from "./pages/LotteryRegistrationPage";
 import MyActivePurchasesPage from "./pages/MyActivePurchasesPage";
+import MyCompaniesPage from "./pages/myCompanies/MyCompaniesPage";
 
 import type { CompanyResponse } from "./services/companyService";
 import type { AdminActionId } from "./types/admin";
@@ -271,9 +272,33 @@ function App() {
 
         if (currentPage === "my-companies") {
             return (
-                <PlaceholderPage
-                    title="My Companies"
-                    description="Companies that the current user belongs to."
+                <MyCompaniesPage
+                    onCreateCompany={handleStartCompanyCreation}
+                    onOpenCompany={handleOpenCompany}
+                />
+            );
+        }
+
+        if (currentPage === "company-creation") {
+            return (
+                <CompanyCreationPage onCreationSuccess={handleCompanyCreationSuccess} />
+            );
+        }
+
+        if (currentPage === "company-details") {
+            if (!selectedCompany) {
+                return (
+                    <MyCompaniesPage
+                        onCreateCompany={handleStartCompanyCreation}
+                        onOpenCompany={handleOpenCompany}
+                    />
+                );
+            }
+
+            return (
+                <CompanyPage
+                    company={selectedCompany}
+                    onBackToCompanies={() => setCurrentPage("my-companies")}
                 />
             );
         }
