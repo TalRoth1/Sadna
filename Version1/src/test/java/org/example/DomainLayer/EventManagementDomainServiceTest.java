@@ -4,6 +4,8 @@ import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
 import org.example.DomainLayer.EventAggregate.*;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
+import org.example.DomainLayer.UserAggregate.CompanyFounder;
+import org.example.DomainLayer.UserAggregate.User;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -51,6 +53,13 @@ public class EventManagementDomainServiceTest {
         company = mock(Company.class);
 
         when(event.getCompanyId()).thenReturn(companyId);
+    }
+
+    private User managerUserWithEvent(UUID managedEventId) {
+        User user = new User(UUID.randomUUID(), username, username + "@example.test", "hash", 40);
+        user.getCompanyRoles().put(companyId, new CompanyFounder(username));
+        user.getCompanyRole(companyId).getEventsIds().add(managedEventId);
+        return user;
     }
 
     @Test
@@ -188,10 +197,12 @@ public class EventManagementDomainServiceTest {
     @Test
     public void addEvent_whenEventDoesNotExist_createsAndSavesEvent() {
         when(eventRepository.getById(eventId)).thenReturn(null);
+        when(userRepository.findByEmail(username)).thenReturn(Optional.of(managerUserWithEvent(eventId)));
 
         service.addEvent(
                 eventId,
                 companyId,
+            username,
                 "My Event",
                 LocalDateTime.now().plusDays(7),
                 "Tel Aviv",
@@ -211,6 +222,7 @@ public class EventManagementDomainServiceTest {
                 service.addEvent(
                         eventId,
                         companyId,
+                username,
                         "My Event",
                         LocalDateTime.now(),
                         "Tel Aviv",
@@ -250,8 +262,9 @@ public class EventManagementDomainServiceTest {
     @Test
     public void deleteEvent_whenEventExists_deletesEvent() {
         when(eventRepository.getById(eventId)).thenReturn(event);
+        when(userRepository.findByEmail(username)).thenReturn(Optional.of(managerUserWithEvent(eventId)));
 
-        boolean result = service.deleteEvent(eventId);
+        boolean result = service.deleteEvent(eventId, username, username);
 
         assertTrue(result);
         verify(eventRepository).delete(eventId);

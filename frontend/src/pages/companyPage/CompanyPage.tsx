@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {
+    deleteEvent,
     getCompanyHierarchy,
     getCompanyPermissions,
     getEventsForUserInCompany,
@@ -294,7 +295,7 @@ function ManagedEventCard({
     onDelete,
 }: {
     event: ManagedEvent;
-    onDelete: (eventId: string, eventName: string) => void;
+    onDelete: (eventId: string, eventName: string) => Promise<void>;
 }) {
     return (
         <article className="company-event-card">
@@ -569,7 +570,7 @@ export default function CompanyPage({
                         <ManagedEventCard
                             key={event.id}
                             event={event}
-                            onDelete={(eventId, eventName) => {
+                            onDelete={async (eventId, eventName) => {
                                 const shouldDelete = window.confirm(
                                     `Delete event \"${eventName}\"? This cannot be undone.`,
                                 );
@@ -578,9 +579,25 @@ export default function CompanyPage({
                                     return;
                                 }
 
-                                setManagedEvents((currentEvents) =>
-                                    currentEvents.filter((currentEvent) => currentEvent.id !== eventId),
-                                );
+                                if (!currentUser) {
+                                    window.alert("Please log in again before deleting this event.");
+                                    return;
+                                }
+
+                                try {
+                                    await deleteEvent(eventId, {
+                                        userEmail: currentUser.email,
+                                        eventManagerEmail: currentUser.email,
+                                    });
+
+                                    setManagedEvents((currentEvents) =>
+                                        currentEvents.filter((currentEvent) => currentEvent.id !== eventId),
+                                    );
+                                } catch (error) {
+                                    window.alert(
+                                        getErrorMessage(error, "Failed to delete the event."),
+                                    );
+                                }
                             }}
                         />
                     ))}

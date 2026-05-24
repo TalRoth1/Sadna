@@ -140,13 +140,14 @@ public class EventService {
         );
     }
 
-    public boolean deleteEvent(UUID eventId) {
-        logger.info("[Event Log] Method: deleteEvent called with parameters: eventId=" + eventId);
+    public boolean deleteEvent(UUID eventId, String userEmail, String eventManagerEmail) {
+        logger.info("[Event Log] Method: deleteEvent called with parameters: eventId=" + eventId
+                + ", userEmail=" + userEmail + ", eventManagerEmail=" + eventManagerEmail);
         try {
             if (eventId == null) {
                 throw new IllegalArgumentException("eventId is required");
             }
-            return eventManagementDomainService.deleteEvent(eventId);
+            return eventManagementDomainService.deleteEvent(eventId, userEmail, eventManagerEmail);
         } catch (IllegalArgumentException | DomainException e) {
             logger.info("[Event Log] Business rejection in deleteEvent: " + e.getMessage());
             throw e;

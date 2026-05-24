@@ -44,6 +44,11 @@ export type CompanyHierarchyResponse = {
 	mermaidChart: string;
 };
 
+export type DeleteEventRequest = {
+	userEmail: string;
+	eventManagerEmail: string;
+};
+
 type EventSummaryResponse = {
 	eventId: string;
 	companyId: string;
@@ -128,4 +133,13 @@ export async function getEventsForUserInCompany(
 
 	const rows = (response.data.data ?? []) as EventSummaryResponse[];
 	return rows.map(toEventSummary);
+}
+
+export async function deleteEvent(
+	eventId: string,
+	request: DeleteEventRequest,
+): Promise<void> {
+	await api.delete(`/events/${eventId}`, {
+		data: request,
+	});
 }

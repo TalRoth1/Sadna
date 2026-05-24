@@ -15,6 +15,7 @@ import org.example.ApplicationLayer.dto.EventDTOs.AddEventPolicyRuleRequest;
 import org.example.ApplicationLayer.dto.EventDTOs.AddSittingTicketsRequest;
 import org.example.ApplicationLayer.dto.EventDTOs.AddStandingTicketsRequest;
 import org.example.ApplicationLayer.dto.EventDTOs.CreateEventRequest;
+import org.example.ApplicationLayer.dto.EventDTOs.DeleteEventRequest;
 import org.example.ApplicationLayer.dto.EventDTOs.DeleteEventPolicyRuleRequest;
 import org.example.ApplicationLayer.dto.EventDTOs.EditEventRequest;
 import org.example.ApplicationLayer.dto.EventDTOs.EventSearchCriteriaRequest;
@@ -92,9 +93,11 @@ public class EventController {
     }
 
     @DeleteMapping("/{eventId}")
-    public ResponseEntity<ApiResponse<Void>> deleteEvent(@PathVariable("eventId") UUID eventId) {
+    public ResponseEntity<ApiResponse<Void>> deleteEvent(
+            @PathVariable("eventId") UUID eventId,
+            @RequestBody DeleteEventRequest request) {
         try {
-            eventService.deleteEvent(eventId);
+            eventService.deleteEvent(eventId, request.userEmail, request.eventManagerEmail);
             return ResponseEntity.ok(ApiResponse.success("Event deleted successfully"));
         } catch (IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));

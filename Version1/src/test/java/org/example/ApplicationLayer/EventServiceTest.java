@@ -19,6 +19,8 @@ import org.example.DomainLayer.EventAggregate.SittingArea;
 import org.example.DomainLayer.EventAggregate.StandingArea;
 import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.PolicyManagment.IDiscountRule;
+import org.example.DomainLayer.UserAggregate.CompanyFounder;
+import org.example.DomainLayer.UserAggregate.User;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -119,12 +121,11 @@ public class EventServiceTest {
         when(eventRepository.getById(eventId)).thenReturn(event);
         when(companyRepository.findByID(companyId))
                 .thenReturn(Optional.of(authorizedCompany(ownerUsername, eventId)));
-        
-        org.example.DomainLayer.UserAggregate.User ownerUser =
-            new org.example.DomainLayer.UserAggregate.User(UUID.randomUUID(), ownerUsername, ownerUsername, "hash", 40);
-        ownerUser.getCompanyRoles().put(companyId, new org.example.DomainLayer.UserAggregate.CompanyFounder(ownerUsername));
+
+        User ownerUser = new User(UUID.randomUUID(), ownerUsername, ownerUsername, "hash", 40);
+        ownerUser.getCompanyRoles().put(companyId, new CompanyFounder(ownerUsername));
         ownerUser.getCompanyRole(companyId).getEventsIds().add(event.getEventId());
-        
+
         when(userRepository.findByEmail(ownerUsername)).thenReturn(Optional.of(ownerUser));
         when(userRepository.hasPermission(ownerUsername, companyId,
             org.example.DomainLayer.CompanyAggregate.CompanyPermission.MANAGE_POLICIES, eventId))
@@ -276,7 +277,7 @@ public class EventServiceTest {
     @Test
     public void GivenNullEventId_WhenAddEvent_ThenIllegalArgumentExceptionIsThrown() {
         assertThrows(IllegalArgumentException.class,
-                () -> eventService.addEvent(null, companyId, "name", LocalDateTime.now().plusDays(10),
+                () -> eventService.addEvent(null, companyId, ownerUsername, "name", LocalDateTime.now().plusDays(10),
                         "Tel Aviv", "Some Artist", "concert", EventStatus.ACTIVE));
         verifyNoInteractions(eventRepository);
     }
@@ -284,7 +285,7 @@ public class EventServiceTest {
     @Test
     public void GivenNullCompanyId_WhenAddEvent_ThenIllegalArgumentExceptionIsThrown() {
         assertThrows(IllegalArgumentException.class,
-                () -> eventService.addEvent(eventId, null, "name", LocalDateTime.now().plusDays(10),
+                () -> eventService.addEvent(eventId, null, ownerUsername, "name", LocalDateTime.now().plusDays(10),
                         "Tel Aviv", "Some Artist", "concert", EventStatus.ACTIVE));
         verifyNoInteractions(eventRepository);
     }
@@ -299,7 +300,7 @@ public class EventServiceTest {
     @Test
     public void GivenNullEventId_WhenDeleteEvent_ThenIllegalArgumentExceptionIsThrown() {
         assertThrows(IllegalArgumentException.class,
-                () -> eventService.deleteEvent(null));
+                () -> eventService.deleteEvent(null, ownerUsername, ownerUsername));
         verifyNoInteractions(eventRepository);
     }
 
@@ -416,6 +417,7 @@ public class EventServiceTest {
         EventDetailsDto result = eventService.addEvent(
                 eventId,
                 companyId,
+            ownerUsername,
                 "Headline Show",
                 date,
                 "Tel Aviv",
@@ -467,8 +469,12 @@ public class EventServiceTest {
     @Test
     public void GivenExistingEvent_WhenDeleteEvent_ThenRepositoryDeleteIsInvokedAndReturnsTrue() {
         when(eventRepository.getById(eventId)).thenReturn(newRealEvent());
+        User ownerUser = new User(UUID.randomUUID(), ownerUsername, ownerUsername, "hash", 40);
+        ownerUser.getCompanyRoles().put(companyId, new CompanyFounder(ownerUsername));
+        ownerUser.getCompanyRole(companyId).getEventsIds().add(eventId);
+        when(userRepository.findByEmail(ownerUsername)).thenReturn(Optional.of(ownerUser));
 
-        boolean result = eventService.deleteEvent(eventId);
+        boolean result = eventService.deleteEvent(eventId, ownerUsername, ownerUsername);
 
         assertTrue(result);
         verify(eventRepository).delete(eventId);
@@ -892,7 +898,7 @@ public class EventServiceTest {
         when(eventRepository.getById(eventId)).thenReturn(newRealEvent());
 
         assertThrows(DomainException.class,
-                () -> eventService.addEvent(eventId, companyId, "name", LocalDateTime.now().plusDays(10),
+            () -> eventService.addEvent(eventId, companyId, ownerUsername, "name", LocalDateTime.now().plusDays(10),
                         "Tel Aviv", "Some Artist", "concert", EventStatus.ACTIVE));
         verify(eventRepository, never()).save(any(Event.class));
     }
@@ -922,7 +928,7 @@ public class EventServiceTest {
     public void GivenEventDoesNotExist_WhenDeleteEvent_ThenDomainExceptionIsPropagated() {
         when(eventRepository.getById(eventId)).thenReturn(null);
 
-        assertThrows(DomainException.class, () -> eventService.deleteEvent(eventId));
+        assertThrows(DomainException.class, () -> eventService.deleteEvent(eventId, ownerUsername, ownerUsername));
         verify(eventRepository, never()).delete(any(UUID.class));
     }
 

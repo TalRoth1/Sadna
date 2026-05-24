@@ -224,11 +224,43 @@ public class EventManagementDomainService {
     return participants;
 }
 
-    public boolean deleteEvent(UUID eventId) {
+    public boolean deleteEvent(UUID eventId, String userEmail, String eventManagerEmail) {
         Event event = eventRepository.getById(eventId);
         if (event == null) {
             throw new DomainException("Event not found");
         }
+
+        if (userEmail == null || userEmail.isBlank()) {
+            throw new IllegalArgumentException("User email is required");
+        }
+        if (eventManagerEmail == null || eventManagerEmail.isBlank()) {
+            throw new IllegalArgumentException("Event manager email is required");
+        }
+
+        UUID companyId = event.getCompanyId();
+        boolean isManager = userEmail.trim().equalsIgnoreCase(eventManagerEmail.trim());
+        boolean hasInventoryPermission = userRepository.hasPermission(
+                userEmail,
+                companyId,
+                CompanyPermission.MANAGE_INVENTORY,
+                eventId);
+
+        if (!isManager && !hasInventoryPermission) {
+            throw new DomainException("User is not authorized to delete this event");
+        }
+
+        User eventManager = userRepository.findByEmail(eventManagerEmail)
+                .orElseThrow(() -> new DomainException("Event manager not found"));
+
+        ICompanyMember managerRole = eventManager.getCompanyRole(companyId);
+        if (managerRole == null) {
+            throw new DomainException("Event manager is not a member of the company");
+        }
+        if (!managerRole.getEventsIds().contains(eventId)) {
+            throw new DomainException("Event manager is not in charge of this event");
+        }
+
+        managerRole.getEventsIds().remove(eventId);
         eventRepository.delete(eventId);
         return true;
     }
