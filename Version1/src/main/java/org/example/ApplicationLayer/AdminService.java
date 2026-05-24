@@ -83,6 +83,10 @@ public class AdminService {
             Company company = companyRepository.findByID(companyId)
                     .orElseThrow(() -> new IllegalArgumentException("Company not found"));
 
+            if (!company.isActive()) {
+                throw new IllegalStateException("Company is already closed");
+            }
+
             String founderUsername = company.getFounderUsername();
 
             rolesDomainService.closeCompanyAsAdmin(adminUsername, companyId);

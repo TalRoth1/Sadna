@@ -96,16 +96,19 @@ public class AdminController {
 
             logger.info("action=" + action + ", status=INFO, message=Company closed, companyId=" + companyId);
             return ResponseEntity.ok(ApiResponse.success("Company closed successfully"));
+        } catch (IllegalStateException e) {
+            logger.severe("action=" + action + ", status=ERROR, companyId=" + companyId + ", message=" + e.getMessage());
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponse.error(e.getMessage()));
         } catch (IllegalArgumentException e) {
             logger.severe("action=" + action + ", status=ERROR, companyId=" + companyId + ", message=" + e.getMessage());
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
             logger.severe("action=" + action + ", status=ERROR, companyId=" + companyId + ", message=System exception, error=" + e.getMessage());
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(ApiResponse.error("Not authorized to close company"));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to close company: system exception"));
         }
     }
-
+    
     @GetMapping("/subscribers")
     public ResponseEntity<ApiResponse<List<AdminSubscriberDTO>>> getSubscribers(HttpServletRequest request) {
         String action = "GET_ADMIN_SUBSCRIBERS";
