@@ -4,8 +4,12 @@ import {
     getCompanyHierarchy,
     getCompanyPermissions,
     getEventsForUserInCompany,
+    inviteCompanyManager,
+    inviteCompanyOwner,
     type CompanyAccessResponse,
     type CompanyPermissionName as BackendCompanyPermissionName,
+    type InviteManagerRequest,
+    type InviteOwnerRequest,
 } from "../../services/companyService";
 import { getCurrentUser, type CurrentUser } from "../../services/currentUserService";
 import type { EventSummary } from "../../types/event";
@@ -41,6 +45,7 @@ type CompanyViewModel = {
 type CompanyPageSectionId =
     | "company-overview"
     | "company-permissions"
+    | "company-invitations"
     | "company-events"
     | "company-hierarchy";
 
@@ -51,6 +56,8 @@ type CompanyPageSection = {
 };
 
 type ManagedEvent = EventSummary;
+
+type InvitationTargetRole = "manager" | "owner";
 
 type CompanyPageProps = {
     company: CompanyViewModel;
@@ -145,10 +152,14 @@ function getStatusClass(status: CompanyStatus) {
 
 const COMPANY_SECTION_SCROLL_OFFSET_PX = 180;
 
-function buildCompanyPageSections(isHierarchyVisible: boolean): CompanyPageSection[] {
+function buildCompanyPageSections(
+    isHierarchyVisible: boolean,
+    isInviteComposerVisible: boolean,
+): CompanyPageSection[] {
     return [
         { id: "company-overview", label: "Overview", isVisible: true },
         { id: "company-permissions", label: "Permissions", isVisible: true },
+        { id: "company-invitations", label: "Invite users", isVisible: isInviteComposerVisible },
         { id: "company-events", label: "My Events", isVisible: true },
         { id: "company-hierarchy", label: "Hierarchy", isVisible: isHierarchyVisible },
     ];
@@ -209,6 +220,11 @@ function getManagedEventStatusClass(event: ManagedEvent) {
 }
 
 function isHierarchyViewerRole(role: string) {
+    const normalizedRole = role.trim().toLowerCase();
+    return normalizedRole === "founder" || normalizedRole === "owner";
+}
+
+function isCompanyOwnerRole(role: string) {
     const normalizedRole = role.trim().toLowerCase();
     return normalizedRole === "founder" || normalizedRole === "owner";
 }
@@ -342,6 +358,11 @@ export default function CompanyPage({
     onBackToCompanies,
 }: CompanyPageProps) {
     const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+    const [inviteEmail, setInviteEmail] = useState("");
+    const [inviteTargetRole, setInviteTargetRole] = useState<InvitationTargetRole>("manager");
+    const [inviteErrorMessage, setInviteErrorMessage] = useState("");
+    const [inviteSuccessMessage, setInviteSuccessMessage] = useState("");
+    const [isInviteSubmitting, setIsInviteSubmitting] = useState(false);
     const [managedEvents, setManagedEvents] = useState<ManagedEvent[]>([]);
     const [state, setState] = useState<CompanyPageState>({
         company,
@@ -353,7 +374,11 @@ export default function CompanyPage({
     });
 
     const isHierarchyVisible = isHierarchyViewerRole(state.company.role);
-    const companyPageSections = buildCompanyPageSections(isHierarchyVisible).filter(
+    const isInviteComposerVisible = isCompanyOwnerRole(state.company.role);
+    const companyPageSections = buildCompanyPageSections(
+        isHierarchyVisible,
+        isInviteComposerVisible,
+    ).filter(
         (section) => section.isVisible,
     );
 
@@ -452,6 +477,54 @@ export default function CompanyPage({
         };
     }, [company]);
 
+    async function handleInviteSubmit(event: React.FormEvent<HTMLFormElement>) {
+        event.preventDefault();
+
+        const email = inviteEmail.trim();
+        if (email === "") {
+            setInviteErrorMessage("Please enter an email address.");
+            setInviteSuccessMessage("");
+            return;
+        }
+
+        if (!currentUser || currentUser.role === "GUEST") {
+            setInviteErrorMessage("Please log in again before sending an invitation.");
+            setInviteSuccessMessage("");
+            return;
+        }
+
+        try {
+            setIsInviteSubmitting(true);
+            setInviteErrorMessage("");
+            setInviteSuccessMessage("");
+
+            if (inviteTargetRole === "manager") {
+                const managerRequest: InviteManagerRequest = {
+                    ownerUsername: currentUser.email,
+                    usernameToInvite: email,
+                    permissions: [],
+                };
+
+                await inviteCompanyManager(state.company.id, managerRequest);
+            } else {
+                const ownerRequest: InviteOwnerRequest = {
+                    ownerUsername: currentUser.email,
+                    usernameToInvite: email,
+                };
+
+                await inviteCompanyOwner(state.company.id, ownerRequest);
+            }
+
+            setInviteEmail("");
+            setInviteSuccessMessage("Invitation was sent successfully.");
+        } catch (error) {
+            setInviteErrorMessage(getErrorMessage(error, "Failed to send the invitation."));
+            setInviteSuccessMessage("");
+        } finally {
+            setIsInviteSubmitting(false);
+        }
+    }
+
     if (state.isLoading) {
         return (
             <main className="app-page company-page">
@@ -544,13 +617,107 @@ export default function CompanyPage({
                 </div>
             </section>
 
+            {isInviteComposerVisible && (
+                <section id="company-invitations" className="company-invite-card">
+                    <div className="company-invite-card-header">
+                        <div>
+                            <h2>Invite users</h2>
+                            <p>
+                                You may send invitations to other users to join this company as a manager or an owner under your supervision.
+                            </p>
+                        </div>
+
+                        <span className="company-invite-owner-badge">Owner only</span>
+                    </div>
+
+                    <form
+                        className="company-invite-form"
+                        onSubmit={handleInviteSubmit}
+                    >
+                        <label className="company-invite-field">
+                            <span>Email address</span>
+                            <input
+                                type="email"
+                                className="company-invite-input"
+                                value={inviteEmail}
+                                onChange={(event) => {
+                                    setInviteEmail(event.target.value);
+                                    setInviteErrorMessage("");
+                                    setInviteSuccessMessage("");
+                                }}
+                                placeholder="user@example.com"
+                                autoComplete="email"
+                            />
+                        </label>
+
+                        <fieldset className="company-invite-role-fieldset">
+                            <legend>Invite as</legend>
+
+                            <div className="company-invite-toggle" role="radiogroup" aria-label="Invite as">
+                                <button
+                                    type="button"
+                                    className={
+                                        inviteTargetRole === "manager"
+                                            ? "company-invite-toggle-option company-invite-toggle-option--active"
+                                            : "company-invite-toggle-option"
+                                    }
+                                    onClick={() => {
+                                        setInviteTargetRole("manager");
+                                        setInviteErrorMessage("");
+                                        setInviteSuccessMessage("");
+                                    }}
+                                >
+                                    Manager
+                                </button>
+                                <button
+                                    type="button"
+                                    className={
+                                        inviteTargetRole === "owner"
+                                            ? "company-invite-toggle-option company-invite-toggle-option--active"
+                                            : "company-invite-toggle-option"
+                                    }
+                                    onClick={() => {
+                                        setInviteTargetRole("owner");
+                                        setInviteErrorMessage("");
+                                        setInviteSuccessMessage("");
+                                    }}
+                                >
+                                    Owner
+                                </button>
+                            </div>
+                        </fieldset>
+
+                        <div className="company-invite-form-actions">
+                            <button
+                                type="submit"
+                                className="company-invite-send-button"
+                                disabled={isInviteSubmitting}
+                            >
+                                {isInviteSubmitting ? "Sending..." : "Send invitation"}
+                            </button>
+                        </div>
+
+                        {inviteSuccessMessage && (
+                            <p className="company-invite-success" role="status">
+                                {inviteSuccessMessage}
+                            </p>
+                        )}
+
+                        {inviteErrorMessage && (
+                            <p className="company-invite-error" role="alert">
+                                {inviteErrorMessage}
+                            </p>
+                        )}
+                    </form>
+                </section>
+            )}
+
             <section id="company-events" className="company-events-card" aria-label="My events">
                 <div className="company-events-header">
                     <div>
                         <h2>My Events</h2>
                         <p>
-                            Events directly managed by this company. The backend hookup
-                            comes next; this section is ready for the API.
+                            Events directly managed by you in {company.name} are listed here. You can manage these events or create new ones.
                         </p>
                     </div>
 
@@ -606,7 +773,7 @@ export default function CompanyPage({
                         <section className="empty-state company-empty-events-state">
                             <h2>No managed events yet</h2>
                             <p>
-                                This company does not have any events assigned to the current user yet.
+                                You do not have any events managed directly by {company.name} yet.
                             </p>
                         </section>
                     )}

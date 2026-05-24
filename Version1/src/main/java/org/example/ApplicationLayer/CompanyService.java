@@ -13,6 +13,7 @@ import org.example.ApplicationLayer.dto.CompanyDTOs.CompanyResponse;
 import org.example.ApplicationLayer.dto.CompanyDTOs.HierarchyResponse;
 import org.example.ApplicationLayer.dto.CompanyDTOs.InvitationResponse;
 import org.example.ApplicationLayer.dto.CompanyDTOs.SalesReportResponse;
+import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
 import org.example.DomainLayer.DomainException;
 import org.example.DomainLayer.NotificationAggregate.INotifier;
@@ -109,9 +110,12 @@ public class CompanyService {
                 usernameToInvite,
                 premissions);
 
+        Company company = rolesDomainService.getCompany(companyId);
+
         return new InvitationResponse(
                 invitationId,
                 companyId,
+            company.getName(),
                 ownerUsername,
                 usernameToInvite,
                 "MANAGER",
@@ -130,9 +134,12 @@ public class CompanyService {
                 companyId,
                 usernameToInvite);
 
+        Company company = rolesDomainService.getCompany(companyId);
+
         return new InvitationResponse(
                 invitationId,
                 companyId,
+            company.getName(),
                 ownerUsername,
                 usernameToInvite,
                 "OWNER",
@@ -151,6 +158,28 @@ public class CompanyService {
         }
 
         rolesDomainService.acceptCompanyInvitation(invitationId, username, companyId);
+    }
+
+    public void rejectCompanyInvitation(UUID invitationId, String username, UUID companyId) {
+        if (invitationId == null) {
+            throw new IllegalArgumentException("Invitation ID is required");
+        }
+        if (username == null || username.isBlank()) {
+            throw new IllegalArgumentException("Username is required");
+        }
+        if (companyId == null) {
+            throw new IllegalArgumentException("Company ID is required");
+        }
+
+        rolesDomainService.rejectCompanyInvitation(invitationId, username, companyId);
+    }
+
+    public List<InvitationResponse> getUserInvitations(String userEmail) {
+        if (userEmail == null || userEmail.isBlank()) {
+            throw new IllegalArgumentException("User email is required");
+        }
+
+        return rolesDomainService.getUserInvitations(userEmail);
     }
 
     public void removeCompanyMemberAsOwner(String ownerUsername, UUID companyId, String usernameToRemove) {

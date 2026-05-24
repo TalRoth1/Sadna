@@ -130,6 +130,10 @@ public class User {
         CompanyInvitations.remove(invitationId);
     }
 
+    public List<Invitation> getCompanyInvitations() {
+        return List.copyOf(CompanyInvitations.values());
+    }
+
     private void becomeOwner(UUID companyId, User appointerUser) {
         if (!appointerUser.isCompanyMember(companyId)
                 || !appointerUser.isOwnerInCompany(companyId)) {

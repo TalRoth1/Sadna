@@ -44,6 +44,27 @@ export type CompanyHierarchyResponse = {
 	mermaidChart: string;
 };
 
+export type CompanyInvitationResponse = {
+	invitationId: string;
+	companyId: string;
+	companyName: string;
+	appointerUsername: string;
+	appointeeUsername: string;
+	invitationType: string;
+	permissions: string[] | null;
+};
+
+export type InviteManagerRequest = {
+	ownerUsername: string;
+	usernameToInvite: string;
+	permissions: CompanyPermissionName[];
+};
+
+export type InviteOwnerRequest = {
+	ownerUsername: string;
+	usernameToInvite: string;
+};
+
 export type DeleteEventRequest = {
 	userEmail: string;
 	eventManagerEmail: string;
@@ -121,6 +142,52 @@ export async function getMyCompanies(userEmail: string): Promise<CompanyMembersh
 	});
 
 	return response.data.data as CompanyMembership[];
+}
+
+export async function getMyInvitations(userEmail: string): Promise<CompanyInvitationResponse[]> {
+	const response = await api.get("/companies/me/invitations", {
+		params: { userEmail },
+	});
+
+	return response.data.data as CompanyInvitationResponse[];
+}
+
+export async function inviteCompanyManager(
+	companyId: string,
+	request: InviteManagerRequest,
+): Promise<CompanyInvitationResponse> {
+	const response = await api.post(`/companies/${companyId}/managers/invite`, request);
+
+	return response.data.data as CompanyInvitationResponse;
+}
+
+export async function inviteCompanyOwner(
+	companyId: string,
+	request: InviteOwnerRequest,
+): Promise<CompanyInvitationResponse> {
+	const response = await api.post(`/companies/${companyId}/owners/invite`, request);
+
+	return response.data.data as CompanyInvitationResponse;
+}
+
+export async function acceptInvitation(
+	companyId: string,
+	invitationId: string,
+	username: string,
+): Promise<void> {
+	await api.post(`/companies/${companyId}/invitations/${invitationId}/accept`, null, {
+		params: { username },
+	});
+}
+
+export async function rejectInvitation(
+	companyId: string,
+	invitationId: string,
+	username: string,
+): Promise<void> {
+	await api.post(`/companies/${companyId}/invitations/${invitationId}/reject`, null, {
+		params: { username },
+	});
 }
 
 export async function getEventsForUserInCompany(

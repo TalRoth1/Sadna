@@ -90,6 +90,20 @@ public class CompanyController {
         }
     }
 
+    @GetMapping("/me/invitations")
+    public ResponseEntity<ApiResponse<List<InvitationResponse>>> getMyInvitations(
+            @RequestParam String userEmail) {
+        try {
+            List<InvitationResponse> invitations = companyService.getUserInvitations(userEmail);
+            return ResponseEntity.ok(ApiResponse.success("User invitations loaded successfully", invitations));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to load user invitations"));
+        }
+    }
+
     @GetMapping("/{companyId}/permissions")
     public ResponseEntity<ApiResponse<CompanyAccessResponse>> getCompanyPermissions(
             @PathVariable("companyId") UUID companyId,
@@ -188,6 +202,22 @@ public class CompanyController {
         try {
             companyService.acceptCompanyInvitation(invitationId, username, companyId);
             return ResponseEntity.ok(ApiResponse.success("Invitation accepted successfully"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error("Invitation not found or already used"));
+        }
+    }
+
+    @PostMapping("/{companyId}/invitations/{invitationId}/reject")
+    public ResponseEntity<ApiResponse<Void>> rejectInvitation(
+            @PathVariable("companyId") UUID companyId,
+            @PathVariable("invitationId") UUID invitationId,
+            @RequestParam String username) {
+        try {
+            companyService.rejectCompanyInvitation(invitationId, username, companyId);
+            return ResponseEntity.ok(ApiResponse.success("Invitation rejected successfully"));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
