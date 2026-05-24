@@ -50,20 +50,32 @@ export default function NavigationMenu({
     const [isAdmin, setIsAdmin] = useState(false);
     const isLoggedIn = currentUser !== null;
 
+
+
     useEffect(() => {
         async function loadUserPermissions() {
             try {
                 const user = await getCurrentUser();
+
+                console.log("[NavigationMenu] current user:", user);
+
                 setCurrentUser(user);
 
                 if (!user) {
+                    console.log("[NavigationMenu] no user, hiding admin dashboard");
                     setIsAdmin(false);
                     return;
                 }
 
                 const hasAdminAccess = await verifyPlatformAdmin(user.id);
+
+                console.log("[NavigationMenu] verifyPlatformAdmin userId:", user.id);
+                console.log("[NavigationMenu] hasAdminAccess:", hasAdminAccess);
+
                 setIsAdmin(hasAdminAccess);
-            } catch {
+            } catch (error) {
+                console.error("[NavigationMenu] failed to load user permissions:", error);
+
                 setCurrentUser(null);
                 setIsAdmin(false);
             }

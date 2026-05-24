@@ -32,8 +32,24 @@ public class UserRepository implements IUserRepository {
 
     @Override
     public boolean isSystemAdmin(String username) {
-        return admins.values().stream()
-                .anyMatch(admin -> admin.getUsername().equals(username));
+        if (username == null) {
+            return false;
+        }
+
+        return admins.values().stream().anyMatch(admin -> {
+            if (username.equals(admin.getUsername())) {
+                return true;
+            }
+
+            User user = users.get(admin.getId());
+
+            if (user == null) {
+                return false;
+            }
+
+            return username.equals(user.getUsername())
+                    || username.equals(user.getEmail());
+        });
     }
 
     @Override
