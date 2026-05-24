@@ -14,13 +14,27 @@ type AdminComplaintDto = {
     respondedAt?: string;
 };
 
+function normalizeComplaintStatus(status: string): Complaint["status"] {
+    const normalizedStatus = status.toLowerCase();
+
+    if (
+        normalizedStatus === "answered" ||
+        normalizedStatus === "closed" ||
+        normalizedStatus === "open"
+    ) {
+        return normalizedStatus;
+    }
+
+    return "open";
+}
+
 function mapComplaint(dto: AdminComplaintDto): Complaint {
     return {
         id: dto.id,
         title: dto.title,
         message: dto.description,
         reporterName: dto.reporterUsername,
-        status: dto.status.toLowerCase() as Complaint["status"],
+        status: normalizeComplaintStatus(dto.status),
         adminResponse: dto.adminResponse,
         responderAdminUsername: dto.responderAdminUsername,
         createdAt: dto.createdAt,
@@ -32,7 +46,9 @@ export async function getComplaints(_userId: string): Promise<Complaint[]> {
     const response = await api.get("/admin/complaints");
     const complaints = response.data.data as AdminComplaintDto[];
 
-    return complaints.map(mapComplaint);
+    return complaints
+        .map(mapComplaint)
+        .filter((complaint) => complaint.status === "open");
 }
 
 export async function respondToComplaint(
