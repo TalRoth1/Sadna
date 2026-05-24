@@ -759,12 +759,14 @@ public class DevDataSeeder implements CommandLineRunner {
          * areas they want via {@link #addStandingArea} / {@link #addSittingArea}.
          * Indexed under {@code key} so later sections can refer to it by name.
          */
+
+        private String description = "";
         private UUID createEvent(String key, UUID companyId, String eventManagerEmail, String name,
                         String artist, String type, String location,
                         LocalDateTime date, EventStatus status) {
                 UUID eventId = UUID.randomUUID();
                 eventManagement.addEvent(eventId, companyId, eventManagerEmail, name, date, location,
-                                artist, type, status);
+                                artist, type, status, description);
                 eventsByKey.put(key, eventId);
                 return eventId;
         }

@@ -73,7 +73,8 @@ public ResponseEntity<ApiResponse<EventDetailsDto>> createEvent(@RequestBody Cre
                 request.location,
                 request.artist,
                 request.type,
-                request.status);
+                request.status,
+                request.description);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Event created successfully", event));
     } catch (Exception e) { // תפיסת כל השגיאות זמנית לצורך הדיבאג
@@ -91,7 +92,7 @@ public ResponseEntity<ApiResponse<EventDetailsDto>> createEvent(@RequestBody Cre
         try {
             EventSummaryDto event = eventService.editEvent(
                     eventId, request.name, request.date, request.location,
-                    request.artist, request.type, request.status);
+                    request.artist, request.type, request.status, request.description);
             return ResponseEntity.ok(ApiResponse.success("Event updated successfully", event));
         } catch (IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));

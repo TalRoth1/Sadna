@@ -13,6 +13,7 @@ export type CreateEventRequest = {
     artist: string;
     type: string;
     status: string;
+    description?: string;
 };
 
 export async function createEvent(request: CreateEventRequest) {

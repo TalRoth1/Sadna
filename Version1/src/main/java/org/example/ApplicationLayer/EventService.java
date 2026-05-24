@@ -59,7 +59,7 @@ public class EventService {
 
     public EventDetailsDto addEvent(UUID eventId, UUID companyId, String eventManagerEmail, String name,
                                     LocalDateTime date, String location, String artist, String type,
-                                    EventStatus status) {
+                                    EventStatus status, String description) {
         logger.info("[Event Log] Method: addEvent called");
 
         if (eventId == null) {
@@ -70,7 +70,7 @@ public class EventService {
         }
 
         eventManagementDomainService.addEvent(
-                eventId, companyId, eventManagerEmail, name, date, location, artist, type, status);
+                eventId, companyId, eventManagerEmail, name, date, location, artist, type, status, description);
 
         Event event = eventManagementDomainService.getEventForView(eventId);
         return toDetails(event);
@@ -82,11 +82,12 @@ public class EventService {
                                  String location,
                                  String artist,
                                  String type,
-                                 EventStatus status) {
+                                 EventStatus status,
+                                 String description) {
 
     logger.info("[Event Log] Method: editEvent called with parameters: eventId=" + eventId
             + ", date=" + date + ", location=" + location + ", artist=" + artist
-            + ", type=" + type + ", status=" + status);
+            + ", type=" + type + ", status=" + status + ", description=" + description);
 
     try {
         if (eventId == null) {
@@ -100,7 +101,8 @@ public class EventService {
                 location,
                 artist,
                 type,
-                status
+                status,
+                description
         );
 
         for (UUID uid : participants) {

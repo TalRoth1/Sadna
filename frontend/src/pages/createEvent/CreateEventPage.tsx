@@ -300,6 +300,7 @@ export default function CreateEventPage({
                 artist: artist.trim(),
                 type: type.trim(),
                 status,
+                description: description.trim() || undefined,
             };
 
             const createdEvent = await createEvent(request);

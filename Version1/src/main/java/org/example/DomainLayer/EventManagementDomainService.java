@@ -142,7 +142,7 @@ public class EventManagementDomainService {
     }
 
     public void addEvent(UUID eventId, UUID companyId, String eventManagerEmail, String name,
-            LocalDateTime date, String location, String artist, String type, EventStatus status) {
+            LocalDateTime date, String location, String artist, String type, EventStatus status, String description) {
         if (eventRepository.getById(eventId) != null) {
             throw new DomainException("Event already exists: " + eventId);
         }
@@ -167,6 +167,9 @@ public class EventManagementDomainService {
         if (name != null) {
             event.setName(name);
         }
+        if (description != null) {
+            event.setDescription(description);
+        }
         eventRepository.save(event);
 
         managerRole.getEventsIds().add(eventId);
@@ -178,7 +181,8 @@ public class EventManagementDomainService {
                             String location,
                             String artist,
                             String type,
-                            EventStatus status) {
+                            EventStatus status,
+                            String description) {
 
         Event event = eventRepository.getById(eventId);
 
@@ -208,6 +212,10 @@ public class EventManagementDomainService {
 
         if (status != null) {
             event.setStatus(status);
+        }
+
+        if (description != null) {
+            event.setDescription(description);
         }
 
     Set<UUID> participants = new HashSet<>();
