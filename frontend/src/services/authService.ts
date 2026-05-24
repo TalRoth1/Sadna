@@ -13,6 +13,8 @@ import type {
 
 function persistAuth(authResponse: AuthResponse): void {
     localStorage.setItem("token", authResponse.token);
+    localStorage.setItem("userId", authResponse.user.userId);
+    localStorage.setItem("userRole", authResponse.user.role);
     setCurrentUserFromResponse(authResponse.user);
 }
 
@@ -159,6 +161,8 @@ export async function logoutUser(): Promise<void> {
         // We proceed with local logout even if the server request fails, to ensure the user is logged out on the client side.
     } finally {
         localStorage.removeItem("token");
+        localStorage.removeItem("userId");
+        localStorage.removeItem("userRole");
         clearCurrentUser();
     }
 }

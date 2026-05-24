@@ -59,12 +59,24 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        // OPTIONS preflight requests have no Authorization header — let them through.
-        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+        String path = request.getServletPath();
+
+        if (path.equals("/api/users/guest")
+                || path.equals("/api/users/login")
+                || path.equals("/api/users/register")
+                || path.equals("/api/users/logout")) {
             return true;
         }
-        String path = request.getRequestURI();
-        return PUBLIC_PATHS.contains(path);
+
+        if (path.equals("/api/events/search")) {
+            return true;
+        }
+
+        if (path.matches("^/api/events/[0-9a-fA-F-]{8}-[0-9a-fA-F-]{4}-[0-9a-fA-F-]{4}-[0-9a-fA-F-]{4}-[0-9a-fA-F-]{12}$")) {
+            return true;
+        }
+
+        return false;
     }
 
     @Override

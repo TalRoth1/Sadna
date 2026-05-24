@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import org.example.ApplicationLayer.dto.PurchaseDTOs.ActivePurchaseDTO;
 import org.example.ApplicationLayer.dto.PurchaseDTOs.PurchaseHistoryDTO;
+import org.example.ApplicationLayer.dto.PurchaseDTOs.SelectionAccessDTO;
 
 @Service
 public class PurchaseService {
@@ -71,20 +72,21 @@ public class PurchaseService {
             // קודם בודקים זכאות, לפני תור
             purchaseDomainService.validateSelectionEligibility(eventID, userID, accessCode);
 
-            validateQueueAccess(userID, eventID);
+            requireQueueAccess(userID, eventID);
 
             purchaseDomainService.selectSittingTicketsWithLotteryCode(
                     eventID, ticketIDs, userID, isConfirmedAge, accessCode
             );
 
-            queueManager.finishAccess(userID, eventID);
-            queueManager.releaseBatch(eventID, 1);
             logger.info("action=selectSittingTicketsWithLotteryCode completed successfully, caller=" + userID + ", params={eventID=" + eventID + ", ticketCount=" + ticketIDs.size() + "}");
 
 
         } catch (DomainException e) {
             logger.severe("action=selectSittingTicketsWithLotteryCode failed, caller=" + userID + ", params={eventID=" + eventID + ", ticketCount=" + (ticketIDs == null ? 0 : ticketIDs.size()) + "}, error=" + e.getMessage());
             throw new IllegalStateException("Couldn't select lottery sitting tickets: " + e.getMessage());
+        } finally {
+            queueManager.finishAccess(userID, eventID);
+            queueManager.releaseBatch(eventID, 1);
         }
     }
     public void selectStandingTicketsWithLotteryCode(UUID eventID,int amount,UUID areaID,UUID userID,boolean isConfirmedAge,String accessCode)
@@ -117,34 +119,49 @@ public class PurchaseService {
             // קודם בודקים זכאות, לפני תור
             purchaseDomainService.validateSelectionEligibility(eventID, userID, accessCode);
 
-            validateQueueAccess(userID, eventID);
-
-            try {
-                Thread.sleep(30000);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
+            requireQueueAccess(userID, eventID);
 
             purchaseDomainService.selectStandingTicketsWithLotteryCode(
                     eventID, amount, userID, areaID, isConfirmedAge, accessCode
             );
 
-            queueManager.finishAccess(userID, eventID);
-            queueManager.releaseBatch(eventID, 1);
             logger.info("action=selectStandingTicketsWithLotteryCode completed successfully, caller=" + userID + ", params={eventID=" + eventID + ", areaID=" + areaID + ", amount=" + amount + "}");
 
 
         } catch (DomainException e) {
             logger.severe("action=selectStandingTicketsWithLotteryCode failed, caller=" + userID + ", params={eventID=" + eventID + ", areaID=" + areaID + ", amount=" + amount + "}, error=" + e.getMessage());
             throw new IllegalStateException("Couldn't select lottery standing tickets: " + e.getMessage());
+        } finally {
+            queueManager.finishAccess(userID, eventID);
+            queueManager.releaseBatch(eventID, 1);
         }
     }
 
-    private void validateQueueAccess(UUID userId, UUID eventId)
-    {
+    /**
+     * Entry point used by the waiting-room UI before the user reaches the
+     * practical ticket-selection stage. This method may grant immediate access
+     * or place the user in the event queue. It does not reserve tickets.
+     */
+    public SelectionAccessDTO requestSelectionAccess(UUID userId, UUID eventId) {
         QueueAccessResult result = queueManager.requestSelectionAccess(userId, eventId);
-        if (!result.isAllowed())
-            throw new IllegalStateException("User is waiting in queue. Position: " + result.getUserPositionInQueue() + "/" + result.getQueueSize());
+        return toSelectionAccessDTO(userId, eventId, result);
+    }
+
+    /**
+     * Read-only status used by the waiting-room polling loop. It must not add
+     * a user to the queue if they are not already waiting.
+     */
+    public SelectionAccessDTO getSelectionAccessStatus(UUID userId, UUID eventId) {
+        QueueAccessResult result = queueManager.getSelectionAccessStatus(userId, eventId);
+        return toSelectionAccessDTO(userId, eventId, result);
+    }
+
+    /**
+     * Reservation endpoints use this method. It only verifies that the user
+     * already owns a live selection window; it never queues the user.
+     */
+    private void requireQueueAccess(UUID userId, UUID eventId) {
+        queueManager.requireSelectionAccess(userId, eventId);
     }
 
     public ActivePurchaseDTO selectSittingTickets(UUID eventID, List<UUID> ticketIDs, UUID userID, boolean isConfirmedAge) {
@@ -158,18 +175,18 @@ public class PurchaseService {
             throw new IllegalStateException("זה אירוע המיועד להגרלה. אי אפשר לקנות ממנו כרטיסים באופן רגיל.");
         }
 
-        validateQueueAccess(userID, eventID);
+        requireQueueAccess(userID, eventID);
 
         try {
             ActivePurchase activePurchase =
                     purchaseDomainService.selectSittingTickets(eventID, ticketIDs, userID, isConfirmedAge);
 
-            queueManager.finishAccess(userID, eventID);
-            queueManager.releaseBatch(eventID, 1);
-
             return toActivePurchaseDTO(activePurchase);
         } catch (DomainException e) {
             throw new IllegalStateException("Couldn't select the sitting tickets: " + e.getMessage());
+        } finally {
+            queueManager.finishAccess(userID, eventID);
+            queueManager.releaseBatch(eventID, 1);
         }
     }
 
@@ -184,18 +201,18 @@ public class PurchaseService {
             throw new IllegalStateException("זה אירוע המיועד להגרלה. אי אפשר לקנות ממנו כרטיסים באופן רגיל.");
         }
 
-        validateQueueAccess(userID, eventID);
+        requireQueueAccess(userID, eventID);
 
         try {
             ActivePurchase activePurchase =
                     purchaseDomainService.selectStandingTickets(eventID, amount, userID, areaID, isConfirmedAge);
 
-            queueManager.finishAccess(userID, eventID);
-            queueManager.releaseBatch(eventID, 1);
-
             return toActivePurchaseDTO(activePurchase);
         } catch (DomainException e) {
             throw new IllegalStateException("Couldn't select the standing tickets: " + e.getMessage());
+        } finally {
+            queueManager.finishAccess(userID, eventID);
+            queueManager.releaseBatch(eventID, 1);
         }
     }
 
@@ -220,10 +237,10 @@ public class PurchaseService {
             logger.info("Purchase completed successfully for activePurchaseID: " + activePurchaseID);
             notifier.notifyUser(activePurchase.getUserID(), "Purchase Complete");
             if(isSoldOut)
-                {
-                    String managerUsername = purchaseDomainService.getEventManager(activePurchase.getEventID());
-                    notifier.notifyUser(managerUsername, "Tickets to event: " + activePurchase.getEventID() + " have been SOLD OUT");
-                }
+            {
+                String managerUsername = purchaseDomainService.getEventManager(activePurchase.getEventID());
+                notifier.notifyUser(managerUsername, "Tickets to event: " + activePurchase.getEventID() + " have been SOLD OUT");
+            }
             eventPublisher.publish(new PurchaseCompletedEvent(userId));
         }
         catch (DomainException e) {
@@ -502,6 +519,25 @@ public class PurchaseService {
             throw new IllegalStateException("Couldn't draw lottery: " + e.getMessage());
         }
     }
+    private SelectionAccessDTO toSelectionAccessDTO(UUID userId, UUID eventId, QueueAccessResult result) {
+        String message = result.isAllowed()
+                ? "Selection access granted"
+                : result.getUserPositionInQueue() > 0
+                ? "You are waiting in queue. Position: "
+                + result.getUserPositionInQueue() + "/" + result.getQueueSize()
+                : "You are not currently waiting in this queue";
+
+        return new SelectionAccessDTO(
+                eventId,
+                userId,
+                result.isAllowed(),
+                result.getUserPositionInQueue(),
+                result.getQueueSize(),
+                result.getAccessExpiresAt(),
+                message
+        );
+    }
+
     private ActivePurchaseDTO toActivePurchaseDTO(ActivePurchase purchase) {
         if (purchase == null) {
             throw new IllegalStateException("Active purchase was not created");
