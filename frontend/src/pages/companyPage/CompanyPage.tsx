@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import {
+    deleteEvent,
     getCompanyHierarchy,
     getCompanyPermissions,
+    getEventsForUserInCompany,
     type CompanyAccessResponse,
     type CompanyPermissionName as BackendCompanyPermissionName,
 } from "../../services/companyService";
 import { getCurrentUser, type CurrentUser } from "../../services/currentUserService";
+import type { EventSummary } from "../../types/event";
 import "./CompanyPage.css";
 
 type CompanyStatus = "Active" | "Suspended" | "Closed";
@@ -34,6 +37,20 @@ type CompanyViewModel = {
     status: CompanyStatus;
     permissions: CompanyPermissionName[];
 };
+
+type CompanyPageSectionId =
+    | "company-overview"
+    | "company-permissions"
+    | "company-events"
+    | "company-hierarchy";
+
+type CompanyPageSection = {
+    id: CompanyPageSectionId;
+    label: string;
+    isVisible: boolean;
+};
+
+type ManagedEvent = EventSummary;
 
 type CompanyPageProps = {
     company: CompanyViewModel;
@@ -126,6 +143,71 @@ function getStatusClass(status: CompanyStatus) {
     return `company-status company-status--${status.toLowerCase()}`;
 }
 
+const COMPANY_SECTION_SCROLL_OFFSET_PX = 180;
+
+function buildCompanyPageSections(isHierarchyVisible: boolean): CompanyPageSection[] {
+    return [
+        { id: "company-overview", label: "Overview", isVisible: true },
+        { id: "company-permissions", label: "Permissions", isVisible: true },
+        { id: "company-events", label: "My Events", isVisible: true },
+        { id: "company-hierarchy", label: "Hierarchy", isVisible: isHierarchyVisible },
+    ];
+}
+
+function scrollToCompanySection(sectionId: CompanyPageSectionId) {
+    const targetElement = document.getElementById(sectionId);
+
+    if (!targetElement) {
+        return;
+    }
+
+    const targetTop =
+        window.scrollY + targetElement.getBoundingClientRect().top - COMPANY_SECTION_SCROLL_OFFSET_PX;
+
+    window.scrollTo({
+        top: Math.max(targetTop, 0),
+        behavior: "smooth",
+    });
+}
+
+function scrollToTop() {
+    window.scrollTo({
+        top: 0,
+        behavior: "smooth",
+    });
+}
+
+function formatEventDate(date: string) {
+    const eventDate = new Date(date);
+
+    if (Number.isNaN(eventDate.getTime())) {
+        return "Invalid date";
+    }
+
+    return eventDate.toLocaleString("en-US", {
+        dateStyle: "medium",
+        timeStyle: "short",
+    });
+}
+
+function getManagedEventStatus(event: ManagedEvent) {
+    if (event.totalTickets === 0) {
+        return "Draft";
+    }
+
+    if (event.availableTickets === 0) {
+        return "Sold out";
+    }
+
+    return "Open";
+}
+
+function getManagedEventStatusClass(event: ManagedEvent) {
+    return `company-event-status company-event-status--${getManagedEventStatus(event)
+        .toLowerCase()
+        .replace(/\s+/g, "-")}`;
+}
+
 function isHierarchyViewerRole(role: string) {
     const normalizedRole = role.trim().toLowerCase();
     return normalizedRole === "founder" || normalizedRole === "owner";
@@ -208,11 +290,59 @@ function isPermissionGranted(
     return companyPermissions.includes(permission);
 }
 
+function ManagedEventCard({
+    event,
+    onDelete,
+}: {
+    event: ManagedEvent;
+    onDelete: (eventId: string, eventName: string) => Promise<void>;
+}) {
+    return (
+        <article className="company-event-card">
+            <div className="company-event-card-main">
+                <div className="company-event-card-heading">
+                    <h3>{event.name}</h3>
+                    <span className="company-event-category-badge">{event.type}</span>
+                </div>
+
+                <p className="company-event-meta">{formatEventDate(event.date)}</p>
+                <p className="company-event-meta">{event.location}</p>
+                <p className="company-event-meta company-event-company">
+                    Managed directly by the current company
+                </p>
+            </div>
+
+            <div className="company-event-card-side">
+                <span className={getManagedEventStatusClass(event)}>
+                    {getManagedEventStatus(event)}
+                </span>
+                <span className="company-event-rating" aria-label={`Rating ${event.rating}`}>
+                    ★ {event.rating.toFixed(1)}
+                </span>
+                <span className="company-event-availability">
+                    {event.availableTickets > 0
+                        ? `${event.availableTickets} tickets left`
+                        : "No tickets left"}
+                </span>
+
+                <button
+                    type="button"
+                    className="company-event-delete-button"
+                    onClick={() => onDelete(event.id, event.name)}
+                >
+                    Delete event
+                </button>
+            </div>
+        </article>
+    );
+}
+
 export default function CompanyPage({
     company,
     onBackToCompanies,
 }: CompanyPageProps) {
     const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+    const [managedEvents, setManagedEvents] = useState<ManagedEvent[]>([]);
     const [state, setState] = useState<CompanyPageState>({
         company,
         errorMessage: "",
@@ -221,6 +351,11 @@ export default function CompanyPage({
         hierarchyErrorMessage: "",
         hierarchySource: "",
     });
+
+    const isHierarchyVisible = isHierarchyViewerRole(state.company.role);
+    const companyPageSections = buildCompanyPageSections(isHierarchyVisible).filter(
+        (section) => section.isVisible,
+    );
 
     useEffect(() => {
         let isStale = false;
@@ -254,6 +389,7 @@ export default function CompanyPage({
                 let hierarchyRoots: HierarchyNode[] = [];
                 let hierarchyErrorMessage = "";
                 let hierarchySource = "";
+                let managedEventsForUser: ManagedEvent[] = [];
 
                 if (isHierarchyViewerRole(mappedCompany.role)) {
                     try {
@@ -276,6 +412,14 @@ export default function CompanyPage({
                     }
                 }
 
+                try {
+                    managedEventsForUser = await getEventsForUserInCompany(user.email, company.id);
+                } catch (error) {
+                    if (!isStale) {
+                        console.error("Failed to load managed events:", error);
+                    }
+                }
+
                 setState({
                     company: mappedCompany,
                     errorMessage: "",
@@ -284,6 +428,7 @@ export default function CompanyPage({
                     hierarchyErrorMessage,
                     hierarchySource,
                 });
+                setManagedEvents(managedEventsForUser);
             } catch (error) {
                 if (isStale) {
                     return;
@@ -345,7 +490,24 @@ export default function CompanyPage({
                 <p>Company ID: {state.company.id}</p>
             </section>
 
-            <section className="company-summary-grid" aria-label="Company summary">
+            <nav className="company-section-nav" aria-label="Company page sections">
+                {companyPageSections.map((section) => (
+                    <button
+                        key={section.id}
+                        type="button"
+                        className="company-section-nav-link"
+                        onClick={() => scrollToCompanySection(section.id)}
+                    >
+                        {section.label}
+                    </button>
+                ))}
+            </nav>
+
+            <section
+                id="company-overview"
+                className="company-summary-grid"
+                aria-label="Company summary"
+            >
                 <article className="company-summary-card">
                     <span className="company-summary-label">My Role:</span>
                     <strong className="company-summary-value">{state.company.role}</strong>
@@ -359,7 +521,7 @@ export default function CompanyPage({
                 </article>
             </section>
 
-            <section className="company-permissions-card">
+            <section id="company-permissions" className="company-permissions-card">
                 <h2>Current permissions</h2>
                 <p>
                     Each permission below is shown for the selected company role.
@@ -382,8 +544,77 @@ export default function CompanyPage({
                 </div>
             </section>
 
-            {isHierarchyViewerRole(state.company.role) && (
-                <section className="company-hierarchy-card">
+            <section id="company-events" className="company-events-card" aria-label="My events">
+                <div className="company-events-header">
+                    <div>
+                        <h2>My Events</h2>
+                        <p>
+                            Events directly managed by this company. The backend hookup
+                            comes next; this section is ready for the API.
+                        </p>
+                    </div>
+
+                    <button
+                        type="button"
+                        className="company-event-create-button"
+                        onClick={() => {
+                            window.alert("Create event flow will be wired next.");
+                        }}
+                    >
+                        Create event
+                    </button>
+                </div>
+
+                <div className="company-event-list">
+                    {managedEvents.map((event) => (
+                        <ManagedEventCard
+                            key={event.id}
+                            event={event}
+                            onDelete={async (eventId, eventName) => {
+                                const shouldDelete = window.confirm(
+                                    `Delete event \"${eventName}\"? This cannot be undone.`,
+                                );
+
+                                if (!shouldDelete) {
+                                    return;
+                                }
+
+                                if (!currentUser) {
+                                    window.alert("Please log in again before deleting this event.");
+                                    return;
+                                }
+
+                                try {
+                                    await deleteEvent(eventId, {
+                                        userEmail: currentUser.email,
+                                        eventManagerEmail: currentUser.email,
+                                    });
+
+                                    setManagedEvents((currentEvents) =>
+                                        currentEvents.filter((currentEvent) => currentEvent.id !== eventId),
+                                    );
+                                } catch (error) {
+                                    window.alert(
+                                        getErrorMessage(error, "Failed to delete the event."),
+                                    );
+                                }
+                            }}
+                        />
+                    ))}
+
+                    {managedEvents.length === 0 && (
+                        <section className="empty-state company-empty-events-state">
+                            <h2>No managed events yet</h2>
+                            <p>
+                                This company does not have any events assigned to the current user yet.
+                            </p>
+                        </section>
+                    )}
+                </div>
+            </section>
+
+            {isHierarchyVisible && (
+                <section id="company-hierarchy" className="company-hierarchy-card">
                     <h2>Company hierarchy</h2>
                     <p>
                         Team structure for this company based on the current role graph.
@@ -421,6 +652,16 @@ export default function CompanyPage({
                     Back to My Companies
                 </button>
             </section>
+
+            <button
+                type="button"
+                className="company-scroll-top-button"
+                onClick={scrollToTop}
+                aria-label="Scroll to top of the page"
+                title="Scroll to top"
+            >
+                Scroll up
+            </button>
         </main>
     );
 }
