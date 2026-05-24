@@ -57,37 +57,37 @@ function getCreatedEventId(createdEvent: unknown): string | null {
 }
 
 async function addStandingArea(eventId: string, area: TicketAreaDraft) {
-    const areaId = createLocalId();
-
-    const response = await fetch(`/api/events/${eventId}/areas/${areaId}/tickets/standing`, {
+    const response = await fetch(`/api/events/${eventId}/areas/standing`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-            count: Number(area.capacity),
             price: Number(area.price),
+            count: Number(area.capacity),
         }),
     });
 
-    if (!response.ok) {
-        throw new Error("Failed to create standing ticket area.");
+    const body = await response.json();
+
+    if (!response.ok || !body.success) {
+        throw new Error(body.message || "Failed to create standing area.");
     }
 }
 
 async function addSittingArea(eventId: string, area: TicketAreaDraft) {
-    const areaId = createLocalId();
-
-    const response = await fetch(`/api/events/${eventId}/areas/${areaId}/tickets/sitting`, {
+    const response = await fetch(`/api/events/${eventId}/areas/sitting`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+            price: Number(area.price),
             rows: Number(area.rows),
             seatsPerRow: Number(area.seatsPerRow),
-            price: Number(area.price),
         }),
     });
 
-    if (!response.ok) {
-        throw new Error("Failed to create sitting ticket area.");
+    const body = await response.json();
+
+    if (!response.ok || !body.success) {
+        throw new Error(body.message || "Failed to create sitting area.");
     }
 }
 
@@ -309,14 +309,15 @@ export default function CreateEventPage({
                 throw new Error("Event was created, but the server did not return an event id.");
             }
 
-            console.warn(
-                "Event created, but ticket areas were not created because the backend does not expose an endpoint for creating areas yet.",
-                ticketAreas,
-            );
+            for (const area of ticketAreas) {
+                if (area.areaType === "STANDING") {
+                    await addStandingArea(createdEventId, area);
+                } else {
+                    await addSittingArea(createdEventId, area);
+                }
+            }
 
-            setSuccessMessage(
-                "Event created successfully. Ticket areas were not saved because the backend does not currently expose an area creation endpoint.",
-            );
+            setSuccessMessage("Event and ticket areas created successfully.");
 
             resetForm();
 

@@ -34,7 +34,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
+import org.example.ApplicationLayer.dto.EventDTOs.AddSittingAreaRequest;
+import org.example.ApplicationLayer.dto.EventDTOs.AddStandingAreaRequest;
 /**
  * EventController
  *
@@ -150,6 +151,40 @@ public ResponseEntity<ApiResponse<EventDetailsDto>> createEvent(@RequestBody Cre
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to add sitting tickets: system exception"));
+        }
+    }
+
+    @PostMapping("/{eventId}/areas/sitting")
+    public ResponseEntity<ApiResponse<Void>> addSittingArea(
+            @PathVariable("eventId") UUID eventId,
+            @RequestBody AddSittingAreaRequest request) {
+        try {
+            eventService.addSittingArea(eventId, request.price, request.rows, request.seatsPerRow);
+
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.success("Sitting area created successfully"));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to create sitting area: system exception"));
+        }
+    }
+
+    @PostMapping("/{eventId}/areas/standing")
+    public ResponseEntity<ApiResponse<Void>> addStandingArea(
+            @PathVariable("eventId") UUID eventId,
+            @RequestBody AddStandingAreaRequest request) {
+        try {
+            eventService.addStandingArea(eventId, request.price, request.count);
+
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.success("Standing area created successfully"));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to create standing area: system exception"));
         }
     }
 

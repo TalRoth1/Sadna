@@ -124,6 +124,8 @@ public class EventService {
     }
 }
 
+    
+
     public void addPolicyRule(String username, UUID companyId, UUID eventId,
                               Float age, Integer minTicket, Integer maxTicket, Boolean allowLoneSeat) {
         addPolicyRule(
@@ -733,6 +735,66 @@ public class EventService {
                 Optional.ofNullable(minCompanyRating),
                 Optional.ofNullable(companyId)
         );
+    }
+
+    public void addStandingArea(UUID eventId, double price, int count) {
+        logger.info("[Event Log] Method: addStandingArea called with parameters: eventId=" + eventId
+                + ", price=" + price + ", count=" + count);
+
+        try {
+            if (eventId == null) {
+                throw new IllegalArgumentException("eventId is required");
+            }
+            if (price < 0) {
+                throw new IllegalArgumentException("price must be non-negative");
+            }
+            if (count <= 0) {
+                throw new IllegalArgumentException("count must be positive");
+            }
+
+            Event event = eventManagementDomainService.getEventForView(eventId);
+            UUID areaId = UUID.randomUUID();
+
+            event.getLayout().addArea(new StandingArea(areaId, price));
+            eventManagementDomainService.addStandingTickets(eventId, areaId, count);
+
+        } catch (IllegalArgumentException | DomainException e) {
+            logger.info("[Event Log] Business rejection in addStandingArea: " + e.getMessage());
+            throw e;
+        } catch (RuntimeException e) {
+            logger.log(Level.SEVERE, "[Error Log] System error in addStandingArea: " + e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    public void addSittingArea(UUID eventId, double price, int rows, int seatsPerRow) {
+        logger.info("[Event Log] Method: addSittingArea called with parameters: eventId=" + eventId
+                + ", price=" + price + ", rows=" + rows + ", seatsPerRow=" + seatsPerRow);
+
+        try {
+            if (eventId == null) {
+                throw new IllegalArgumentException("eventId is required");
+            }
+            if (price < 0) {
+                throw new IllegalArgumentException("price must be non-negative");
+            }
+            if (rows <= 0 || seatsPerRow <= 0) {
+                throw new IllegalArgumentException("rows and seatsPerRow must be positive");
+            }
+
+            Event event = eventManagementDomainService.getEventForView(eventId);
+            UUID areaId = UUID.randomUUID();
+
+            event.getLayout().addArea(new SittingArea(areaId, price));
+            eventManagementDomainService.addSittingTickets(eventId, areaId, rows, seatsPerRow);
+
+        } catch (IllegalArgumentException | DomainException e) {
+            logger.info("[Event Log] Business rejection in addSittingArea: " + e.getMessage());
+            throw e;
+        } catch (RuntimeException e) {
+            logger.log(Level.SEVERE, "[Error Log] System error in addSittingArea: " + e.getMessage(), e);
+            throw e;
+        }
     }
 
 }
