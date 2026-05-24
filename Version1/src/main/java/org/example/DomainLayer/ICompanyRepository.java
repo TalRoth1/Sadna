@@ -8,6 +8,7 @@ import org.example.DomainLayer.CompanyAggregate.Company;
 
 public interface ICompanyRepository {
     UUID createCompany(String founderEmail, String companyName);
+
     Optional<Company> findByID(UUID companyId);
 
     void save(Company company);

@@ -60,6 +60,7 @@ public class CompanyService {
                 List.of());
     }
 
+
     public void closeCompanyAsAdmin(String adminUsername, UUID companyId) {
         logger.info("caller=" + adminUsername
                 + ", action=closeCompanyAsAdmin"
@@ -92,6 +93,7 @@ public class CompanyService {
             throw e;
         }
     }
+
 
     public InvitationResponse inviteCompanyManager(String ownerUsername,
             UUID companyId,
