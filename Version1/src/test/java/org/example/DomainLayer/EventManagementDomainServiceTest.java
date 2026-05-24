@@ -1,21 +1,30 @@
 package org.example.DomainLayer;
 
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+
 import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
-import org.example.DomainLayer.EventAggregate.*;
+import org.example.DomainLayer.EventAggregate.Event;
+import org.example.DomainLayer.EventAggregate.EventStatus;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.example.DomainLayer.UserAggregate.CompanyFounder;
 import org.example.DomainLayer.UserAggregate.User;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 import org.junit.Before;
 import org.junit.Test;
-
-import java.time.LocalDateTime;
-import java.util.*;
-
-import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 public class EventManagementDomainServiceTest {
 
@@ -208,7 +217,8 @@ public class EventManagementDomainServiceTest {
                 "Tel Aviv",
                 "Artist",
                 "Concert",
-                EventStatus.ACTIVE
+                EventStatus.ACTIVE,
+                "description"
         );
 
         verify(eventRepository).save(any(Event.class));
@@ -228,7 +238,8 @@ public class EventManagementDomainServiceTest {
                         "Tel Aviv",
                         "Artist",
                         "Concert",
-                        EventStatus.ACTIVE
+                        EventStatus.ACTIVE,
+                        "description"
                 )
         );
 
@@ -248,7 +259,8 @@ public class EventManagementDomainServiceTest {
                 "Haifa",
                 null,
                 "Festival",
-                EventStatus.CANCELED
+                EventStatus.CANCELED,
+                "Updated description"
         );
 
         verify(event).setDate(newDate);
