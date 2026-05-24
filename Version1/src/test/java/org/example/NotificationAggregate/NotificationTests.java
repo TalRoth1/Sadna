@@ -1,37 +1,49 @@
 package org.example.NotificationAggregate;
 
-import org.example.ApplicationLayer.*;
+import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+
+import org.example.ApplicationLayer.ActivePurchaseCleaner;
+import org.example.ApplicationLayer.AdminService;
+import org.example.ApplicationLayer.EventPublisher;
+import org.example.ApplicationLayer.EventService;
+import org.example.ApplicationLayer.PaymentDetails;
+import org.example.ApplicationLayer.PurchaseService;
+import org.example.ApplicationLayer.QueueManager;
+import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
+import org.example.DomainLayer.CompanyAggregate.Company;
+import org.example.DomainLayer.EventAggregate.EventStatus;
 import org.example.DomainLayer.EventManagementDomainService;
+import org.example.DomainLayer.Events.PurchaseCompletedEvent;
 import org.example.DomainLayer.IAdminRepository;
 import org.example.DomainLayer.ICompanyRepository;
 import org.example.DomainLayer.IHistoryRepository;
 import org.example.DomainLayer.IPurchaseRepository;
 import org.example.DomainLayer.IUserRepository;
+import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.PurchaseDomainService;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.example.DomainLayer.RolesDomainService;
-import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
-import org.example.DomainLayer.CompanyAggregate.Company;
-import org.example.DomainLayer.EventAggregate.EventStatus;
-import org.example.DomainLayer.Events.PurchaseCompletedEvent;
-import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.UserAggregate.CompanyManager;
 import org.example.DomainLayer.UserAggregate.CompanyOwner;
 import org.example.DomainLayer.UserAggregate.ICompanyMember;
 import org.example.DomainLayer.UserAggregate.User;
-import org.junit.jupiter.api.Disabled;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.time.LocalDateTime;
-import java.util.*;
-
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
-
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
@@ -283,7 +295,8 @@ public class NotificationTests {
                 eq("Tel Aviv"),
                 eq("Coldplay"),
                 eq("Concert"),
-                eq(EventStatus.ACTIVE)
+                eq(EventStatus.ACTIVE),
+                eq("description")
         )).thenReturn(Set.of(buyer1, buyer2));
 
         /*
@@ -302,7 +315,8 @@ public class NotificationTests {
                         "Tel Aviv",
                         "Coldplay",
                         "Concert",
-                        EventStatus.ACTIVE
+                        EventStatus.ACTIVE,
+                        "description"
                 )
         );
 
