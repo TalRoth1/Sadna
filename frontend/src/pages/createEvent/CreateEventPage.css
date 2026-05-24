@@ -1,0 +1,112 @@
+.create-event-page {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+}
+
+.create-event-card {
+    max-width: 900px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 30px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+}
+
+.create-event-form {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+}
+
+.create-event-form label {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    color: #1f2937;
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.create-event-form input,
+.create-event-form select {
+    padding: 12px 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    font: inherit;
+    font-weight: 400;
+}
+
+.create-event-submit,
+.create-event-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 18px;
+    border-radius: 10px;
+    border: 1px solid #111827;
+    background: #111827;
+    color: white;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.create-event-submit {
+    grid-column: 1 / -1;
+    justify-self: end;
+}
+
+.create-event-submit:hover,
+.create-event-button:hover {
+    background: #374151;
+    border-color: #374151;
+}
+
+.create-event-button--secondary {
+    background: #ffffff;
+    color: #111827;
+}
+
+.create-event-button--secondary:hover {
+    background: #f3f4f6;
+    border-color: #cbd5e1;
+}
+
+.create-event-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.create-event-access-card {
+    align-items: center;
+}
+
+.create-event-error,
+.create-event-success {
+    grid-column: 1 / -1;
+    margin: 0;
+    font-weight: 700;
+}
+
+.create-event-error {
+    color: #b91c1c;
+}
+
+.create-event-success {
+    color: #166534;
+}
+
+@media (max-width: 720px) {
+    .create-event-form {
+        grid-template-columns: 1fr;
+    }
+
+    .create-event-submit {
+        justify-self: stretch;
+    }
+}

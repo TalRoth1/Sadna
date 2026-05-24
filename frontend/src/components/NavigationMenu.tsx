@@ -26,7 +26,8 @@ export type AppPage =
     | "admin-purchases"
     | "admin-analytics"
     | "admin-queues"
-    | "lottery-registration";
+    | "lottery-registration"
+    | "create-event";
 
 type NavigationMenuProps = {
     currentPage: AppPage;
@@ -39,6 +40,7 @@ const mainLinks: { page: AppPage; label: string }[] = [
     { page: "purchase-history", label: "Purchase History" },
     { page: "my-companies", label: "My Companies" },
     { page: "profile", label: "Profile" },
+    { page: "create-event", label: "Create Event" },
 ];
 
 export default function NavigationMenu({

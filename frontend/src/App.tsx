@@ -20,6 +20,7 @@ import RegistrationPage from "./pages/RegistrationPage";
 import LotteryRegistrationPage from "./pages/LotteryRegistrationPage";
 import MyActivePurchasesPage from "./pages/MyActivePurchasesPage";
 import MyCompaniesPage from "./pages/myCompanies/MyCompaniesPage";
+import CreateEventPage from "./pages/createEvent/CreateEventPage";
 
 import type { CompanyResponse } from "./services/companyService";
 import type { AdminActionId } from "./types/admin";
@@ -333,6 +334,16 @@ function App() {
 
         if (currentPage === "admin-queues") {
             return <AdminQueuesPage />;
+        }
+
+        if (currentPage === "create-event") {
+            return (
+                <CreateEventPage
+                    onCreateCompany={handleStartCompanyCreation}
+                    onLogin={() => setCurrentPage("login")}
+                    onRegister={() => setCurrentPage("registration")}
+                />
+            );
         }
 
         return (
