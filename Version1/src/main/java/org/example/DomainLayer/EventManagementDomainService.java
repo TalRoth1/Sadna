@@ -12,30 +12,8 @@ import java.util.UUID;
 import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
 import org.example.DomainLayer.EventAggregate.Event;
-import org.example.DomainLayer.EventAggregate.EventStatus;
-import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
-import org.example.DomainLayer.UserAggregate.ICompanyMember;
-import org.example.DomainLayer.UserAggregate.User;
-
-import java.util.ArrayList;
-import java.util.HashSet;
-
-import org.example.DomainLayer.EventAggregate.EventSearchCriteria;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
-
-import org.example.DomainLayer.CompanyAggregate.Company;
-import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
-import org.example.DomainLayer.EventAggregate.Event;
 import org.example.DomainLayer.EventAggregate.EventSearchCriteria;
 import org.example.DomainLayer.EventAggregate.EventStatus;
-import org.example.DomainLayer.EventAggregate.StandingArea;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.example.DomainLayer.UserAggregate.ICompanyMember;
 import org.example.DomainLayer.UserAggregate.User;
@@ -192,74 +170,6 @@ public class EventManagementDomainService {
         eventRepository.save(event);
 
         managerRole.getEventsIds().add(eventId);
-    }
-
-    public void setEventDescription(UUID eventId, String description) {
-        if (eventId == null) {
-            throw new IllegalArgumentException("eventId is required");
-        }
-        Event event = eventRepository.getById(eventId);
-        if (event == null) {
-            throw new DomainException("Event not found");
-        }
-        event.setDescription(description);
-        eventRepository.save(event);
-    }
-
-    public void addStandingTicketPool(UUID eventId, float ticketPrice, int availableTickets) {
-        if (eventId == null) {
-            throw new IllegalArgumentException("eventId is required");
-        }
-        if (ticketPrice < 0) {
-            throw new IllegalArgumentException("ticketPrice must be non-negative");
-        }
-        if (availableTickets <= 0) {
-            throw new IllegalArgumentException("availableTickets must be positive");
-        }
-
-        Event event = eventRepository.getById(eventId);
-        if (event == null) {
-            throw new DomainException("Event not found");
-        }
-
-        java.util.UUID areaId = java.util.UUID.randomUUID();
-        event.getLayout().addArea(new StandingArea(areaId, ticketPrice));
-        event.addStandingTickets(areaId, availableTickets);
-        eventRepository.save(event);
-    }
-
-    public void setEventDescription(UUID eventId, String description) {
-        if (eventId == null) {
-            throw new IllegalArgumentException("eventId is required");
-        }
-        Event event = eventRepository.getById(eventId);
-        if (event == null) {
-            throw new DomainException("Event not found");
-        }
-        event.setDescription(description);
-        eventRepository.save(event);
-    }
-
-    public void addStandingTicketPool(UUID eventId, float ticketPrice, int availableTickets) {
-        if (eventId == null) {
-            throw new IllegalArgumentException("eventId is required");
-        }
-        if (ticketPrice < 0) {
-            throw new IllegalArgumentException("ticketPrice must be non-negative");
-        }
-        if (availableTickets <= 0) {
-            throw new IllegalArgumentException("availableTickets must be positive");
-        }
-
-        Event event = eventRepository.getById(eventId);
-        if (event == null) {
-            throw new DomainException("Event not found");
-        }
-
-        java.util.UUID areaId = java.util.UUID.randomUUID();
-        event.getLayout().addArea(new StandingArea(areaId, ticketPrice));
-        event.addStandingTickets(areaId, availableTickets);
-        eventRepository.save(event);
     }
 
     public Set<UUID> editEvent(UUID eventId,

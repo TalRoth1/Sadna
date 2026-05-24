@@ -6,15 +6,13 @@ type ApiResponse<T> = {
 
 export type CreateEventRequest = {
     companyId: string;
+    eventManagerEmail: string;
     name: string;
     date: string;
     location: string;
     artist: string;
     type: string;
     status: string;
-    description?: string;
-    ticketPrice?: number;
-    availableTickets?: number;
 };
 
 export async function createEvent(request: CreateEventRequest) {

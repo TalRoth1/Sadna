@@ -4,13 +4,23 @@ import { getMyCompanies, type CompanyMembership } from "../../services/companySe
 import { createEvent, type CreateEventRequest } from "../../services/eventService";
 import "./CreateEventPage.css";
 
-type EventPolicy = "REGULAR" | "QUEUE" | "LOTTERY";
-
 type CreateEventPageProps = {
+    initialCompanyId?: string | null;
     onCreateCompany: () => void;
     onLogin: () => void;
     onRegister: () => void;
     onEventCreated?: (eventId: string) => void;
+};
+
+type TicketAreaType = "STANDING" | "SITTING";
+
+type TicketAreaDraft = {
+    id: string;
+    areaType: TicketAreaType;
+    price: string;
+    capacity: string;
+    rows: string;
+    seatsPerRow: string;
 };
 
 type FormErrors = {
@@ -19,21 +29,8 @@ type FormErrors = {
     date?: string;
     location?: string;
     type?: string;
-    ticketPrice?: string;
-    availableTickets?: string;
-    policy?: string;
-    registrationOpen?: string;
-    registrationClose?: string;
-    maxTicketsPerRegistration?: string;
-    queueStart?: string;
-    queueCapacity?: string;
+    ticketAreas?: string;
 };
-
-const policyOptions: { value: EventPolicy; label: string }[] = [
-    { value: "REGULAR", label: "Regular sale" },
-    { value: "QUEUE", label: "Queue-based sale" },
-    { value: "LOTTERY", label: "Lottery registration" },
-];
 
 const statusOptions = [
     { value: "ACTIVE", label: "Active" },
@@ -41,7 +38,61 @@ const statusOptions = [
     { value: "CLOSED", label: "Closed" },
 ];
 
+function createLocalId() {
+    return crypto.randomUUID();
+}
+
+function getCreatedEventId(createdEvent: unknown): string | null {
+    if (!createdEvent || typeof createdEvent !== "object") return null;
+
+    const obj = createdEvent as any;
+
+    return (
+        obj.eventId ??
+        obj.id ??
+        obj.data?.eventId ??
+        obj.data?.id ??
+        null
+    );
+}
+
+async function addStandingArea(eventId: string, area: TicketAreaDraft) {
+    const areaId = createLocalId();
+
+    const response = await fetch(`/api/events/${eventId}/areas/${areaId}/tickets/standing`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            count: Number(area.capacity),
+            price: Number(area.price),
+        }),
+    });
+
+    if (!response.ok) {
+        throw new Error("Failed to create standing ticket area.");
+    }
+}
+
+async function addSittingArea(eventId: string, area: TicketAreaDraft) {
+    const areaId = createLocalId();
+
+    const response = await fetch(`/api/events/${eventId}/areas/${areaId}/tickets/sitting`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            rows: Number(area.rows),
+            seatsPerRow: Number(area.seatsPerRow),
+            price: Number(area.price),
+        }),
+    });
+
+    if (!response.ok) {
+        throw new Error("Failed to create sitting ticket area.");
+    }
+}
+
 export default function CreateEventPage({
+    initialCompanyId,
     onCreateCompany,
     onLogin,
     onRegister,
@@ -60,14 +111,17 @@ export default function CreateEventPage({
     const [artist, setArtist] = useState("");
     const [type, setType] = useState("");
     const [status, setStatus] = useState("ACTIVE");
-    const [ticketPrice, setTicketPrice] = useState("");
-    const [availableTickets, setAvailableTickets] = useState("");
-    const [policy, setPolicy] = useState<EventPolicy>("REGULAR");
-    const [registrationOpen, setRegistrationOpen] = useState("");
-    const [registrationClose, setRegistrationClose] = useState("");
-    const [maxTicketsPerRegistration, setMaxTicketsPerRegistration] = useState("");
-    const [queueStart, setQueueStart] = useState("");
-    const [queueCapacity, setQueueCapacity] = useState("");
+
+    const [ticketAreas, setTicketAreas] = useState<TicketAreaDraft[]>([
+        {
+            id: createLocalId(),
+            areaType: "STANDING",
+            price: "",
+            capacity: "",
+            rows: "",
+            seatsPerRow: "",
+        },
+    ]);
 
     const [errors, setErrors] = useState<FormErrors>({});
     const [successMessage, setSuccessMessage] = useState("");
@@ -88,8 +142,19 @@ export default function CreateEventPage({
                 const userCompanies = await getMyCompanies(user.email);
                 setCompanies(userCompanies);
 
+                const lastCompanyId = localStorage.getItem("lastCreateEventCompanyId");
+
                 if (userCompanies.length > 0) {
-                    setCompanyId(userCompanies[0].companyId);
+                    const selectedCompanyId =
+                        initialCompanyId &&
+                        userCompanies.some((company) => company.companyId === initialCompanyId)
+                            ? initialCompanyId
+                            : lastCompanyId &&
+                                userCompanies.some((company) => company.companyId === lastCompanyId)
+                                    ? lastCompanyId
+                                    : userCompanies[0].companyId;
+
+                    setCompanyId(selectedCompanyId);
                 }
             } catch {
                 setErrorMessage("Failed to load your companies.");
@@ -99,65 +164,59 @@ export default function CreateEventPage({
         }
 
         loadData();
-    }, []);
+    }, [initialCompanyId]);
 
     function validateForm() {
         const validation: FormErrors = {};
 
-        if (!companyId) {
-            validation.companyId = "Please select a company.";
-        }
-        if (!name.trim()) {
-            validation.name = "Event name is required.";
-        }
-        if (!date) {
-            validation.date = "Event date and time are required.";
-        }
-        if (!location.trim()) {
-            validation.location = "Location is required.";
-        }
-        if (!type.trim()) {
-            validation.type = "Category or event type is required.";
-        }
-        if (!ticketPrice.trim() || Number.isNaN(Number(ticketPrice)) || Number(ticketPrice) < 0) {
-            validation.ticketPrice = "Enter a valid ticket price.";
-        }
-        if (
-            !availableTickets.trim() ||
-            Number.isNaN(Number(availableTickets)) ||
-            Number(availableTickets) < 0 ||
-            !Number.isInteger(Number(availableTickets))
-        ) {
-            validation.availableTickets = "Enter a valid ticket quantity.";
-        }
-        if (!policy) {
-            validation.policy = "Select a purchase policy.";
-        }
-        if (policy === "LOTTERY") {
-            if (!registrationOpen) {
-                validation.registrationOpen = "Registration opening date/time is required.";
-            }
-            if (!registrationClose) {
-                validation.registrationClose = "Registration closing date/time is required.";
-            }
-            if (
-                !maxTicketsPerRegistration.trim() ||
-                Number.isNaN(Number(maxTicketsPerRegistration)) ||
-                Number(maxTicketsPerRegistration) < 1 ||
-                !Number.isInteger(Number(maxTicketsPerRegistration))
-            ) {
-                validation.maxTicketsPerRegistration = "Enter a valid maximum tickets per registration.";
-            }
-        }
-        if (policy === "QUEUE") {
-            if (!queueStart) {
-                validation.queueStart = "Queue opening date/time is required.";
-            }
-            if (
-                queueCapacity.trim() &&
-                (Number.isNaN(Number(queueCapacity)) || Number(queueCapacity) < 1 || !Number.isInteger(Number(queueCapacity)))
-            ) {
-                validation.queueCapacity = "Enter a valid queue capacity or leave blank.";
+        if (!companyId) validation.companyId = "Please select a company.";
+        if (!name.trim()) validation.name = "Event name is required.";
+        if (!date) validation.date = "Event date and time are required.";
+        if (!location.trim()) validation.location = "Location is required.";
+        if (!type.trim()) validation.type = "Category or event type is required.";
+
+        if (ticketAreas.length === 0) {
+            validation.ticketAreas = "Add at least one ticket area.";
+        } else {
+            for (const area of ticketAreas) {
+                const price = Number(area.price);
+
+                if (!area.price.trim() || Number.isNaN(price) || price < 0) {
+                    validation.ticketAreas = "Each area must have a valid ticket price.";
+                    break;
+                }
+
+                if (area.areaType === "STANDING") {
+                    const capacity = Number(area.capacity);
+                    if (
+                        !area.capacity.trim() ||
+                        Number.isNaN(capacity) ||
+                        capacity < 1 ||
+                        !Number.isInteger(capacity)
+                    ) {
+                        validation.ticketAreas = "Each standing area must have a valid capacity.";
+                        break;
+                    }
+                }
+
+                if (area.areaType === "SITTING") {
+                    const rows = Number(area.rows);
+                    const seatsPerRow = Number(area.seatsPerRow);
+
+                    if (
+                        !area.rows.trim() ||
+                        !area.seatsPerRow.trim() ||
+                        Number.isNaN(rows) ||
+                        Number.isNaN(seatsPerRow) ||
+                        rows < 1 ||
+                        seatsPerRow < 1 ||
+                        !Number.isInteger(rows) ||
+                        !Number.isInteger(seatsPerRow)
+                    ) {
+                        validation.ticketAreas = "Each sitting area must have valid rows and seats per row.";
+                        break;
+                    }
+                }
             }
         }
 
@@ -172,15 +231,43 @@ export default function CreateEventPage({
         setArtist("");
         setType("");
         setStatus("ACTIVE");
-        setTicketPrice("");
-        setAvailableTickets("");
-        setPolicy("REGULAR");
-        setRegistrationOpen("");
-        setRegistrationClose("");
-        setMaxTicketsPerRegistration("");
-        setQueueStart("");
-        setQueueCapacity("");
+        setTicketAreas([
+            {
+                id: createLocalId(),
+                areaType: "STANDING",
+                price: "",
+                capacity: "",
+                rows: "",
+                seatsPerRow: "",
+            },
+        ]);
         setErrors({});
+    }
+
+    function addTicketArea(areaType: TicketAreaType) {
+        setTicketAreas((current) => [
+            ...current,
+            {
+                id: createLocalId(),
+                areaType,
+                price: "",
+                capacity: "",
+                rows: "",
+                seatsPerRow: "",
+            },
+        ]);
+    }
+
+    function removeTicketArea(id: string) {
+        setTicketAreas((current) => current.filter((area) => area.id !== id));
+    }
+
+    function updateTicketArea(id: string, field: keyof TicketAreaDraft, value: string) {
+        setTicketAreas((current) =>
+            current.map((area) =>
+                area.id === id ? { ...area, [field]: value } : area,
+            ),
+        );
     }
 
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -199,30 +286,41 @@ export default function CreateEventPage({
         try {
             setIsSubmitting(true);
 
+            if (!currentUser?.email) {
+                setErrorMessage("Could not identify the current user. Please log in again.");
+                return;
+            }
+
             const request: CreateEventRequest = {
                 companyId,
+                eventManagerEmail: currentUser.email,
                 name: name.trim(),
-                date,
+                date: `${date}:00`,
                 location: location.trim(),
                 artist: artist.trim(),
                 type: type.trim(),
                 status,
-                description: description.trim() || undefined,
-                ticketPrice: ticketPrice.trim() ? Number(ticketPrice) : undefined,
-                availableTickets: availableTickets.trim() ? Number(availableTickets) : undefined,
             };
 
             const createdEvent = await createEvent(request);
+            const createdEventId = getCreatedEventId(createdEvent);
 
-            setSuccessMessage("Event created successfully.");
+            if (!createdEventId) {
+                throw new Error("Event was created, but the server did not return an event id.");
+            }
+
+            console.warn(
+                "Event created, but ticket areas were not created because the backend does not expose an endpoint for creating areas yet.",
+                ticketAreas,
+            );
+
+            setSuccessMessage(
+                "Event created successfully. Ticket areas were not saved because the backend does not currently expose an area creation endpoint.",
+            );
+
             resetForm();
 
-            const createdEventId =
-                createdEvent && typeof createdEvent === "object" && "eventId" in createdEvent
-                    ? (createdEvent as { eventId: string }).eventId
-                    : null;
-
-            if (createdEventId && onEventCreated) {
+            if (onEventCreated) {
                 onEventCreated(createdEventId);
             }
         } catch (error) {
@@ -242,7 +340,7 @@ export default function CreateEventPage({
         <main className="app-page create-event-page">
             <section className="page-header">
                 <h1>Create Event</h1>
-                <p>Create a new event under one of the production companies you belong to.</p>
+                <p>Create a base event first, then configure one or more ticket areas.</p>
             </section>
 
             {isLoading && (
@@ -290,9 +388,16 @@ export default function CreateEventPage({
                         <div className="create-event-grid">
                             <section className="create-event-panel">
                                 <h2>Event details</h2>
+
                                 <label className="form-field">
                                     <span>Company</span>
-                                    <select value={companyId} onChange={(e) => setCompanyId(e.target.value)}>
+                                    <select
+                                        value={companyId}
+                                        onChange={(e) => {
+                                            setCompanyId(e.target.value);
+                                            localStorage.setItem("lastCreateEventCompanyId", e.target.value);
+                                        }}
+                                    >
                                         {companies.map((company) => (
                                             <option key={company.companyId} value={company.companyId}>
                                                 {company.companyName}
@@ -314,34 +419,13 @@ export default function CreateEventPage({
                                 </label>
 
                                 <label className="form-field">
-                                    <span>Event description</span>
-                                    <textarea
-                                        value={description}
-                                        onChange={(e) => setDescription(e.target.value)}
-                                        placeholder="Describe the event"
-                                        rows={4}
-                                    />
-                                </label>
-
-                                <label className="form-field">
-                                    <span>Date and time</span>
-                                    <input
-                                        type="datetime-local"
-                                        value={date}
-                                        onChange={(e) => setDate(e.target.value)}
-                                    />
-                                    {errors.date && <small>{errors.date}</small>}
-                                </label>
-
-                                <label className="form-field">
-                                    <span>Location</span>
+                                    <span>Artist / performer</span>
                                     <input
                                         type="text"
-                                        value={location}
-                                        onChange={(e) => setLocation(e.target.value)}
-                                        placeholder="City, venue or region"
+                                        value={artist}
+                                        onChange={(e) => setArtist(e.target.value)}
+                                        placeholder="Artist or headline performer"
                                     />
-                                    {errors.location && <small>{errors.location}</small>}
                                 </label>
 
                                 <label className="form-field">
@@ -356,13 +440,24 @@ export default function CreateEventPage({
                                 </label>
 
                                 <label className="form-field">
-                                    <span>Artist / performer</span>
+                                    <span>Location</span>
                                     <input
                                         type="text"
-                                        value={artist}
-                                        onChange={(e) => setArtist(e.target.value)}
-                                        placeholder="Artist or headline performer"
+                                        value={location}
+                                        onChange={(e) => setLocation(e.target.value)}
+                                        placeholder="City, venue or region"
                                     />
+                                    {errors.location && <small>{errors.location}</small>}
+                                </label>
+
+                                <label className="form-field">
+                                    <span>Date and time</span>
+                                    <input
+                                        type="datetime-local"
+                                        value={date}
+                                        onChange={(e) => setDate(e.target.value)}
+                                    />
+                                    {errors.date && <small>{errors.date}</small>}
                                 </label>
 
                                 <label className="form-field">
@@ -375,130 +470,141 @@ export default function CreateEventPage({
                                         ))}
                                     </select>
                                 </label>
+
+                                <label className="form-field">
+                                    <span>Event description</span>
+                                    <textarea
+                                        value={description}
+                                        onChange={(e) => setDescription(e.target.value)}
+                                        placeholder="Describe the event"
+                                        rows={4}
+                                    />
+                                </label>
                             </section>
 
                             <section className="create-event-panel">
-                                <h2>Ticket & filter data</h2>
-
-                                <label className="form-field">
-                                    <span>Ticket price</span>
-                                    <input
-                                        type="number"
-                                        min={0}
-                                        step="0.01"
-                                        value={ticketPrice}
-                                        onChange={(e) => setTicketPrice(e.target.value)}
-                                        placeholder="0.00"
-                                    />
-                                    {errors.ticketPrice && <small>{errors.ticketPrice}</small>}
-                                </label>
-
-                                <label className="form-field">
-                                    <span>Available ticket quantity</span>
-                                    <input
-                                        type="number"
-                                        min={0}
-                                        step="1"
-                                        value={availableTickets}
-                                        onChange={(e) => setAvailableTickets(e.target.value)}
-                                        placeholder="Number of tickets"
-                                    />
-                                    {errors.availableTickets && <small>{errors.availableTickets}</small>}
-                                </label>
-
-                                <p className="form-note">
-                                    This information helps later filtering by name, date, location, and price range.
-                                </p>
-
-                                <h3>Purchase / registration policy</h3>
-                                <div className="policy-options">
-                                    {policyOptions.map((option) => (
-                                        <label key={option.value} className="policy-option">
-                                            <input
-                                                type="radio"
-                                                name="eventPolicy"
-                                                value={option.value}
-                                                checked={policy === option.value}
-                                                onChange={() => setPolicy(option.value)}
-                                            />
-                                            <span>{option.label}</span>
-                                        </label>
-                                    ))}
-                                    {errors.policy && <small>{errors.policy}</small>}
+                                <div className="ticket-area-header">
+                                    <div>
+                                        <h2>Ticket areas</h2>
+                                        <p className="form-note">
+                                            Pricing and availability are calculated from the areas you create.
+                                        </p>
+                                    </div>
                                 </div>
 
-                                {policy === "QUEUE" && (
-                                    <div className="policy-panel">
-                                        <label className="form-field">
-                                            <span>Queue opening date/time</span>
-                                            <input
-                                                type="datetime-local"
-                                                value={queueStart}
-                                                onChange={(e) => setQueueStart(e.target.value)}
-                                            />
-                                            {errors.queueStart && <small>{errors.queueStart}</small>}
-                                        </label>
+                                <div className="create-event-actions create-event-actions--left">
+                                    <button
+                                        type="button"
+                                        className="create-event-button"
+                                        onClick={() => addTicketArea("STANDING")}
+                                    >
+                                        Add standing area
+                                    </button>
 
-                                        <label className="form-field">
-                                            <span>Queue capacity</span>
-                                            <input
-                                                type="number"
-                                                min={1}
-                                                step="1"
-                                                value={queueCapacity}
-                                                onChange={(e) => setQueueCapacity(e.target.value)}
-                                                placeholder="Optional"
-                                            />
-                                            {errors.queueCapacity && <small>{errors.queueCapacity}</small>}
-                                        </label>
+                                    <button
+                                        type="button"
+                                        className="create-event-button create-event-button--secondary"
+                                        onClick={() => addTicketArea("SITTING")}
+                                    >
+                                        Add sitting area
+                                    </button>
+                                </div>
 
-                                        <p className="form-help-text">
-                                            Add queue settings if your event requires a waiting line before sales open.
-                                        </p>
-                                    </div>
-                                )}
+                                {errors.ticketAreas && <p className="create-event-error">{errors.ticketAreas}</p>}
 
-                                {policy === "LOTTERY" && (
-                                    <div className="policy-panel">
-                                        <label className="form-field">
-                                            <span>Registration opening date/time</span>
-                                            <input
-                                                type="datetime-local"
-                                                value={registrationOpen}
-                                                onChange={(e) => setRegistrationOpen(e.target.value)}
-                                            />
-                                            {errors.registrationOpen && <small>{errors.registrationOpen}</small>}
-                                        </label>
+                                <div className="ticket-area-list">
+                                    {ticketAreas.map((area, index) => (
+                                        <section key={area.id} className="ticket-area-card">
+                                            <div className="ticket-area-card-header">
+                                                <div>
+                                                    <h3>
+                                                        {area.areaType === "STANDING"
+                                                            ? "Standing Area"
+                                                            : "Sitting Area"}{" "}
+                                                        #{index + 1}
+                                                    </h3>
+                                                    <p>
+                                                        {area.areaType === "STANDING"
+                                                            ? "General admission tickets."
+                                                            : "Seats are generated by rows and seats per row."}
+                                                    </p>
+                                                </div>
 
-                                        <label className="form-field">
-                                            <span>Registration closing date/time</span>
-                                            <input
-                                                type="datetime-local"
-                                                value={registrationClose}
-                                                onChange={(e) => setRegistrationClose(e.target.value)}
-                                            />
-                                            {errors.registrationClose && <small>{errors.registrationClose}</small>}
-                                        </label>
+                                                {ticketAreas.length > 1 && (
+                                                    <button
+                                                        type="button"
+                                                        className="ticket-area-remove"
+                                                        onClick={() => removeTicketArea(area.id)}
+                                                    >
+                                                        Remove
+                                                    </button>
+                                                )}
+                                            </div>
 
-                                        <label className="form-field">
-                                            <span>Max tickets per registration</span>
-                                            <input
-                                                type="number"
-                                                min={1}
-                                                step="1"
-                                                value={maxTicketsPerRegistration}
-                                                onChange={(e) => setMaxTicketsPerRegistration(e.target.value)}
-                                            />
-                                            {errors.maxTicketsPerRegistration && (
-                                                <small>{errors.maxTicketsPerRegistration}</small>
+                                            <label className="form-field">
+                                                <span>Ticket price</span>
+                                                <input
+                                                    type="number"
+                                                    min={0}
+                                                    step="0.01"
+                                                    value={area.price}
+                                                    onChange={(e) =>
+                                                        updateTicketArea(area.id, "price", e.target.value)
+                                                    }
+                                                    placeholder="0.00"
+                                                />
+                                            </label>
+
+                                            {area.areaType === "STANDING" && (
+                                                <label className="form-field">
+                                                    <span>Ticket quantity / capacity</span>
+                                                    <input
+                                                        type="number"
+                                                        min={1}
+                                                        step="1"
+                                                        value={area.capacity}
+                                                        onChange={(e) =>
+                                                            updateTicketArea(area.id, "capacity", e.target.value)
+                                                        }
+                                                        placeholder="Number of standing tickets"
+                                                    />
+                                                </label>
                                             )}
-                                        </label>
 
-                                        <p className="form-help-text">
-                                            The lottery details are stored locally until the backend endpoint is available.
-                                        </p>
-                                    </div>
-                                )}
+                                            {area.areaType === "SITTING" && (
+                                                <div className="ticket-area-mini-grid">
+                                                    <label className="form-field">
+                                                        <span>Number of rows</span>
+                                                        <input
+                                                            type="number"
+                                                            min={1}
+                                                            step="1"
+                                                            value={area.rows}
+                                                            onChange={(e) =>
+                                                                updateTicketArea(area.id, "rows", e.target.value)
+                                                            }
+                                                            placeholder="Rows"
+                                                        />
+                                                    </label>
+
+                                                    <label className="form-field">
+                                                        <span>Seats per row</span>
+                                                        <input
+                                                            type="number"
+                                                            min={1}
+                                                            step="1"
+                                                            value={area.seatsPerRow}
+                                                            onChange={(e) =>
+                                                                updateTicketArea(area.id, "seatsPerRow", e.target.value)
+                                                            }
+                                                            placeholder="Seats"
+                                                        />
+                                                    </label>
+                                                </div>
+                                            )}
+                                        </section>
+                                    ))}
+                                </div>
                             </section>
                         </div>
 

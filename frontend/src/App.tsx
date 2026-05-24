@@ -102,6 +102,7 @@ function App() {
     const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
     const [selectionAccessExpiresAt, setSelectionAccessExpiresAt] = useState<string | null>(null);
     const [selectedCompany, setSelectedCompany] = useState<SelectedCompany | null>(null);
+    const [createEventCompanyId, setCreateEventCompanyId] = useState<string | null>(null);
 
     function navigate(page: AppPage) {
         if (page !== "event-details" && page !== "event-queue" && page !== "event-purchase") {
@@ -112,6 +113,11 @@ function App() {
             setSelectedCompany(null);
         }
         setCurrentPage(page);
+    }
+
+    function handleCreateEventForCompany(companyId: string) {
+        setCreateEventCompanyId(companyId);
+        setCurrentPage("create-event");
     }
 
     function handleAdminNavigate(page: AdminActionId) {
@@ -338,6 +344,7 @@ function App() {
                 <CompanyPage
                     company={selectedCompany}
                     onBackToCompanies={() => setCurrentPage("my-companies")}
+                    onCreateEvent={handleCreateEventForCompany}
                 />
             );
         }
@@ -377,6 +384,7 @@ function App() {
         if (currentPage === "create-event") {
             return (
                 <CreateEventPage
+                    initialCompanyId={createEventCompanyId}
                     onCreateCompany={handleStartCompanyCreation}
                     onLogin={() => setCurrentPage("login")}
                     onRegister={() => setCurrentPage("registration")}

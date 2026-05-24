@@ -55,6 +55,8 @@ type ManagedEvent = EventSummary;
 type CompanyPageProps = {
     company: CompanyViewModel;
     onBackToCompanies: () => void;
+    onCreateEvent: (companyId: string) => void;
+
 };
 
 type CompanyPageState = {
@@ -340,6 +342,7 @@ function ManagedEventCard({
 export default function CompanyPage({
     company,
     onBackToCompanies,
+    onCreateEvent,
 }: CompanyPageProps) {
     const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
     const [managedEvents, setManagedEvents] = useState<ManagedEvent[]>([]);
@@ -558,7 +561,7 @@ export default function CompanyPage({
                         type="button"
                         className="company-event-create-button"
                         onClick={() => {
-                            window.alert("Create event flow will be wired next.");
+                            onCreateEvent(state.company.id);
                         }}
                     >
                         Create event
