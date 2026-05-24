@@ -182,11 +182,14 @@ public class CompanyService {
         return rolesDomainService.getUserInvitations(userEmail);
     }
 
-    public void removeCompanyMemberAsOwner(String ownerUsername, UUID companyId, String usernameToRemove) {
-        if (ownerUsername == null || ownerUsername.isBlank()) {
-            throw new IllegalArgumentException("Owner username is required");
+    public void removeCompanyMemberAsOwner(String ownerEmail, UUID companyId, String emailToRemove) {
+        if (ownerEmail == null || ownerEmail.isBlank()) {
+            throw new IllegalArgumentException("Owner email is required");
         }
-        rolesDomainService.removeCompanyMemberAsOwner(ownerUsername, companyId, usernameToRemove);
+        if (emailToRemove == null || emailToRemove.isBlank()) {
+            throw new IllegalArgumentException("Email to remove is required");
+        }
+        rolesDomainService.removeCompanyMemberAsOwner(ownerEmail, companyId, emailToRemove);
     }
 
     public void removeCompanyMemberAsAdmin(String adminUsername, String usernameToRemove) {

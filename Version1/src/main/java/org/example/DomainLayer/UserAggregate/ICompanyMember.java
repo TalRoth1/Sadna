@@ -79,7 +79,7 @@ public abstract class ICompanyMember {
 
     public void appendMermaidNode(StringBuilder sb) {
         sb.append(mermaidId()).append("[")
-                .append('"').append(getUsername()).append('"')
+                .append('"').append(getUsername()).append(" (").append(getRoleName()).append(")").append('"')
                 .append("]\n");
     }
 

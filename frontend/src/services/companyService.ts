@@ -212,8 +212,8 @@ export async function deleteEvent(
 }
 
 export type RemoveMemberOwnerRequest = {
-	ownerUsername: string;
-	usernameToRemove: string;
+	ownerEmail: string;
+	emailToRemove: string;
 };
 
 export async function removeCompanyMemberAsOwner(

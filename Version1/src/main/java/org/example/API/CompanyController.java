@@ -236,7 +236,7 @@ public class CompanyController {
             @RequestBody RemoveMemberOwnerRequest request) {
         try {
             companyService.removeCompanyMemberAsOwner(
-                    request.ownerUsername, companyId, request.usernameToRemove);
+                    request.ownerEmail, companyId, request.emailToRemove);
             return ResponseEntity.ok(ApiResponse.success("Member removed successfully"));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));

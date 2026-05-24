@@ -149,23 +149,21 @@ public class RolesDomainService {
         }
     }
 
-    public void removeCompanyMemberAsOwner(String ownerUsername, UUID companyId, String usernameToRemove) {
-        if (ownerUsername == null || ownerUsername.isBlank()) {
-            throw new IllegalArgumentException("Owner username is required");
+    public void removeCompanyMemberAsOwner(String ownerEmail, UUID companyId, String emailToRemove) {
+        if (ownerEmail == null || ownerEmail.isBlank()) {
+            throw new IllegalArgumentException("Owner email is required");
         }
 
-        if (usernameToRemove == null || usernameToRemove.isBlank()) {
-            throw new IllegalArgumentException("Username to remove is required");
+        if (emailToRemove == null || emailToRemove.isBlank()) {
+            throw new IllegalArgumentException("Email to remove is required");
         }
-        // making sure the company exists
-        Company company = companyRepository.findByID(companyId).get();
-        if (company == null) {
-            throw new IllegalArgumentException("Company not found");
-        }
-        User userToRemove = userRepository.findByEmail(usernameToRemove)
+        Company company = companyRepository.findByID(companyId)
+                .orElseThrow(() -> new IllegalArgumentException("Company not found"));
+
+        User userToRemove = userRepository.findByEmail(emailToRemove)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        User ownerUser = userRepository.findByEmail(ownerUsername)
+        User ownerUser = userRepository.findByEmail(ownerEmail)
                 .orElseThrow(() -> new IllegalArgumentException("Owner user not found"));
 
         synchronized (company) {

@@ -160,14 +160,14 @@ public class User {
             companyRoles.remove(companyId);
             // create the new owner role and add it to the company roles and to the
             // appointer's subordinates
-            CompanyOwner newOwnerRole = new CompanyOwner(username, appointerRole);
+            CompanyOwner newOwnerRole = new CompanyOwner(email, appointerRole);
             companyRoles.put(companyId, newOwnerRole);
             appointerRole.addSubordinate(newOwnerRole);
         }
         // case of a new owner with no previous role in the company being appointed as
         // an owner by an existing owner/founder
         else {
-            CompanyOwner newOwnerRole = new CompanyOwner(username, appointerRole);
+            CompanyOwner newOwnerRole = new CompanyOwner(email, appointerRole);
             companyRoles.put(companyId, newOwnerRole);
             appointerRole.addSubordinate(newOwnerRole);
         }
@@ -183,7 +183,7 @@ public class User {
             throw new IllegalStateException("Failed: The user is already a member of the company.");
         }
         CompanyOwner appointerRole = (CompanyOwner) appointerUser.getCompanyRole(companyId);
-        CompanyManager newManagerRole = new CompanyManager(username, appointerRole, permissions);
+        CompanyManager newManagerRole = new CompanyManager(email, appointerRole, permissions);
         companyRoles.put(companyId, newManagerRole);
         appointerRole.addSubordinate(newManagerRole);
     }

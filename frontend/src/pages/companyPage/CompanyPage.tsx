@@ -382,8 +382,6 @@ export default function CompanyPage({
 
     const isHierarchyVisible = isHierarchyViewerRole(state.company.role);
     const isInviteComposerVisible = isCompanyOwnerRole(state.company.role);
-    const [debugShowHierarchyInfo, setDebugShowHierarchyInfo] = useState(false);
-    const [debugForceShowRemove, setDebugForceShowRemove] = useState(false);
     const companyPageSections = buildCompanyPageSections(
         isHierarchyVisible,
         isInviteComposerVisible,
@@ -573,22 +571,22 @@ export default function CompanyPage({
         }
     }
 
-    async function handleRemoveMember(usernameToRemove: string) {
+    async function handleRemoveMember(emailToRemove: string) {
         if (!currentUser || currentUser.role === "GUEST") {
             window.alert("Please log in again before removing a member.");
             return;
         }
 
         const confirmed = window.confirm(
-            `Remove ${usernameToRemove} from ${state.company.name}? This action cannot be undone.`,
+            `Remove ${emailToRemove} from ${state.company.name}? This action cannot be undone.`,
         );
 
         if (!confirmed) return;
 
         try {
             await removeCompanyMemberAsOwner(state.company.id, {
-                ownerUsername: currentUser.email,
-                usernameToRemove,
+                ownerEmail: currentUser.email,
+                emailToRemove,
             });
 
             // refresh hierarchy
@@ -912,47 +910,6 @@ export default function CompanyPage({
                         <p className="company-hierarchy-error">{state.hierarchyErrorMessage}</p>
                     )}
 
-                    <div className="company-hierarchy-debug-controls">
-                        <label className="company-hierarchy-debug-label">
-                            <input
-                                type="checkbox"
-                                checked={debugShowHierarchyInfo}
-                                onChange={(e) => setDebugShowHierarchyInfo(e.target.checked)}
-                            />
-                            Show hierarchy debug info
-                        </label>
-                        <label className="company-hierarchy-debug-label">
-                            <input
-                                type="checkbox"
-                                checked={debugForceShowRemove}
-                                onChange={(e) => setDebugForceShowRemove(e.target.checked)}
-                            />
-                            Force show Remove buttons
-                        </label>
-                    </div>
-
-                    {debugShowHierarchyInfo && (
-                        <div className="company-hierarchy-debug-panel" aria-live="polite">
-                            <h4>Hierarchy debug</h4>
-                            <div className="company-hierarchy-debug-row">
-                                <strong>Current user:</strong>
-                                <span>{currentUser ? `${currentUser.username} (${currentUser.email})` : "none"}</span>
-                            </div>
-                            <div className="company-hierarchy-debug-row">
-                                <strong>Mermaid source:</strong>
-                                <pre className="company-hierarchy-debug-pre">{state.hierarchySource || "(none)"}</pre>
-                            </div>
-                            <div className="company-hierarchy-debug-row">
-                                <strong>Parsed roots (JSON):</strong>
-                                <pre className="company-hierarchy-debug-pre">{JSON.stringify(state.hierarchyRoots, null, 2)}</pre>
-                            </div>
-                            <div className="company-hierarchy-debug-row">
-                                <strong>Subordinate IDs:</strong>
-                                <pre className="company-hierarchy-debug-pre">{JSON.stringify(state.subordinateIds || [], null, 2)}</pre>
-                            </div>
-                        </div>
-                    )}
-
                     {!state.hierarchyErrorMessage && state.hierarchyRoots.length === 0 && (
                         <p className="company-hierarchy-empty">
                             No hierarchy data is available yet for this company.
@@ -972,9 +929,6 @@ export default function CompanyPage({
                                         subordinateIds={subordinateSet}
                                         onRemove={handleRemoveMember}
                                         canRemove={canRemoveMembers}
-                                        currentUser={currentUser}
-                                        debugShowIds={debugShowHierarchyInfo}
-                                        debugForceShowRemove={debugForceShowRemove}
                                     />
                                 ));
                             })()}
@@ -1014,42 +968,36 @@ function HierarchyBranch({
     subordinateIds,
     onRemove,
     canRemove,
-    currentUser,
-    debugShowIds,
-    debugForceShowRemove,
 }: {
     node: HierarchyNode;
     subordinateIds: Set<string>;
-    onRemove: (usernameToRemove: string) => Promise<void>;
+    onRemove: (emailToRemove: string) => Promise<void>;
     canRemove: boolean;
-    currentUser: CurrentUser | null;
-    debugShowIds?: boolean;
-    debugForceShowRemove?: boolean;
 }) {
-    function extractUsername(label: string) {
+    function extractEmail(label: string) {
         const emailMatch = label.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/);
-        if (emailMatch) return emailMatch[0];
-        // fallback to first token
-        return label.split(/\s+/)[0];
+        return emailMatch ? emailMatch[0] : null;
     }
 
-    const showRemove = (canRemove && subordinateIds.has(node.id)) || Boolean(debugForceShowRemove);
+    const showRemove = canRemove && subordinateIds.has(node.id);
 
     return (
         <ul className="company-hierarchy-list">
             <li>
                 <div className="company-hierarchy-node">
-                    <span>
-                        {node.label}
-                        {debugShowIds && (
-                            <span className="company-hierarchy-node-id">({node.id})</span>
-                        )}
-                    </span>
+                    <span>{node.label}</span>
                     {showRemove && (
                         <button
                             type="button"
                             className="company-hierarchy-remove-button"
-                            onClick={() => onRemove(extractUsername(node.label))}
+                            onClick={() => {
+                                const email = extractEmail(node.label);
+                                if (!email) {
+                                    window.alert("This node does not contain an email address yet. Please refresh after server restart so hierarchy labels are email-based.");
+                                    return;
+                                }
+                                onRemove(email);
+                            }}
                         >
                             Remove from company
                         </button>
@@ -1064,7 +1012,6 @@ function HierarchyBranch({
                                 subordinateIds={subordinateIds}
                                 onRemove={onRemove}
                                 canRemove={canRemove}
-                                currentUser={currentUser}
                             />
                         ))}
                     </div>
