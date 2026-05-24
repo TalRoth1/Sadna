@@ -26,6 +26,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
+
 
 public class UserServiceTest {
 
@@ -38,6 +40,8 @@ public class UserServiceTest {
     public void setUp() {
         userRepositoryMock = mock(IUserRepository.class);
         authGatewayMock = mock(IAuthenticationGateway.class);
+        // FIX: Mock the notifier so a valid mock instance is injected into the service 
+        notifier = mock(INotifier.class); 
         userService = new UserService(userRepositoryMock, authGatewayMock, notifier);
     }
 
