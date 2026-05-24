@@ -147,13 +147,16 @@ public class AdminController {
 
             logger.info("action=" + action + ", status=INFO, message=Subscriber removed, username=" + username);
             return ResponseEntity.ok(ApiResponse.success("Subscriber removed successfully"));
+        } catch (IllegalStateException e) {
+            logger.severe("action=" + action + ", status=ERROR, username=" + username + ", message=" + e.getMessage());
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponse.error(e.getMessage()));
         } catch (IllegalArgumentException e) {
             logger.severe("action=" + action + ", status=ERROR, username=" + username + ", message=" + e.getMessage());
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
             logger.severe("action=" + action + ", status=ERROR, username=" + username + ", message=System exception, error=" + e.getMessage());
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(ApiResponse.error("Not authorized to remove subscriber"));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to remove subscriber: system exception"));
         }
     }
 
