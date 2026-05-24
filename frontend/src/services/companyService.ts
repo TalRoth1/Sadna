@@ -210,3 +210,17 @@ export async function deleteEvent(
 		data: request,
 	});
 }
+
+export type RemoveMemberOwnerRequest = {
+	ownerUsername: string;
+	usernameToRemove: string;
+};
+
+export async function removeCompanyMemberAsOwner(
+	companyId: string,
+	request: RemoveMemberOwnerRequest,
+): Promise<void> {
+	await api.delete(`/companies/${companyId}/members/owner`, {
+		data: request,
+	});
+}

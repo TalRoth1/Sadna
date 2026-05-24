@@ -6,6 +6,7 @@ import {
     getEventsForUserInCompany,
     inviteCompanyManager,
     inviteCompanyOwner,
+    removeCompanyMemberAsOwner,
     type CompanyAccessResponse,
     type CompanyPermissionName as BackendCompanyPermissionName,
     type InviteManagerRequest,
@@ -71,6 +72,7 @@ type CompanyPageState = {
     hierarchyRoots: HierarchyNode[];
     hierarchyErrorMessage: string;
     hierarchySource: string;
+    subordinateIds: string[];
 };
 
 type HierarchyNode = {
@@ -231,7 +233,11 @@ function isCompanyOwnerRole(role: string) {
 
 function normalizeMermaidLabel(value: string) {
     const withoutQuotes = value.trim().replace(/^"|"$/g, "");
-    return withoutQuotes.replace(/\\n/g, " ").trim();
+    // Remove any trailing Perms[...] annotation and normalize newlines
+    const cleaned = withoutQuotes
+        .replace(/\\n/g, " ")
+        .replace(/\s*Perms:?\[[^\]]*\]\s*$/i, "");
+    return cleaned.trim();
 }
 
 function parseMermaidHierarchy(chart: string): HierarchyNode[] {
@@ -371,10 +377,13 @@ export default function CompanyPage({
         hierarchyRoots: [],
         hierarchyErrorMessage: "",
         hierarchySource: "",
+        subordinateIds: [],
     });
 
     const isHierarchyVisible = isHierarchyViewerRole(state.company.role);
     const isInviteComposerVisible = isCompanyOwnerRole(state.company.role);
+    const [debugShowHierarchyInfo, setDebugShowHierarchyInfo] = useState(false);
+    const [debugForceShowRemove, setDebugForceShowRemove] = useState(false);
     const companyPageSections = buildCompanyPageSections(
         isHierarchyVisible,
         isInviteComposerVisible,
@@ -445,6 +454,44 @@ export default function CompanyPage({
                     }
                 }
 
+                // compute subordinate IDs for the current user (descendants of the current user's node)
+                let subordinateIds: string[] = [];
+                try {
+                    if (user && hierarchyRoots.length > 0) {
+                        function findNode(nodes: HierarchyNode[], predicate: (n: HierarchyNode) => boolean): HierarchyNode | null {
+                            for (const n of nodes) {
+                                if (predicate(n)) return n;
+                                const found = findNode(n.children, predicate);
+                                if (found) return found;
+                            }
+                            return null;
+                        }
+
+                        const userNode = findNode(hierarchyRoots, (n) => {
+                            if (!user) return false;
+                            return (
+                                n.label.includes(user.email) ||
+                                (user.username ? n.label.includes(user.username) : false)
+                            );
+                        });
+                        if (userNode) {
+                            const ids = new Set<string>();
+                            function collectDescendants(n: HierarchyNode) {
+                                for (const c of n.children) {
+                                    ids.add(c.id);
+                                    collectDescendants(c);
+                                }
+                            }
+
+                            collectDescendants(userNode);
+                            subordinateIds = [...ids];
+                        }
+                    }
+                } catch (e) {
+                    // ignore subordinate computation errors
+                    subordinateIds = [];
+                }
+
                 setState({
                     company: mappedCompany,
                     errorMessage: "",
@@ -452,6 +499,7 @@ export default function CompanyPage({
                     hierarchyRoots,
                     hierarchyErrorMessage,
                     hierarchySource,
+                    subordinateIds,
                 });
                 setManagedEvents(managedEventsForUser);
             } catch (error) {
@@ -522,6 +570,79 @@ export default function CompanyPage({
             setInviteSuccessMessage("");
         } finally {
             setIsInviteSubmitting(false);
+        }
+    }
+
+    async function handleRemoveMember(usernameToRemove: string) {
+        if (!currentUser || currentUser.role === "GUEST") {
+            window.alert("Please log in again before removing a member.");
+            return;
+        }
+
+        const confirmed = window.confirm(
+            `Remove ${usernameToRemove} from ${state.company.name}? This action cannot be undone.`,
+        );
+
+        if (!confirmed) return;
+
+        try {
+            await removeCompanyMemberAsOwner(state.company.id, {
+                ownerUsername: currentUser.email,
+                usernameToRemove,
+            });
+
+            // refresh hierarchy
+            try {
+                const hierarchyResponse = await getCompanyHierarchy(state.company.id, currentUser.email);
+                const hierarchySource = hierarchyResponse.mermaidChart;
+                const hierarchyRoots = parseMermaidHierarchy(hierarchyResponse.mermaidChart);
+
+                // recompute subordinate ids
+                let subordinateIds: string[] = [];
+                if (currentUser && hierarchyRoots.length > 0) {
+                    function findNode(nodes: HierarchyNode[], predicate: (n: HierarchyNode) => boolean): HierarchyNode | null {
+                        for (const n of nodes) {
+                            if (predicate(n)) return n;
+                            const found = findNode(n.children, predicate);
+                            if (found) return found;
+                        }
+                        return null;
+                    }
+
+                    const userNode = findNode(hierarchyRoots, (n) => {
+                        if (!currentUser) return false;
+                        return (
+                            n.label.includes(currentUser.email) ||
+                            (currentUser.username ? n.label.includes(currentUser.username) : false)
+                        );
+                    });
+                    if (userNode) {
+                        const ids = new Set<string>();
+                        function collectDescendants(n: HierarchyNode) {
+                            for (const c of n.children) {
+                                ids.add(c.id);
+                                collectDescendants(c);
+                            }
+                        }
+
+                        collectDescendants(userNode);
+                        subordinateIds = [...ids];
+                    }
+                }
+
+                setState((s) => ({
+                    ...s,
+                    hierarchyRoots,
+                    hierarchySource,
+                    subordinateIds,
+                }));
+            } catch (err) {
+                // if refresh fails, at least notify success of removal
+            }
+
+            window.alert("Member removed successfully.");
+        } catch (error) {
+            window.alert(getErrorMessage(error, "Failed to remove member."));
         }
     }
 
@@ -791,6 +912,47 @@ export default function CompanyPage({
                         <p className="company-hierarchy-error">{state.hierarchyErrorMessage}</p>
                     )}
 
+                    <div className="company-hierarchy-debug-controls">
+                        <label className="company-hierarchy-debug-label">
+                            <input
+                                type="checkbox"
+                                checked={debugShowHierarchyInfo}
+                                onChange={(e) => setDebugShowHierarchyInfo(e.target.checked)}
+                            />
+                            Show hierarchy debug info
+                        </label>
+                        <label className="company-hierarchy-debug-label">
+                            <input
+                                type="checkbox"
+                                checked={debugForceShowRemove}
+                                onChange={(e) => setDebugForceShowRemove(e.target.checked)}
+                            />
+                            Force show Remove buttons
+                        </label>
+                    </div>
+
+                    {debugShowHierarchyInfo && (
+                        <div className="company-hierarchy-debug-panel" aria-live="polite">
+                            <h4>Hierarchy debug</h4>
+                            <div className="company-hierarchy-debug-row">
+                                <strong>Current user:</strong>
+                                <span>{currentUser ? `${currentUser.username} (${currentUser.email})` : "none"}</span>
+                            </div>
+                            <div className="company-hierarchy-debug-row">
+                                <strong>Mermaid source:</strong>
+                                <pre className="company-hierarchy-debug-pre">{state.hierarchySource || "(none)"}</pre>
+                            </div>
+                            <div className="company-hierarchy-debug-row">
+                                <strong>Parsed roots (JSON):</strong>
+                                <pre className="company-hierarchy-debug-pre">{JSON.stringify(state.hierarchyRoots, null, 2)}</pre>
+                            </div>
+                            <div className="company-hierarchy-debug-row">
+                                <strong>Subordinate IDs:</strong>
+                                <pre className="company-hierarchy-debug-pre">{JSON.stringify(state.subordinateIds || [], null, 2)}</pre>
+                            </div>
+                        </div>
+                    )}
+
                     {!state.hierarchyErrorMessage && state.hierarchyRoots.length === 0 && (
                         <p className="company-hierarchy-empty">
                             No hierarchy data is available yet for this company.
@@ -799,9 +961,23 @@ export default function CompanyPage({
 
                     {!state.hierarchyErrorMessage && state.hierarchyRoots.length > 0 && (
                         <div className="company-hierarchy-tree" aria-label="Company hierarchy tree">
-                            {state.hierarchyRoots.map((rootNode) => (
-                                <HierarchyBranch key={rootNode.id} node={rootNode} />
-                            ))}
+                            {(() => {
+                                const subordinateSet = new Set<string>(state.subordinateIds || []);
+                                const canRemoveMembers = isCompanyOwnerRole(state.company.role) && !!currentUser;
+
+                                return state.hierarchyRoots.map((rootNode) => (
+                                    <HierarchyBranch
+                                        key={rootNode.id}
+                                        node={rootNode}
+                                        subordinateIds={subordinateSet}
+                                        onRemove={handleRemoveMember}
+                                        canRemove={canRemoveMembers}
+                                        currentUser={currentUser}
+                                        debugShowIds={debugShowHierarchyInfo}
+                                        debugForceShowRemove={debugForceShowRemove}
+                                    />
+                                ));
+                            })()}
                         </div>
                     )}
 
@@ -833,15 +1009,63 @@ export default function CompanyPage({
     );
 }
 
-function HierarchyBranch({ node }: { node: HierarchyNode }) {
+function HierarchyBranch({
+    node,
+    subordinateIds,
+    onRemove,
+    canRemove,
+    currentUser,
+    debugShowIds,
+    debugForceShowRemove,
+}: {
+    node: HierarchyNode;
+    subordinateIds: Set<string>;
+    onRemove: (usernameToRemove: string) => Promise<void>;
+    canRemove: boolean;
+    currentUser: CurrentUser | null;
+    debugShowIds?: boolean;
+    debugForceShowRemove?: boolean;
+}) {
+    function extractUsername(label: string) {
+        const emailMatch = label.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/);
+        if (emailMatch) return emailMatch[0];
+        // fallback to first token
+        return label.split(/\s+/)[0];
+    }
+
+    const showRemove = (canRemove && subordinateIds.has(node.id)) || Boolean(debugForceShowRemove);
+
     return (
         <ul className="company-hierarchy-list">
             <li>
-                <div className="company-hierarchy-node">{node.label}</div>
+                <div className="company-hierarchy-node">
+                    <span>
+                        {node.label}
+                        {debugShowIds && (
+                            <span className="company-hierarchy-node-id">({node.id})</span>
+                        )}
+                    </span>
+                    {showRemove && (
+                        <button
+                            type="button"
+                            className="company-hierarchy-remove-button"
+                            onClick={() => onRemove(extractUsername(node.label))}
+                        >
+                            Remove from company
+                        </button>
+                    )}
+                </div>
                 {node.children.length > 0 && (
                     <div className="company-hierarchy-children">
                         {node.children.map((childNode) => (
-                            <HierarchyBranch key={childNode.id} node={childNode} />
+                            <HierarchyBranch
+                                key={childNode.id}
+                                node={childNode}
+                                subordinateIds={subordinateIds}
+                                onRemove={onRemove}
+                                canRemove={canRemove}
+                                currentUser={currentUser}
+                            />
                         ))}
                     </div>
                 )}

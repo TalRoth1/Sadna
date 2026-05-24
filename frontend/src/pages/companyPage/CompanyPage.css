@@ -647,6 +647,25 @@
     font-weight: 600;
 }
 
+.company-hierarchy-remove-button {
+    margin-left: 12px;
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid #ef4444;
+    background: #ef4444;
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.company-hierarchy-remove-button:hover {
+    background: #dc2626;
+    border-color: #dc2626;
+}
+
 .company-hierarchy-children {
     margin-top: 8px;
     margin-left: 8px;
@@ -682,6 +701,48 @@
     background: #f8fafc;
     color: #334155;
     overflow-x: auto;
+}
+
+.company-hierarchy-debug-controls {
+    margin-top: 12px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.company-hierarchy-debug-label {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    font-size: 13px;
+}
+
+.company-hierarchy-node-id {
+    margin-left: 8px;
+    color: #6b7280;
+    font-size: 12px;
+}
+
+.company-hierarchy-debug-panel {
+    margin-top: 12px;
+    padding: 12px;
+    border: 1px dashed #cbd5e1;
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.company-hierarchy-debug-row {
+    margin-bottom: 10px;
+}
+
+.company-hierarchy-debug-pre {
+    margin: 6px 0 0;
+    padding: 8px;
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    overflow-x: auto;
+    max-height: 220px;
 }
 
 @media (max-width: 720px) {
