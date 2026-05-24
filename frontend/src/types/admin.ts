@@ -41,13 +41,22 @@ export type Complaint = {
 
 export type GlobalPurchaseRecord = {
     id: string;
+    buyerId: string;
     buyerName: string;
+    companyId?: string;
     companyName: string;
+    eventId: string;
     eventName: string;
+    eventDate?: string;
+    eventLocation?: string;
+    ticketIds: string[];
     ticketsAmount: number;
+    paymentInfo?: string;
     totalPrice: number;
     purchaseDate: string;
 };
+
+export type AdminPurchaseFilterType = "all" | "user" | "event" | "company";;
 
 export type SystemAnalytics = {
     registeredUsersCount: number;
