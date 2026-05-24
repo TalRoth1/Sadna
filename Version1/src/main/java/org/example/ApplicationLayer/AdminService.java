@@ -87,22 +87,31 @@ public class AdminService {
                 throw new IllegalStateException("Company is already closed");
             }
 
-            String founderUsername = company.getFounderUsername();
-
             rolesDomainService.closeCompanyAsAdmin(adminUsername, companyId);
 
-            if (founderUsername != null && !founderUsername.isBlank()) {
-                notifier.notifyUser(
-                        founderUsername,
-                        "Company " + company.getName() + " has been closed by system admin."
-                );
-            }
-
+            notifyCompanyStaff(
+                    companyId,
+                    "Company " + company.getName() + " has been closed by system admin."
+            );
             saveActionLog(adminId, adminUsername, action, companyId.toString());
             logInfo(adminId, adminUsername, action, "Completed successfully. companyId=" + companyId);
         } catch (RuntimeException e) {
             logError(adminId, adminUsername, action, "Failed. companyId=" + companyId, e);
             throw e;
+        }
+    }
+
+    private void notifyCompanyStaff(UUID companyId, String message) {
+        if (companyId == null || message == null || message.isBlank()) {
+            return;
+        }
+
+        for (User user : userRepository.getAllUsers().values()) {
+            ICompanyMember role = user.getCompanyRole(companyId);
+
+            if (role != null) {
+                notifier.notifyUser(user.getId(), message);
+            }
         }
     }
 

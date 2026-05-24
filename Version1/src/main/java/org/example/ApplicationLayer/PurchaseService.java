@@ -137,6 +137,28 @@ public class PurchaseService {
         }
     }
 
+    public void sendProducerMessageToEventBuyers(UUID eventId, String message) {
+        if (eventId == null) {
+            throw new IllegalArgumentException("Event ID is required");
+        }
+
+        if (message == null || message.isBlank()) {
+            throw new IllegalArgumentException("Message is required");
+        }
+
+        List<PurchaseHistory> histories =
+                purchaseDomainService.getHistoryByEvent(eventId);
+
+        List<UUID> buyerIds = histories.stream()
+                .map(PurchaseHistory::getUserId)
+                .distinct()
+                .toList();
+
+        for (UUID buyerId : buyerIds) {
+            notifier.notifyUser(buyerId, message);
+        }
+    }
+
     /**
      * Entry point used by the waiting-room UI before the user reaches the
      * practical ticket-selection stage. This method may grant immediate access
@@ -238,8 +260,13 @@ public class PurchaseService {
             notifier.notifyUser(activePurchase.getUserID(), "Purchase Complete");
             if(isSoldOut)
             {
-                String managerUsername = purchaseDomainService.getEventManager(activePurchase.getEventID());
-                notifier.notifyUser(managerUsername, "Tickets to event: " + activePurchase.getEventID() + " have been SOLD OUT");
+                UUID managerUserId =
+                        purchaseDomainService.getEventManagerUserId(activePurchase.getEventID());
+
+                notifier.notifyUser(
+                        managerUserId,
+                        "Tickets to event: " + activePurchase.getEventID() + " have been SOLD OUT"
+                );
             }
             eventPublisher.publish(new PurchaseCompletedEvent(userId));
         }

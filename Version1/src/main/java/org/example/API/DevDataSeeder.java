@@ -375,6 +375,7 @@ public class DevDataSeeder implements CommandLineRunner {
                 UUID indieId = companiesByName.get("Indie Productions");
                 UUID closedId = companiesByName.get("Closed Co.");
 
+
                 // 1. Coldplay — mixed standing + sitting, large concert.
                 UUID coldplay = createEvent("coldplay", liveNationId, "founder.live@demo.test",
                                 "Coldplay – Music of the Spheres", "Coldplay",
@@ -451,6 +452,15 @@ public class DevDataSeeder implements CommandLineRunner {
                                 "Festival", "Caesarea Amphitheatre",
                                 LocalDateTime.now().plusDays(90), EventStatus.ACTIVE);
                 addStandingArea(forgottenFest, 150.0, 80);
+
+    // 4b. One Ticket Test — single-ticket event for sold-out notification testing.
+                UUID oneTicketEvent = createEvent("one-ticket-test", indieId, "founder.indie@demo.test",
+                        "One Ticket Test", "Test Artist",
+                        "Test", "Tel Aviv",
+                        LocalDateTime.now().plusDays(6), EventStatus.ACTIVE);
+                addStandingArea(oneTicketEvent, 10.0, 1);
+
+
         }
 
         // =================================================================
