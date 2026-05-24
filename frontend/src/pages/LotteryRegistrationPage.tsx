@@ -75,6 +75,31 @@ export default function LotteryRegistrationPage({
     }, [eventId]);
 
     async function handleRegister() {
+        if (!event) {
+            return;
+        }
+
+        const minTickets = event.purchasePolicy.minTicketsPerPurchase ?? 1;
+        const maxTickets = event.purchasePolicy.maxTicketsPerPurchase;
+
+        if (ticketAmount < minTickets) {
+            setErrorMessage(
+                `This lottery requires at least ${minTickets} ticket${
+                    minTickets === 1 ? "" : "s"
+                }.`,
+            );
+            return;
+        }
+
+        if (maxTickets !== undefined && ticketAmount > maxTickets) {
+            setErrorMessage(
+                `This lottery allows at most ${maxTickets} ticket${
+                    maxTickets === 1 ? "" : "s"
+                }.`,
+            );
+            return;
+        }
+
         try {
             setIsSubmitting(true);
             setErrorMessage("");
@@ -121,6 +146,23 @@ export default function LotteryRegistrationPage({
         );
     }
 
+    const minTickets = event.purchasePolicy.minTicketsPerPurchase ?? 1;
+    const maxTickets = event.purchasePolicy.maxTicketsPerPurchase;
+
+    const isBelowMin = ticketAmount < minTickets;
+    const isAboveMax = maxTickets !== undefined && ticketAmount > maxTickets;
+    const isTicketAmountInvalid = isBelowMin || isAboveMax;
+
+    const ticketAmountMessage = isBelowMin
+        ? `Minimum tickets for this lottery: ${minTickets}.`
+        : isAboveMax
+          ? `Maximum tickets for this lottery: ${maxTickets}.`
+          : maxTickets !== undefined
+            ? `You can request between ${minTickets} and ${maxTickets} tickets.`
+            : `You can request at least ${minTickets} ticket${
+                  minTickets === 1 ? "" : "s"
+              }.`;
+
     return (
         <main className="app-page">
             <section className="page-header">
@@ -144,19 +186,21 @@ export default function LotteryRegistrationPage({
 
                 <label className="form-field">
                     <span>Requested tickets</span>
-                    <input
-                        type="number"
-                        min="1"
-                        value={ticketAmount}
-                        disabled={isSubmitting || isRegistered}
-                        onChange={(e) => setTicketAmount(Number(e.target.value))}
-                    />
+                        <input
+                            type="number"
+                            min={minTickets}
+                            max={maxTickets}
+                            value={ticketAmount}
+                            disabled={isSubmitting || isRegistered}
+                            onChange={(e) => setTicketAmount(Number(e.target.value))}
+                        />
+                        <small>{ticketAmountMessage}</small>
                 </label>
 
                 <button
                     type="button"
                     onClick={handleRegister}
-                    disabled={isSubmitting || isRegistered || ticketAmount <= 0}
+                    disabled={isSubmitting || isRegistered || isTicketAmountInvalid}
                 >
                     {isSubmitting
                         ? "Registering..."

@@ -27,6 +27,10 @@ import org.example.DomainLayer.UserAggregate.User;
 import org.example.DomainLayer.UserAggregate.UserRole;
 import org.example.DomainLayer.UserAggregate.UserStatus;
 import org.springframework.stereotype.Service;
+import org.example.DomainLayer.PolicyManagment.IPurchaseRule;
+import org.example.DomainLayer.PolicyManagment.MaxTicketRule;
+import org.example.DomainLayer.PolicyManagment.MinTicketRule;
+import org.example.DomainLayer.PolicyManagment.PurchaseComposite;
 
 @Service
 public class PurchaseDomainService {
@@ -669,10 +673,58 @@ public class PurchaseDomainService {
             throw new DomainException("Lottery does not exist for this event");
         }
 
+        validateLotteryTicketAmount(event, ticketAmount);
         lottery.registerMember(memberId.toString(), ticketAmount, LocalDateTime.now());
 
         lotteryRepository.save(lottery);
     }
+
+    private void validateLotteryTicketAmount(Event event, int ticketAmount) {
+        if (event == null || event.getPurchasePolicy() == null) {
+            return;
+        }
+
+        validateLotteryTicketAmountRule(
+                event.getPurchasePolicy().getRulesView(),
+                ticketAmount
+        );
+    }
+
+    private void validateLotteryTicketAmountRule(IPurchaseRule rule, int ticketAmount) {
+        if (rule == null) {
+            return;
+        }
+
+        if (rule instanceof PurchaseComposite composite) {
+            validateLotteryTicketAmountRule(composite.getLeftRule(), ticketAmount);
+            validateLotteryTicketAmountRule(composite.getRightRule(), ticketAmount);
+            return;
+        }
+
+        if (rule instanceof MinTicketRule minRule &&
+                ticketAmount < minRule.getMinTicket()) {
+            throw new DomainException(
+                    "This event requires at least " +
+                            minRule.getMinTicket() +
+                            " ticket" +
+                            (minRule.getMinTicket() == 1 ? "" : "s") +
+                            " per registration"
+            );
+        }
+
+        if (rule instanceof MaxTicketRule maxRule &&
+                ticketAmount > maxRule.getMaxTicket()) {
+            throw new DomainException(
+                    "This event allows at most " +
+                            maxRule.getMaxTicket() +
+                            " ticket" +
+                            (maxRule.getMaxTicket() == 1 ? "" : "s") +
+                            " per registration"
+            );
+        }
+    }
+
+
 
     public Map<String, String> drawLotteryForEvent(UUID eventId, LocalDateTime codeExpiry) {
         if (eventId == null) {
