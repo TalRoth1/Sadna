@@ -38,6 +38,7 @@ public class Company {
     private final List<UUID> eventIds;
     private final Map<UUID, Rating> ratingsByUsers;
     private CompanyStatus status;
+    private String founderName;
 
 public Company(String founderEmail, String name) {
     this.id = UUID.randomUUID();
@@ -68,6 +69,10 @@ public Company(String founderEmail, String name) {
     public String getFounderEmail()
     {
         return this.founderEmail;
+    }
+
+    public String getFounderUsername() {
+        return founderName;
     }
 
     public void addEvent(UUID newEventId)
