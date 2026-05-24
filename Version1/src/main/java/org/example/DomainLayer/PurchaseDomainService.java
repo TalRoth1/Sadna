@@ -88,6 +88,35 @@ public class PurchaseDomainService {
         historyRepository.add(purchaseHistory);
     }
 
+    public List<ActivePurchase> findActivePurchasesByUser(UUID userID) {
+        if (userID == null) {
+            throw new DomainException("User ID is required");
+        }
+
+        List<ActivePurchase> result = new ArrayList<>();
+        LocalDateTime now = LocalDateTime.now();
+
+        for (ActivePurchase purchase : purchaseRepository.findAll()) {
+            if (!userID.equals(purchase.getUserID())) {
+                continue;
+            }
+
+            if (purchase.isExpired(now)) {
+                continue;
+            }
+
+            if (!checkLastUpdate(purchase)) {
+                continue;
+            }
+
+            result.add(purchase);
+        }
+
+        return result;
+    }
+
+
+
     /**
      * Null-safe read of an Event by id, intended for DTO denormalization in the
      * Application layer (e.g. populating eventName/eventDate/eventLocation on

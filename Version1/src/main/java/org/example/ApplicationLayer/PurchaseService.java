@@ -304,6 +304,27 @@ public class PurchaseService {
             throw new IllegalStateException(e.getMessage());
         }
     }
+
+    public List<ActivePurchaseDTO> viewActivePurchasesForUser(UUID userId) {
+        if (userId == null) {
+            throw new IllegalArgumentException("User ID is required");
+        }
+
+        try {
+            List<ActivePurchase> purchases =
+                    purchaseDomainService.findActivePurchasesByUser(userId);
+
+            List<ActivePurchaseDTO> out = new ArrayList<>();
+            for (ActivePurchase purchase : purchases) {
+                out.add(toActivePurchaseDTO(purchase));
+            }
+
+            return out;
+        } catch (DomainException e) {
+            throw new IllegalStateException(e.getMessage());
+        }
+    }
+
     public void cancelActivePurchase(UUID activePurchaseId)
     {
         logger.info("Attempting to cancel active purchase: ID=" + activePurchaseId);

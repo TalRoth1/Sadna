@@ -109,6 +109,24 @@ function extractMessage(error: unknown, fallback: string): string {
 //    the canonical endTime the timer should sync to.
 // -----------------------------------------------------------------------------
 
+export async function getActivePurchasesForUser(
+    userId: string,
+): Promise<ActivePurchaseResponse[]> {
+    try {
+        const response = await api.get(
+            `/purchases/users/${encodeURIComponent(userId)}/active`,
+        );
+
+        return (response.data.data ?? []) as ActivePurchaseResponse[];
+    } catch (error) {
+        throw new Error(
+            extractMessage(error, "Failed to fetch active purchases."),
+            { cause: error },
+        );
+    }
+}
+
+
 export async function selectSittingTickets(
     eventId: string,
     ticketIds: string[],

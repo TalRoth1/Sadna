@@ -18,6 +18,7 @@ import UserProfilePage from "./pages/UserProfilePage";
 import LoginPage from "./pages/LoginPage";
 import RegistrationPage from "./pages/RegistrationPage";
 import LotteryRegistrationPage from "./pages/LotteryRegistrationPage";
+import MyActivePurchasesPage from "./pages/MyActivePurchasesPage";
 
 import type { CompanyResponse } from "./services/companyService";
 import type { AdminActionId } from "./types/admin";
@@ -181,6 +182,11 @@ function App() {
         setCurrentPage("event-details");
     }
 
+    function handleOpenActivePurchase(eventId: string) {
+        setSelectedEventId(eventId);
+        setCurrentPage("event-purchase");
+    }
+
     function renderPage() {
         if (currentPage === "event-search") {
             return <EventSearchPage onSelectEvent={handleSelectEvent} />;
@@ -235,9 +241,8 @@ function App() {
 
         if (currentPage === "user-tickets") {
             return (
-                <PlaceholderPage
-                    title="My Tickets"
-                    description="Tickets owned by the current user."
+                <MyActivePurchasesPage
+                    onOpenPurchase={handleOpenActivePurchase}
                 />
             );
         }

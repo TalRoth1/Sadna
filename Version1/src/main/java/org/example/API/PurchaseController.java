@@ -55,6 +55,24 @@ public class PurchaseController {
         }
     }
 
+    @GetMapping("/users/{userId}/active")
+    public ResponseEntity<ApiResponse<List<ActivePurchaseDTO>>> viewActivePurchasesForUser(
+            @PathVariable("userId") UUID userId) {
+        try {
+            List<ActivePurchaseDTO> activePurchases =
+                    purchaseService.viewActivePurchasesForUser(userId);
+
+            return ResponseEntity.ok(
+                    ApiResponse.success("Active purchases fetched", activePurchases)
+            );
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to fetch active purchases: system exception"));
+        }
+    }
+
     // TODO (V3): Extract userID from JWT token
     @PostMapping("/events/{eventId}/standing")
     public ResponseEntity<ApiResponse<ActivePurchaseDTO>> selectStandingTickets(
