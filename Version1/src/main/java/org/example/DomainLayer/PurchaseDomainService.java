@@ -210,6 +210,20 @@ public class PurchaseDomainService {
         }
     }
 
+    public UUID getEventManagerUserId(UUID eventId) {
+        String managerIdentifier = getEventManager(eventId);
+
+        return userRepository.getAllUsers().values().stream()
+                .filter(user ->
+                        managerIdentifier.equalsIgnoreCase(user.getEmail())
+                                || managerIdentifier.equalsIgnoreCase(user.getUsername()))
+                .map(User::getId)
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException(
+                        "Event manager user not found: " + managerIdentifier
+                ));
+    }
+
 
     public boolean completePurchase(UUID activePurchaseID, PaymentDetails paymentDetails, String couponCode) 
     { //returns true if last ticket to event was bought
