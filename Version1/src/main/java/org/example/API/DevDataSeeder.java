@@ -376,7 +376,7 @@ public class DevDataSeeder implements CommandLineRunner {
                 UUID closedId = companiesByName.get("Closed Co.");
 
                 // 1. Coldplay — mixed standing + sitting, large concert.
-                UUID coldplay = createEvent("coldplay", liveNationId,
+                UUID coldplay = createEvent("coldplay", liveNationId, "founder.live@demo.test",
                                 "Coldplay – Music of the Spheres", "Coldplay",
                                 "Concert", "Tel Aviv",
                                 LocalDateTime.now().plusDays(30), EventStatus.ACTIVE);
@@ -384,28 +384,28 @@ public class DevDataSeeder implements CommandLineRunner {
                 addSittingArea(coldplay, 600.0, 8, 10);
 
                 // 2. Hapoel vs Maccabi — pure sitting, stadium fixture.
-                UUID hapoel = createEvent("hapoel", liveNationId,
+                UUID hapoel = createEvent("hapoel", liveNationId, "founder.live@demo.test",
                                 "Hapoel TLV vs Maccabi", "Hapoel Tel Aviv",
                                 "Sports", "Bloomfield Stadium, Tel Aviv",
                                 LocalDateTime.now().plusDays(7), EventStatus.ACTIVE);
                 addSittingArea(hapoel, 120.0, 12, 20);
 
                 // 3. Adir Miller — small theatre, pure sitting.
-                UUID adirMiller = createEvent("adir-miller", indieId,
+                UUID adirMiller = createEvent("adir-miller", indieId, "founder.indie@demo.test",
                                 "Stand-up Night with Adir Miller", "Adir Miller",
                                 "Comedy", "Habima Theatre, Tel Aviv",
                                 LocalDateTime.now().plusDays(14), EventStatus.ACTIVE);
                 addSittingArea(adirMiller, 180.0, 6, 12);
 
                 // 4. Jazz at the Cellar — intimate club, pure standing.
-                UUID jazz = createEvent("jazz", indieId,
+                UUID jazz = createEvent("jazz", indieId, "founder.indie@demo.test",
                                 "Jazz at the Cellar", "Avishai Cohen Trio",
                                 "Jazz", "Beit Haamudim, Tel Aviv",
                                 LocalDateTime.now().plusDays(21), EventStatus.ACTIVE);
                 addStandingArea(jazz, 220.0, 60);
 
                 // 5. Adults Only — used for the AgeRule edge case (≥ 18).
-                UUID adultsOnly = createEvent("adults-only", liveNationId,
+                UUID adultsOnly = createEvent("adults-only", liveNationId, "founder.live@demo.test",
                                 "Adults Only – Late Night Comedy", "Various",
                                 "Comedy", "Zappa Club, Tel Aviv",
                                 LocalDateTime.now().plusDays(10), EventStatus.ACTIVE);
@@ -413,14 +413,14 @@ public class DevDataSeeder implements CommandLineRunner {
 
                 // 6. Taylor Swift — lottery-gated event. Lottery wired up in
                 // seedLottery() so we can pre-register a winner.
-                UUID taylor = createEvent("taylor-swift", liveNationId,
+                UUID taylor = createEvent("taylor-swift", liveNationId, "founder.live@demo.test",
                                 "Taylor Swift – Lottery Night", "Taylor Swift",
                                 "Concert", "Park Hayarkon, Tel Aviv",
                                 LocalDateTime.now().plusDays(45), EventStatus.ACTIVE);
                 addStandingArea(taylor, 450.0, 100);
 
                 // 7. Tech Conference — composite OR policy + future discount.
-                UUID techConf = createEvent("tech-conf", liveNationId,
+                UUID techConf = createEvent("tech-conf", liveNationId, "founder.live@demo.test",
                                 "Tech Conference 2026", "Various Speakers",
                                 "Conference", "Expo Tel Aviv",
                                 LocalDateTime.now().plusDays(60), EventStatus.ACTIVE);
@@ -429,7 +429,7 @@ public class DevDataSeeder implements CommandLineRunner {
                 // 8. Eurovision Watch Party — completely sold out. We mark every
                 // ticket SOLD inline so the catalog renders a "sold out"
                 // state without anyone running checkout.
-                UUID eurovision = createEvent("eurovision", liveNationId,
+                UUID eurovision = createEvent("eurovision", liveNationId, "founder.live@demo.test",
                                 "Eurovision Watch Party", "Eurovision",
                                 "Live Watch", "Tel Aviv",
                                 LocalDateTime.now().plusDays(50), EventStatus.ACTIVE);
@@ -437,7 +437,7 @@ public class DevDataSeeder implements CommandLineRunner {
                 markAllTicketsSold(eurovision);
 
                 // 9. Beyoncé — canceled. Must NOT appear in public search.
-                UUID beyonce = createEvent("beyonce", liveNationId,
+                UUID beyonce = createEvent("beyonce", liveNationId, "founder.live@demo.test",
                                 "Beyoncé – Renaissance Tour", "Beyoncé",
                                 "Concert", "Tel Aviv",
                                 LocalDateTime.now().plusDays(40), EventStatus.CANCELED);
@@ -446,7 +446,7 @@ public class DevDataSeeder implements CommandLineRunner {
                 // 10. Forgotten Festival — under Closed Co., which gets closed
                 // in closeClosedCompany() below. Even though the event is
                 // ACTIVE itself, the closed-company filter must hide it.
-                UUID forgottenFest = createEvent("forgotten-fest", closedId,
+                UUID forgottenFest = createEvent("forgotten-fest", closedId, "founder.closed@demo.test",
                                 "Forgotten Festival 2020", "Various",
                                 "Festival", "Caesarea Amphitheatre",
                                 LocalDateTime.now().plusDays(90), EventStatus.ACTIVE);
@@ -759,11 +759,11 @@ public class DevDataSeeder implements CommandLineRunner {
          * areas they want via {@link #addStandingArea} / {@link #addSittingArea}.
          * Indexed under {@code key} so later sections can refer to it by name.
          */
-        private UUID createEvent(String key, UUID companyId, String name,
+        private UUID createEvent(String key, UUID companyId, String eventManagerEmail, String name,
                         String artist, String type, String location,
                         LocalDateTime date, EventStatus status) {
                 UUID eventId = UUID.randomUUID();
-                eventManagement.addEvent(eventId, companyId, name, date, location,
+                eventManagement.addEvent(eventId, companyId, eventManagerEmail, name, date, location,
                                 artist, type, status);
                 eventsByKey.put(key, eventId);
                 return eventId;

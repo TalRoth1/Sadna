@@ -20,6 +20,7 @@ import RegistrationPage from "./pages/RegistrationPage";
 import LotteryRegistrationPage from "./pages/LotteryRegistrationPage";
 import MyActivePurchasesPage from "./pages/MyActivePurchasesPage";
 import MyCompaniesPage from "./pages/myCompanies/MyCompaniesPage";
+import QueueWaitingPage from "./pages/QueueWaitingPage";
 import CreateEventPage from "./pages/createEvent/CreateEventPage";
 
 import type { CompanyResponse } from "./services/companyService";
@@ -99,11 +100,13 @@ function normalizeStatus(status: string): CompanyStatus {
 function App() {
     const [currentPage, setCurrentPage] = useState<AppPage>("event-search");
     const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+    const [selectionAccessExpiresAt, setSelectionAccessExpiresAt] = useState<string | null>(null);
     const [selectedCompany, setSelectedCompany] = useState<SelectedCompany | null>(null);
 
     function navigate(page: AppPage) {
-        if (page !== "event-details" && page !== "event-purchase") {
+        if (page !== "event-details" && page !== "event-queue" && page !== "event-purchase") {
             setSelectedEventId(null);
+            setSelectionAccessExpiresAt(null);
         }
         if (page !== "company-details") {
             setSelectedCompany(null);
@@ -136,7 +139,8 @@ function App() {
 
     function handleStartPurchase(eventId: string) {
         setSelectedEventId(eventId);
-        setCurrentPage("event-purchase");
+        setSelectionAccessExpiresAt(null);
+        setCurrentPage("event-queue");
     }
 
     function handleStartLotteryRegistration(eventId: string) {
@@ -181,11 +185,23 @@ function App() {
             setCurrentPage("event-search");
             return;
         }
+        setSelectionAccessExpiresAt(null);
         setCurrentPage("event-details");
+    }
+
+    function handleSelectionAccessGranted(accessExpiresAt: string | null) {
+        setSelectionAccessExpiresAt(accessExpiresAt);
+        setCurrentPage("event-purchase");
+    }
+
+    function handleSelectionAccessExpired() {
+        setSelectionAccessExpiresAt(null);
+        setCurrentPage("event-queue");
     }
 
     function handleOpenActivePurchase(eventId: string) {
         setSelectedEventId(eventId);
+        setSelectionAccessExpiresAt(null);
         setCurrentPage("event-purchase");
     }
 
@@ -213,6 +229,21 @@ function App() {
             );
         }
 
+
+        if (currentPage === "event-queue") {
+            if (!selectedEventId) {
+                return <EventSearchPage onSelectEvent={handleSelectEvent} />;
+            }
+
+            return (
+                <QueueWaitingPage
+                    eventId={selectedEventId}
+                    onBackToEvent={handleBackToEvent}
+                    onAccessGranted={handleSelectionAccessGranted}
+                />
+            );
+        }
+
         if (currentPage === "event-purchase") {
             if (!selectedEventId) {
                 return <EventSearchPage onSelectEvent={handleSelectEvent} />;
@@ -228,6 +259,8 @@ function App() {
                 <TicketPurchasePage
                     key={selectedEventId}
                     eventId={selectedEventId}
+                    selectionAccessExpiresAt={selectionAccessExpiresAt}
+                    onSelectionAccessExpired={handleSelectionAccessExpired}
                     onBackToEvent={handleBackToEvent}
                 />
             );

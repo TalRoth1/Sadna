@@ -57,9 +57,9 @@ public class EventService {
         this.notifier = notifier;
     }
 
-    public EventDetailsDto addEvent(UUID eventId, UUID companyId, String name, LocalDateTime date, String location,
-                                    String artist, String type, EventStatus status,
-                                    String description, Float ticketPrice, Integer availableTickets) {
+    public EventDetailsDto addEvent(UUID eventId, UUID companyId, String eventManagerEmail, String name,
+                                    LocalDateTime date, String location, String artist, String type,
+                                    EventStatus status) {
         logger.info("[Event Log] Method: addEvent called");
 
         if (eventId == null) {
@@ -69,14 +69,8 @@ public class EventService {
             throw new IllegalArgumentException("companyId is required");
         }
 
-        eventManagementDomainService.addEvent(eventId, companyId, name, date, location, artist, type, status);
-
-        if (description != null && !description.isBlank()) {
-            eventManagementDomainService.setEventDescription(eventId, description);
-        }
-        if (ticketPrice != null && ticketPrice >= 0 && availableTickets != null && availableTickets > 0) {
-            eventManagementDomainService.addStandingTicketPool(eventId, ticketPrice, availableTickets);
-        }
+        eventManagementDomainService.addEvent(
+                eventId, companyId, eventManagerEmail, name, date, location, artist, type, status);
 
         Event event = eventManagementDomainService.getEventForView(eventId);
         return toDetails(event);
@@ -144,13 +138,14 @@ public class EventService {
         );
     }
 
-    public boolean deleteEvent(UUID eventId) {
-        logger.info("[Event Log] Method: deleteEvent called with parameters: eventId=" + eventId);
+    public boolean deleteEvent(UUID eventId, String userEmail, String eventManagerEmail) {
+        logger.info("[Event Log] Method: deleteEvent called with parameters: eventId=" + eventId
+                + ", userEmail=" + userEmail + ", eventManagerEmail=" + eventManagerEmail);
         try {
             if (eventId == null) {
                 throw new IllegalArgumentException("eventId is required");
             }
-            return eventManagementDomainService.deleteEvent(eventId);
+            return eventManagementDomainService.deleteEvent(eventId, userEmail, eventManagerEmail);
         } catch (IllegalArgumentException | DomainException e) {
             logger.info("[Event Log] Business rejection in deleteEvent: " + e.getMessage());
             throw e;
@@ -453,6 +448,31 @@ public class EventService {
             throw ex;
         } catch (RuntimeException ex) {
             logger.log(Level.SEVERE, "[Error Log] System error in searchEventsByCompany: " + ex.getMessage(), ex);
+            throw ex;
+        }
+    }
+
+    public List<EventSummaryDto> getEventsForUserInCompany(String userEmail, UUID companyId) {
+        logger.info("[Event Log] Method: getEventsForUserInCompany called with parameters: userEmail="
+                + userEmail + ", companyId=" + companyId);
+        try {
+            if (userEmail == null || userEmail.isBlank()) {
+                throw new IllegalArgumentException("Email is required");
+            }
+            if (companyId == null) {
+                throw new IllegalArgumentException("companyId is required");
+            }
+            List<Event> events = eventManagementDomainService.getEventsForUserInCompany(userEmail, companyId);
+            List<EventSummaryDto> out = new ArrayList<>();
+            for (Event e : events) {
+                out.add(toSummary(e));
+            }
+            return out;
+        } catch (IllegalArgumentException | DomainException ex) {
+            logger.info("[Event Log] Business rejection in getEventsForUserInCompany: " + ex.getMessage());
+            throw ex;
+        } catch (RuntimeException ex) {
+            logger.log(Level.SEVERE, "[Error Log] System error in getEventsForUserInCompany: " + ex.getMessage(), ex);
             throw ex;
         }
     }

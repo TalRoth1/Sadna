@@ -12,10 +12,32 @@ import java.util.UUID;
 import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
 import org.example.DomainLayer.EventAggregate.Event;
+import org.example.DomainLayer.EventAggregate.EventStatus;
+import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
+import org.example.DomainLayer.UserAggregate.ICompanyMember;
+import org.example.DomainLayer.UserAggregate.User;
+
+import java.util.ArrayList;
+import java.util.HashSet;
+
+import org.example.DomainLayer.EventAggregate.EventSearchCriteria;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+
+import org.example.DomainLayer.CompanyAggregate.Company;
+import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
+import org.example.DomainLayer.EventAggregate.Event;
 import org.example.DomainLayer.EventAggregate.EventSearchCriteria;
 import org.example.DomainLayer.EventAggregate.EventStatus;
 import org.example.DomainLayer.EventAggregate.StandingArea;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
+import org.example.DomainLayer.UserAggregate.ICompanyMember;
 import org.example.DomainLayer.UserAggregate.User;
 
 public class EventManagementDomainService {
@@ -141,15 +163,68 @@ public class EventManagementDomainService {
         eventRepository.save(event);
     }
 
-    public void addEvent(UUID eventId, UUID companyId, String name, LocalDateTime date, String location,
-            String artist, String type, EventStatus status) {
+    public void addEvent(UUID eventId, UUID companyId, String eventManagerEmail, String name,
+            LocalDateTime date, String location, String artist, String type, EventStatus status) {
         if (eventRepository.getById(eventId) != null) {
             throw new DomainException("Event already exists: " + eventId);
         }
+
+        if (companyId == null) {
+            throw new DomainException("Company not found");
+        }
+
+        if (eventManagerEmail == null || eventManagerEmail.isBlank()) {
+            throw new IllegalArgumentException("Event manager email is required");
+        }
+
+        User eventManager = userRepository.findByEmail(eventManagerEmail)
+                .orElseThrow(() -> new DomainException("Event manager not found"));
+
+        ICompanyMember managerRole = eventManager.getCompanyRole(companyId);
+        if (managerRole == null) {
+            throw new DomainException("Event manager is not a member of the company");
+        }
+
         Event event = new Event(eventId, companyId, date, location, artist, type, status);
         if (name != null) {
             event.setName(name);
         }
+        eventRepository.save(event);
+
+        managerRole.getEventsIds().add(eventId);
+    }
+
+    public void setEventDescription(UUID eventId, String description) {
+        if (eventId == null) {
+            throw new IllegalArgumentException("eventId is required");
+        }
+        Event event = eventRepository.getById(eventId);
+        if (event == null) {
+            throw new DomainException("Event not found");
+        }
+        event.setDescription(description);
+        eventRepository.save(event);
+    }
+
+    public void addStandingTicketPool(UUID eventId, float ticketPrice, int availableTickets) {
+        if (eventId == null) {
+            throw new IllegalArgumentException("eventId is required");
+        }
+        if (ticketPrice < 0) {
+            throw new IllegalArgumentException("ticketPrice must be non-negative");
+        }
+        if (availableTickets <= 0) {
+            throw new IllegalArgumentException("availableTickets must be positive");
+        }
+
+        Event event = eventRepository.getById(eventId);
+        if (event == null) {
+            throw new DomainException("Event not found");
+        }
+
+        java.util.UUID areaId = java.util.UUID.randomUUID();
+        event.getLayout().addArea(new StandingArea(areaId, ticketPrice));
+        event.addStandingTickets(areaId, availableTickets);
         eventRepository.save(event);
     }
 
@@ -238,11 +313,43 @@ public class EventManagementDomainService {
     return participants;
 }
 
-    public boolean deleteEvent(UUID eventId) {
+    public boolean deleteEvent(UUID eventId, String userEmail, String eventManagerEmail) {
         Event event = eventRepository.getById(eventId);
         if (event == null) {
             throw new DomainException("Event not found");
         }
+
+        if (userEmail == null || userEmail.isBlank()) {
+            throw new IllegalArgumentException("User email is required");
+        }
+        if (eventManagerEmail == null || eventManagerEmail.isBlank()) {
+            throw new IllegalArgumentException("Event manager email is required");
+        }
+
+        UUID companyId = event.getCompanyId();
+        boolean isManager = userEmail.trim().equalsIgnoreCase(eventManagerEmail.trim());
+        boolean hasInventoryPermission = userRepository.hasPermission(
+                userEmail,
+                companyId,
+                CompanyPermission.MANAGE_INVENTORY,
+                eventId);
+
+        if (!isManager && !hasInventoryPermission) {
+            throw new DomainException("User is not authorized to delete this event");
+        }
+
+        User eventManager = userRepository.findByEmail(eventManagerEmail)
+                .orElseThrow(() -> new DomainException("Event manager not found"));
+
+        ICompanyMember managerRole = eventManager.getCompanyRole(companyId);
+        if (managerRole == null) {
+            throw new DomainException("Event manager is not a member of the company");
+        }
+        if (!managerRole.getEventsIds().contains(eventId)) {
+            throw new DomainException("Event manager is not in charge of this event");
+        }
+
+        managerRole.getEventsIds().remove(eventId);
         eventRepository.delete(eventId);
         return true;
     }
@@ -334,6 +441,31 @@ public class EventManagementDomainService {
                 out.add(e);
             }
         }
+        return out;
+    }
+
+    public List<Event> getEventsForUserInCompany(String userEmail, UUID companyId) {
+        if (userEmail == null || userEmail.isBlank()) {
+            throw new IllegalArgumentException("Email is required");
+        }
+        if (companyId == null) {
+            throw new IllegalArgumentException("Company ID is required");
+        }
+        List<Event> out = new ArrayList<>();
+        User user = userRepository.findByEmail(userEmail).orElse(null);
+        if (user == null) {
+            throw new IllegalArgumentException("User not found");
+        }
+        if (!user.isCompanyMember(companyId)) {
+            throw new IllegalArgumentException("User is not a member of the company");
+        }
+        ICompanyMember userRole = user.getCompanyRole(companyId);
+        userRole.getEventsIds().forEach(eid -> {
+            Event event = eventRepository.getById(eid);
+            if (event != null) {
+                out.add(event);
+            }
+        });
         return out;
     }
 
