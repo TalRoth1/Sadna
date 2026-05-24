@@ -254,6 +254,23 @@ public class User {
         companyRoles.remove(companyId);
     }
 
+    public void removeFromAllCompaniesAsAdmin() {
+        List<UUID> companyIds = List.copyOf(companyRoles.keySet());
+
+        for (UUID companyId : companyIds) {
+            removeFromCompanyAsAdmin(companyId);
+        }
+    }
+
+    public void removeFromPlatformAsAdmin() {
+        if (this.status == UserStatus.REMOVED) {
+            throw new IllegalStateException("Subscriber is already removed");
+        }
+
+        removeFromAllCompaniesAsAdmin();
+        this.status = UserStatus.REMOVED;
+    }
+
     // this function is being called on the removed user by OwnerUser who is the
     // owner performing the removal, and is being passed the user that is being
     // removed as a parameter in order to check that the owner has the authority to

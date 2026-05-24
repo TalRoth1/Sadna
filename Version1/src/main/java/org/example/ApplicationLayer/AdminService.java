@@ -107,7 +107,7 @@ public class AdminService {
     }
 
     public void removeSubscriber(UUID adminId, String adminUsername, String usernameToRemove) {
-        String action = "REMOVE_SUBSCRIBER_ROLES";
+        String action = "REMOVE_SUBSCRIBER";
         logInfo(adminId, adminUsername, action, "Started. usernameToRemove=" + usernameToRemove);
 
         try {
@@ -117,11 +117,22 @@ public class AdminService {
                 throw new IllegalArgumentException("Username to remove is required");
             }
 
-            rolesDomainService.removeCompanyMemberAsAdmin(adminUsername, usernameToRemove);
+            if (userRepository.isSystemAdmin(usernameToRemove)) {
+                throw new IllegalArgumentException("Cannot remove system admin");
+            }
+
+            User userToRemove = userRepository.getAllUsers()
+                    .values()
+                    .stream()
+                    .filter(user -> usernameToRemove.equals(user.getUsername()))
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("Subscriber not found"));
+
+            userToRemove.removeFromPlatformAsAdmin();
 
             notifier.notifyUser(
-                    usernameToRemove,
-                    "Your company roles were removed by system admin."
+                    userToRemove.getId(),
+                    "Your account was removed from the platform by system admin."
             );
 
             saveActionLog(adminId, adminUsername, action, usernameToRemove);
@@ -188,6 +199,8 @@ public class AdminService {
             List<AdminSubscriberDTO> result = userRepository.getAllUsers()
                     .values()
                     .stream()
+                    .filter(user -> !userRepository.isSystemAdmin(user.getUsername()))
+                    .filter(user -> user.getStatus() != UserStatus.REMOVED)
                     .map(this::toSubscriberDTO)
                     .toList();
 
@@ -198,7 +211,6 @@ public class AdminService {
             throw e;
         }
     }
-
     public List<PurchaseHistoryDTO> getAllPurchaseHistory(UUID adminId, String adminUsername) {
         String action = "GET_ALL_PURCHASE_HISTORY";
         logInfo(adminId, adminUsername, action, "Started.");
