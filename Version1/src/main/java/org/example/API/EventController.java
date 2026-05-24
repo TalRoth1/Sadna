@@ -57,6 +57,7 @@ public class EventController {
             EventDetailsDto event = eventService.addEvent(
                     UUID.randomUUID(),
                     request.companyId,
+                    request.eventManagerEmail,
                     request.name,
                     request.date,
                     request.location,
@@ -340,6 +341,21 @@ public class EventController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Search failed: system exception"));
+        }
+    }
+
+    @GetMapping("/companies/{companyId}/users")
+    public ResponseEntity<ApiResponse<List<EventSummaryDto>>> getEventsForUserInCompany(
+            @PathVariable("companyId") UUID companyId,
+            @RequestParam String userEmail) {
+        try {
+            List<EventSummaryDto> results = eventService.getEventsForUserInCompany(userEmail, companyId);
+            return ResponseEntity.ok(ApiResponse.success("Managed events fetched", results));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to fetch managed events: system exception"));
         }
     }
 

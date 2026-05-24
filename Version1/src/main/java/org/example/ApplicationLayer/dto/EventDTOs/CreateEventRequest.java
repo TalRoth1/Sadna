@@ -7,6 +7,7 @@ import org.example.DomainLayer.EventAggregate.EventStatus;
 
 public class CreateEventRequest {
     public UUID companyId;
+    public String eventManagerEmail;
     public String name;
     public LocalDateTime date;
     public String location;
