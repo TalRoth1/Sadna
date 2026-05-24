@@ -13,6 +13,9 @@ public class CreateEventRequest {
     public String artist;
     public String type;
     public EventStatus status;
+    public String description;
+    public Float ticketPrice;
+    public Integer availableTickets;
 
     public CreateEventRequest() {}
 }

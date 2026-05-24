@@ -1,17 +1,5 @@
 package org.example.DomainLayer.EventAggregate;
 
-import org.example.DomainLayer.DomainException;
-import org.example.DomainLayer.Rating;
-import org.example.DomainLayer.PolicyManagment.AgeRule;
-import org.example.DomainLayer.PolicyManagment.ConditionalDiscount;
-import org.example.DomainLayer.PolicyManagment.CouponCode;
-import org.example.DomainLayer.PolicyManagment.DiscountPolicy;
-import org.example.DomainLayer.PolicyManagment.LoneSeatRule;
-import org.example.DomainLayer.PolicyManagment.MaxTicketRule;
-import org.example.DomainLayer.PolicyManagment.MinTicketRule;
-import org.example.DomainLayer.PolicyManagment.OvertDiscount;
-import org.example.DomainLayer.PolicyManagment.PurchasePolicy;
-
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -22,6 +10,18 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
+import org.example.DomainLayer.DomainException;
+import org.example.DomainLayer.PolicyManagment.AgeRule;
+import org.example.DomainLayer.PolicyManagment.ConditionalDiscount;
+import org.example.DomainLayer.PolicyManagment.CouponCode;
+import org.example.DomainLayer.PolicyManagment.DiscountPolicy;
+import org.example.DomainLayer.PolicyManagment.LoneSeatRule;
+import org.example.DomainLayer.PolicyManagment.MaxTicketRule;
+import org.example.DomainLayer.PolicyManagment.MinTicketRule;
+import org.example.DomainLayer.PolicyManagment.OvertDiscount;
+import org.example.DomainLayer.PolicyManagment.PurchasePolicy;
+import org.example.DomainLayer.Rating;
+
 public class Event {
 
     private final UUID eventId;
@@ -29,6 +29,7 @@ public class Event {
     private final UUID companyId;
     private LocalDateTime date;
     private String location;
+    private String description;
     private final List<String> tags = new ArrayList<>();
     private EventStatus status;
     private String artist;
@@ -87,6 +88,18 @@ public class Event {
             throw new IllegalArgumentException("location required");
         }
         this.location = location.trim();
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        if (description == null || description.isBlank()) {
+            this.description = null;
+            return;
+        }
+        this.description = description.trim();
     }
 
     public List<String> getTagsView() {
@@ -195,7 +208,7 @@ public class Event {
         if (ticket == null) {
             throw new IllegalArgumentException("ticket must not be null");
         }
-        if (!(eventId == ticket.getEventId())) {
+        if (!(eventId.equals(ticket.getEventId()))) {
             throw new IllegalArgumentException("ticket event mismatch");
         }
         UUID tid = ticket.getTicketId();

@@ -189,6 +189,11 @@ function App() {
         setCurrentPage("event-purchase");
     }
 
+    function handleEventCreated(eventId: string) {
+        setSelectedEventId(eventId);
+        setCurrentPage("event-details");
+    }
+
     function renderPage() {
         if (currentPage === "event-search") {
             return <EventSearchPage onSelectEvent={handleSelectEvent} />;
@@ -342,6 +347,7 @@ function App() {
                     onCreateCompany={handleStartCompanyCreation}
                     onLogin={() => setCurrentPage("login")}
                     onRegister={() => setCurrentPage("registration")}
+                    onEventCreated={handleEventCreated}
                 />
             );
         }

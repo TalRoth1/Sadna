@@ -178,6 +178,7 @@ public final class EventDtos {
             String eventType,
             LocalDateTime date,
             String location,
+            String description,
             List<String> tags,
             EventStatus status,
             double rating,

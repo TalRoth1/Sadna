@@ -337,6 +337,9 @@ function toEventDetails(response: EventDetailsResponse): Event {
     if (response.lotteryId) {
         event.lotteryId = response.lotteryId;
     }
+    if (response.description != null) {
+        event.description = response.description;
+    }
     return event;
 }
 

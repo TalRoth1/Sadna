@@ -1,5 +1,15 @@
 package org.example.ApplicationLayer;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.AreaSummaryDto;
 import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.CompanyCatalogDto;
 import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.DiscountPolicyDto;
@@ -9,9 +19,9 @@ import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.EventSummaryDto;
 import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.PurchasePolicyDto;
 import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.PurchaseRuleDto;
 import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.TicketDetailsDto;
-import org.example.DomainLayer.DomainException;
-import org.example.DomainLayer.EventManagementDomainService;
+import org.example.ApplicationLayer.dto.PurchaseDTOs.PurchaseHistoryDTO;
 import org.example.DomainLayer.CompanyAggregate.Company;
+import org.example.DomainLayer.DomainException;
 import org.example.DomainLayer.EventAggregate.Area;
 import org.example.DomainLayer.EventAggregate.Event;
 import org.example.DomainLayer.EventAggregate.EventSearchCriteria;
@@ -21,6 +31,7 @@ import org.example.DomainLayer.EventAggregate.SittingTicket;
 import org.example.DomainLayer.EventAggregate.StandingArea;
 import org.example.DomainLayer.EventAggregate.Ticket;
 import org.example.DomainLayer.EventAggregate.TicketStatus;
+import org.example.DomainLayer.EventManagementDomainService;
 import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.PolicyManagment.AgeRule;
 import org.example.DomainLayer.PolicyManagment.ConditionalDiscount;
@@ -33,19 +44,6 @@ import org.example.DomainLayer.PolicyManagment.MinTicketRule;
 import org.example.DomainLayer.PolicyManagment.OvertDiscount;
 import org.example.DomainLayer.PolicyManagment.PurchaseComposite;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
-
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
-import org.example.ApplicationLayer.dto.PurchaseDTOs.PurchaseHistoryDTO;
-
 import org.springframework.stereotype.Service;
 
 @Service
@@ -60,7 +58,8 @@ public class EventService {
     }
 
     public EventDetailsDto addEvent(UUID eventId, UUID companyId, String name, LocalDateTime date, String location,
-                                    String artist, String type, EventStatus status) {
+                                    String artist, String type, EventStatus status,
+                                    String description, Float ticketPrice, Integer availableTickets) {
         logger.info("[Event Log] Method: addEvent called");
 
         if (eventId == null) {
@@ -71,6 +70,13 @@ public class EventService {
         }
 
         eventManagementDomainService.addEvent(eventId, companyId, name, date, location, artist, type, status);
+
+        if (description != null && !description.isBlank()) {
+            eventManagementDomainService.setEventDescription(eventId, description);
+        }
+        if (ticketPrice != null && ticketPrice >= 0 && availableTickets != null && availableTickets > 0) {
+            eventManagementDomainService.addStandingTicketPool(eventId, ticketPrice, availableTickets);
+        }
 
         Event event = eventManagementDomainService.getEventForView(eventId);
         return toDetails(event);
@@ -584,6 +590,7 @@ public class EventService {
                 e.getType(),
                 e.getDate(),
                 e.getLocation(),
+                e.getDescription(),
                 e.getTagsView(),
                 e.getStatus(),
                 e.getRating(),
