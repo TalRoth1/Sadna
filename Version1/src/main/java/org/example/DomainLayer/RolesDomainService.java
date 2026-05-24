@@ -1,6 +1,7 @@
 package org.example.DomainLayer;
 
 import java.time.LocalDate;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -8,6 +9,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 
+import org.example.ApplicationLayer.dto.CompanyDTOs.CompanyAccessResponse;
 import org.example.ApplicationLayer.dto.CompanyDTOs.CompanyMembershipResponse;
 import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
@@ -33,8 +35,24 @@ public class RolesDomainService {
         this.userRepository = userRepository;
     }
 
-    public UUID createCompany(String founderUsername, String companyName) {
-        return companyRepository.createCompany(founderUsername, companyName);
+    public UUID createCompany(String founderEmail, String companyName) {
+        if (founderEmail == null || founderEmail.isBlank()) {
+            throw new IllegalArgumentException("Founder email is required");
+        }
+        if (companyName == null || companyName.isBlank()) {
+            throw new IllegalArgumentException("Company name is required");
+        }
+
+        User founder = userRepository.findByEmail(founderEmail)
+                .orElseThrow(() -> new IllegalArgumentException("Founder user not found"));
+
+        UUID companyId = companyRepository.createCompany(founderEmail, companyName);
+
+        synchronized (founder) {
+            founder.getCompanyRoles().put(companyId, new CompanyFounder(founderEmail));
+        }
+
+        return companyId;
     }
 
     public void closeCompanyAsAdmin(String adminUsername, UUID companyId) {
@@ -76,7 +94,7 @@ public class RolesDomainService {
             throw new IllegalArgumentException("Company ID is required");
         }
         Company company = companyRepository.findByID(companyId).get();
-        return company.getFounderUsername();
+        return company.getFounderEmail();
     }
 
     public void removeCompanyMemberAsAdmin(String adminUsername, String usernameToRemove) {
@@ -344,24 +362,24 @@ public class RolesDomainService {
         companyRepository.save(company);
     }
 
-    public String getCompanyHierarchyMermaid(UUID companyId, String requesterUsername) {
+    public String getCompanyHierarchyMermaid(UUID companyId, String requesterEmail) {
         Company company = companyRepository.findByID(companyId).get();
         if (company == null)
             throw new IllegalArgumentException("Company not found");
-        User requesterUser = userRepository.findByEmail(requesterUsername)
+        User requesterUser = userRepository.findByEmail(requesterEmail)
                 .orElseThrow(() -> new IllegalArgumentException("Requester user not found"));
         return requesterUser.getHierarchyMermaid(companyId);
     }
 
-    public List<CompanyMembershipResponse> getUserCompanies(String username) {
-        if (username == null || username.isBlank()) {
-            throw new IllegalArgumentException("Username is required");
+    public List<CompanyMembershipResponse> getUserCompanies(String userEmail) {
+        if (userEmail == null || userEmail.isBlank()) {
+            throw new IllegalArgumentException("Email is required");
         }
-        List<UUID> companyIds = userRepository.getCompaniesIdsByMember(username);
+        List<UUID> companyIds = userRepository.getCompaniesIdsByMember(userEmail);
         return companyIds.stream()
                 .map(companyId -> {
                     Company company = companyRepository.findByID(companyId).get();
-                    ICompanyMember userRole = userRepository.findByEmail(username).get().getCompanyRole(companyId);
+                    ICompanyMember userRole = userRepository.findByEmail(userEmail).get().getCompanyRole(companyId);
                     return new CompanyMembershipResponse(
                             company.getId(),
                             company.getName(),
@@ -370,5 +388,49 @@ public class RolesDomainService {
                     );
                 })
                 .toList();
+    }
+
+    public CompanyAccessResponse getCompanyAccess(UUID companyId, String userEmail) {
+        if (companyId == null) {
+            throw new IllegalArgumentException("Company ID is required");
+        }
+        if (userEmail == null || userEmail.isBlank()) {
+            throw new IllegalArgumentException("Email is required");
+        }
+
+        Company company = companyRepository.findByID(companyId)
+                .orElseThrow(() -> new IllegalArgumentException("Company not found"));
+
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        ICompanyMember role = user.getCompanyRole(companyId);
+        if (role == null) {
+            throw new IllegalArgumentException("User is not a member of the company");
+        }
+
+        List<CompanyPermission> grantedPermissions = Arrays.stream(CompanyPermission.values())
+                .filter(permission -> hasCompanyPermission(role, permission))
+                .toList();
+
+        return new CompanyAccessResponse(
+                company.getId(),
+                company.getName(),
+                userEmail,
+                role.getRoleName(),
+                company.getStatus().name(),
+                grantedPermissions);
+    }
+
+    private boolean hasCompanyPermission(ICompanyMember role, CompanyPermission permission) {
+        if (role instanceof CompanyFounder || role instanceof CompanyOwner) {
+            return true;
+        }
+
+        if (role instanceof CompanyManager manager) {
+            return manager.getPremissions().contains(permission);
+        }
+
+        return false;
     }
 }

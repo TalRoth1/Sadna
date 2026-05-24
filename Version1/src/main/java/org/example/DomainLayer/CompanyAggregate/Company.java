@@ -29,7 +29,7 @@ public class Company {
     }
 
     private final UUID id;
-    private final String founderUsername;
+    private final String founderEmail;
     private String name; 
     private final DiscountPolicy discountPolicy;
     private final PurchasePolicy purchasePolicy;
@@ -39,10 +39,10 @@ public class Company {
     private final Map<UUID, Rating> ratingsByUsers;
     private CompanyStatus status;
 
-public Company(String founderUsername, String name) {
+public Company(String founderEmail, String name) {
     this.id = UUID.randomUUID();
     this.name = name;
-    this.founderUsername = founderUsername;
+    this.founderEmail = founderEmail;
     this.eventIds = new ArrayList<>();
     this.discountPolicy = new DiscountPolicy();
     this.purchasePolicy = new PurchasePolicy();
@@ -65,9 +65,9 @@ public Company(String founderUsername, String name) {
         this.name = newName;
     }
 
-    public String getFounderUsername()
+    public String getFounderEmail()
     {
-        return this.founderUsername;
+        return this.founderEmail;
     }
 
     public void addEvent(UUID newEventId)
@@ -117,7 +117,7 @@ public Company(String founderUsername, String name) {
         status = CompanyStatus.CLOSED;
     }
 
-    public void FounderClose(String founderUsername) {
+    public void FounderClose(String founderEmail) {
         // TODO: imlement founder close
     }
 

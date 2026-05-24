@@ -12,14 +12,34 @@ import EventDetailsPage from "./pages/EventDetails/EventDetails";
 import EventSearchPage from "./pages/EventSearch/EventSearch";
 import PurchaseHistoryPage from "./pages/PurchaseHistoryPage";
 import TicketPurchasePage from "./pages/TicketPurchase/TicketPurchase";
-import MyCompaniesPage from "./pages/myCompanies/MyCompaniesPage";
+import CompanyCreationPage from "./pages/createCompany/CompanyCreationPage";
+import CompanyPage from "./pages/companyPage/CompanyPage";
 import UserProfilePage from "./pages/UserProfilePage";
 import LoginPage from "./pages/LoginPage";
 import RegistrationPage from "./pages/RegistrationPage";
 import LotteryRegistrationPage from "./pages/LotteryRegistrationPage";
 
+import type { CompanyResponse } from "./services/companyService";
 import type { AdminActionId } from "./types/admin";
 import "./App.css";
+
+type CompanyStatus = "Active" | "Suspended" | "Closed";
+
+type CompanyPermissionName =
+    | "Manage inventory"
+    | "Configure layout"
+    | "Manage policies"
+    | "Customer service"
+    | "View history"
+    | "Generate sales reports";
+
+type SelectedCompany = {
+    id: string;
+    name: string;
+    role: string;
+    status: CompanyStatus;
+    permissions: CompanyPermissionName[];
+};
 
 function PlaceholderPage({
                              title,
@@ -38,13 +58,52 @@ function PlaceholderPage({
     );
 }
 
+function getPermissionsForRole(role: string): CompanyPermissionName[] {
+    const normalizedRole = role.trim().toLowerCase();
+
+    if (normalizedRole === "manager") {
+        return [
+            "Manage inventory",
+            "Customer service",
+            "View history",
+        ];
+    }
+
+    return [
+        "Manage inventory",
+        "Configure layout",
+        "Manage policies",
+        "Customer service",
+        "View history",
+        "Generate sales reports",
+    ];
+}
+
+function normalizeStatus(status: string): CompanyStatus {
+    const normalizedStatus = status.trim().toLowerCase();
+
+    if (normalizedStatus === "suspended") {
+        return "Suspended";
+    }
+
+    if (normalizedStatus === "closed") {
+        return "Closed";
+    }
+
+    return "Active";
+}
+
 function App() {
     const [currentPage, setCurrentPage] = useState<AppPage>("event-search");
     const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+    const [selectedCompany, setSelectedCompany] = useState<SelectedCompany | null>(null);
 
     function navigate(page: AppPage) {
         if (page !== "event-details" && page !== "event-purchase") {
             setSelectedEventId(null);
+        }
+        if (page !== "company-details") {
+            setSelectedCompany(null);
         }
         setCurrentPage(page);
     }
@@ -80,6 +139,38 @@ function App() {
     function handleStartLotteryRegistration(eventId: string) {
         setSelectedEventId(eventId);
         setCurrentPage("lottery-registration");
+    }
+
+    function handleStartCompanyCreation() {
+        setCurrentPage("company-creation");
+    }
+
+    function handleOpenCompany(
+        companyId: string,
+        companyName: string,
+        role: string,
+        status: string,
+        permissions: CompanyPermissionName[],
+    ) {
+        setSelectedCompany({
+            id: companyId,
+            name: companyName,
+            role,
+            status: normalizeStatus(status),
+            permissions,
+        });
+        setCurrentPage("company-details");
+    }
+
+    function handleCompanyCreationSuccess(company: CompanyResponse) {
+        setSelectedCompany({
+            id: company.id,
+            name: company.name,
+            role: "Founder",
+            status: company.isActive ? "Active" : "Closed",
+            permissions: getPermissionsForRole("Founder"),
+        });
+        setCurrentPage("company-details");
     }
 
     function handleBackToEvent() {
@@ -174,7 +265,12 @@ function App() {
         }
 
         if (currentPage === "my-companies") {
-            return <MyCompaniesPage />;
+            return (
+                <PlaceholderPage
+                    title="My Companies"
+                    description="Companies that the current user belongs to."
+                />
+            );
         }
 
         if (currentPage === "profile") {

@@ -1,14 +1,14 @@
 package org.example.InfrastructureLayer;
 
-import org.example.DomainLayer.ICompanyRepository;
-import org.example.DomainLayer.CompanyAggregate.Company;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+
+import org.example.DomainLayer.CompanyAggregate.Company;
+import org.example.DomainLayer.ICompanyRepository;
 
 public class CompanyRepository implements ICompanyRepository {
 
@@ -29,8 +29,8 @@ public class CompanyRepository implements ICompanyRepository {
     }
 
      @Override
-     public UUID createCompany(String founderUsername, String companyName) {
-        Company newCompany = new Company(founderUsername, companyName);
+     public UUID createCompany(String founderEmail, String companyName) {
+        Company newCompany = new Company(founderEmail, companyName);
         companies.put(newCompany.getId(), newCompany);
         return newCompany.getId();
      }

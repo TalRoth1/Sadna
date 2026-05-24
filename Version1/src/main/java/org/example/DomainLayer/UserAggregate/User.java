@@ -300,7 +300,7 @@ public class User {
         if (companyId == null) {
             throw new IllegalArgumentException("Company ID is required");
         }
-        if (!isCompanyMember(companyId) || !(companyRoles.get(companyId) instanceof CompanyOwner)) {
+        if (!isCompanyMember(companyId) || !isOwnerInCompany(companyId)) {
             throw new IllegalArgumentException(
                     "Only company owners can view the company hierarchy");
         }

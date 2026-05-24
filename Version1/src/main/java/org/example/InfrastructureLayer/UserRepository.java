@@ -103,10 +103,11 @@ public class UserRepository implements IUserRepository {
         admins.put(admin.getId(), admin);
     }
 
+    @Override
     public boolean existsAdmin(UUID adminId) {
         return admins.containsKey(adminId);
     }
-
+    @Override
     public Map<UUID, User> getAllUsers()
     {
         return this.users;

@@ -16,6 +16,8 @@ export type AppPage =
     | "user-tickets"
     | "purchase-history"
     | "my-companies"
+    | "company-creation"
+    | "company-details"
     | "profile"
     | "admin-dashboard"
     | "admin-companies"

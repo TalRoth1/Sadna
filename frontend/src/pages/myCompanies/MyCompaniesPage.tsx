@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getCurrentUser, type CurrentUser } from "../../services/currentUserService";
+import { getMyCompanies, type CompanyMembership as CompanyMembershipDto } from "../../services/companyService";
 import "./MyCompaniesPage.css";
 
 type CompanyStatus = "active" | "suspended" | "closed";
@@ -11,31 +12,40 @@ type CompanyMembership = {
     status: CompanyStatus;
 };
 
-const COMPANY_DETAILS_BASE_PATH = "/company";
-const COMPANY_CREATION_PATH = "/companies/new";
+type CompanyPermissionName =
+    | "Manage inventory"
+    | "Configure layout"
+    | "Manage policies"
+    | "Customer service"
+    | "View history"
+    | "Generate sales reports";
 
-const MOCK_COMPANIES_BY_USER_ID: Record<string, CompanyMembership[]> = {
-    "user-1": [
-        {
-            id: "company-101",
-            name: "Northern Lights Events",
-            role: "Owner",
-            status: "active",
-        },
-        {
-            id: "company-102",
-            name: "Urban Stage Collective",
-            role: "Manager",
-            status: "suspended",
-        },
-        {
-            id: "company-103",
-            name: "Coastal Vibe Productions",
-            role: "Member",
-            status: "closed",
-        },
-    ],
+type MyCompaniesPageProps = {
+    onCreateCompany: () => void;
+    onOpenCompany: (
+        companyId: string,
+        companyName: string,
+        role: string,
+        status: CompanyStatus,
+        permissions: CompanyPermissionName[],
+    ) => void;
 };
+
+function mapCompanyMembership(dto: CompanyMembershipDto): CompanyMembership {
+    const normalizedStatus = dto.status.toLowerCase() as CompanyStatus;
+
+    return {
+        id: dto.companyId,
+        name: dto.companyName,
+        role: dto.role,
+        status:
+            normalizedStatus === "active" ||
+            normalizedStatus === "suspended" ||
+            normalizedStatus === "closed"
+                ? normalizedStatus
+                : "active",
+    };
+}
 
 function getCompanyStatusLabel(status: CompanyStatus) {
     if (status === "active") {
@@ -53,15 +63,58 @@ function getCompanyStatusClass(status: CompanyStatus) {
     return `company-status company-status--${status}`;
 }
 
-function CompanyCard({ company }: { company: CompanyMembership }) {
-    const companyHref = `${COMPANY_DETAILS_BASE_PATH}?companyId=${encodeURIComponent(company.id)}`;
+function getPermissionsForRole(role: string): CompanyPermissionName[] {
+    const normalizedRole = role.trim().toLowerCase();
 
+    if (normalizedRole === "manager") {
+        return [
+            "Manage inventory",
+            "Customer service",
+            "View history",
+        ];
+    }
+
+    return [
+        "Manage inventory",
+        "Configure layout",
+        "Manage policies",
+        "Customer service",
+        "View history",
+        "Generate sales reports",
+    ];
+}
+
+function CompanyCard({
+    company,
+    onOpenCompany,
+}: {
+    company: CompanyMembership;
+    onOpenCompany: (
+        companyId: string,
+        companyName: string,
+        role: string,
+        status: CompanyStatus,
+        permissions: CompanyPermissionName[],
+    ) => void;
+}) {
     return (
         <article className="company-card">
             <div className="company-card-main">
-                <a className="company-name-link" href={companyHref}>
+                <button
+                    type="button"
+                    className="company-name-link"
+                    onClick={() =>
+                        onOpenCompany(
+                            company.id,
+                            company.name,
+                            company.role,
+                            company.status,
+                            getPermissionsForRole(company.role),
+                        )
+                    }
+                >
                     {company.name}
-                </a>
+                </button>
                 <p className="company-card-meta">Company ID: {company.id}</p>
             </div>
 
@@ -96,7 +149,7 @@ function GuestAccessCard() {
     );
 }
 
-function EmptyCompaniesState() {
+function EmptyCompaniesState({ onCreateCompany }: { onCreateCompany: () => void }) {
     return (
         <section className="empty-state company-empty-state">
             <h2>No companies yet</h2>
@@ -110,14 +163,17 @@ function EmptyCompaniesState() {
                 creation page when it is available.
             </p>
 
-            <a className="company-action-link" href={COMPANY_CREATION_PATH}>
+            <button type="button" className="company-action-link" onClick={onCreateCompany}>
                 Go to company creation
-            </a>
+            </button>
         </section>
     );
 }
 
-export default function MyCompaniesPage() {
+export default function MyCompaniesPage({
+    onCreateCompany,
+    onOpenCompany,
+}: MyCompaniesPageProps) {
     const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
     const [companies, setCompanies] = useState<CompanyMembership[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -135,7 +191,8 @@ export default function MyCompaniesPage() {
                     return;
                 }
 
-                setCompanies(MOCK_COMPANIES_BY_USER_ID[user.id] ?? []);
+                const memberships = await getMyCompanies(user.email);
+                setCompanies(memberships.map(mapCompanyMembership));
             } finally {
                 setIsLoading(false);
             }
@@ -158,9 +215,9 @@ export default function MyCompaniesPage() {
 
             {!isGuest && (
                 <section className="company-page-toolbar">
-                    <a className="company-create-button" href={COMPANY_CREATION_PATH}>
+                    <button type="button" className="company-create-button" onClick={onCreateCompany}>
                         Create company
-                    </a>
+                    </button>
                 </section>
             )}
 
@@ -173,13 +230,19 @@ export default function MyCompaniesPage() {
 
             {!isLoading && isGuest && <GuestAccessCard />}
 
-            {!isLoading && !isGuest && companies.length === 0 && <EmptyCompaniesState />}
+            {!isLoading && !isGuest && companies.length === 0 && (
+                <EmptyCompaniesState onCreateCompany={onCreateCompany} />
+            )}
 
             {!isLoading && !isGuest && companies.length > 0 && (
                 <section className="company-list-shell" aria-label="My companies">
                     <div className="company-list-scroll">
                         {companies.map((company) => (
-                            <CompanyCard key={company.id} company={company} />
+                            <CompanyCard
+                                key={company.id}
+                                company={company}
+                                onOpenCompany={onOpenCompany}
+                            />
                         ))}
                     </div>
                 </section>

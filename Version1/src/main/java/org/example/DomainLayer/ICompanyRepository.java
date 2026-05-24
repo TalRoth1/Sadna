@@ -7,8 +7,7 @@ import java.util.UUID;
 import org.example.DomainLayer.CompanyAggregate.Company;
 
 public interface ICompanyRepository {
-    UUID createCompany(String founderUsername, String companyName);
-
+    UUID createCompany(String founderEmail, String companyName);
     Optional<Company> findByID(UUID companyId);
 
     void save(Company company);

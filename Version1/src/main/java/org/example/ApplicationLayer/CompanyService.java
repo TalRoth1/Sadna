@@ -7,6 +7,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Logger;
 
+import org.example.ApplicationLayer.dto.CompanyDTOs.CompanyAccessResponse;
 import org.example.ApplicationLayer.dto.CompanyDTOs.CompanyMembershipResponse;
 import org.example.ApplicationLayer.dto.CompanyDTOs.CompanyResponse;
 import org.example.ApplicationLayer.dto.CompanyDTOs.HierarchyResponse;
@@ -28,38 +29,74 @@ public class CompanyService {
     private final INotifier notifier;
 
     public CompanyService(RolesDomainService rolesDomainService,
-                        PurchaseDomainService purchaseDomainService,
-                        INotifier notifier) {
+            PurchaseDomainService purchaseDomainService,
+            INotifier notifier) {
         this.rolesDomainService = rolesDomainService;
         this.purchaseDomainService = purchaseDomainService;
         this.notifier = notifier;
     }
 
-    public CompanyResponse createCompany(String founderUsername, String companyName) {
-        if (founderUsername == null || founderUsername.isBlank()) {
-            throw new IllegalArgumentException("Founder username is required");
+    public CompanyResponse createCompany(String founderEmail, String companyName) {
+        logger.info("caller=" + founderEmail
+                + ", action=createCompany"
+                + ", target=RolesDomainService.createCompany"
+                + ", params={founderEmail=" + founderEmail + ", companyName=" + companyName + "}");
+
+        if (founderEmail == null || founderEmail.isBlank()) {
+            throw new IllegalArgumentException("Founder email is required");
         }
         if (companyName == null || companyName.isBlank()) {
             throw new IllegalArgumentException("Company name is required");
         }
 
-        UUID companyId = rolesDomainService.createCompany(founderUsername, companyName);
+        UUID companyId = rolesDomainService.createCompany(founderEmail, companyName);
 
         return new CompanyResponse(
                 companyId,
                 companyName,
-                founderUsername,
+                founderEmail,
                 0.0,
                 true,
-                List.of()
-        );
+                List.of());
     }
 
+    public void closeCompanyAsAdmin(String adminUsername, UUID companyId) {
+        logger.info("caller=" + adminUsername
+                + ", action=closeCompanyAsAdmin"
+                + ", target=RolesDomainService.closeCompanyAsAdmin"
+                + ", params={adminUsername=" + adminUsername + ", companyId=" + companyId + "}");
+
+        try {
+            if (adminUsername == null || adminUsername.isBlank()) {
+                throw new IllegalArgumentException("Admin username is required");
+            }
+            if (companyId == null) {
+                throw new IllegalArgumentException("Company ID is required");
+            }
+
+            rolesDomainService.closeCompanyAsAdmin(adminUsername, companyId);
+
+            String owner = rolesDomainService.getCompanyOwner(companyId);
+
+            notifier.notifyUser(owner, "Company: " + companyId + " has been closed");
+
+            logger.info("action=closeCompanyAsAdmin completed successfully"
+                    + ", params={adminUsername=" + adminUsername + ", companyId=" + companyId + "}");
+
+        } catch (RuntimeException e) {
+            logger.severe("action=closeCompanyAsAdmin failed"
+                    + ", caller=" + adminUsername
+                    + ", target=RolesDomainService.closeCompanyAsAdmin"
+                    + ", params={adminUsername=" + adminUsername + ", companyId=" + companyId + "}"
+                    + ", error=" + e.getMessage());
+            throw e;
+        }
+    }
 
     public InvitationResponse inviteCompanyManager(String ownerUsername,
-                                                   UUID companyId,
-                                                   String usernameToInvite,
-                                                   Set<CompanyPermission> premissions) {
+            UUID companyId,
+            String usernameToInvite,
+            Set<CompanyPermission> premissions) {
         if (ownerUsername == null || ownerUsername.isBlank()) {
             throw new IllegalArgumentException("Owner username is required");
         }
@@ -68,8 +105,7 @@ public class CompanyService {
                 ownerUsername,
                 companyId,
                 usernameToInvite,
-                premissions
-        );
+                premissions);
 
         return new InvitationResponse(
                 invitationId,
@@ -77,13 +113,12 @@ public class CompanyService {
                 ownerUsername,
                 usernameToInvite,
                 "MANAGER",
-                premissions
-        );
+                premissions);
     }
 
     public InvitationResponse inviteCompanyOwner(String ownerUsername,
-                                                 UUID companyId,
-                                                 String usernameToInvite) {
+            UUID companyId,
+            String usernameToInvite) {
         if (ownerUsername == null || ownerUsername.isBlank()) {
             throw new IllegalArgumentException("Owner username is required");
         }
@@ -91,8 +126,7 @@ public class CompanyService {
         UUID invitationId = rolesDomainService.inviteCompanyOwner(
                 ownerUsername,
                 companyId,
-                usernameToInvite
-        );
+                usernameToInvite);
 
         return new InvitationResponse(
                 invitationId,
@@ -100,8 +134,7 @@ public class CompanyService {
                 ownerUsername,
                 usernameToInvite,
                 "OWNER",
-                null
-        );
+                null);
     }
 
     public void acceptCompanyInvitation(UUID invitationId, String username, UUID companyId) {
@@ -137,28 +170,28 @@ public class CompanyService {
     }
 
     public void changeManagerPermissions(String ownerUsername,
-                                     UUID companyId,
-                                     String managerUsername,
-                                     Set<CompanyPermission> newPermissions) {
-    if (ownerUsername == null || ownerUsername.isBlank()) {
-        throw new IllegalArgumentException("Owner username is required");
-    }
-    if (managerUsername == null || managerUsername.isBlank()) {
-        throw new IllegalArgumentException("Manager username is required");
-    }
+            UUID companyId,
+            String managerUsername,
+            Set<CompanyPermission> newPermissions) {
+        if (ownerUsername == null || ownerUsername.isBlank()) {
+            throw new IllegalArgumentException("Owner username is required");
+        }
+        if (managerUsername == null || managerUsername.isBlank()) {
+            throw new IllegalArgumentException("Manager username is required");
+        }
 
-    rolesDomainService.changeManagerPermissions(
-            ownerUsername, companyId, managerUsername, newPermissions);
+        rolesDomainService.changeManagerPermissions(
+                ownerUsername, companyId, managerUsername, newPermissions);
 
-    notifier.notifyUser(managerUsername, "Your permissions changed");
-}
+        notifier.notifyUser(managerUsername, "Your permissions changed");
+    }
 
     public void addPolicyRule(String username,
-                              UUID companyId,
-                              Float age,
-                              Integer minTicket,
-                              Integer maxTicket,
-                              Boolean allowLoneSeat) {
+            UUID companyId,
+            Float age,
+            Integer minTicket,
+            Integer maxTicket,
+            Boolean allowLoneSeat) {
         addPolicyRule(
                 username,
                 companyId,
@@ -166,17 +199,16 @@ public class CompanyService {
                 Optional.ofNullable(minTicket),
                 Optional.ofNullable(maxTicket),
                 Optional.ofNullable(allowLoneSeat),
-                true
-        );
+                true);
     }
 
     public void addPolicyRule(String username,
-                              UUID companyId,
-                              Optional<Float> age,
-                              Optional<Integer> minTicket,
-                              Optional<Integer> maxTicket,
-                              Optional<Boolean> allowLoneSeat,
-                              boolean andOr) {
+            UUID companyId,
+            Optional<Float> age,
+            Optional<Integer> minTicket,
+            Optional<Integer> maxTicket,
+            Optional<Boolean> allowLoneSeat,
+            boolean andOr) {
         if (age != null && age.isPresent() && age.get() < 0) {
             throw new IllegalArgumentException("Age must be non negative");
         }
@@ -200,21 +232,21 @@ public class CompanyService {
     }
 
     public void addOvertDiscount(String username,
-                                 UUID companyId,
-                                 LocalDate fromDate,
-                                 LocalDate toDate,
-                                 float discountPercent) {
+            UUID companyId,
+            LocalDate fromDate,
+            LocalDate toDate,
+            float discountPercent) {
         validateDiscount(toDate, discountPercent);
         rolesDomainService.addOvertDiscount(username, companyId, fromDate, toDate, discountPercent);
     }
 
     public void addConditionalDiscount(String username,
-                                       UUID companyId,
-                                       LocalDate fromDate,
-                                       LocalDate toDate,
-                                       float discountPercent,
-                                       int requiredTickets,
-                                       int appliedTickets) {
+            UUID companyId,
+            LocalDate fromDate,
+            LocalDate toDate,
+            float discountPercent,
+            int requiredTickets,
+            int appliedTickets) {
         validateDiscount(toDate, discountPercent);
 
         if (requiredTickets < 0) {
@@ -230,11 +262,11 @@ public class CompanyService {
     }
 
     public void addCouponCode(String username,
-                              UUID companyId,
-                              LocalDate fromDate,
-                              LocalDate toDate,
-                              float discountPercent,
-                              String code) {
+            UUID companyId,
+            LocalDate fromDate,
+            LocalDate toDate,
+            float discountPercent,
+            String code) {
         validateDiscount(toDate, discountPercent);
 
         if (code == null || code.isBlank()) {
@@ -265,12 +297,12 @@ public class CompanyService {
         }
     }
 
-    public HierarchyResponse getCompanyHierarchyMermaid(UUID companyId, String requesterUsername) {
-        if (requesterUsername == null || requesterUsername.isBlank()) {
-            throw new IllegalArgumentException("Requester username is required");
+    public HierarchyResponse getCompanyHierarchyMermaid(UUID companyId, String requesterEmail) {
+        if (requesterEmail == null || requesterEmail.isBlank()) {
+            throw new IllegalArgumentException("Requester email is required");
         }
 
-        String mermaid = rolesDomainService.getCompanyHierarchyMermaid(companyId, requesterUsername);
+        String mermaid = rolesDomainService.getCompanyHierarchyMermaid(companyId, requesterEmail);
         return new HierarchyResponse(companyId, mermaid);
     }
 
@@ -295,10 +327,21 @@ public class CompanyService {
         }
     }
 
-    public List<CompanyMembershipResponse> getUserCompanies(String username) {
-        if (username == null || username.isBlank()) {
-            throw new IllegalArgumentException("Username is required");
+    public List<CompanyMembershipResponse> getUserCompanies(String userEmail) {
+        if (userEmail == null || userEmail.isBlank()) {
+            throw new IllegalArgumentException("Email is required");
         }
-        return rolesDomainService.getUserCompanies(username);
+        return rolesDomainService.getUserCompanies(userEmail);
+    }
+
+    public CompanyAccessResponse getCompanyAccess(UUID companyId, String userEmail) {
+        if (companyId == null) {
+            throw new IllegalArgumentException("Company ID is required");
+        }
+        if (userEmail == null || userEmail.isBlank()) {
+            throw new IllegalArgumentException("Email is required");
+        }
+
+        return rolesDomainService.getCompanyAccess(companyId, userEmail);
     }
 }
