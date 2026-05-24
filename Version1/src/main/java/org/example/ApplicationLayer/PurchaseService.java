@@ -11,6 +11,7 @@ import org.example.DomainLayer.DomainException;
 import org.example.DomainLayer.EventAggregate.Event;
 import org.example.DomainLayer.Events.LotteryWonEvent;
 import org.example.DomainLayer.Events.PurchaseCompletedEvent;
+import org.example.DomainLayer.Events.TicketReservedEvent;
 import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.PurchaseDomainService;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
@@ -167,6 +168,10 @@ public class PurchaseService {
             queueManager.finishAccess(userID, eventID);
             queueManager.releaseBatch(eventID, 1);
 
+            // Publish after a successful reservation so the metrics tracker
+            // records one reservation event in its sliding window.
+            eventPublisher.publish(new TicketReservedEvent(userID, eventID));
+
             return toActivePurchaseDTO(activePurchase);
         } catch (DomainException e) {
             throw new IllegalStateException("Couldn't select the sitting tickets: " + e.getMessage());
@@ -192,6 +197,10 @@ public class PurchaseService {
 
             queueManager.finishAccess(userID, eventID);
             queueManager.releaseBatch(eventID, 1);
+
+            // Publish after a successful reservation so the metrics tracker
+            // records one reservation event in its sliding window.
+            eventPublisher.publish(new TicketReservedEvent(userID, eventID));
 
             return toActivePurchaseDTO(activePurchase);
         } catch (DomainException e) {
