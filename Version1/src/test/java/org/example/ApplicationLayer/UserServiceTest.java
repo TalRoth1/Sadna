@@ -10,6 +10,7 @@ import org.example.ApplicationLayer.dto.UserDTOs.RegisterRequest;
 import org.example.ApplicationLayer.dto.UserDTOs.UserResponse;
 import org.example.DomainLayer.IUserRepository;
 import org.example.DomainLayer.NotificationAggregate.INotifier;
+import org.example.InfrastructureLayer.InMemoryKeyedLock;
 import org.example.DomainLayer.UserAggregate.User;
 import org.example.DomainLayer.UserAggregate.UserStatus;
 import static org.junit.Assert.assertEquals;
@@ -42,7 +43,8 @@ public class UserServiceTest {
         authGatewayMock = mock(IAuthenticationGateway.class);
         // FIX: Mock the notifier so a valid mock instance is injected into the service 
         notifier = mock(INotifier.class); 
-        userService = new UserService(userRepositoryMock, authGatewayMock, notifier);
+        userService = new UserService(userRepositoryMock, authGatewayMock, notifier,
+                new InMemoryKeyedLock<>());
     }
 
     // ================================================================

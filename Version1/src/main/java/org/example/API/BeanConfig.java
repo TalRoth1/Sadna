@@ -3,6 +3,11 @@ package org.example.API;
 import org.example.ApplicationLayer.ActivePurchaseCleaner;
 import org.example.ApplicationLayer.EventPublisher;
 import org.example.ApplicationLayer.IAuthenticationGateway;
+import java.time.Duration;
+
+import org.example.ApplicationLayer.IActiveSessionRegistry;
+import org.example.ApplicationLayer.IKeyedLock;
+import org.example.ApplicationLayer.ILoginRateLimiter;
 import org.example.ApplicationLayer.IPaymentGateway;
 import org.example.ApplicationLayer.ITicketingGateway;
 import org.example.ApplicationLayer.ITokenBlacklist;
@@ -23,7 +28,10 @@ import org.example.InfrastructureLayer.Broadcaster;
 import org.example.InfrastructureLayer.CompanyRepository;
 import org.example.InfrastructureLayer.HistoryRepository;
 import org.example.InfrastructureLayer.InMemoryEventRepository;
+import org.example.InfrastructureLayer.InMemoryKeyedLock;
+import org.example.InfrastructureLayer.InMemoryLoginRateLimiter;
 import org.example.InfrastructureLayer.InMemoryPurchaseRepository;
+import org.example.InfrastructureLayer.InMemorySessionRegistry;
 import org.example.InfrastructureLayer.InMemoryTokenBlacklist;
 import org.example.InfrastructureLayer.LotteryRepository;
 import org.example.InfrastructureLayer.NotificationRepository;
@@ -121,6 +129,43 @@ public class BeanConfig {
     @Bean
     public ITokenBlacklist tokenBlacklist() {
         return new InMemoryTokenBlacklist();
+    }
+
+    /**
+     * Per-key mutual exclusion for the identity lifecycle (register / login /
+     * logout). Keyed on the normalised email string for register and login,
+     * and on the user UUID string for logout.
+     *
+     * <p>Swap this for a Redis-backed {@link IKeyedLock} implementation when
+     * the service is deployed across multiple JVM instances.
+     */
+    @Bean
+    public IKeyedLock<String> userKeyedLock() {
+        return new InMemoryKeyedLock<>();
+    }
+
+    /**
+     * Per-account sliding-window rate limiter for the login endpoint.
+     *
+     * <p>Allows at most 5 failed attempts within a 15-minute window before
+     * throwing {@link org.example.ApplicationLayer.RateLimitExceededException}.
+     * Swap for a Redis-backed implementation in a multi-JVM deployment.
+     */
+    @Bean
+    public ILoginRateLimiter loginRateLimiter() {
+        return new InMemoryLoginRateLimiter(5, Duration.ofMinutes(15));
+    }
+
+    /**
+     * Single-session registry — enforces at-most-one live JWT per user.
+     *
+     * <p>{@link InMemorySessionRegistry} uses {@link java.util.concurrent.ConcurrentHashMap#put}
+     * for an atomic swap; no external synchronization is required.
+     * Replace with a Redis-backed implementation for horizontal scaling.
+     */
+    @Bean
+    public IActiveSessionRegistry activeSessionRegistry() {
+        return new InMemorySessionRegistry();
     }
 
     @Bean
