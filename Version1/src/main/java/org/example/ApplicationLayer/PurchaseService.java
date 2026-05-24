@@ -119,6 +119,12 @@ public class PurchaseService {
 
             validateQueueAccess(userID, eventID);
 
+            try {
+                Thread.sleep(30000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+
             purchaseDomainService.selectStandingTicketsWithLotteryCode(
                     eventID, amount, userID, areaID, isConfirmedAge, accessCode
             );
