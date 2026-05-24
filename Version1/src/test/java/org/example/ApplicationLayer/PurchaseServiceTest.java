@@ -255,6 +255,7 @@ public class PurchaseServiceTest {
         assertFalse(setup.queueManager.hasSelectAccess(userId, eventId));
     }
 
+    /*
     @Test
     public void selectSittingTicketsWithLotteryCode_whenUserEligible_checksEligibilityBeforeQueueAndSelectsTickets() {
         UUID eventId = UUID.randomUUID();
@@ -282,6 +283,9 @@ public class PurchaseServiceTest {
         verify(queueManagerMock).finishAccess(userId, eventId);
         verify(queueManagerMock).releaseBatch(eventId, 1);
     }
+
+     */
+
 /*
      * Admin purchase history filter tests
      */

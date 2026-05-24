@@ -34,6 +34,8 @@ import "./TicketPurchase.css";
 
 type TicketPurchasePageProps = {
     eventId: string;
+    selectionAccessExpiresAt?: string | null;
+    onSelectionAccessExpired?: () => void;
     onBackToEvent: () => void;
 };
 
@@ -373,10 +375,17 @@ function formatEventDateTime(date: string): string {
 
 type PurchaseTimerProps = {
     targetDate: Date;
+    label?: string;
+    expiredLabel?: string;
     onExpire?: () => void;
 };
 
-function PurchaseTimer({ targetDate, onExpire }: PurchaseTimerProps) {
+function PurchaseTimer({
+    targetDate,
+    label = "Time remaining to complete purchase",
+    expiredLabel = "Time expired",
+    onExpire,
+}: PurchaseTimerProps) {
     const [now, setNow] = useState<number>(() => Date.now());
     const expireFiredRef = useRef(false);
 
@@ -416,7 +425,7 @@ function PurchaseTimer({ targetDate, onExpire }: PurchaseTimerProps) {
             aria-live="polite"
         >
             <span className="purchase-timer-label">
-                {hasExpired ? "Time expired" : "Time remaining to complete purchase"}
+                {hasExpired ? expiredLabel : label}
             </span>
             <span className="purchase-timer-value">
                 {String(minutes).padStart(2, "0")}:{String(seconds).padStart(2, "0")}
@@ -1176,6 +1185,8 @@ function PaymentDetailsCard({
 
 export default function TicketPurchasePage({
     eventId,
+    selectionAccessExpiresAt = null,
+    onSelectionAccessExpired,
     onBackToEvent,
 }: TicketPurchasePageProps) {
     const [event, setEvent] = useState<Event | null>(null);
@@ -1201,6 +1212,27 @@ export default function TicketPurchasePage({
     // cancel+select round-trip when the user changes shape entirely).
     const [activePurchase, setActivePurchase] =
         useState<ActivePurchaseState | null>(null);
+
+    const selectionAccessDeadline = selectionAccessExpiresAt
+        ? new Date(selectionAccessExpiresAt)
+        : null;
+
+    function handleSelectionAccessTimerExpire() {
+        setActionMessage({
+            kind: "error",
+            text: "Your ticket-selection access expired. Please rejoin the queue.",
+        });
+        onSelectionAccessExpired?.();
+    }
+
+    function hasLiveSelectionAccess(): boolean {
+        if (!selectionAccessDeadline) {
+            return true;
+        }
+
+        return Number.isFinite(selectionAccessDeadline.getTime()) &&
+            selectionAccessDeadline.getTime() > Date.now();
+    }
 
     useEffect(() => {
         let isCancelled = false;
@@ -1420,6 +1452,11 @@ export default function TicketPurchasePage({
         }
         const shape = deriveActiveShape(selection);
         if (!shape) {
+            return;
+        }
+
+        if (!activePurchase && !hasLiveSelectionAccess()) {
+            handleSelectionAccessTimerExpire();
             return;
         }
 
@@ -1674,8 +1711,21 @@ export default function TicketPurchasePage({
                 </section>
             )}
 
-            {/* The timer is the visible counterpart of the backend lock. It
-                only renders once a reservation exists (deadline pinned to
+            {/* Before the ActivePurchase exists, this timer represents the
+                temporary queue access window: the user may select tickets only
+                while this window is alive. Once a reservation is created, the
+                normal checkout/reservation timer below takes over. */}
+            {bookable && !activePurchase && step === "select" && selectionAccessDeadline && (
+                <PurchaseTimer
+                    targetDate={selectionAccessDeadline}
+                    label="Time left to start a reservation"
+                    expiredLabel="Selection access expired"
+                    onExpire={handleSelectionAccessTimerExpire}
+                />
+            )}
+
+            {/* The timer is the visible counterpart of the backend reservation.
+                It only renders once a reservation exists (deadline pinned to
                 ActivePurchase.endTime) and hides once payment has settled. */}
             {bookable && activePurchase && !isPaymentComplete && (
                 <PurchaseTimer

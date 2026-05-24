@@ -2,59 +2,56 @@ package org.example.ApplicationLayer;
 
 import org.example.DomainLayer.DomainException;
 import org.example.DomainLayer.NotificationAggregate.INotifier;
-import org.springframework.context.annotation.Bean;
 
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.logging.Logger;
 
-
-
-public class QueueManager
-{
-    private Map<UUID, Queue<UUID>> queuePerEvent = new LinkedHashMap<>(); //eventId and userid
-    private Map<UUID, Map<UUID, LocalDateTime>> perEventAllowedUsersToStartSelection = new LinkedHashMap<>();
+public class QueueManager {
+    private final Map<UUID, Queue<UUID>> queuePerEvent = new LinkedHashMap<>();
+    private final Map<UUID, Map<UUID, LocalDateTime>> perEventAllowedUsersToStartSelection = new LinkedHashMap<>();
 
     private int maxConcurrentSelectors = 10;
-
     private int howManyMinutesToStartSelection = 10;
 
-    private static final Logger logger = Logger.getLogger(EventService.class.getName());
+    private static final Logger logger = Logger.getLogger(QueueManager.class.getName());
 
-    private INotifier notifier;
+    private final INotifier notifier;
 
     public QueueManager() {
-
+        this.notifier = null;
     }
-
 
     public QueueManager(INotifier notifier) {
         this.notifier = notifier;
     }
-    public QueueManager queueManager(INotifier notifier) {
-        return new QueueManager(notifier);
-    }
 
-    public synchronized QueueAccessResult requestSelectionAccess(UUID userId, UUID eventId)
-    {
+    /**
+     * Queue gate entry point.
+     *
+     * This method is intentionally used BEFORE the user reaches the practical
+     * ticket-selection stage. It either grants a temporary selection window or
+     * places the user in the event-specific waiting room.
+     */
+    public synchronized QueueAccessResult requestSelectionAccess(UUID userId, UUID eventId) {
         logger.info("Requesting selection access: userId=" + userId + ", eventId=" + eventId);
 
         ensureUserExists(userId);
         ensureEventExists(eventId);
 
         removeUsersThatOutOfTime(eventId);
-
         promoteWaitingUsers(eventId);
 
-        if (hasSelectAccess(userId, eventId)) {
+        LocalDateTime existingExpiration = getAccessExpiration(userId, eventId);
+        if (existingExpiration != null) {
             logger.info("Access already granted for user " + userId + " on event " + eventId);
-            return QueueAccessResult.allowed();
+            return QueueAccessResult.allowed(existingExpiration);
         }
 
         Queue<UUID> currentEventQueue = queuePerEvent.computeIfAbsent(eventId, k -> new LinkedList<>());
 
         if (currentEventQueue.contains(userId)) {
-            logger.info("User " + userId + " is already in queue for event ");
+            logger.info("User " + userId + " is already in queue for event " + eventId);
             return QueueAccessResult.waiting(
                     getPositionInQueue(userId, eventId),
                     getQueueSize(eventId)
@@ -64,17 +61,15 @@ public class QueueManager
         Map<UUID, LocalDateTime> allowedForEvent =
                 perEventAllowedUsersToStartSelection.computeIfAbsent(eventId, id -> new HashMap<>());
 
-
-
         if (allowedForEvent.size() < maxConcurrentSelectors && currentEventQueue.isEmpty()) {
-            allowedForEvent.put(userId, LocalDateTime.now().plusMinutes(howManyMinutesToStartSelection));
-            logger.info("Immediate access granted to user " + userId + " for event " + eventId + " (Capacity: " + allowedForEvent.size() + "/" + maxConcurrentSelectors + ")");
-            return QueueAccessResult.allowed();
+            LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(howManyMinutesToStartSelection);
+            allowedForEvent.put(userId, expiresAt);
+            logger.info("Immediate selection access granted to user " + userId + " for event " + eventId
+                    + " (Capacity: " + allowedForEvent.size() + "/" + maxConcurrentSelectors + ")");
+            return QueueAccessResult.allowed(expiresAt);
         }
 
-
         currentEventQueue.add(userId);
-
         logger.info("User " + userId + " added to queue for event " + eventId);
 
         return QueueAccessResult.waiting(
@@ -83,10 +78,47 @@ public class QueueManager
         );
     }
 
+    /**
+     * Read-only access status. Unlike requestSelectionAccess, this method does
+     * not enqueue a new user. Use it for polling a waiting room page.
+     */
+    public synchronized QueueAccessResult getSelectionAccessStatus(UUID userId, UUID eventId) {
+        ensureUserExists(userId);
+        ensureEventExists(eventId);
 
-    public synchronized int getPositionInQueue(UUID userId, UUID eventId)
-    {
-        logger.info("Checking queue position for user: " + userId + " on event: " + eventId);
+        removeUsersThatOutOfTime(eventId);
+        promoteWaitingUsers(eventId);
+
+        LocalDateTime expiration = getAccessExpiration(userId, eventId);
+        if (expiration != null) {
+            return QueueAccessResult.allowed(expiration);
+        }
+
+        int position = getPositionInQueue(userId, eventId);
+        if (position > 0) {
+            return QueueAccessResult.waiting(position, getQueueSize(eventId));
+        }
+
+        return QueueAccessResult.waiting(-1, getQueueSize(eventId));
+    }
+
+    /**
+     * Used by ticket-reservation endpoints. This method only verifies an
+     * already-granted access window; it never enqueues the user. That keeps the
+     * queue semantics aligned with the requirement: the queue is before ticket
+     * selection, not inside the reservation call.
+     */
+    public synchronized void requireSelectionAccess(UUID userId, UUID eventId) {
+        ensureUserExists(userId);
+        ensureEventExists(eventId);
+        removeUsersThatOutOfTime(eventId);
+
+        if (!hasSelectAccess(userId, eventId)) {
+            throw new IllegalStateException("Selection access expired or was not granted. Please join the queue again.");
+        }
+    }
+
+    public synchronized int getPositionInQueue(UUID userId, UUID eventId) {
         ensureUserExists(userId);
 
         Queue<UUID> queue = queuePerEvent.get(eventId);
@@ -98,19 +130,20 @@ public class QueueManager
 
         for (int i = 0; i < currentQueue.size(); i++) {
             if (currentQueue.get(i).equals(userId)) {
-                logger.info("User " + userId + " found in queue at position: " + i + 1);
                 return i + 1;
             }
         }
-        logger.warning("User " + userId + " not found in queue for event " + eventId);
         return -1;
     }
 
-    public synchronized List<UUID> releaseBatch(UUID eventId, int batchSize)
-    {
+    public synchronized List<UUID> releaseBatch(UUID eventId, int batchSize) {
         logger.info("Attempting to release a batch of " + batchSize + " users for event: " + eventId);
 
         ensureEventExists(eventId);
+        if (batchSize <= 0) {
+            throw new IllegalArgumentException("Batch size must be positive");
+        }
+
         removeUsersThatOutOfTime(eventId);
 
         Queue<UUID> currentEventQueue = queuePerEvent.get(eventId);
@@ -123,70 +156,69 @@ public class QueueManager
         Map<UUID, LocalDateTime> allowedForEvent =
                 perEventAllowedUsersToStartSelection.computeIfAbsent(eventId, id -> new HashMap<>());
 
-        if (maxConcurrentSelectors - allowedForEvent.size() <= 0) {
+        int availableSlots = maxConcurrentSelectors - allowedForEvent.size();
+        if (availableSlots <= 0) {
             return new ArrayList<>();
         }
 
-        int actualBatchSize = Math.min(batchSize, maxConcurrentSelectors - allowedForEvent.size());
-
+        int actualBatchSize = Math.min(batchSize, availableSlots);
         List<UUID> releasedUsers = new ArrayList<>();
 
         for (int i = 0; i < actualBatchSize; i++) {
+            UUID releasedUserId = currentEventQueue.poll();
+            if (releasedUserId == null) {
+                break;
+            }
 
-            UUID releasedUserID = currentEventQueue.poll();
-
-            allowedForEvent.put(
-                    releasedUserID,
-                    LocalDateTime.now().plusMinutes(howManyMinutesToStartSelection)
-            );
-
-            releasedUsers.add(releasedUserID);
+            LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(howManyMinutesToStartSelection);
+            allowedForEvent.put(releasedUserId, expiresAt);
+            releasedUsers.add(releasedUserId);
 
             if (notifier != null) {
                 notifier.notifyUser(
-                        releasedUserID,
+                        releasedUserId,
                         "Your turn has arrived. You can now select tickets for event " + eventId
                 );
             }
         }
+
         logger.info("Successfully released " + releasedUsers.size() + " users from queue for event " + eventId);
         return releasedUsers;
     }
 
     public synchronized boolean hasSelectAccess(UUID userId, UUID eventId) {
-
-        logger.info("Checking if user " + userId + " has select access for event " + eventId);
         ensureUserExists(userId);
+        ensureEventExists(eventId);
 
+        LocalDateTime expirationTime = getAccessExpiration(userId, eventId);
+        return expirationTime != null;
+    }
+
+    public synchronized LocalDateTime getAccessExpiration(UUID userId, UUID eventId) {
         Map<UUID, LocalDateTime> allowedForEvent = perEventAllowedUsersToStartSelection.get(eventId);
 
         if (allowedForEvent == null) {
-            logger.info("No active selectors list found for event " + eventId);
-            return false;
+            return null;
         }
 
         LocalDateTime expirationTime = allowedForEvent.get(userId);
-
         if (expirationTime == null) {
-            logger.info("User " + userId + " does not have an active selection slot for event " + eventId);
-            return false;
+            return null;
         }
 
-        if (expirationTime.isBefore(LocalDateTime.now())) {
-            logger.warning("Access expired for user " + userId + " on event " + eventId + ". Expiry was at: " + expirationTime);
+        if (!expirationTime.isAfter(LocalDateTime.now())) {
             allowedForEvent.remove(userId);
-            return false;
+            return null;
         }
 
-        logger.info("User " + userId + " has valid access until: " + expirationTime);
-        return true;
+        return expirationTime;
     }
 
     public synchronized void finishAccess(UUID userId, UUID eventId) {
-
         logger.info("Finishing selection access for user: " + userId + " on event: " + eventId);
 
         ensureUserExists(userId);
+        ensureEventExists(eventId);
 
         Map<UUID, LocalDateTime> allowedForEvent = perEventAllowedUsersToStartSelection.get(eventId);
         if (allowedForEvent != null) {
@@ -195,18 +227,9 @@ public class QueueManager
     }
 
     public synchronized int getQueueSize(UUID eventId) {
-
-        logger.info("Checking queue size for event: " + eventId);
-
         Queue<UUID> queue = queuePerEvent.get(eventId);
-
-        if (queue == null) {
-            return -1;
-        }
-
-        return queue.size();
+        return queue == null ? 0 : queue.size();
     }
-
 
     private void removeUsersThatOutOfTime(UUID eventId) {
         Map<UUID, LocalDateTime> allowedForEvent =
@@ -217,21 +240,27 @@ public class QueueManager
         }
 
         LocalDateTime now = LocalDateTime.now();
-        allowedForEvent.entrySet().removeIf(entry -> entry.getValue().isBefore(now));
+        allowedForEvent.entrySet().removeIf(entry -> !entry.getValue().isAfter(now));
     }
 
-    private void promoteWaitingUsers(UUID eventId)
-    {
+    private void promoteWaitingUsers(UUID eventId) {
         Map<UUID, LocalDateTime> allowedForEvent =
                 perEventAllowedUsersToStartSelection.computeIfAbsent(eventId, id -> new HashMap<>());
 
-        if (maxConcurrentSelectors - allowedForEvent.size() > 0) {
-            releaseBatch(eventId, maxConcurrentSelectors - allowedForEvent.size());
+        int availableSlots = maxConcurrentSelectors - allowedForEvent.size();
+        if (availableSlots > 0) {
+            releaseBatch(eventId, availableSlots);
         }
     }
 
+    public int getHowManyMinutesToStartSelection() {
+        return howManyMinutesToStartSelection;
+    }
 
     public void setHowManyMinutesToStartSelection(int howManyMinutesToStartSelection) {
+        if (howManyMinutesToStartSelection <= 0) {
+            throw new IllegalArgumentException("Minutes to start selection must be positive");
+        }
         this.howManyMinutesToStartSelection = howManyMinutesToStartSelection;
     }
 
@@ -240,15 +269,18 @@ public class QueueManager
     }
 
     public void setMaxConcurrentSelectors(int maxConcurrentSelectors) {
+        if (maxConcurrentSelectors <= 0) {
+            throw new IllegalArgumentException("Max concurrent selectors must be positive");
+        }
         this.maxConcurrentSelectors = maxConcurrentSelectors;
     }
 
-    private void ensureUserExists(UUID userId)
-    {
+    private void ensureUserExists(UUID userId) {
         if (userId == null) {
             throw new DomainException("userId is required");
         }
     }
+
     private void ensureEventExists(UUID eventId) {
         if (eventId == null) {
             throw new DomainException("eventId is required");
@@ -272,13 +304,22 @@ public class QueueManager
         List<QueueSnapshot> snapshots = new ArrayList<>();
 
         for (UUID eventId : eventIds) {
+            removeUsersThatOutOfTime(eventId);
+
             Queue<UUID> queue = queuePerEvent.get(eventId);
             Map<UUID, LocalDateTime> activeSelectors = perEventAllowedUsersToStartSelection.get(eventId);
 
+            int queueSize = queue == null ? 0 : queue.size();
+            int activeSelectorsCount = activeSelectors == null ? 0 : activeSelectors.size();
+
+            if (queueSize == 0 && activeSelectorsCount == 0) {
+                continue;
+            }
+
             snapshots.add(new QueueSnapshot(
                     eventId,
-                    queue == null ? 0 : queue.size(),
-                    activeSelectors == null ? 0 : activeSelectors.size(),
+                    queueSize,
+                    activeSelectorsCount,
                     maxConcurrentSelectors,
                     howManyMinutesToStartSelection
             ));

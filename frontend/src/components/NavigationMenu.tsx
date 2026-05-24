@@ -10,6 +10,7 @@ import { logoutUser } from "../services/authService";
 export type AppPage =
     | "event-search"
     | "event-details"
+    | "event-queue"
     | "event-purchase"
     | "login"
     | "registration"
