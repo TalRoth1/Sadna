@@ -25,6 +25,7 @@ import EditEventPage from "./pages/editEvent/EditEventPage";
 import type { CompanyResponse } from "./services/companyService";
 import type { AdminActionId } from "./types/admin";
 import "./App.css";
+import MyActivePurchasesPage from "./pages/MyActivePurchasesPage";
 
 type CompanyStatus = "Active" | "Suspended" | "Closed";
 
@@ -44,13 +45,7 @@ type SelectedCompany = {
     permissions: CompanyPermissionName[];
 };
 
-function PlaceholderPage({
-    title,
-    description,
-}: {
-    title: string;
-    description: string;
-}) {
+function PlaceholderPage({ title, description }: { title: string; description: string }) {
     return (
         <main className="app-page">
             <section className="page-header">
@@ -121,6 +116,12 @@ function App() {
         }
 
         setCurrentPage(page);
+    }
+
+    function handleOpenActivePurchase(eventId: string) {
+        setSelectedEventId(eventId);
+        setSelectionAccessExpiresAt(null);
+        setCurrentPage("event-purchase");
     }
 
     function handleCreateEventForCompany(companyId: string) {
@@ -213,6 +214,7 @@ function App() {
             return;
         }
 
+
         setSelectionAccessExpiresAt(null);
         setCurrentPage("event-details");
     }
@@ -233,6 +235,14 @@ function App() {
     }
 
     function renderPage() {
+        if (currentPage === "active-purchases") {
+            return (
+                <MyActivePurchasesPage
+                    onOpenPurchase={handleOpenActivePurchase}
+                />
+            );
+        }
+
         if (currentPage === "event-search") {
             return <EventSearchPage onSelectEvent={handleSelectEvent} />;
         }
@@ -241,6 +251,7 @@ function App() {
             if (!selectedEventId) {
                 return <EventSearchPage onSelectEvent={handleSelectEvent} />;
             }
+
 
             return (
                 <EventDetailsPage
@@ -271,6 +282,7 @@ function App() {
             if (!selectedEventId) {
                 return <EventSearchPage onSelectEvent={handleSelectEvent} />;
             }
+
 
             return (
                 <TicketPurchasePage

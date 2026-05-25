@@ -28,7 +28,8 @@ export type AppPage =
     | "admin-queues"
     | "lottery-registration"
     | "create-event"
-    | "edit-event";
+    | "edit-event"
+    | "active-purchases";
 
 type NavigationMenuProps = {
     currentPage: AppPage;
@@ -40,12 +41,13 @@ const mainLinks: { page: AppPage; label: string }[] = [
     { page: "purchase-history", label: "Purchase History" },
     { page: "my-companies", label: "My Companies" },
     { page: "profile", label: "Profile" },
+    {
+        page: "active-purchases",
+        label: "Active Purchases",
+    }
 ];
 
-export default function NavigationMenu({
-    currentPage,
-    onNavigate,
-}: NavigationMenuProps) {
+export default function NavigationMenu({ currentPage, onNavigate }: NavigationMenuProps) {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
     const [isAdmin, setIsAdmin] = useState(false);
@@ -55,9 +57,7 @@ export default function NavigationMenu({
         currentUser?.username?.startsWith("guest-");
 
     const isLoggedIn =
-        currentUser !== null &&
-        !isGuest &&
-        currentUser.status === "LOGGED_IN";
+        currentUser !== null && !isGuest && currentUser.status === "LOGGED_IN";
 
     useEffect(() => {
         let isMounted = true;
@@ -66,53 +66,34 @@ export default function NavigationMenu({
             try {
                 const user = await validateCurrentUserWithServer();
 
-                if (!isMounted) {
-                    return;
-                }
-
-                console.log("[NavigationMenu] current user:", user);
+                if (!isMounted) return;
 
                 setCurrentUser(user);
 
                 if (!user) {
-                    console.log("[NavigationMenu] no user, hiding admin dashboard");
                     setIsAdmin(false);
                     return;
                 }
 
-                const isGuestUser =
-                    user.role === "GUEST" ||
-                    user.username?.startsWith("guest-");
+                const isGuestUser = user.role === "GUEST" || user.username?.startsWith("guest-");
 
                 if (isGuestUser) {
-                    console.log("[NavigationMenu] guest user, skipping admin check");
                     setIsAdmin(false);
                     return;
                 }
 
                 if (!user.isAdmin) {
-                    console.log("[NavigationMenu] non-admin user, skipping admin check");
                     setIsAdmin(false);
                     return;
                 }
 
                 const hasAdminAccess = await verifyPlatformAdmin(user.id);
-
-                if (!isMounted) {
-                    return;
-                }
-
-                console.log("[NavigationMenu] verifyPlatformAdmin userId:", user.id);
-                console.log("[NavigationMenu] hasAdminAccess:", hasAdminAccess);
+                if (!isMounted) return;
 
                 setIsAdmin(hasAdminAccess);
             } catch (error) {
-                if (!isMounted) {
-                    return;
-                }
-
+                if (!isMounted) return;
                 console.error("[NavigationMenu] failed to load user permissions:", error);
-
                 setCurrentUser(null);
                 setIsAdmin(false);
             }
@@ -139,15 +120,11 @@ export default function NavigationMenu({
         setIsMenuOpen(false);
     }
 
-    const visibleMainLinks = isLoggedIn
-        ? mainLinks
-        : mainLinks.filter((link) => link.page === "event-search");
+    const visibleMainLinks = isLoggedIn ? mainLinks : mainLinks.filter((link) => link.page === "event-search");
 
     async function handleLogout() {
         try {
-            console.log("Initiating logout process...");
             await logoutUser();
-            console.log("Logout successful, clearing user state...");
         } finally {
             setCurrentUser(null);
             setIsAdmin(false);

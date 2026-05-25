@@ -411,7 +411,7 @@ public class DevDataSeeder implements CommandLineRunner {
                 UUID liveNationId = companiesByName.get("Live Nation Demo");
                 UUID indieId = companiesByName.get("Indie Productions");
                 UUID closedId = companiesByName.get("Closed Co.");
-
+                UUID megaId = companiesByName.get("Mega Events Group");
 
                 // 1. Coldplay — mixed standing + sitting, large concert.
                 UUID coldplay = createEvent("coldplay", liveNationId, "founder.live@demo.test",
@@ -489,6 +489,22 @@ public class DevDataSeeder implements CommandLineRunner {
                                 "Festival", "Caesarea Amphitheatre",
                                 LocalDateTime.now().plusDays(90), EventStatus.ACTIVE);
                 addStandingArea(forgottenFest, 150.0, 80);
+
+                // 11. Mega Gala Night — founder-owned event with direct sales so
+                // the owner sales report has real revenue to show.
+                UUID megaGala = createEvent("mega-gala-night", megaId, "founder.mega@demo.test",
+                                "Mega Gala Night", "Various",
+                                "Gala", "Mega Hall, Tel Aviv",
+                                LocalDateTime.now().plusDays(18), EventStatus.ACTIVE);
+                addSittingArea(megaGala, 320.0, 6, 8);
+
+                // 12. Mega Launch Showcase — owned by owner.mega.alpha so the
+                // report can also show sales for a non-founder owner.
+                UUID megaLaunch = createEvent("mega-launch-showcase", megaId, "owner.mega.alpha@demo.test",
+                                "Mega Launch Showcase", "Mega Artists",
+                                "Showcase", "Mega Arena, Tel Aviv",
+                                LocalDateTime.now().plusDays(24), EventStatus.ACTIVE);
+                addStandingArea(megaLaunch, 180.0, 120);
 
     // 4b. One Ticket Test — single-ticket event for sold-out notification testing.
                 UUID oneTicketEvent = createEvent("one-ticket-test", indieId, "founder.indie@demo.test",
@@ -699,6 +715,10 @@ private void seedIndieLottery() {
                 addHistoryRow("bob@demo.test", "adir-miller", 1, "Adir Miller single seat");
                 addHistoryRow("dave@demo.test", "hapoel", 2, "Hapoel pair");
                 addHistoryRow("carol@demo.test", "jazz", 1, "Jazz GA");
+                addHistoryRow("alice@demo.test", "mega-gala-night", 4, "Mega Gala VIP bundle");
+                addHistoryRow("bob@demo.test", "mega-gala-night", 2, "Mega Gala duo");
+                addHistoryRow("carol@demo.test", "mega-launch-showcase", 3, "Mega Launch early access");
+                addHistoryRow("dave@demo.test", "mega-launch-showcase", 2, "Mega Launch pair");
         }
 
         // =================================================================

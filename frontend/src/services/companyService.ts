@@ -82,6 +82,14 @@ export type CompanyPoliciesResponse = {
 	discountPolicy: CompanyDiscountPolicyResponse;
 };
 
+export type CompanySalesReportResponse = {
+	companyId: string;
+	ownerEmail: string;
+	eventIds: string[];
+	ticketIds: string[];
+	totalRevenue: number;
+};
+
 export type CompanyHierarchyResponse = {
 	companyId: string;
 	mermaidChart: string;
@@ -119,6 +127,38 @@ export type ChangeManagerPermissionsRequest = {
 	newPermissions: CompanyPermissionName[];
 };
 
+export type AddPolicyRuleRequest = {
+	username: string;
+	age?: number | null;
+	minTicket?: number | null;
+	maxTicket?: number | null;
+	allowLoneSeat?: boolean | null;
+};
+
+export type AddOvertDiscountRequest = {
+	username: string;
+	fromDate: string;
+	toDate: string;
+	discountPercent: number;
+};
+
+export type AddConditionalDiscountRequest = {
+	username: string;
+	fromDate: string;
+	toDate: string;
+	discountPercent: number;
+	requiredTickets: number;
+	appliedTickets: number;
+};
+
+export type AddCouponRequest = {
+	username: string;
+	fromDate: string;
+	toDate: string;
+	discountPercent: number;
+	code: string;
+};
+
 export type DeletePolicyRuleRequest = {
 	username: string;
 };
@@ -148,6 +188,10 @@ type EventSummaryResponse = {
 	availableTickets: number;
 	totalTickets: number;
 };
+
+type SubordinateEventResponse = EventSummaryResponse & { managerEmail: string };
+
+export type SubordinateEvent = EventSummary & { managerEmail: string };
 
 function toEventSummary(response: EventSummaryResponse): EventSummary {
 	return {
@@ -207,6 +251,17 @@ export async function getCompanyPolicies(
 	});
 
 	return response.data.data as CompanyPoliciesResponse;
+}
+
+export async function getCompanySalesReport(
+	companyId: string,
+	ownerEmail: string,
+): Promise<CompanySalesReportResponse> {
+	const response = await api.get(`/companies/${companyId}/sales-report`, {
+		params: { ownerEmail },
+	});
+
+	return response.data.data as CompanySalesReportResponse;
 }
 
 export async function getMyCompanies(userEmail: string): Promise<CompanyMembership[]> {
@@ -275,6 +330,18 @@ export async function getEventsForUserInCompany(
 	return rows.map(toEventSummary);
 }
 
+export async function getSubordinatesEvents(
+	companyId: string,
+	ownerEmail: string,
+): Promise<SubordinateEvent[]> {
+	const response = await api.get(`/companies/${companyId}/events/subordinates`, {
+		params: { ownerEmail },
+	});
+
+	const rows = (response.data.data ?? []) as SubordinateEventResponse[];
+	return rows.map((r) => ({ ...toEventSummary(r), managerEmail: r.managerEmail }));
+}
+
 export async function deleteEvent(
 	eventId: string,
 	request: DeleteEventRequest,
@@ -289,6 +356,34 @@ export async function changeManagerPermissions(
 	request: ChangeManagerPermissionsRequest,
 ): Promise<void> {
 	await api.patch(`/companies/${companyId}/managers/permissions`, request);
+}
+
+export async function addPolicyRule(
+	companyId: string,
+	request: AddPolicyRuleRequest,
+): Promise<void> {
+	await api.post(`/companies/${companyId}/policy`, request);
+}
+
+export async function addOvertDiscount(
+	companyId: string,
+	request: AddOvertDiscountRequest,
+): Promise<void> {
+	await api.post(`/companies/${companyId}/discounts/overt`, request);
+}
+
+export async function addConditionalDiscount(
+	companyId: string,
+	request: AddConditionalDiscountRequest,
+): Promise<void> {
+	await api.post(`/companies/${companyId}/discounts/conditional`, request);
+}
+
+export async function addCouponCode(
+	companyId: string,
+	request: AddCouponRequest,
+): Promise<void> {
+	await api.post(`/companies/${companyId}/discounts/coupon`, request);
 }
 
 export async function deletePolicyRule(

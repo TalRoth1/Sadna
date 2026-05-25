@@ -73,4 +73,7 @@ public class DiscountPolicy {
 
         return price;
     }
+    public boolean hasRules() {
+        return !discounts.isEmpty();
+    }
 }

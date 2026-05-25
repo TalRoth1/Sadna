@@ -13,6 +13,7 @@ import org.example.DomainLayer.EventAggregate.EventStatus;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.example.DomainLayer.UserAggregate.CompanyFounder;
 import org.example.DomainLayer.UserAggregate.User;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
@@ -108,7 +109,7 @@ public class EventManagementDomainServiceTest {
         verify(historyRepository, never()).getByEventId(any());
     }
 
-@Test
+    @Test
     public void addPurchasePolicy_whenUserHasPermission_addsPolicyToEvent() {
         when(eventRepository.getById(eventId)).thenReturn(event);
         when(companyRepository.findByID(companyId)).thenReturn(Optional.of(company));
@@ -202,6 +203,32 @@ public class EventManagementDomainServiceTest {
         verify(eventRepository, never()).save(any());
     }
 
+
+    @Test
+    public void addEvent_whenDescriptionProvided_savesEventWithTrimmedDescription() {
+        when(eventRepository.getById(eventId)).thenReturn(null);
+        when(userRepository.findByEmail(username)).thenReturn(Optional.of(managerUserWithEvent(eventId)));
+
+        service.addEvent(
+                eventId,
+                companyId,
+                username,
+                "My Event",
+                LocalDateTime.now().plusDays(7),
+                "Tel Aviv",
+                "Artist",
+                "Concert",
+                EventStatus.ACTIVE,
+                "  Full event description  "
+        );
+
+        org.mockito.ArgumentCaptor<Event> eventCaptor =
+                org.mockito.ArgumentCaptor.forClass(Event.class);
+        verify(eventRepository).save(eventCaptor.capture());
+
+        assertEquals("Full event description", eventCaptor.getValue().getDescription());
+    }
+
     @Test
     public void addEvent_whenEventDoesNotExist_createsAndSavesEvent() {
         when(eventRepository.getById(eventId)).thenReturn(null);
@@ -210,7 +237,7 @@ public class EventManagementDomainServiceTest {
         service.addEvent(
                 eventId,
                 companyId,
-            username,
+                username,
                 "My Event",
                 LocalDateTime.now().plusDays(7),
                 "Tel Aviv",
@@ -231,7 +258,7 @@ public class EventManagementDomainServiceTest {
                 service.addEvent(
                         eventId,
                         companyId,
-                username,
+                        username,
                         "My Event",
                         LocalDateTime.now(),
                         "Tel Aviv",

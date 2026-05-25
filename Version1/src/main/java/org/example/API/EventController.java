@@ -41,6 +41,12 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.example.ApplicationLayer.dto.EventDTOs.AddSittingAreaRequest;
+import org.example.ApplicationLayer.dto.EventDTOs.AddStandingAreaRequest;
+import org.example.ApplicationLayer.dto.EventDTOs.EditEventPolicyRequest;
+import org.example.ApplicationLayer.dto.EventDTOs.DeleteAreaRequest;
+import org.example.ApplicationLayer.dto.EventDTOs.UpdateSittingAreaRequest;
+import org.example.ApplicationLayer.dto.EventDTOs.UpdateStandingAreaRequest;
 /**
  * EventController
  *
@@ -195,6 +201,7 @@ public class EventController {
                     .body(ApiResponse.error("Failed to create standing area: system exception"));
         }
     }
+    
     @PutMapping("/{eventId}/areas/{areaId}/standing")
     public ResponseEntity<ApiResponse<Void>> updateStandingArea(
             @PathVariable("eventId") UUID eventId,

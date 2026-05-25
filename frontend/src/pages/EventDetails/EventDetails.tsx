@@ -18,7 +18,8 @@ import "./EventDetails.css";
 type EventDetailsPageProps = {
     eventId: string;
     onBackToSearch: () => void;
-    onStartPurchase: (eventId: string, lotteryAccessCode?: string) => void;    onBackToCompany?: (companyId: string) => void;
+    onStartPurchase: (eventId: string, lotteryAccessCode?: string) => void;
+    onBackToCompany?: (companyId: string) => void;
     onStartLotteryRegistration: (eventId: string) => void;
     onEditEvent: (eventId: string) => void;
 };
@@ -623,6 +624,7 @@ window.alert(message);
             )}
 
             {/* Edit form removed from details view */}
+            {/* Edit form removed from details view */}
             <div className="event-details-grid">
                 <section className="event-details-card">
                     <h2>Event details</h2>
@@ -776,9 +778,7 @@ window.alert(message);
                     {actionMessage && (
                         <div
                             className={`event-action-message tone-${actionMessage.kind}`}
-                            role={
-                                actionMessage.kind === "error" ? "alert" : "status"
-                            }
+                            role={actionMessage.kind === "error" ? "alert" : "status"}
                         >
                             {actionMessage.text}
                         </div>
