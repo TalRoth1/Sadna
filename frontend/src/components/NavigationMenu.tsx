@@ -50,18 +50,26 @@ export default function NavigationMenu({
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
     const [isAdmin, setIsAdmin] = useState(false);
-    const isLoggedIn = currentUser !== null;
+    const isGuest =
+        currentUser?.role === "GUEST" ||
+        currentUser?.username?.startsWith("guest-");
 
+    const isLoggedIn =
+        currentUser !== null &&
+        !isGuest &&
+        currentUser.status === "LOGGED_IN";
 
 
     useEffect(() => {
+        let isMounted = true;
+
         async function loadUserPermissions() {
             try {
-                // Validate against the server, not just localStorage.
-                // This catches stale sessions after a server restart: the JWT
-                // is still cryptographically valid but the in-memory user data
-                // is gone, so /api/users/me returns 401 and we get null here.
                 const user = await validateCurrentUserWithServer();
+
+                if (!isMounted) {
+                    return;
+                }
 
                 console.log("[NavigationMenu] current user:", user);
 
@@ -73,13 +81,37 @@ export default function NavigationMenu({
                     return;
                 }
 
+                const isGuest =
+                    user.role === "GUEST" ||
+                    user.username?.startsWith("guest-");
+
+                if (isGuest) {
+                    console.log("[NavigationMenu] guest user, skipping admin check");
+                    setIsAdmin(false);
+                    return;
+                }
+
+                if (!user.isAdmin) {
+                    console.log("[NavigationMenu] non-admin user, skipping admin check");
+                    setIsAdmin(false);
+                    return;
+                }
+
                 const hasAdminAccess = await verifyPlatformAdmin(user.id);
+
+                if (!isMounted) {
+                    return;
+                }
 
                 console.log("[NavigationMenu] verifyPlatformAdmin userId:", user.id);
                 console.log("[NavigationMenu] hasAdminAccess:", hasAdminAccess);
 
                 setIsAdmin(hasAdminAccess);
             } catch (error) {
+                if (!isMounted) {
+                    return;
+                }
+
                 console.error("[NavigationMenu] failed to load user permissions:", error);
 
                 setCurrentUser(null);
@@ -87,9 +119,21 @@ export default function NavigationMenu({
             }
         }
 
-        loadUserPermissions();
-    }, [currentPage]);
+        void loadUserPermissions();
 
+        function handleInvalidSession() {
+            setCurrentUser(null);
+            setIsAdmin(false);
+            setIsMenuOpen(false);
+        }
+
+        window.addEventListener("auth-session-invalid", handleInvalidSession);
+
+        return () => {
+            isMounted = false;
+            window.removeEventListener("auth-session-invalid", handleInvalidSession);
+        };
+    }, [currentPage]);
     function handleNavigate(page: AppPage) {
         onNavigate(page);
         setIsMenuOpen(false);
@@ -97,7 +141,7 @@ export default function NavigationMenu({
 
     const visibleMainLinks = isLoggedIn
         ? mainLinks
-        : mainLinks.filter((link) => link.page !== "my-companies");
+        : mainLinks.filter((link) => link.page == "event-search");
 
     async function handleLogout() {
         try {
@@ -135,7 +179,7 @@ export default function NavigationMenu({
                 </button>
 
                 <div className="top-navigation-actions">
-                    <NotificationsPopup currentUser={currentUser} />
+                    <NotificationsPopup currentUser={isLoggedIn ? currentUser : null} />
                 </div>
             </header>
 
