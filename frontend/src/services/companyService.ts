@@ -184,6 +184,10 @@ type EventSummaryResponse = {
 	totalTickets: number;
 };
 
+type SubordinateEventResponse = EventSummaryResponse & { managerEmail: string };
+
+export type SubordinateEvent = EventSummary & { managerEmail: string };
+
 function toEventSummary(response: EventSummaryResponse): EventSummary {
 	return {
 		id: response.eventId,
@@ -319,6 +323,18 @@ export async function getEventsForUserInCompany(
 
 	const rows = (response.data.data ?? []) as EventSummaryResponse[];
 	return rows.map(toEventSummary);
+}
+
+export async function getSubordinatesEvents(
+	companyId: string,
+	ownerEmail: string,
+): Promise<SubordinateEvent[]> {
+	const response = await api.get(`/companies/${companyId}/events/subordinates`, {
+		params: { ownerEmail },
+	});
+
+	const rows = (response.data.data ?? []) as SubordinateEventResponse[];
+	return rows.map((r) => ({ ...toEventSummary(r), managerEmail: r.managerEmail }));
 }
 
 export async function deleteEvent(

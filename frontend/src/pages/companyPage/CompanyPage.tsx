@@ -7,6 +7,7 @@ import {
     addPolicyRule,
     changeManagerPermissions,
     deleteEvent,
+    getSubordinatesEvents,
     deletePolicyRule,
     getCompanyHierarchy,
     getCompanyPermissions,
@@ -24,6 +25,7 @@ import {
     type ChangeManagerPermissionsRequest,
     type InviteManagerRequest,
     type InviteOwnerRequest,
+    type SubordinateEvent,
 } from "../../services/companyService";
 import { getEventById } from "../../services/eventSearchService";
 import { getCurrentUser, type CurrentUser } from "../../services/currentUserService";
@@ -130,6 +132,7 @@ type CompanyPageSectionId =
     | "company-policies"
     | "company-invitations"
     | "company-events"
+    | "company-subordinate-events"
     | "company-hierarchy";
 
 type CompanyPageSection = {
@@ -315,7 +318,8 @@ function mapCompanyPolicies(response: BackendCompanyPoliciesResponse): CompanyPo
 }
 
 function mapCompanySalesReport(response: BackendCompanySalesReportResponse): CompanySalesReportViewModel {
-    // Start with event IDs as placeholders; the caller will fetch names and compute sold counts.
+    // Map backend sales report fields into the view model. Event names and sold counts
+    // are populated after fetching event details.
     return {
         companyId: response.companyId,
         ownerEmail: response.ownerEmail,
@@ -331,6 +335,7 @@ function buildCompanyPageSections(
     isInviteComposerVisible: boolean,
     isPoliciesVisible: boolean,
     isSalesReportVisible: boolean,
+    isSubordinateEventsVisible: boolean,
 ): CompanyPageSection[] {
     return [
         { id: "company-overview", label: "Overview", isVisible: true },
@@ -339,6 +344,7 @@ function buildCompanyPageSections(
         { id: "company-policies", label: "Policies", isVisible: isPoliciesVisible },
         { id: "company-invitations", label: "Invite users", isVisible: isInviteComposerVisible },
         { id: "company-events", label: "My Events", isVisible: true },
+        { id: "company-subordinate-events", label: "Subordinates Events", isVisible: isSubordinateEventsVisible },
         { id: "company-hierarchy", label: "Hierarchy", isVisible: isHierarchyVisible },
     ];
 }
@@ -593,6 +599,7 @@ export default function CompanyPage({
     const [inviteSuccessMessage, setInviteSuccessMessage] = useState("");
     const [isInviteSubmitting, setIsInviteSubmitting] = useState(false);
     const [managedEvents, setManagedEvents] = useState<ManagedEvent[]>([]);
+    const [subordinateEvents, setSubordinateEvents] = useState<SubordinateEvent[]>([]);
     const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
     const [selectedManagerNode, setSelectedManagerNode] = useState<HierarchyNode | null>(null);
     const [permissionDraft, setPermissionDraft] = useState<BackendCompanyPermissionName[]>([]);
@@ -619,9 +626,8 @@ export default function CompanyPage({
         isInviteComposerVisible,
         isPoliciesVisible,
         isSalesReportVisible,
-    ).filter(
-        (section) => section.isVisible,
-    );
+        isCompanyOwnerRole(state.company.role),
+    ).filter((section) => section.isVisible);
 
     useEffect(() => {
         let isStale = false;
@@ -786,6 +792,18 @@ export default function CompanyPage({
                     subordinateIds = [];
                 }
 
+                // fetch events managed by owner + subordinates when current user is owner
+                let subordinateEventsForOwner: SubordinateEvent[] = [];
+                try {
+                    if (user && isCompanyOwnerRole(mappedCompany.role)) {
+                        subordinateEventsForOwner = await getSubordinatesEvents(company.id, user.email);
+                    }
+                } catch (err) {
+                    if (!isStale) {
+                        console.error("Failed to load subordinate events:", err);
+                    }
+                }
+
                 setState({
                     company: mappedCompany,
                     errorMessage: "",
@@ -800,6 +818,7 @@ export default function CompanyPage({
                     managerPermissionsByNodeId,
                 });
                 setManagedEvents(managedEventsForUser);
+                setSubordinateEvents(subordinateEventsForOwner);
             } catch (error) {
                 if (isStale) {
                     return;
@@ -1215,6 +1234,8 @@ export default function CompanyPage({
                 <p>Company ID: {state.company.id}</p>
             </section>
 
+            
+
             <nav className="company-section-nav" aria-label="Company page sections">
                 {companyPageSections.map((section) => (
                     <button
@@ -1240,7 +1261,7 @@ export default function CompanyPage({
 
                 <article className="company-summary-card">
                     <span className="company-summary-label">Status</span>
-                    <strong className={getStatusClass(state.company.status)}>
+                    <strong className={`company-summary-value ${getStatusClass(state.company.status)}`}>
                         {state.company.status}
                     </strong>
                 </article>
@@ -1453,9 +1474,6 @@ export default function CompanyPage({
                     <button
                         type="button"
                         className="company-event-create-button"
-                        onClick={() => {
-                            window.alert("Create event flow will be wired next.");
-                        }}
                     >
                         Create event
                     </button>
@@ -1508,6 +1526,34 @@ export default function CompanyPage({
                     )}
                 </div>
             </section>
+
+            {isCompanyOwnerRole(state.company.role) && (
+                <section id="company-subordinate-events" className="company-events-card" aria-label="Subordinates Events">
+                    <div className="company-events-header">
+                        <div>
+                            <h2>Subordinates Events</h2>
+                            <p>
+                                Events managed by your direct reports and their subordinates.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="company-event-list">
+                        {subordinateEvents.map((event) => (
+                            <SubordinateEventCard key={event.id} event={event} />
+                        ))}
+
+                        {subordinateEvents.length === 0 && (
+                            <section className="empty-state company-empty-events-state">
+                                <h2>No Subordinates Events yet</h2>
+                                <p>
+                                    No events were found for your subordinates in this company.
+                                </p>
+                            </section>
+                        )}
+                    </div>
+                </section>
+            )}
 
             {isHierarchyVisible && (
                 <section id="company-hierarchy" className="company-hierarchy-card">
@@ -1719,4 +1765,39 @@ function HierarchyBranch({
 function extractEmailFromHierarchyLabel(label: string) {
     const emailMatch = label.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/);
     return emailMatch ? emailMatch[0] : null;
+}
+
+function SubordinateEventCard({
+    event,
+}: {
+    event: SubordinateEvent;
+}) {
+    return (
+        <article className="company-event-card">
+            <div className="company-event-card-main">
+                <div className="company-event-card-heading">
+                    <h3>{event.name}</h3>
+                    <span className="company-event-category-badge">{event.type}</span>
+                </div>
+
+                <p className="company-event-meta">{formatEventDate(event.date)}</p>
+                <p className="company-event-meta">{event.location}</p>
+                <p className="company-event-meta company-event-company">Managed by: {event.managerEmail}</p>
+            </div>
+
+            <div className="company-event-card-side">
+                <span className={getManagedEventStatusClass(event as ManagedEvent)}>
+                    {getManagedEventStatus(event as ManagedEvent)}
+                </span>
+                <span className="company-event-rating" aria-label={`Rating ${event.rating}`}>
+                    ★ {event.rating.toFixed(1)}
+                </span>
+                <span className="company-event-availability">
+                    {event.availableTickets > 0
+                        ? `${event.availableTickets} tickets left`
+                        : "No tickets left"}
+                </span>
+            </div>
+        </article>
+    );
 }

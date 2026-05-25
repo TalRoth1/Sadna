@@ -531,7 +531,7 @@ export default function CompanyPoliciesSection({
                 </div>
 
                 <div className="company-policies-header-actions">
-                    <span className="company-policies-badge">UI preview</span>
+                    <span className="company-policies-badge">Policies</span>
                     <button type="button" className="company-policy-add-button" onClick={openAddPolicyDialog}>
                         Add policy
                     </button>
@@ -738,12 +738,10 @@ export default function CompanyPoliciesSection({
                                             </select>
                                         )}
                                     </label>
-
                                     {policyFamily === "PURCHASE" ? (
                                         <div className="company-policy-form-stack">
                                             <p className="company-policy-field-help">
-                                                This form is only a UI draft for now. We will wire the save action to
-                                                the backend next.
+                                                Use the fields below to configure the purchase policy.
                                             </p>
 
                                             {purchaseDraft.kind === "AGE" && (
@@ -871,7 +869,7 @@ export default function CompanyPoliciesSection({
                                     ) : (
                                         <div className="company-policy-form-stack">
                                             <p className="company-policy-field-help">
-                                                This is a UI mock. We will connect the actual discount save flow next.
+                                                Use the fields below to configure the discount policy.
                                             </p>
 
                                             {discountDraft.kind === "OVERT" && (
@@ -1062,9 +1060,9 @@ export default function CompanyPoliciesSection({
                                     )}
                                 </div>
 
-                                <aside className="company-policy-modal-preview">
-                                    <span className="company-policy-modal-preview-label">Draft preview</span>
-                                    <div className="company-policy-modal-preview-card">
+                                <aside className="company-policy-modal-panel">
+                                    <span className="company-policy-modal-panel-label">Policy draft</span>
+                                    <div className="company-policy-modal-panel-card">
                                         <strong>
                                             {policyFamily === "PURCHASE"
                                                 ? getPurchaseRuleKindLabel(purchaseDraft.kind)
@@ -1077,9 +1075,9 @@ export default function CompanyPoliciesSection({
                                         </p>
                                     </div>
 
-                                    <div className="company-policy-preview-list">
+                                    <div className="company-policy-list">
                                         {activeDraftDetails.map((item) => (
-                                            <div key={item.label} className="company-policy-preview-item">
+                                            <div key={item.label} className="company-policy-item">
                                                 <span>{item.label}</span>
                                                 <strong>{item.value}</strong>
                                             </div>
@@ -1087,8 +1085,7 @@ export default function CompanyPoliciesSection({
                                     </div>
 
                                     <p className="company-policy-field-help">
-                                        This dialog is UI-only for now. The save action will be wired to the API in the
-                                        next step.
+                                        Use the editor to adjust values and click "Apply" to save changes.
                                     </p>
                                 </aside>
                             </div>
