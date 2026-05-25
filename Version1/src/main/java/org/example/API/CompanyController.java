@@ -14,6 +14,7 @@ import org.example.ApplicationLayer.dto.CompanyDTOs.ChangeManagerPermissionsRequ
 import org.example.ApplicationLayer.dto.CompanyDTOs.CloseCompanyRequest;
 import org.example.ApplicationLayer.dto.CompanyDTOs.CompanyAccessResponse;
 import org.example.ApplicationLayer.dto.CompanyDTOs.CompanyMembershipResponse;
+import org.example.ApplicationLayer.dto.CompanyDTOs.CompanyPoliciesResponse;
 import org.example.ApplicationLayer.dto.CompanyDTOs.CompanyResponse;
 import org.example.ApplicationLayer.dto.CompanyDTOs.CreateCompanyRequest;
 import org.example.ApplicationLayer.dto.CompanyDTOs.DeletePolicyRuleRequest;
@@ -90,6 +91,20 @@ public class CompanyController {
         }
     }
 
+    @GetMapping("/me/invitations")
+    public ResponseEntity<ApiResponse<List<InvitationResponse>>> getMyInvitations(
+            @RequestParam String userEmail) {
+        try {
+            List<InvitationResponse> invitations = companyService.getUserInvitations(userEmail);
+            return ResponseEntity.ok(ApiResponse.success("User invitations loaded successfully", invitations));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to load user invitations"));
+        }
+    }
+
     @GetMapping("/{companyId}/permissions")
     public ResponseEntity<ApiResponse<CompanyAccessResponse>> getCompanyPermissions(
             @PathVariable("companyId") UUID companyId,
@@ -102,6 +117,21 @@ public class CompanyController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to load company permissions"));
+        }
+    }
+
+    @GetMapping("/{companyId}/policies")
+    public ResponseEntity<ApiResponse<CompanyPoliciesResponse>> getCompanyPolicies(
+            @PathVariable("companyId") UUID companyId,
+            @RequestParam String userEmail) {
+        try {
+            CompanyPoliciesResponse policies = companyService.getCompanyPolicies(companyId, userEmail);
+            return ResponseEntity.ok(ApiResponse.success("Company policies loaded successfully", policies));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error("Not authorized to view company policies"));
         }
     }
 
@@ -196,6 +226,22 @@ public class CompanyController {
         }
     }
 
+    @PostMapping("/{companyId}/invitations/{invitationId}/reject")
+    public ResponseEntity<ApiResponse<Void>> rejectInvitation(
+            @PathVariable("companyId") UUID companyId,
+            @PathVariable("invitationId") UUID invitationId,
+            @RequestParam String username) {
+        try {
+            companyService.rejectCompanyInvitation(invitationId, username, companyId);
+            return ResponseEntity.ok(ApiResponse.success("Invitation rejected successfully"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error("Invitation not found or already used"));
+        }
+    }
+
     // ================================================================
     //  Member management
     // ================================================================
@@ -206,7 +252,7 @@ public class CompanyController {
             @RequestBody RemoveMemberOwnerRequest request) {
         try {
             companyService.removeCompanyMemberAsOwner(
-                    request.ownerUsername, companyId, request.usernameToRemove);
+                    request.ownerEmail, companyId, request.emailToRemove);
             return ResponseEntity.ok(ApiResponse.success("Member removed successfully"));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));

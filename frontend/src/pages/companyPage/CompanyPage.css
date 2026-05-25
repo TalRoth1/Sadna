@@ -49,6 +49,8 @@
 
 .company-summary-grid,
 .company-permissions-card,
+.company-policies-card,
+.company-invite-card,
 .company-events-card,
 .company-hierarchy-card {
     scroll-margin-top: 180px;
@@ -69,6 +71,8 @@
 
 .company-summary-card,
 .company-permissions-card,
+.company-policies-card,
+.company-invite-card,
 .company-hierarchy-card {
     padding: 22px 24px;
     background: #ffffff;
@@ -130,38 +134,206 @@
     background: rgba(220, 38, 38, 0.12);
 }
 
-.company-permissions-card {
-    max-width: 960px;
-    width: 100%;
-    margin: 0 auto;
-}
-
+.company-permissions-card,
+.company-policies-card,
+.company-invite-card,
 .company-hierarchy-card {
     max-width: 960px;
     width: 100%;
     margin: 0 auto;
 }
 
-.company-permissions-card h2 {
+.company-permissions-card h2,
+.company-hierarchy-card h2,
+.company-invite-card h2 {
     margin: 0 0 10px;
     font-size: 24px;
 }
 
-.company-hierarchy-card h2 {
-    margin: 0 0 10px;
-    font-size: 24px;
-}
-
-.company-permissions-card p {
+.company-permissions-card p,
+.company-hierarchy-card p,
+.company-invite-card p {
     margin: 0;
     color: #6b7280;
     line-height: 1.5;
 }
 
-.company-hierarchy-card p {
+.company-invite-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+}
+
+.company-invite-owner-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(17, 24, 39, 0.08);
+    color: #111827;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.company-invite-form {
+    margin-top: 18px;
+    display: grid;
+    gap: 16px;
+}
+
+.company-invite-field {
+    display: grid;
+    gap: 8px;
+}
+
+.company-invite-field > span,
+.company-invite-role-fieldset legend {
+    color: #111827;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.company-invite-input {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 12px;
+    background: #ffffff;
+    color: #111827;
+    font: inherit;
+    font-size: 15px;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.company-invite-input::placeholder {
+    color: #9ca3af;
+}
+
+.company-invite-input:focus {
+    outline: none;
+    border-color: #111827;
+    box-shadow: 0 0 0 4px rgba(17, 24, 39, 0.08);
+}
+
+.company-invite-role-fieldset {
     margin: 0;
+    padding: 0;
+    border: 0;
+    display: grid;
+    gap: 10px;
+}
+
+.company-invite-toggle {
+    display: inline-flex;
+    align-self: flex-start;
+    padding: 4px;
+    border-radius: 999px;
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    gap: 4px;
+}
+
+.company-invite-toggle-option {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 110px;
+    padding: 10px 16px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: #4b5563;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, transform 0.05s ease;
+}
+
+.company-invite-toggle-option:hover {
+    color: #111827;
+}
+
+.company-invite-toggle-option--active {
+    background: #111827;
+    color: #ffffff;
+    box-shadow: 0 6px 14px rgba(17, 24, 39, 0.15);
+}
+
+.company-invite-toggle-option--active:hover {
+    color: #ffffff;
+}
+
+.company-invite-toggle-option:active {
+    transform: translateY(1px);
+}
+
+.company-invite-form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 14px;
+}
+
+.company-invite-send-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 18px;
+    border-radius: 10px;
+    border: 1px solid #111827;
+    background: #111827;
+    color: #ffffff;
+    font: inherit;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.05s ease, border-color 0.15s ease;
+}
+
+.company-invite-send-button:hover {
+    background: #374151;
+    border-color: #374151;
+}
+
+.company-invite-send-button:active {
+    transform: translateY(1px);
+}
+
+.company-invite-send-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.72;
+    transform: none;
+}
+
+.company-invite-note {
     color: #6b7280;
-    line-height: 1.5;
+    font-size: 14px;
+}
+
+.company-invite-success {
+    margin: 0;
+    padding: 10px 12px;
+    border: 1px solid #86efac;
+    border-radius: 10px;
+    background: #f0fdf4;
+    color: #166534;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.company-invite-error {
+    margin: 0;
+    padding: 10px 12px;
+    border: 1px solid #fca5a5;
+    border-radius: 10px;
+    background: #fef2f2;
+    color: #b91c1c;
+    font-size: 14px;
+    font-weight: 600;
 }
 
 .company-events-header {
@@ -450,6 +622,44 @@
     font-weight: 600;
 }
 
+.company-hierarchy-remove-button {
+    margin-left: 12px;
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid #ef4444;
+    background: #ef4444;
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.company-hierarchy-remove-button:hover {
+    background: #dc2626;
+    border-color: #dc2626;
+}
+
+.company-hierarchy-permissions-button {
+    margin-left: 10px;
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid #2563eb;
+    background: #eff6ff;
+    color: #1d4ed8;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.company-hierarchy-permissions-button:hover {
+    background: #dbeafe;
+    border-color: #1d4ed8;
+}
+
 .company-hierarchy-children {
     margin-top: 8px;
     margin-left: 8px;
@@ -487,6 +697,166 @@
     overflow-x: auto;
 }
 
+.company-permissions-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(15, 23, 42, 0.55);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+}
+
+.company-permissions-modal {
+    width: min(720px, 100%);
+    max-height: min(88vh, 820px);
+    overflow: auto;
+    padding: 22px 24px 20px;
+    border-radius: 18px;
+    border: 1px solid #e5e7eb;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    box-shadow: 0 28px 60px rgba(15, 23, 42, 0.28);
+}
+
+.company-permissions-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 18px;
+}
+
+.company-permissions-modal-header h3 {
+    margin: 0 0 8px;
+    font-size: 24px;
+    color: #111827;
+}
+
+.company-permissions-modal-header p {
+    margin: 0;
+    color: #6b7280;
+    line-height: 1.5;
+}
+
+.company-permissions-modal-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 999px;
+    border: 1px solid #d1d5db;
+    background: #ffffff;
+    color: #111827;
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.company-permissions-modal-close:hover {
+    background: #f3f4f6;
+}
+
+.company-permissions-modal-current {
+    margin-top: 22px;
+}
+
+.company-permissions-modal-current-label {
+    display: inline-block;
+    margin-bottom: 12px;
+    color: #111827;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.company-permissions-modal-chip-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.company-permissions-modal-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    border: 1px solid #d1d5db;
+    background: #ffffff;
+    color: #334155;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease,
+        transform 0.05s ease;
+}
+
+.company-permissions-modal-chip:hover {
+    border-color: #94a3b8;
+    color: #111827;
+}
+
+.company-permissions-modal-chip--active {
+    border-color: #2563eb;
+    background: #eff6ff;
+    color: #1d4ed8;
+}
+
+.company-permissions-modal-chip:active {
+    transform: translateY(1px);
+}
+
+.company-permissions-modal-footer {
+    margin-top: 24px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.company-permissions-modal-secondary,
+.company-permissions-modal-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 112px;
+    padding: 11px 16px;
+    border-radius: 10px;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.05s ease, border-color 0.15s ease;
+}
+
+.company-permissions-modal-secondary {
+    border: 1px solid #d1d5db;
+    background: #ffffff;
+    color: #111827;
+}
+
+.company-permissions-modal-secondary:hover {
+    background: #f3f4f6;
+}
+
+.company-permissions-modal-primary {
+    border: 1px solid #111827;
+    background: #111827;
+    color: #ffffff;
+}
+
+.company-permissions-modal-primary:hover {
+    background: #374151;
+    border-color: #374151;
+}
+
+.company-permissions-modal-secondary:active,
+.company-permissions-modal-primary:active {
+    transform: translateY(1px);
+}
+
 @media (max-width: 720px) {
     .company-summary-grid {
         grid-template-columns: 1fr;
@@ -502,6 +872,27 @@
         align-items: stretch;
     }
 
+    .company-invite-card-header {
+        flex-direction: column;
+    }
+
+    .company-invite-toggle {
+        width: 100%;
+    }
+
+    .company-invite-toggle-option {
+        flex: 1 1 0;
+        min-width: 0;
+    }
+
+    .company-invite-form-actions {
+        align-items: stretch;
+    }
+
+    .company-invite-send-button {
+        width: 100%;
+    }
+
     .company-event-card-side {
         flex-direction: row;
         justify-content: space-between;
@@ -511,6 +902,33 @@
     }
 
     .company-event-delete-button {
+        width: 100%;
+    }
+
+    .company-hierarchy-node {
+        flex-wrap: wrap;
+    }
+
+    .company-hierarchy-permissions-button,
+    .company-hierarchy-remove-button {
+        margin-left: 0;
+        margin-top: 8px;
+    }
+
+    .company-permissions-modal {
+        padding: 18px 16px 16px;
+    }
+
+    .company-permissions-modal-header {
+        flex-direction: column;
+    }
+
+    .company-permissions-modal-footer {
+        flex-direction: column;
+    }
+
+    .company-permissions-modal-secondary,
+    .company-permissions-modal-primary {
         width: 100%;
     }
 

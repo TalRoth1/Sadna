@@ -11,12 +11,16 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import org.example.ApplicationLayer.dto.CompanyDTOs.CompanyAccessResponse;
 import org.example.ApplicationLayer.dto.CompanyDTOs.CompanyMembershipResponse;
+import org.example.ApplicationLayer.dto.CompanyDTOs.InvitationResponse;
 import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
 import org.example.DomainLayer.UserAggregate.CompanyFounder;
 import org.example.DomainLayer.UserAggregate.CompanyManager;
 import org.example.DomainLayer.UserAggregate.CompanyOwner;
+import org.example.DomainLayer.UserAggregate.Invitation;
+import org.example.DomainLayer.UserAggregate.ManagerInvitation;
 import org.example.DomainLayer.UserAggregate.ICompanyMember;
+import org.example.DomainLayer.UserAggregate.OwnerInvitation;
 import org.example.DomainLayer.UserAggregate.User;
 import org.springframework.stereotype.Service;
 
@@ -97,6 +101,15 @@ public class RolesDomainService {
         return company.getFounderEmail();
     }
 
+    public Company getCompany(UUID companyId) {
+        if (companyId == null) {
+            throw new IllegalArgumentException("Company ID is required");
+        }
+
+        return companyRepository.findByID(companyId)
+                .orElseThrow(() -> new IllegalArgumentException("Company not found"));
+    }
+
     public void removeCompanyMemberAsAdmin(String adminUsername, String usernameToRemove) {
         if (adminUsername == null || adminUsername.isBlank()) {
             throw new IllegalArgumentException("Admin username is required");
@@ -136,23 +149,21 @@ public class RolesDomainService {
         }
     }
 
-    public void removeCompanyMemberAsOwner(String ownerUsername, UUID companyId, String usernameToRemove) {
-        if (ownerUsername == null || ownerUsername.isBlank()) {
-            throw new IllegalArgumentException("Owner username is required");
+    public void removeCompanyMemberAsOwner(String ownerEmail, UUID companyId, String emailToRemove) {
+        if (ownerEmail == null || ownerEmail.isBlank()) {
+            throw new IllegalArgumentException("Owner email is required");
         }
 
-        if (usernameToRemove == null || usernameToRemove.isBlank()) {
-            throw new IllegalArgumentException("Username to remove is required");
+        if (emailToRemove == null || emailToRemove.isBlank()) {
+            throw new IllegalArgumentException("Email to remove is required");
         }
-        // making sure the company exists
-        Company company = companyRepository.findByID(companyId).get();
-        if (company == null) {
-            throw new IllegalArgumentException("Company not found");
-        }
-        User userToRemove = userRepository.findByEmail(usernameToRemove)
+        Company company = companyRepository.findByID(companyId)
+                .orElseThrow(() -> new IllegalArgumentException("Company not found"));
+
+        User userToRemove = userRepository.findByEmail(emailToRemove)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        User ownerUser = userRepository.findByEmail(ownerUsername)
+        User ownerUser = userRepository.findByEmail(ownerEmail)
                 .orElseThrow(() -> new IllegalArgumentException("Owner user not found"));
 
         synchronized (company) {
@@ -230,6 +241,61 @@ public class RolesDomainService {
         synchronized (company) {
             user.acceptCompanyInvitation(invetationID);
         }
+    }
+
+    public void rejectCompanyInvitation(UUID invitationID, String username, UUID companyId) {
+        Company company = companyRepository.findByID(companyId).get();
+
+        if (company == null)
+            throw new IllegalArgumentException("Company not found");
+
+        User user = userRepository.findByEmail(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        synchronized (company) {
+            user.rejectCompanyInvitation(invitationID);
+        }
+    }
+
+    public List<InvitationResponse> getUserInvitations(String userEmail) {
+        if (userEmail == null || userEmail.isBlank()) {
+            throw new IllegalArgumentException("User email is required");
+        }
+
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        return user.getCompanyInvitations().stream()
+            .map(invitation -> toInvitationResponse(invitation, userEmail))
+                .toList();
+    }
+
+        private InvitationResponse toInvitationResponse(Invitation invitation, String userEmail) {
+        Company company = companyRepository.findByID(invitation.getCompanyId())
+            .orElseThrow(() -> new IllegalArgumentException("Company not found"));
+
+        if (invitation instanceof ManagerInvitation managerInvitation) {
+            return new InvitationResponse(
+                    invitation.getId(),
+                    invitation.getCompanyId(),
+                company.getName(),
+                    invitation.getAppointerUser().getEmail(),
+                    userEmail,
+                    "MANAGER",
+                    managerInvitation.getPremissions());
+        }
+
+        if (invitation instanceof OwnerInvitation) {
+            return new InvitationResponse(
+                    invitation.getId(),
+                    invitation.getCompanyId(),
+                company.getName(),
+                    invitation.getAppointerUser().getEmail(),
+                    userEmail,
+                    "OWNER",
+                    null);
+        }
+
+        throw new IllegalStateException("Unknown invitation type");
     }
 
     public void addPurchasePolicy(String username, UUID companyId, Optional<Float> age, Optional<Integer> minTicket,

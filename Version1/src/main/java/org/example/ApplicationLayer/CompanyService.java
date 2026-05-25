@@ -12,12 +12,30 @@ import org.example.ApplicationLayer.dto.CompanyDTOs.CompanyMembershipResponse;
 import org.example.ApplicationLayer.dto.CompanyDTOs.CompanyResponse;
 import org.example.ApplicationLayer.dto.CompanyDTOs.HierarchyResponse;
 import org.example.ApplicationLayer.dto.CompanyDTOs.InvitationResponse;
+import org.example.ApplicationLayer.dto.CompanyDTOs.CompanyPoliciesResponse;
 import org.example.ApplicationLayer.dto.CompanyDTOs.SalesReportResponse;
+import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.DiscountPolicyDto;
+import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.DiscountRuleDto;
+import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.PurchasePolicyDto;
+import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.PurchaseRuleDto;
+import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
 import org.example.DomainLayer.DomainException;
 import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.PurchaseDomainService;
 import org.example.DomainLayer.RolesDomainService;
+import org.example.DomainLayer.PolicyManagment.AgeRule;
+import org.example.DomainLayer.PolicyManagment.ConditionalDiscount;
+import org.example.DomainLayer.PolicyManagment.CouponCode;
+import org.example.DomainLayer.PolicyManagment.DiscountPolicy;
+import org.example.DomainLayer.PolicyManagment.IDiscountRule;
+import org.example.DomainLayer.PolicyManagment.IPurchaseRule;
+import org.example.DomainLayer.PolicyManagment.LoneSeatRule;
+import org.example.DomainLayer.PolicyManagment.MaxTicketRule;
+import org.example.DomainLayer.PolicyManagment.MinTicketRule;
+import org.example.DomainLayer.PolicyManagment.OvertDiscount;
+import org.example.DomainLayer.PolicyManagment.PurchaseComposite;
+import org.example.DomainLayer.PolicyManagment.PurchasePolicy;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -109,9 +127,12 @@ public class CompanyService {
                 usernameToInvite,
                 premissions);
 
+        Company company = rolesDomainService.getCompany(companyId);
+
         return new InvitationResponse(
                 invitationId,
                 companyId,
+            company.getName(),
                 ownerUsername,
                 usernameToInvite,
                 "MANAGER",
@@ -130,9 +151,12 @@ public class CompanyService {
                 companyId,
                 usernameToInvite);
 
+        Company company = rolesDomainService.getCompany(companyId);
+
         return new InvitationResponse(
                 invitationId,
                 companyId,
+            company.getName(),
                 ownerUsername,
                 usernameToInvite,
                 "OWNER",
@@ -153,11 +177,36 @@ public class CompanyService {
         rolesDomainService.acceptCompanyInvitation(invitationId, username, companyId);
     }
 
-    public void removeCompanyMemberAsOwner(String ownerUsername, UUID companyId, String usernameToRemove) {
-        if (ownerUsername == null || ownerUsername.isBlank()) {
-            throw new IllegalArgumentException("Owner username is required");
+    public void rejectCompanyInvitation(UUID invitationId, String username, UUID companyId) {
+        if (invitationId == null) {
+            throw new IllegalArgumentException("Invitation ID is required");
         }
-        rolesDomainService.removeCompanyMemberAsOwner(ownerUsername, companyId, usernameToRemove);
+        if (username == null || username.isBlank()) {
+            throw new IllegalArgumentException("Username is required");
+        }
+        if (companyId == null) {
+            throw new IllegalArgumentException("Company ID is required");
+        }
+
+        rolesDomainService.rejectCompanyInvitation(invitationId, username, companyId);
+    }
+
+    public List<InvitationResponse> getUserInvitations(String userEmail) {
+        if (userEmail == null || userEmail.isBlank()) {
+            throw new IllegalArgumentException("User email is required");
+        }
+
+        return rolesDomainService.getUserInvitations(userEmail);
+    }
+
+    public void removeCompanyMemberAsOwner(String ownerEmail, UUID companyId, String emailToRemove) {
+        if (ownerEmail == null || ownerEmail.isBlank()) {
+            throw new IllegalArgumentException("Owner email is required");
+        }
+        if (emailToRemove == null || emailToRemove.isBlank()) {
+            throw new IllegalArgumentException("Email to remove is required");
+        }
+        rolesDomainService.removeCompanyMemberAsOwner(ownerEmail, companyId, emailToRemove);
     }
 
     public void removeCompanyMemberAsAdmin(String adminUsername, String usernameToRemove) {
@@ -317,6 +366,24 @@ public class CompanyService {
         return new SalesReportResponse(companyId, ownerUsername, report);
     }
 
+    public CompanyPoliciesResponse getCompanyPolicies(UUID companyId, String userEmail) {
+        if (companyId == null) {
+            throw new IllegalArgumentException("Company ID is required");
+        }
+        if (userEmail == null || userEmail.isBlank()) {
+            throw new IllegalArgumentException("Email is required");
+        }
+
+        rolesDomainService.getCompanyAccess(companyId, userEmail);
+        Company company = rolesDomainService.getCompany(companyId);
+
+        return new CompanyPoliciesResponse(
+                company.getId(),
+                company.getName(),
+                toPurchasePolicyDto(company.getPurchasePolicy()),
+                toDiscountPolicyDto(company.getDiscountPolicy()));
+    }
+
     private void validateDiscount(LocalDate toDate, float discountPercent) {
         if (toDate == null) {
             throw new IllegalArgumentException("toDate is required");
@@ -349,5 +416,74 @@ public class CompanyService {
         }
 
         return rolesDomainService.getCompanyAccess(companyId, userEmail);
+    }
+
+    private static PurchasePolicyDto toPurchasePolicyDto(PurchasePolicy purchasePolicy) {
+        List<PurchaseRuleDto> out = new java.util.ArrayList<>();
+        collectPurchaseLeaves(purchasePolicy == null ? null : purchasePolicy.getRulesView(), out);
+        return new PurchasePolicyDto(out);
+    }
+
+    private static void collectPurchaseLeaves(IPurchaseRule rule, List<PurchaseRuleDto> out) {
+        if (rule == null) {
+            return;
+        }
+
+        if (rule instanceof PurchaseComposite composite) {
+            collectPurchaseLeaves(composite.getLeftRule(), out);
+            collectPurchaseLeaves(composite.getRightRule(), out);
+            return;
+        }
+
+        if (rule instanceof AgeRule age) {
+            out.add(new PurchaseRuleDto(age.getId(), "AGE", age.getMinAge(), null, null, null));
+        } else if (rule instanceof MinTicketRule min) {
+            out.add(new PurchaseRuleDto(min.getId(), "MIN_TICKETS", null, min.getMinTicket(), null, null));
+        } else if (rule instanceof MaxTicketRule max) {
+            out.add(new PurchaseRuleDto(max.getId(), "MAX_TICKETS", null, null, max.getMaxTicket(), null));
+        } else if (rule instanceof LoneSeatRule lone) {
+            out.add(new PurchaseRuleDto(lone.getId(), "LONE_SEAT", null, null, null, lone.isAllowLoneSeat()));
+        }
+    }
+
+    private static DiscountPolicyDto toDiscountPolicyDto(DiscountPolicy discountPolicy) {
+        List<DiscountRuleDto> out = new java.util.ArrayList<>();
+        if (discountPolicy != null) {
+            for (IDiscountRule rule : discountPolicy.getDiscountRules()) {
+                if (rule instanceof OvertDiscount overt) {
+                    out.add(new DiscountRuleDto(
+                            overt.getId(),
+                            "OVERT",
+                            overt.getFromDate(),
+                            overt.getToDate(),
+                            overt.getDiscountPercent(),
+                            null,
+                            null,
+                            null));
+                } else if (rule instanceof ConditionalDiscount conditional) {
+                    out.add(new DiscountRuleDto(
+                            conditional.getId(),
+                            "CONDITIONAL",
+                            conditional.getFromDate(),
+                            conditional.getToDate(),
+                            conditional.getDiscountPercent(),
+                            conditional.getRequiredTickets(),
+                            conditional.getAppliedTickets(),
+                            null));
+                } else if (rule instanceof CouponCode coupon) {
+                    out.add(new DiscountRuleDto(
+                            coupon.getId(),
+                            "COUPON",
+                            coupon.getFromDate(),
+                            coupon.getToDate(),
+                            coupon.getDiscountPercent(),
+                            null,
+                            null,
+                            coupon.getCode()));
+                }
+            }
+        }
+
+        return new DiscountPolicyDto(out);
     }
 }

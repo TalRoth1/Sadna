@@ -83,6 +83,113 @@
     width: 100%;
 }
 
+.company-invitations-shell {
+    max-width: 960px;
+    margin: 0 auto;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.company-invitations-header h2 {
+    margin: 0 0 8px;
+    font-size: 24px;
+}
+
+.company-invitations-header p {
+    margin: 0;
+    color: #6b7280;
+    line-height: 1.5;
+}
+
+.company-invitations-list {
+    display: grid;
+    gap: 16px;
+}
+
+.company-invitation-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 18px;
+    padding: 22px 24px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+}
+
+.company-invitation-card-main {
+    min-width: 0;
+    flex: 1;
+}
+
+.company-invitation-card-main h3 {
+    margin: 0 0 8px;
+    color: #111827;
+    font-size: 22px;
+}
+
+.company-invitation-card-meta {
+    margin: 4px 0;
+    color: #6b7280;
+    font-size: 14px;
+}
+
+.company-invitation-card-type {
+    color: #374151;
+    font-weight: 700;
+}
+
+.company-invitation-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 150px;
+    align-items: stretch;
+}
+
+.company-invitation-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 16px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.05s ease, border-color 0.15s ease;
+}
+
+.company-invitation-button:active {
+    transform: translateY(1px);
+}
+
+.company-invitation-button--accept {
+    background: #111827;
+    border-color: #111827;
+    color: #ffffff;
+}
+
+.company-invitation-button--accept:hover {
+    background: #374151;
+    border-color: #374151;
+}
+
+.company-invitation-button--reject {
+    background: #ffffff;
+    border-color: #b91c1c;
+    color: #b91c1c;
+}
+
+.company-invitation-button--reject:hover {
+    background: #fef2f2;
+    border-color: #991b1b;
+}
+
 .company-list-scroll {
     display: grid;
     gap: 16px;
@@ -181,6 +288,16 @@
     .company-card {
         flex-direction: column;
         align-items: stretch;
+    }
+
+    .company-invitation-card {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .company-invitation-actions {
+        min-width: unset;
+        flex-direction: row;
     }
 
     .company-card-badges {

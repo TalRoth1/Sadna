@@ -43,7 +43,6 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.jupiter.api.Disabled;
 import org.junit.runner.RunWith;
 import static org.mockito.ArgumentMatchers.any;
 import org.mockito.Mock;
@@ -401,6 +400,48 @@ public class EventServiceTest {
         assertNotNull(actual);
         assertTrue(actual.isEmpty());
         verify(historyRepository).getByEventId(eventId);
+    }
+
+    @Test
+    public void GivenValidArgs_WhenAddEvent_ThenServiceInvokesSaveOnRepositoryAndReturnsDetails() {
+        LocalDateTime date = LocalDateTime.now().plusDays(10);
+
+        Event created = new Event(
+                eventId,
+                companyId,
+                date,
+                "Tel Aviv",
+                "Some Artist",
+                "concert",
+                EventStatus.ACTIVE
+        );
+        created.setName("Headline Show");
+        created.setDescription("description");
+
+        User ownerUser = new User(UUID.randomUUID(), ownerUsername, ownerUsername, "hash", 40);
+        ownerUser.getCompanyRoles().put(companyId, new CompanyFounder(ownerUsername));
+
+        when(userRepository.findByEmail(ownerUsername)).thenReturn(Optional.of(ownerUser));
+        when(eventRepository.getById(eventId))
+                .thenReturn(null)
+                .thenReturn(created);
+
+        EventDetailsDto result = eventService.addEvent(
+                eventId,
+                companyId,
+                ownerUsername,
+                "Headline Show",
+                date,
+                "Tel Aviv",
+                "Some Artist",
+                "concert",
+                EventStatus.ACTIVE,
+                "description"
+        );
+
+        assertNotNull(result);
+        assertEquals(eventId, result.eventId());
+        verify(eventRepository).save(any(Event.class));
     }
 
     @Test

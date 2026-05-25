@@ -1,6 +1,13 @@
 import { useEffect, useState } from "react";
 import { getCurrentUser, type CurrentUser } from "../../services/currentUserService";
-import { getMyCompanies, type CompanyMembership as CompanyMembershipDto } from "../../services/companyService";
+import {
+    acceptInvitation,
+    getMyCompanies,
+    getMyInvitations,
+    type CompanyInvitationResponse,
+    type CompanyMembership as CompanyMembershipDto,
+    rejectInvitation,
+} from "../../services/companyService";
 import "./MyCompaniesPage.css";
 
 type CompanyStatus = "active" | "suspended" | "closed";
@@ -10,6 +17,18 @@ type CompanyMembership = {
     name: string;
     role: string;
     status: CompanyStatus;
+};
+
+type CompanyInvitationRole = "Owner" | "Manager";
+
+type CompanyInvitation = {
+    id: string;
+    companyName: string;
+    companyId: string;
+    inviterName: string;
+    role: CompanyInvitationRole;
+    invitationType: string;
+    permissions: string[] | null;
 };
 
 type CompanyPermissionName =
@@ -170,13 +189,84 @@ function EmptyCompaniesState({ onCreateCompany }: { onCreateCompany: () => void 
     );
 }
 
+function mapInvitation(dto: CompanyInvitationResponse): CompanyInvitation {
+    return {
+        id: dto.invitationId,
+        companyName: dto.companyName,
+        companyId: dto.companyId,
+        inviterName: dto.appointerUsername,
+        role: dto.invitationType === "MANAGER" ? "Manager" : "Owner",
+        invitationType: dto.invitationType === "MANAGER" ? "Manager invitation" : "Owner invitation",
+        permissions: dto.permissions,
+    };
+}
+
+function InvitationCard({
+    invitation,
+    onAccept,
+    onReject,
+}: {
+    invitation: CompanyInvitation;
+    onAccept: (invitationId: string) => void;
+    onReject: (invitationId: string) => void;
+}) {
+    return (
+        <article className="company-invitation-card">
+            <div className="company-invitation-card-main">
+                <h3>{invitation.companyName}</h3>
+                <p className="company-invitation-card-meta">Invited by {invitation.inviterName}</p>
+                <p className="company-invitation-card-meta">Role offered: {invitation.role}</p>
+                <p className="company-invitation-card-meta company-invitation-card-type">
+                    Invitation type: {invitation.invitationType}
+                </p>
+                {invitation.permissions && invitation.permissions.length > 0 && (
+                    <p className="company-invitation-card-meta">
+                        Permissions: {invitation.permissions.join(", ")}
+                    </p>
+                )}
+            </div>
+
+            <div className="company-invitation-actions">
+                <button
+                    type="button"
+                    className="company-invitation-button company-invitation-button--accept"
+                    onClick={() => onAccept(invitation.id)}
+                >
+                    Accept
+                </button>
+                <button
+                    type="button"
+                    className="company-invitation-button company-invitation-button--reject"
+                    onClick={() => onReject(invitation.id)}
+                >
+                    Reject
+                </button>
+            </div>
+        </article>
+    );
+}
+
 export default function MyCompaniesPage({
     onCreateCompany,
     onOpenCompany,
 }: MyCompaniesPageProps) {
     const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
     const [companies, setCompanies] = useState<CompanyMembership[]>([]);
+    const [invitations, setInvitations] = useState<CompanyInvitation[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+
+    async function reloadDataForUser(userEmail: string) {
+        const memberships = await getMyCompanies(userEmail);
+        setCompanies(memberships.map(mapCompanyMembership));
+
+        try {
+            const invitationDtos = await getMyInvitations(userEmail);
+            setInvitations(invitationDtos.map(mapInvitation));
+        } catch (error) {
+            console.error("Failed to load company invitations:", error);
+            setInvitations([]);
+        }
+    }
 
     useEffect(() => {
         async function loadCompanies() {
@@ -188,11 +278,11 @@ export default function MyCompaniesPage({
 
                 if (!user || user.role === "GUEST") {
                     setCompanies([]);
+                    setInvitations([]);
                     return;
                 }
 
-                const memberships = await getMyCompanies(user.email);
-                setCompanies(memberships.map(mapCompanyMembership));
+                await reloadDataForUser(user.email);
             } finally {
                 setIsLoading(false);
             }
@@ -202,6 +292,30 @@ export default function MyCompaniesPage({
     }, []);
 
     const isGuest = currentUser === null || currentUser.role === "GUEST";
+
+    async function handleInvitationAction(
+        invitationId: string,
+        companyId: string,
+        action: "accept" | "reject",
+    ) {
+        if (!currentUser || currentUser.role === "GUEST") {
+            window.alert("Please sign in again before handling invitations.");
+            return;
+        }
+
+        try {
+            if (action === "accept") {
+                await acceptInvitation(companyId, invitationId, currentUser.email);
+            } else {
+                await rejectInvitation(companyId, invitationId, currentUser.email);
+            }
+
+            await reloadDataForUser(currentUser.email);
+        } catch (error) {
+            console.error(`Failed to ${action} invitation:`, error);
+            window.alert(`Failed to ${action} the invitation. Please try again.`);
+        }
+    }
 
     return (
         <main className="app-page my-companies-page">
@@ -244,6 +358,52 @@ export default function MyCompaniesPage({
                                 onOpenCompany={onOpenCompany}
                             />
                         ))}
+                    </div>
+                </section>
+            )}
+
+            {!isLoading && !isGuest && (
+                <section className="company-invitations-shell" aria-label="Pending company invitations">
+                    <div className="company-invitations-header">
+                        <div>
+                            <h2>Pending invitations</h2>
+                            <p>
+                                Companies that invited you will appear here. You can accept or reject
+                                each invitation from this section.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="company-invitations-list">
+                        {invitations.map((invitation) => (
+                            <InvitationCard
+                                key={invitation.id}
+                                invitation={invitation}
+                                onAccept={(invitationId) => {
+                                    void handleInvitationAction(
+                                        invitationId,
+                                        invitation.companyId,
+                                        "accept",
+                                    );
+                                }}
+                                onReject={(invitationId) => {
+                                    void handleInvitationAction(
+                                        invitationId,
+                                        invitation.companyId,
+                                        "reject",
+                                    );
+                                }}
+                            />
+                        ))}
+
+                        {invitations.length === 0 && (
+                            <section className="empty-state company-empty-invitations-state">
+                                <h2>No pending invitations</h2>
+                                <p>
+                                    When a company invites you, the invitation cards will show up here.
+                                </p>
+                            </section>
+                        )}
                     </div>
                 </section>
             )}
