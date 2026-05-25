@@ -566,6 +566,29 @@ public class PurchaseService {
                 eventPublisher.publish(
                         new LotteryWonEvent(winnerId, eventId, accessCode, codeExpiry)
                 );
+                // Send a direct notification to the winner with their access code
+                try {
+                    String eventName = "your event";
+                    try {
+                        Event ev = purchaseDomainService.findEventById(eventId);
+                        if (ev != null && ev.getName() != null && !ev.getName().isBlank()) {
+                            eventName = ev.getName();
+                        }
+                    } catch (Exception ignore) {
+                    }
+
+                    String message = "You won the lottery for '" + eventName + "'. Your access code: " + accessCode + ". Use it on the event page to continue to ticket selection.";
+
+                    try {
+                        UUID uid = UUID.fromString(winnerId);
+                        notifier.notifyUser(uid, message);
+                    } catch (IllegalArgumentException ex) {
+                        // fallback to username-based notification if winnerId isn't a UUID string
+                        notifier.notifyUser(winnerId, message);
+                    }
+                } catch (Exception e) {
+                    logger.warning("Failed to send lottery notification to winner " + winnerId + ": " + e.getMessage());
+                }
             }
             
             return winnerCodes;
