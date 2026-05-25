@@ -11,6 +11,7 @@ import org.example.DomainLayer.DomainException;
 import org.example.DomainLayer.EventAggregate.Event;
 import org.example.DomainLayer.Events.LotteryWonEvent;
 import org.example.DomainLayer.Events.PurchaseCompletedEvent;
+import org.example.DomainLayer.Events.TicketReservedEvent;
 import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.PurchaseDomainService;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
@@ -187,56 +188,60 @@ public class PurchaseService {
     }
 
     public ActivePurchaseDTO selectSittingTickets(UUID eventID, List<UUID> ticketIDs, UUID userID, boolean isConfirmedAge) {
-        if (ticketIDs == null || ticketIDs.isEmpty()) {
-            throw new IllegalArgumentException("Amount must be greater than zero");
-        }
-        if (userID == null) {
-            throw new IllegalArgumentException("User ID is required");
-        }
-        if (purchaseDomainService.isLotteryEvent(eventID)) {
-            throw new IllegalStateException("זה אירוע המיועד להגרלה. אי אפשר לקנות ממנו כרטיסים באופן רגיל.");
-        }
-
-        requireQueueAccess(userID, eventID);
-
-        try {
-            ActivePurchase activePurchase =
-                    purchaseDomainService.selectSittingTickets(eventID, ticketIDs, userID, isConfirmedAge);
-
-            return toActivePurchaseDTO(activePurchase);
-        } catch (DomainException e) {
-            throw new IllegalStateException("Couldn't select the sitting tickets: " + e.getMessage());
-        } finally {
-            queueManager.finishAccess(userID, eventID);
-            queueManager.releaseBatch(eventID, 1);
-        }
+    if (ticketIDs == null || ticketIDs.isEmpty()) {
+        throw new IllegalArgumentException("Amount must be greater than zero");
     }
+    if (userID == null) {
+        throw new IllegalArgumentException("User ID is required");
+    }
+    if (purchaseDomainService.isLotteryEvent(eventID)) {
+        throw new IllegalStateException("זה אירוע המיועד להגרלה. אי אפשר לקנות ממנו כרטיסים באופן רגיל.");
+    }
+
+    requireQueueAccess(userID, eventID);
+
+    try {
+        ActivePurchase activePurchase =
+                purchaseDomainService.selectSittingTickets(eventID, ticketIDs, userID, isConfirmedAge);
+
+        eventPublisher.publish(new TicketReservedEvent(userID, eventID));
+
+        return toActivePurchaseDTO(activePurchase);
+    } catch (DomainException e) {
+        throw new IllegalStateException("Couldn't select the sitting tickets: " + e.getMessage());
+    } finally {
+        queueManager.finishAccess(userID, eventID);
+        queueManager.releaseBatch(eventID, 1);
+    }
+}
 
     public ActivePurchaseDTO selectStandingTickets(UUID eventID, int amount, UUID areaID, UUID userID, boolean isConfirmedAge) {
-        if (amount <= 0) {
-            throw new IllegalArgumentException("Amount must be greater than zero");
-        }
-        if (userID == null) {
-            throw new IllegalArgumentException("User ID is required");
-        }
-        if (purchaseDomainService.isLotteryEvent(eventID)) {
-            throw new IllegalStateException("זה אירוע המיועד להגרלה. אי אפשר לקנות ממנו כרטיסים באופן רגיל.");
-        }
-
-        requireQueueAccess(userID, eventID);
-
-        try {
-            ActivePurchase activePurchase =
-                    purchaseDomainService.selectStandingTickets(eventID, amount, userID, areaID, isConfirmedAge);
-
-            return toActivePurchaseDTO(activePurchase);
-        } catch (DomainException e) {
-            throw new IllegalStateException("Couldn't select the standing tickets: " + e.getMessage());
-        } finally {
-            queueManager.finishAccess(userID, eventID);
-            queueManager.releaseBatch(eventID, 1);
-        }
+    if (amount <= 0) {
+        throw new IllegalArgumentException("Amount must be greater than zero");
     }
+    if (userID == null) {
+        throw new IllegalArgumentException("User ID is required");
+    }
+    if (purchaseDomainService.isLotteryEvent(eventID)) {
+        throw new IllegalStateException("זה אירוע המיועד להגרלה. אי אפשר לקנות ממנו כרטיסים באופן רגיל.");
+    }
+
+    requireQueueAccess(userID, eventID);
+
+    try {
+        ActivePurchase activePurchase =
+                purchaseDomainService.selectStandingTickets(eventID, amount, userID, areaID, isConfirmedAge);
+
+        eventPublisher.publish(new TicketReservedEvent(userID, eventID));
+
+        return toActivePurchaseDTO(activePurchase);
+    } catch (DomainException e) {
+        throw new IllegalStateException("Couldn't select the standing tickets: " + e.getMessage());
+    } finally {
+        queueManager.finishAccess(userID, eventID);
+        queueManager.releaseBatch(eventID, 1);
+    }
+}
 
     public void completePurchase(UUID activePurchaseID, PaymentDetails paymentDetails, String couponCode)
     {

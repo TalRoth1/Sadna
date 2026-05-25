@@ -696,12 +696,15 @@ public class DevDataSeeder implements CommandLineRunner {
         // =================================================================
         private void seedAnalytics() {
                 adminRepository.saveAnalyticsSnapshot(new SystemAnalyticsSnapshot(
-                                /* registeredUsersCount= */ 14,
-                                /* loggedInUsersCount= */ 2,
-                                /* activeCompaniesCount= */ 2,
-                                /* activeQueuesCount= */ 0,
-                                /* activePurchasesCount= */ 0,
-                                /* totalPurchasesCount= */ 5));
+                                /* registeredUsersCount= */      14,
+                                /* loggedInUsersCount= */         2,
+                                /* activeCompaniesCount= */       2,
+                                /* activeQueuesCount= */          0,
+                                /* activePurchasesCount= */       0,
+                                /* totalPurchasesCount= */        5,
+                                /* newSubscriberRatePerMin= */    0.0,
+                                /* ticketReservationRatePerMin= */ 0.0,
+                                /* ticketPurchaseRatePerMin= */   0.0));
         }
 
         // =================================================================

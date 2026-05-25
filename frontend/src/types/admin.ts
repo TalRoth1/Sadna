@@ -59,6 +59,7 @@ export type GlobalPurchaseRecord = {
 export type AdminPurchaseFilterType = "all" | "user" | "event" | "company";;
 
 export type SystemAnalytics = {
+    // raw backend counts (kept for potential future use)
     registeredUsersCount: number;
     loggedInUsersCount: number;
     activeCompaniesCount: number;
@@ -66,6 +67,12 @@ export type SystemAnalytics = {
     activePurchasesCount: number;
     totalPurchasesCount: number;
     createdAt: string;
+    // dashboard display fields
+    activeVisitors: number;
+    newSubscribersRate: number;
+    ticketReservationRate: number;
+    ticketPurchaseRate: number;
+    activeQueues: number;
 };
 
 export type QueueInfo = {
