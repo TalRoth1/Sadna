@@ -135,8 +135,8 @@ public class EventServiceTest {
 
         when(userRepository.findByEmail(ownerUsername)).thenReturn(Optional.of(ownerUser));
         when(userRepository.hasPermission(ownerUsername, companyId,
-            org.example.DomainLayer.CompanyAggregate.CompanyPermission.MANAGE_POLICIES, eventId))
-            .thenReturn(true);
+                org.example.DomainLayer.CompanyAggregate.CompanyPermission.MANAGE_POLICIES, eventId))
+                .thenReturn(true);
     }
 
     // =====================================================================
@@ -401,43 +401,6 @@ public class EventServiceTest {
         assertNotNull(actual);
         assertTrue(actual.isEmpty());
         verify(historyRepository).getByEventId(eventId);
-    }
-
-    @Disabled
-    @Test
-    public void GivenValidArgs_WhenAddEvent_ThenServiceInvokesSaveOnRepositoryAndReturnsDetails() {
-        LocalDateTime date = LocalDateTime.now().plusDays(10);
-
-        Event created = new Event(
-                eventId,
-                companyId,
-                date,
-                "Tel Aviv",
-                "Some Artist",
-                "concert",
-                EventStatus.ACTIVE
-        );
-
-        when(eventRepository.getById(eventId))
-                .thenReturn(null)
-                .thenReturn(created);
-
-        EventDetailsDto result = eventService.addEvent(
-                eventId,
-                companyId,
-            ownerUsername,
-                "Headline Show",
-                date,
-                "Tel Aviv",
-                "Some Artist",
-                "concert",
-                EventStatus.ACTIVE,
-                "description"
-        );
-
-        assertNotNull(result);
-        assertEquals(eventId, result.eventId());
-        verify(eventRepository).save(any(Event.class));
     }
 
     @Test
@@ -907,7 +870,7 @@ public class EventServiceTest {
         when(eventRepository.getById(eventId)).thenReturn(newRealEvent());
 
         assertThrows(DomainException.class,
-            () -> eventService.addEvent(eventId, companyId, ownerUsername, "name", LocalDateTime.now().plusDays(10),
+                () -> eventService.addEvent(eventId, companyId, ownerUsername, "name", LocalDateTime.now().plusDays(10),
                         "Tel Aviv", "Some Artist", "concert", EventStatus.ACTIVE, "description"));
         verify(eventRepository, never()).save(any(Event.class));
     }
@@ -928,7 +891,7 @@ public class EventServiceTest {
         doThrow(new RuntimeException("DB down")).when(eventRepository).save(any(Event.class));
 
         DomainException ex = assertThrows(DomainException.class,
-            () -> eventService.rateEvent(userId, eventId, 4));
+                () -> eventService.rateEvent(userId, eventId, 4));
         assertEquals("DB down", ex.getMessage());
     }
 

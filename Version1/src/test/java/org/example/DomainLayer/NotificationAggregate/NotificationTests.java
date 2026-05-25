@@ -211,7 +211,7 @@ public class NotificationTests {
     // דרישה: מפיק / מנהל אירוע מקבל הודעה כשהאירוע הפך ל-Sold Out
     // ---------------------------------------------------------------------
 
-	@Test
+    @Test
     void completePurchase_whenEventSoldOut_notifiesBuyerAndEventManager() {
         PurchaseDomainService purchaseDomainService = mock(PurchaseDomainService.class);
         EventPublisher eventPublisher = mock(EventPublisher.class);
@@ -226,7 +226,7 @@ public class NotificationTests {
         );
 
         UUID activePurchaseId = UUID.randomUUID();
-		UUID managerId = UUID.randomUUID();
+        String managerIdentifier = "manager@demo.test";
         UUID buyerId = UUID.randomUUID();
         UUID eventId = UUID.randomUUID();
 
@@ -242,14 +242,14 @@ public class NotificationTests {
         when(purchaseDomainService.completePurchase(any(), any(), any()))
                 .thenReturn(true);
 
-        when(purchaseDomainService.getEventManagerUserId(any(UUID.class)))
-                .thenReturn(managerId);
+        when(purchaseDomainService.getEventManager(eventId))
+                .thenReturn(managerIdentifier);
 
         service.completePurchase(activePurchaseId, paymentDetails, null);
 
-        // FIX: Broaden the first parameter check to catch the message regardless of the ID/String mismatch
+        verify(notifier).notifyUser(buyerId, "Purchase Complete");
         verify(notifier).notifyUser(
-                eq(managerId),
+                eq(managerIdentifier),
                 eq("Tickets to event: " + eventId + " have been SOLD OUT")
         );
 
@@ -286,7 +286,8 @@ public class NotificationTests {
                 eq("Tel Aviv"),
                 eq("Coldplay"),
                 eq("Concert"),
-                eq(EventStatus.ACTIVE), "hello"
+                eq(EventStatus.ACTIVE),
+                eq("hello")
         )).thenReturn(Set.of(buyer1, buyer2));
 
         /*
@@ -326,8 +327,8 @@ public class NotificationTests {
     // לא ראינו חיבור Notifier ברור ב-RolesDomainService.
     // ---------------------------------------------------------------------
 
-        @Test
-        void changeManagerPermissions_shouldNotifyManager_requirement() {
+    @Test
+    void changeManagerPermissions_shouldNotifyManager_requirement() {
         // Arrange
         RolesDomainService rolesDomainService = mock(RolesDomainService.class);
         PurchaseDomainService purchaseDomainService = mock(PurchaseDomainService.class);
@@ -356,7 +357,7 @@ public class NotificationTests {
         // Assert
         verify(notifier, times(1)).notifyUser(
                 managerUsername,
-                "Your permissions changed"
+                "Your manager permissions have changed."
         );
     }
     // ---------------------------------------------------------------------

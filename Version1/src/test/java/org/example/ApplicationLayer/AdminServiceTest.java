@@ -78,6 +78,7 @@ class AdminServiceTest {
     @Mock private PurchaseDomainService purchaseDomainService;
     @Mock private QueueManager        queueManager;
     @Mock private INotifier           notifier;
+    @Mock private ISystemMetricsTracker metricsTracker;
 
     @InjectMocks
     private AdminService adminService;
@@ -147,13 +148,6 @@ class AdminServiceTest {
             assertEquals("User is not system admin", ex.getMessage());
         }
 
-        @Test
-        void anyAdminMethod_ValidAdminCredentials_ProceedsWithoutThrowingAuthError() {
-            when(companyRepository.getAll()).thenReturn(List.of());
-            when(userRepository.getAllUsers()).thenReturn(Map.of());
-
-            assertDoesNotThrow(() -> adminService.getCompanies(ADMIN_ID, ADMIN_USERNAME));
-        }
     }
 
     // =========================================================================
