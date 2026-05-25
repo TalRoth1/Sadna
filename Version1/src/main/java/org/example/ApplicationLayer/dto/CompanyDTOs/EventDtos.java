@@ -183,6 +183,7 @@ public final class EventDtos {
             EventStatus status,
             double rating,
             String lotteryId,
+            boolean lotteryWinnersDrawn,
             double priceMin,
             double priceMax,
             int availableTickets,

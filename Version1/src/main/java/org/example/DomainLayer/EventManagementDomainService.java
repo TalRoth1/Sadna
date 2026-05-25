@@ -156,6 +156,47 @@ public class EventManagementDomainService {
         event.addPurchasePolicy(age, minTicket, maxTicket, allowLoneSeat, andOr);
     }
 
+    public boolean areLotteryWinnersDrawn(UUID eventId) {
+        if (eventId == null) {
+            return false;
+        }
+
+        PuchaseLottery lottery = lotteryRepository.findByEventID(eventId);
+
+        return lottery != null && lottery.areWinnersDrawn();
+    }
+
+    public void startRegularSale(UUID eventId) {
+        if (eventId == null) {
+            throw new DomainException("Event id is required");
+        }
+
+        Event event = eventRepository.getById(eventId);
+
+        if (event == null) {
+            throw new DomainException("Event not found");
+        }
+
+        if (event.getLotteryId() == null || event.getLotteryId().isBlank()) {
+            throw new DomainException("Event is not currently a lottery event");
+        }
+
+        PuchaseLottery lottery = lotteryRepository.findByEventID(eventId);
+
+        if (lottery == null) {
+            throw new DomainException("Lottery does not exist for this event");
+        }
+
+        if (!lottery.areWinnersDrawn()) {
+            throw new DomainException("Cannot start regular sale before drawing lottery winners");
+        }
+
+        event.setLotteryId(null);
+        event.setType("Regular Sale");
+
+        eventRepository.save(event);
+    }
+
     public void deletePurchasePolicy(String username, UUID companyId, UUID eventId, UUID ruleId) {
         Event event = eventRepository.getById(eventId);
         if (event == null)

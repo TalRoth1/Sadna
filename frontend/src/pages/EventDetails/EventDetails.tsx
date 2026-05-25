@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { getEventById } from "../../services/eventSearchService";
 import { getCurrentUser, type CurrentUser } from "../../services/currentUserService";
 import { getMyCompanies, type CompanyMembership } from "../../services/companyService";
-import { drawLotteryWinners } from "../../services/lotteryService";
+import { drawLotteryWinners,startRegularSale, getLotteryStatus, type LotteryStatus } from "../../services/lotteryService";
 // Edit actions removed: editEvent, addEventPolicyRule, deleteEventPolicyRule
 import {
     getAvailableTicketsCount,
@@ -18,8 +18,7 @@ import "./EventDetails.css";
 type EventDetailsPageProps = {
     eventId: string;
     onBackToSearch: () => void;
-    onStartPurchase: (eventId: string) => void;
-    onBackToCompany?: (companyId: string) => void;
+    onStartPurchase: (eventId: string, lotteryAccessCode?: string) => void;    onBackToCompany?: (companyId: string) => void;
     onStartLotteryRegistration: (eventId: string) => void;
     onEditEvent: (eventId: string) => void;
 };
@@ -151,6 +150,10 @@ function decidePrimaryAction(event: Event): PrimaryAction {
         return { kind: "unavailable", reason };
     }
     if (event.lotteryId) {
+        if (event.lotteryWinnersDrawn) {
+            return { kind: "buy", availableTickets: getAvailableTicketsCount(event) };
+        }
+
         return { kind: "lottery", lotteryId: event.lotteryId };
     }
     const availableTickets = getAvailableTicketsCount(event);
@@ -228,6 +231,9 @@ export default function EventDetailsPage({
     const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
     const [companies, setCompanies] = useState<CompanyMembership[]>([]);
     const [isDrawingWinners, setIsDrawingWinners] = useState(false);
+    const [isStartingRegularSale, setIsStartingRegularSale] = useState(false);
+    const [lotteryAccessCode, setLotteryAccessCode] = useState("");
+    const [lotteryStatus, setLotteryStatus] = useState<LotteryStatus | null>(null);
     // Edit mode removed — view-only event details page
 
     useEffect(() => {
@@ -281,13 +287,23 @@ export default function EventDetailsPage({
 
                 if (!user || user.role === "GUEST") {
                     setCompanies([]);
-                    return;
+                    // still fetch lottery status (guest may want to see blocked message)
+                } else {
+                    const userCompanies = await getMyCompanies(user.email);
+
+                    if (!isCancelled) {
+                        setCompanies(userCompanies);
+                    }
                 }
 
-                const userCompanies = await getMyCompanies(user.email);
-
-                if (!isCancelled) {
-                    setCompanies(userCompanies);
+                // fetch per-user lottery status when event is known
+                if (!isCancelled && event) {
+                    try {
+                        const status = await getLotteryStatus(event.id, user?.id);
+                        if (!isCancelled) setLotteryStatus(status);
+                    } catch {
+                        // ignore lottery status failures — preserve existing UX
+                    }
                 }
             } catch {
                 if (!isCancelled) {
@@ -302,6 +318,25 @@ export default function EventDetailsPage({
             isCancelled = true;
         };
     }, []);
+
+    useEffect(() => {
+        let isCancelled = false;
+        async function refreshLotteryStatus() {
+            if (!event) return;
+            try {
+                const user = await getCurrentUser();
+                const status = await getLotteryStatus(event.id, user?.id);
+                if (!isCancelled) setLotteryStatus(status);
+            } catch {
+                // ignore
+            }
+        }
+
+        refreshLotteryStatus();
+        return () => {
+            isCancelled = true;
+        };
+    }, [event]);
 
     const primaryAction = useMemo<PrimaryAction | null>(
         () => (event ? decidePrimaryAction(event) : null),
@@ -341,6 +376,10 @@ export default function EventDetailsPage({
             permissions.includes("Configure layout")
         );
     }, [currentUser, currentCompanyMembership, event]);
+
+    const canStartRegularSale = useMemo(() => {
+        return Boolean(event && canEditEvent && event.lotteryId);
+    }, [event, canEditEvent]);
 
     const canDrawLotteryWinners = useMemo(() => {
         return Boolean(event && canEditEvent && isLotteryEvent(event));
@@ -415,11 +454,59 @@ export default function EventDetailsPage({
                         ? `Winners were drawn successfully. ${winnerCount} winner(s) received access codes.`
                         : "Winners were drawn successfully. Access codes were generated.",
         });
+            // Reload event details so UI reflects that winners were drawn
+            try {
+                const updated = await getEventById(event.id);
+                if (updated) {
+                    setEvent(updated);
+                }
+            } catch {
+                // ignore reload failure — message already shown
+            }
             } catch (error) {
             const message = getDrawWinnersErrorMessage(error);
 window.alert(message);
         } finally {
             setIsDrawingWinners(false);
+        }
+    }
+
+    async function handleStartRegularSale() {
+        if (!event) {
+            return;
+        }
+
+        const confirmed = window.confirm(
+            `Start regular sale for "${event.name}"? After this, users will be able to buy tickets normally without a lottery code.`,
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+            setIsStartingRegularSale(true);
+            setActionMessage(null);
+
+            await startRegularSale(event.id);
+
+            const updatedEvent = await getEventById(event.id);
+            setEvent(updatedEvent);
+
+            setActionMessage({
+                kind: "success",
+                text: "Regular sale started successfully. Users can now buy tickets normally.",
+            });
+        } catch (error) {
+            setActionMessage({
+                kind: "error",
+                text:
+                    error instanceof Error
+                        ? error.message
+                        : "Failed to start regular sale.",
+            });
+        } finally {
+            setIsStartingRegularSale(false);
         }
     }
     // Edit handlers removed.
@@ -490,6 +577,19 @@ window.alert(message);
                                 </button>
                             )}
 
+                            {canStartRegularSale && (
+                                <button
+                                    type="button"
+                                    className="event-action-secondary event-action-start-sale"
+                                    onClick={handleStartRegularSale}
+                                    disabled={isStartingRegularSale}
+                                >
+                                    {isStartingRegularSale
+                                        ? "Starting sale..."
+                                        : "Start regular sale"}
+                                </button>
+                            )}
+
                             <button
                                 type="button"
                                 className="event-action-secondary"
@@ -497,6 +597,15 @@ window.alert(message);
                             >
                                 Edit event
                             </button>
+
+                            {actionMessage && (
+                                <div
+                                    className={`event-owner-action-message tone-${actionMessage.kind}`}
+                                    role={actionMessage.kind === "error" ? "alert" : "status"}
+                                >
+                                    {actionMessage.text}
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
@@ -588,7 +697,41 @@ window.alert(message);
                 <section className="event-details-card event-actions-card">
                     <h2>Actions</h2>
 
-                    {primaryAction && primaryAction.kind === "buy" && (
+                        {lotteryStatus && lotteryStatus.lotteryExists && lotteryStatus.winnersDrawn ? (
+                            lotteryStatus.isWinner ? (
+                                <div>
+                                    <p>You were selected as a winner — enter your access code to continue.</p>
+                                    <label style={{ display: "block", marginBottom: 8 }}>
+                                        <span>Winner access code</span>
+                                        <input
+                                            type="text"
+                                            placeholder="Enter your winner access code"
+                                            value={lotteryAccessCode}
+                                            onChange={(e) => setLotteryAccessCode(e.target.value)}
+                                            style={{ width: "100%", marginTop: 6 }}
+                                        />
+                                    </label>
+                                    <button
+                                        type="button"
+                                        className="event-action-primary"
+                                        onClick={() => {
+                                            if (!lotteryAccessCode || lotteryAccessCode.trim() === "") {
+                                                window.alert("Please enter your winner access code before continuing to ticket selection.");
+                                                return;
+                                            }
+                                            onStartPurchase(event.id, lotteryAccessCode.trim());
+                                        }}
+                                        disabled={isPerformingAction}
+                                    >
+                                        {isPerformingAction ? "Reserving…" : "Continue with winner code"}
+                                    </button>
+                                </div>
+                            ) : (
+                                <div>
+                                    <p className="event-action-disabled-text">You can't buy the tickets yet, wait for the lottery to be over.</p>
+                                </div>
+                            )
+                        ) : primaryAction && primaryAction.kind === "buy" && (
                         <button
                             type="button"
                             className="event-action-primary"

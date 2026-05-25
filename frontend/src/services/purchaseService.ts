@@ -48,6 +48,7 @@ type SelectSittingRequestBody = {
     ticketIDs: string[];
     userID: string;
     isConfirmedAge: boolean;
+    accessCode?: string | null;
 };
 
 type SelectStandingRequestBody = {
@@ -55,6 +56,7 @@ type SelectStandingRequestBody = {
     areaID: string;
     userID: string;
     isConfirmedAge: boolean;
+    accessCode?: string | null;
 };
 
 type UpdateSittingRequestBody = {
@@ -132,11 +134,13 @@ export async function selectSittingTickets(
     ticketIds: string[],
     userId: string,
     isConfirmedAge: boolean,
+    accessCode?: string | null,
 ): Promise<ActivePurchaseResponse> {
     const body: SelectSittingRequestBody = {
         ticketIDs: ticketIds,
         userID: userId,
         isConfirmedAge,
+        accessCode: accessCode ?? null,
     };
     try {
         const response = await api.post(
@@ -157,12 +161,14 @@ export async function selectStandingTickets(
     amount: number,
     userId: string,
     isConfirmedAge: boolean,
+    accessCode?: string | null,
 ): Promise<ActivePurchaseResponse> {
     const body: SelectStandingRequestBody = {
         amount,
         areaID: areaId,
         userID: userId,
         isConfirmedAge,
+        accessCode: accessCode ?? null,
     };
     try {
         const response = await api.post(

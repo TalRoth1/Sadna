@@ -12,16 +12,22 @@ import org.example.ApplicationLayer.dto.EventDTOs.AddEventConditionalDiscountReq
 import org.example.ApplicationLayer.dto.EventDTOs.AddEventCouponRequest;
 import org.example.ApplicationLayer.dto.EventDTOs.AddEventOvertDiscountRequest;
 import org.example.ApplicationLayer.dto.EventDTOs.AddEventPolicyRuleRequest;
+import org.example.ApplicationLayer.dto.EventDTOs.AddSittingAreaRequest;
 import org.example.ApplicationLayer.dto.EventDTOs.AddSittingTicketsRequest;
+import org.example.ApplicationLayer.dto.EventDTOs.AddStandingAreaRequest;
 import org.example.ApplicationLayer.dto.EventDTOs.AddStandingTicketsRequest;
 import org.example.ApplicationLayer.dto.EventDTOs.CreateEventRequest;
 import org.example.ApplicationLayer.dto.EventDTOs.CreateLotteryRequest;
-import org.example.ApplicationLayer.dto.EventDTOs.DeleteEventRequest;
+import org.example.ApplicationLayer.dto.EventDTOs.DeleteAreaRequest;
 import org.example.ApplicationLayer.dto.EventDTOs.DeleteEventPolicyRuleRequest;
+import org.example.ApplicationLayer.dto.EventDTOs.DeleteEventRequest;
+import org.example.ApplicationLayer.dto.EventDTOs.EditEventPolicyRequest;
 import org.example.ApplicationLayer.dto.EventDTOs.EditEventRequest;
 import org.example.ApplicationLayer.dto.EventDTOs.EventSearchCriteriaRequest;
 import org.example.ApplicationLayer.dto.EventDTOs.RateEventRequest;
 import org.example.ApplicationLayer.dto.EventDTOs.RemoveEventDiscountRequest;
+import org.example.ApplicationLayer.dto.EventDTOs.UpdateSittingAreaRequest;
+import org.example.ApplicationLayer.dto.EventDTOs.UpdateStandingAreaRequest;
 import org.example.ApplicationLayer.dto.PurchaseDTOs.PurchaseHistoryDTO;
 import org.example.DomainLayer.EventAggregate.EventSearchCriteria;
 import org.springframework.http.HttpStatus;
@@ -35,12 +41,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.example.ApplicationLayer.dto.EventDTOs.AddSittingAreaRequest;
-import org.example.ApplicationLayer.dto.EventDTOs.AddStandingAreaRequest;
-import org.example.ApplicationLayer.dto.EventDTOs.EditEventPolicyRequest;
-import org.example.ApplicationLayer.dto.EventDTOs.DeleteAreaRequest;
-import org.example.ApplicationLayer.dto.EventDTOs.UpdateSittingAreaRequest;
-import org.example.ApplicationLayer.dto.EventDTOs.UpdateStandingAreaRequest;
 /**
  * EventController
  *
@@ -547,6 +547,23 @@ public class EventController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to create lottery: system exception"));
+        }
+    }
+
+    @PostMapping("/{eventId}/lottery/start-regular-sale")
+    public ResponseEntity<ApiResponse<Void>> startRegularSale(
+            @PathVariable("eventId") UUID eventId) {
+        try {
+            eventService.startRegularSale(eventId);
+
+            return ResponseEntity.ok(
+                    ApiResponse.success("Regular sale started successfully")
+            );
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to start regular sale: system exception"));
         }
     }
 

@@ -401,8 +401,15 @@ public class PurchaseDomainService {
             return;
         }
 
-        // אירוע הגרלה — חייב קוד
+        // Lottery event — normally requires a code. However, if the user
+        // is a drawn winner we allow them to proceed even if they didn't
+        // paste the code (owner may distribute codes separately). This
+        // keeps the UX smooth while preserving the intended restriction
+        // for non-winners.
         if (accessCode == null || accessCode.isBlank()) {
+            if (lottery.isWinner(userId.toString())) {
+                return;
+            }
             throw new DomainException("Lottery access code is required for this event");
         }
 
@@ -844,5 +851,35 @@ public class PurchaseDomainService {
     public boolean isLotteryEvent(UUID eventID)
     {
         return lotteryRepository.findByEventID(eventID) != null;
+    }
+
+    public boolean areLotteryWinnersDrawn(UUID eventId) {
+        if (eventId == null) {
+            return false;
+        }
+        PuchaseLottery lottery = lotteryRepository.findByEventID(eventId);
+        return lottery != null && lottery.areWinnersDrawn();
+    }
+
+    public boolean isUserRegisteredToLottery(UUID eventId, UUID userId) {
+        if (eventId == null || userId == null) {
+            return false;
+        }
+        PuchaseLottery lottery = lotteryRepository.findByEventID(eventId);
+        if (lottery == null) {
+            return false;
+        }
+        return lottery.isRegistered(userId.toString());
+    }
+
+    public boolean isUserWinner(UUID eventId, UUID userId) {
+        if (eventId == null || userId == null) {
+            return false;
+        }
+        PuchaseLottery lottery = lotteryRepository.findByEventID(eventId);
+        if (lottery == null) {
+            return false;
+        }
+        return lottery.isWinner(userId.toString());
     }
 }

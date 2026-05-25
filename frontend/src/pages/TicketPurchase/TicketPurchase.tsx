@@ -38,6 +38,7 @@ type TicketPurchasePageProps = {
     selectionAccessExpiresAt?: string | null;
     onSelectionAccessExpired?: () => void;
     onBackToEvent: () => void;
+    lotteryAccessCode?: string | null;
 };
 
 // Shape proposed in Phase 1: sitting tickets are tracked by exact id (matches
@@ -1359,6 +1360,7 @@ export default function TicketPurchasePage({
     selectionAccessExpiresAt = null,
     onSelectionAccessExpired,
     onBackToEvent,
+    lotteryAccessCode = null,
 }: TicketPurchasePageProps) {
     const [event, setEvent] = useState<Event | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -1556,6 +1558,7 @@ export default function TicketPurchasePage({
                   shape.ticketIds,
                   userId,
                   agreedToTerms,
+                  lotteryAccessCode,
               )
             : await selectStandingTickets(
                   event_.id,
@@ -1563,6 +1566,7 @@ export default function TicketPurchasePage({
                   shape.amount,
                   userId,
                   agreedToTerms,
+                  lotteryAccessCode,
               );
     }
 

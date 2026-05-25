@@ -99,8 +99,16 @@ public class PurchaseController {
             @PathVariable("eventId") UUID eventId,
             @RequestBody SelectSittingRequest request) {
         try {
-            ActivePurchaseDTO activePurchase = purchaseService.selectSittingTickets(
-                    eventId, request.ticketIDs, request.userID, request.isConfirmedAge);
+            ActivePurchaseDTO activePurchase;
+            if (request.accessCode != null && !request.accessCode.isBlank()) {
+                activePurchase = purchaseService.selectSittingTicketsWithLotteryCode(
+                        eventId, request.ticketIDs, request.userID, request.isConfirmedAge, request.accessCode
+                );
+            } else {
+                activePurchase = purchaseService.selectSittingTickets(
+                        eventId, request.ticketIDs, request.userID, request.isConfirmedAge);
+            }
+
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(ApiResponse.success("Sitting tickets selected successfully", activePurchase));
         } catch (IllegalArgumentException | IllegalStateException e) {
@@ -135,8 +143,16 @@ public class PurchaseController {
             @PathVariable("eventId") UUID eventId,
             @RequestBody SelectStandingRequest request) {
         try {
-            ActivePurchaseDTO activePurchase = purchaseService.selectStandingTickets(
-                    eventId, request.amount, request.areaID, request.userID, request.isConfirmedAge);
+            ActivePurchaseDTO activePurchase;
+            if (request.accessCode != null && !request.accessCode.isBlank()) {
+                activePurchase = purchaseService.selectStandingTicketsWithLotteryCode(
+                        eventId, request.amount, request.areaID, request.userID, request.isConfirmedAge, request.accessCode
+                );
+            } else {
+                activePurchase = purchaseService.selectStandingTickets(
+                        eventId, request.amount, request.areaID, request.userID, request.isConfirmedAge);
+            }
+
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(ApiResponse.success("Standing tickets selected successfully", activePurchase));
         } catch (IllegalArgumentException | IllegalStateException e) {
@@ -287,6 +303,22 @@ public class PurchaseController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to draw lottery: system exception"));
+        }
+    }
+
+    @GetMapping("/events/{eventId}/lottery/status")
+    public ResponseEntity<ApiResponse<org.example.ApplicationLayer.dto.PurchaseDTOs.LotteryStatusDTO>> getLotteryStatus(
+            @PathVariable("eventId") UUID eventId,
+            @RequestParam("userId") UUID userId) {
+        try {
+            org.example.ApplicationLayer.dto.PurchaseDTOs.LotteryStatusDTO status =
+                    purchaseService.getLotteryStatus(eventId, userId);
+            return ResponseEntity.ok(ApiResponse.success("Lottery status fetched", status));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to fetch lottery status: system exception"));
         }
     }
 

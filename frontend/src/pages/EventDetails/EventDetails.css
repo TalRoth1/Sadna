@@ -380,3 +380,18 @@
     opacity: 0.65;
     cursor: not-allowed;
 }
+
+.event-action-start-sale {
+    border-color: #047857;
+    background: #047857;
+    color: #ffffff;
+}
+
+.event-action-start-sale:hover:not(:disabled) {
+    background: #065f46;
+}
+
+.event-action-start-sale:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}

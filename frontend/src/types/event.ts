@@ -83,6 +83,7 @@ export type Event = {
     rating: number;
     companyRating: number;
     lotteryId?: string;
+    lotteryWinnersDrawn: boolean;
     layout: Layout;
     purchasePolicy: PurchasePolicy;
     discountPolicy: DiscountPolicy;

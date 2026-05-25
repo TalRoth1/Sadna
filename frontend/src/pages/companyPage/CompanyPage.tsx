@@ -20,7 +20,7 @@ import {
     type InviteOwnerRequest,
 } from "../../services/companyService";
 import { getCurrentUser, type CurrentUser } from "../../services/currentUserService";
-import { drawLotteryWinners } from "../../services/lotteryService";
+import { drawLotteryWinners, startRegularSale } from "../../services/lotteryService";
 import type { EventSummary } from "../../types/event";
 import CompanyPoliciesSection from "./CompanyPoliciesSection";
 import "./CompanyPage.css";
@@ -275,6 +275,7 @@ function buildCompanyPageSections(
         { id: "company-hierarchy", label: "Hierarchy", isVisible: isHierarchyVisible },
     ];
 }
+
 function getDrawWinnersErrorMessage(error: unknown) {
     const rawMessage =
         error instanceof Error
@@ -359,7 +360,6 @@ function isCompanyOwnerRole(role: string) {
 
 function normalizeMermaidLabel(value: string) {
     const withoutQuotes = value.trim().replace(/^"|"$/g, "");
-    // Remove any trailing Perms[...] annotation and normalize newlines
     const cleaned = withoutQuotes
         .replace(/\\n/g, " ")
         .replace(/\s*Perms:?\[[^\]]*\]\s*$/i, "");
@@ -429,6 +429,7 @@ function parseMermaidHierarchy(chart: string): HierarchyNode[] {
             if (!childrenById.has(parentId)) {
                 childrenById.set(parentId, new Set<string>());
             }
+
             childrenById.get(parentId)?.add(childId);
             continue;
         }
@@ -482,9 +483,9 @@ function isLotteryEvent(event: ManagedEvent) {
 
     const eventType = String(
         rawEvent.type ??
-        rawEvent.eventType ??
-        rawEvent.saleMode ??
-        "",
+            rawEvent.eventType ??
+            rawEvent.saleMode ??
+            "",
     )
         .trim()
         .toLowerCase();
@@ -502,13 +503,18 @@ function ManagedEventCard({
     onOpenEvent,
     onEditEvent,
     onDelete,
+    onStartRegularSale,
+    isStartingRegularSale,
 }: {
     event: ManagedEvent;
     onOpenEvent: (eventId: string) => void;
     onEditEvent: (eventId: string) => void;
     onDelete: (eventId: string, eventName: string) => Promise<void>;
+    onStartRegularSale: (eventId: string, eventName: string) => Promise<void>;
+    isStartingRegularSale: boolean;
 }) {
     const isLottery = isLotteryEvent(event);
+
     return (
         <article className="company-event-card">
             <div className="company-event-card-main">
@@ -534,17 +540,30 @@ function ManagedEventCard({
                 <span className={getManagedEventStatusClass(event)}>
                     {getManagedEventStatus(event)}
                 </span>
+
                 <span className="company-event-rating" aria-label={`Rating ${event.rating}`}>
                     ★ {event.rating.toFixed(1)}
                 </span>
+
                 <span className="company-event-availability">
                     {event.availableTickets > 0
                         ? `${event.availableTickets} tickets left`
                         : "No tickets left"}
                 </span>
 
+                {isLottery && <LotteryDrawButton eventId={event.id} />}
+
                 {isLottery && (
-                    <LotteryDrawButton eventId={event.id} />
+                    <button
+                        type="button"
+                        className="company-event-start-sale-button"
+                        disabled={isStartingRegularSale}
+                        onClick={() => onStartRegularSale(event.id, event.name)}
+                    >
+                        {isStartingRegularSale
+                            ? "Starting sale..."
+                            : "Start regular sale"}
+                    </button>
                 )}
 
                 <button
@@ -577,7 +596,7 @@ function LotteryDrawButton({ eventId }: { eventId: string }) {
 
         try {
             setIsLoading(true);
-            // default expiry: 24 hours from now
+
             const expiry = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
             const winners = await drawLotteryWinners(eventId, expiry);
 
@@ -620,8 +639,11 @@ export default function CompanyPage({
     const [isInviteSubmitting, setIsInviteSubmitting] = useState(false);
     const [managedEvents, setManagedEvents] = useState<ManagedEvent[]>([]);
     const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
+    const [startingRegularSaleEventId, setStartingRegularSaleEventId] =
+        useState<string | null>(null);
     const [selectedManagerNode, setSelectedManagerNode] = useState<HierarchyNode | null>(null);
     const [permissionDraft, setPermissionDraft] = useState<BackendCompanyPermissionName[]>([]);
+
     const [state, setState] = useState<CompanyPageState>({
         company,
         errorMessage: "",
@@ -641,18 +663,21 @@ export default function CompanyPage({
         isHierarchyVisible,
         isInviteComposerVisible,
         isPoliciesVisible,
-    ).filter(
-        (section) => section.isVisible,
-    );
+    ).filter((section) => section.isVisible);
 
     useEffect(() => {
         let isStale = false;
 
         async function loadCompanyAccess() {
             try {
-                setState((currentState) => ({ ...currentState, isLoading: true, errorMessage: "" }));
+                setState((currentState) => ({
+                    ...currentState,
+                    isLoading: true,
+                    errorMessage: "",
+                }));
 
                 const user = await getCurrentUser();
+
                 if (isStale) {
                     return;
                 }
@@ -669,6 +694,7 @@ export default function CompanyPage({
                 }
 
                 const access = await getCompanyPermissions(company.id, user.email);
+
                 if (isStale) {
                     return;
                 }
@@ -684,6 +710,7 @@ export default function CompanyPage({
                 if (mappedCompany.permissions.includes("Manage policies")) {
                     try {
                         const policiesResponse = await getCompanyPolicies(company.id, user.email);
+
                         if (isStale) {
                             return;
                         }
@@ -699,13 +726,16 @@ export default function CompanyPage({
                 if (isHierarchyViewerRole(mappedCompany.role)) {
                     try {
                         const hierarchyResponse = await getCompanyHierarchy(company.id, user.email);
+
                         if (isStale) {
                             return;
                         }
 
                         hierarchySource = hierarchyResponse.mermaidChart;
                         hierarchyRoots = parseMermaidHierarchy(hierarchyResponse.mermaidChart);
-                        managerPermissionsByNodeId = parseManagerPermissionsFromMermaid(hierarchyResponse.mermaidChart);
+                        managerPermissionsByNodeId = parseManagerPermissionsFromMermaid(
+                            hierarchyResponse.mermaidChart,
+                        );
                     } catch (error) {
                         if (isStale) {
                             return;
@@ -726,32 +756,47 @@ export default function CompanyPage({
                     }
                 }
 
-                // compute subordinate IDs for the current user (descendants of the current user's node)
                 let subordinateIds: string[] = [];
+
                 try {
                     if (user && hierarchyRoots.length > 0) {
-                        function findNode(nodes: HierarchyNode[], predicate: (n: HierarchyNode) => boolean): HierarchyNode | null {
-                            for (const n of nodes) {
-                                if (predicate(n)) return n;
-                                const found = findNode(n.children, predicate);
-                                if (found) return found;
+                        function findNode(
+                            nodes: HierarchyNode[],
+                            predicate: (node: HierarchyNode) => boolean,
+                        ): HierarchyNode | null {
+                            for (const node of nodes) {
+                                if (predicate(node)) {
+                                    return node;
+                                }
+
+                                const found = findNode(node.children, predicate);
+
+                                if (found) {
+                                    return found;
+                                }
                             }
+
                             return null;
                         }
 
-                        const userNode = findNode(hierarchyRoots, (n) => {
-                            if (!user) return false;
+                        const userNode = findNode(hierarchyRoots, (node) => {
+                            if (!user) {
+                                return false;
+                            }
+
                             return (
-                                n.label.includes(user.email) ||
-                                (user.username ? n.label.includes(user.username) : false)
+                                node.label.includes(user.email) ||
+                                (user.username ? node.label.includes(user.username) : false)
                             );
                         });
+
                         if (userNode) {
                             const ids = new Set<string>();
-                            function collectDescendants(n: HierarchyNode) {
-                                for (const c of n.children) {
-                                    ids.add(c.id);
-                                    collectDescendants(c);
+
+                            function collectDescendants(node: HierarchyNode) {
+                                for (const child of node.children) {
+                                    ids.add(child.id);
+                                    collectDescendants(child);
                                 }
                             }
 
@@ -759,8 +804,7 @@ export default function CompanyPage({
                             subordinateIds = [...ids];
                         }
                     }
-                } catch (e) {
-                    // ignore subordinate computation errors
+                } catch {
                     subordinateIds = [];
                 }
 
@@ -802,10 +846,46 @@ export default function CompanyPage({
         };
     }, [company]);
 
+    async function handleStartRegularSale(eventId: string, eventName: string) {
+        const confirmed = window.confirm(
+            `Start regular sale for "${eventName}"? After this, users will be able to buy tickets normally without a lottery code.`,
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+            setStartingRegularSaleEventId(eventId);
+
+            await startRegularSale(eventId);
+
+            window.alert("Regular sale started successfully.");
+
+            setManagedEvents((currentEvents) =>
+                currentEvents.map((managedEvent) =>
+                    managedEvent.id === eventId
+                        ? {
+                              ...managedEvent,
+                              type: "Regular Sale",
+                          }
+                        : managedEvent,
+                ),
+            );
+        } catch (error) {
+            window.alert(
+                getErrorMessage(error, "Failed to start regular sale."),
+            );
+        } finally {
+            setStartingRegularSaleEventId(null);
+        }
+    }
+
     async function handleInviteSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
 
         const email = inviteEmail.trim();
+
         if (email === "") {
             setInviteErrorMessage("Please enter an email address.");
             setInviteSuccessMessage("");
@@ -860,7 +940,9 @@ export default function CompanyPage({
             `Remove ${emailToRemove} from ${state.company.name}? This action cannot be undone.`,
         );
 
-        if (!confirmed) return;
+        if (!confirmed) {
+            return;
+        }
 
         try {
             await removeCompanyMemberAsOwner(state.company.id, {
@@ -868,7 +950,6 @@ export default function CompanyPage({
                 emailToRemove,
             });
 
-            // refresh hierarchy
             try {
                 const hierarchyResponse = await getCompanyHierarchy(state.company.id, currentUser.email);
                 const hierarchySource = hierarchyResponse.mermaidChart;
@@ -877,31 +958,46 @@ export default function CompanyPage({
                     hierarchyResponse.mermaidChart,
                 );
 
-                // recompute subordinate ids
                 let subordinateIds: string[] = [];
+
                 if (currentUser && hierarchyRoots.length > 0) {
-                    function findNode(nodes: HierarchyNode[], predicate: (n: HierarchyNode) => boolean): HierarchyNode | null {
-                        for (const n of nodes) {
-                            if (predicate(n)) return n;
-                            const found = findNode(n.children, predicate);
-                            if (found) return found;
+                    function findNode(
+                        nodes: HierarchyNode[],
+                        predicate: (node: HierarchyNode) => boolean,
+                    ): HierarchyNode | null {
+                        for (const node of nodes) {
+                            if (predicate(node)) {
+                                return node;
+                            }
+
+                            const found = findNode(node.children, predicate);
+
+                            if (found) {
+                                return found;
+                            }
                         }
+
                         return null;
                     }
 
-                    const userNode = findNode(hierarchyRoots, (n) => {
-                        if (!currentUser) return false;
+                    const userNode = findNode(hierarchyRoots, (node) => {
+                        if (!currentUser) {
+                            return false;
+                        }
+
                         return (
-                            n.label.includes(currentUser.email) ||
-                            (currentUser.username ? n.label.includes(currentUser.username) : false)
+                            node.label.includes(currentUser.email) ||
+                            (currentUser.username ? node.label.includes(currentUser.username) : false)
                         );
                     });
+
                     if (userNode) {
                         const ids = new Set<string>();
-                        function collectDescendants(n: HierarchyNode) {
-                            for (const c of n.children) {
-                                ids.add(c.id);
-                                collectDescendants(c);
+
+                        function collectDescendants(node: HierarchyNode) {
+                            for (const child of node.children) {
+                                ids.add(child.id);
+                                collectDescendants(child);
                             }
                         }
 
@@ -910,15 +1006,15 @@ export default function CompanyPage({
                     }
                 }
 
-                setState((s) => ({
-                    ...s,
+                setState((currentState) => ({
+                    ...currentState,
                     hierarchyRoots,
                     hierarchySource,
                     subordinateIds,
                     managerPermissionsByNodeId,
                 }));
-            } catch (err) {
-                // if refresh fails, at least notify success of removal
+            } catch {
+                // If refresh fails, the member removal itself still succeeded.
             }
 
             window.alert("Member removed successfully.");
@@ -953,6 +1049,7 @@ export default function CompanyPage({
         }
 
         const policiesResponse = await getCompanyPolicies(state.company.id, currentUser.email);
+
         setState((currentState) => ({
             ...currentState,
             companyPolicies: mapCompanyPolicies(policiesResponse),
@@ -966,7 +1063,7 @@ export default function CompanyPage({
         }
 
         const confirmed = window.confirm(
-            `Remove policy rule \"${ruleLabel}\"? This action cannot be undone.`,
+            `Remove policy rule "${ruleLabel}"? This action cannot be undone.`,
         );
 
         if (!confirmed) {
@@ -990,7 +1087,7 @@ export default function CompanyPage({
         }
 
         const confirmed = window.confirm(
-            `Remove discount \"${ruleLabel}\"? This action cannot be undone.`,
+            `Remove discount "${ruleLabel}"? This action cannot be undone.`,
         );
 
         if (!confirmed) {
@@ -1013,6 +1110,7 @@ export default function CompanyPage({
         }
 
         const managerEmail = extractEmailFromHierarchyLabel(selectedManagerNode.label);
+
         if (!managerEmail) {
             window.alert("This manager node does not contain an email address.");
             return;
@@ -1035,28 +1133,38 @@ export default function CompanyPage({
             );
 
             let subordinateIds: string[] = [];
+
             if (hierarchyRoots.length > 0) {
                 function findNode(
                     nodes: HierarchyNode[],
-                    predicate: (n: HierarchyNode) => boolean,
+                    predicate: (node: HierarchyNode) => boolean,
                 ): HierarchyNode | null {
-                    for (const n of nodes) {
-                        if (predicate(n)) return n;
-                        const found = findNode(n.children, predicate);
-                        if (found) return found;
+                    for (const node of nodes) {
+                        if (predicate(node)) {
+                            return node;
+                        }
+
+                        const found = findNode(node.children, predicate);
+
+                        if (found) {
+                            return found;
+                        }
                     }
+
                     return null;
                 }
 
-                const userNode = findNode(hierarchyRoots, (n) => {
-                    return n.label.includes(currentUser.email);
+                const userNode = findNode(hierarchyRoots, (node) => {
+                    return node.label.includes(currentUser.email);
                 });
+
                 if (userNode) {
                     const ids = new Set<string>();
-                    function collectDescendants(n: HierarchyNode) {
-                        for (const c of n.children) {
-                            ids.add(c.id);
-                            collectDescendants(c);
+
+                    function collectDescendants(node: HierarchyNode) {
+                        for (const child of node.children) {
+                            ids.add(child.id);
+                            collectDescendants(child);
                         }
                     }
 
@@ -1072,6 +1180,7 @@ export default function CompanyPage({
                 subordinateIds,
                 managerPermissionsByNodeId,
             }));
+
             closePermissionsModal();
         } catch (error) {
             window.alert(getErrorMessage(error, "Failed to save manager permissions."));
@@ -1231,6 +1340,7 @@ export default function CompanyPage({
                                 >
                                     Manager
                                 </button>
+
                                 <button
                                     type="button"
                                     className={
@@ -1279,7 +1389,8 @@ export default function CompanyPage({
                     <div>
                         <h2>My Events</h2>
                         <p>
-                            Events directly managed by you in {company.name} are listed here. You can manage these events or create new ones.
+                            Events directly managed by you in {company.name} are listed here.
+                            You can manage these events or create new ones.
                         </p>
                     </div>
 
@@ -1301,9 +1412,11 @@ export default function CompanyPage({
                             event={event}
                             onOpenEvent={onSelectEvent}
                             onEditEvent={onEditEvent}
+                            onStartRegularSale={handleStartRegularSale}
+                            isStartingRegularSale={startingRegularSaleEventId === event.id}
                             onDelete={async (eventId, eventName) => {
                                 const shouldDelete = window.confirm(
-                                    `Delete event \"${eventName}\"? This cannot be undone.`,
+                                    `Delete event "${eventName}"? This cannot be undone.`,
                                 );
 
                                 if (!shouldDelete) {
@@ -1420,9 +1533,11 @@ export default function CompanyPage({
                                     <span className="company-permissions-modal-current-label">
                                         Current permissions
                                     </span>
+
                                     <div className="company-permissions-modal-chip-grid">
                                         {ALL_BACKEND_PERMISSIONS.map((permission) => {
                                             const isEnabled = permissionDraft.includes(permission);
+
                                             return (
                                                 <button
                                                     key={permission}
@@ -1449,6 +1564,7 @@ export default function CompanyPage({
                                     >
                                         Cancel
                                     </button>
+
                                     <button
                                         type="button"
                                         className="company-permissions-modal-primary"
@@ -1498,29 +1614,38 @@ function HierarchyBranch({
     canManagePermissions: boolean;
 }) {
     const showRemove = canRemove && subordinateIds.has(node.id);
-    const showManagePermissions = canManagePermissions && subordinateIds.has(node.id) && isManagerHierarchyLabel(node.label);
+    const showManagePermissions =
+        canManagePermissions &&
+        subordinateIds.has(node.id) &&
+        isManagerHierarchyLabel(node.label);
 
     return (
         <ul className="company-hierarchy-list">
             <li>
                 <div className="company-hierarchy-node">
                     <span>{node.label}</span>
+
                     {showRemove && (
                         <button
                             type="button"
                             className="company-hierarchy-remove-button"
                             onClick={() => {
                                 const email = extractEmailFromHierarchyLabel(node.label);
+
                                 if (!email) {
-                                    window.alert("This node does not contain an email address yet. Please refresh after server restart so hierarchy labels are email-based.");
+                                    window.alert(
+                                        "This node does not contain an email address yet. Please refresh after server restart so hierarchy labels are email-based.",
+                                    );
                                     return;
                                 }
+
                                 onRemove(email);
                             }}
                         >
                             Remove from company
                         </button>
                     )}
+
                     {showManagePermissions && (
                         <button
                             type="button"
@@ -1531,6 +1656,7 @@ function HierarchyBranch({
                         </button>
                     )}
                 </div>
+
                 {node.children.length > 0 && (
                     <div className="company-hierarchy-children">
                         {node.children.map((childNode) => (

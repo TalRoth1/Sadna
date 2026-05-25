@@ -66,3 +66,39 @@ export async function createLotteryForEvent(
 
     return body.data;
 }
+
+export async function startRegularSale(eventId: string): Promise<void> {
+    const response = await fetch(
+        `/api/events/${encodeURIComponent(eventId)}/lottery/start-regular-sale`,
+        {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+        },
+    );
+
+    const body = await response.json();
+
+    if (!response.ok || !body.success) {
+        throw new Error(body.message || "Failed to start regular sale.");
+    }
+}
+
+export type LotteryStatus = {
+    lotteryExists: boolean;
+    winnersDrawn: boolean;
+    isWinner: boolean;
+    isRegistered: boolean;
+};
+
+export async function getLotteryStatus(eventId: string, userId?: string): Promise<LotteryStatus> {
+    const query = userId ? `?userId=${encodeURIComponent(userId)}` : "";
+    const response = await fetch(`/api/purchases/events/${encodeURIComponent(eventId)}/lottery/status${query}`);
+    const body = await response.json();
+    if (!response.ok || !body.success) {
+        throw new Error(body.message || "Failed to fetch lottery status.");
+    }
+
+    return body.data as LotteryStatus;
+}

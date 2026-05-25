@@ -100,6 +100,7 @@ function App() {
     const [currentPage, setCurrentPage] = useState<AppPage>("event-search");
     const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
     const [selectionAccessExpiresAt, setSelectionAccessExpiresAt] = useState<string | null>(null);
+    const [lotteryAccessCode, setLotteryAccessCode] = useState<string | null>(null);
     const [selectedCompany, setSelectedCompany] = useState<SelectedCompany | null>(null);
     const [createEventCompanyId, setCreateEventCompanyId] = useState<string | null>(null);
 
@@ -112,6 +113,7 @@ function App() {
         ) {
             setSelectedEventId(null);
             setSelectionAccessExpiresAt(null);
+            setLotteryAccessCode(null);
         }
 
         if (page !== "company-details") {
@@ -152,6 +154,14 @@ function App() {
     function handleStartPurchase(eventId: string) {
         setSelectedEventId(eventId);
         setSelectionAccessExpiresAt(null);
+        setLotteryAccessCode(null);
+        setCurrentPage("event-queue");
+    }
+
+    function handleStartPurchaseWithCode(eventId: string, accessCode?: string | null) {
+        setSelectedEventId(eventId);
+        setSelectionAccessExpiresAt(null);
+        setLotteryAccessCode(accessCode ?? null);
         setCurrentPage("event-queue");
     }
 
@@ -236,7 +246,7 @@ function App() {
                 <EventDetailsPage
                     eventId={selectedEventId}
                     onBackToSearch={handleBackToSearch}
-                    onStartPurchase={handleStartPurchase}
+                    onStartPurchase={handleStartPurchaseWithCode}
                     onStartLotteryRegistration={handleStartLotteryRegistration}
                     onEditEvent={handleEditEvent}
                 />
@@ -269,6 +279,7 @@ function App() {
                     selectionAccessExpiresAt={selectionAccessExpiresAt}
                     onSelectionAccessExpired={handleSelectionAccessExpired}
                     onBackToEvent={handleBackToEvent}
+                    lotteryAccessCode={lotteryAccessCode}
                 />
             );
         }

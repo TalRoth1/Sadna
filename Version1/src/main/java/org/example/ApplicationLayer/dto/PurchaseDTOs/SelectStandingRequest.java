@@ -7,5 +7,6 @@ public class SelectStandingRequest {
     public UUID areaID;
     public UUID userID;
     public boolean isConfirmedAge;
+    public String accessCode;
     public SelectStandingRequest() {}
 }

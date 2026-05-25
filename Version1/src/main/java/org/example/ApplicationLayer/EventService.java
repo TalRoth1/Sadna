@@ -73,6 +73,7 @@ public class EventService {
                 eventId, companyId, eventManagerEmail, name, date, location, artist, type, status, description);
 
         Event event = eventManagementDomainService.getEventForView(eventId);
+        boolean lotteryWinnersDrawn = eventManagementDomainService.areLotteryWinnersDrawn(event.getEventId());
         return toDetails(event);
     }
 
@@ -831,6 +832,8 @@ public class EventService {
 
         InventorySnapshot snap = snapshotOf(e);
 
+        boolean lotteryWinnersDrawn = eventManagementDomainService.areLotteryWinnersDrawn(e.getEventId());
+
         return new EventDetailsDto(
                 e.getEventId(),
                 e.getCompanyId(),
@@ -846,6 +849,7 @@ public class EventService {
                 e.getStatus(),
                 e.getRating(),
                 e.getLotteryId(),
+                lotteryWinnersDrawn,
                 snap.priceMin(),
                 snap.priceMax(),
                 snap.availableTickets(),
@@ -1067,6 +1071,23 @@ public class EventService {
         }
     }
 
-    
+    public void startRegularSale(UUID eventId) {
+        logger.info("[Event Log] Method: startRegularSale called with parameters: eventId=" + eventId);
+
+        try {
+            if (eventId == null) {
+                throw new IllegalArgumentException("eventId is required");
+            }
+
+            eventManagementDomainService.startRegularSale(eventId);
+
+        } catch (IllegalArgumentException | DomainException e) {
+            logger.info("[Event Log] Business rejection in startRegularSale: " + e.getMessage());
+            throw e;
+        } catch (RuntimeException e) {
+            logger.log(Level.SEVERE, "[Error Log] System error in startRegularSale: " + e.getMessage(), e);
+            throw e;
+        }
+    }
 
 }

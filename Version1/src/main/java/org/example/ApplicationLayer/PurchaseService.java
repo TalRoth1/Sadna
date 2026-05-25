@@ -10,6 +10,7 @@ import java.util.logging.Logger;
 import org.example.ApplicationLayer.dto.PurchaseDTOs.ActivePurchaseDTO;
 import org.example.ApplicationLayer.dto.PurchaseDTOs.PurchaseHistoryDTO;
 import org.example.ApplicationLayer.dto.PurchaseDTOs.SelectionAccessDTO;
+import org.example.ApplicationLayer.dto.PurchaseDTOs.LotteryStatusDTO;
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 import org.example.DomainLayer.DomainException;
 import org.example.DomainLayer.EventAggregate.Event;
@@ -46,7 +47,7 @@ public class PurchaseService {
         }
     }
 
-    public void selectSittingTicketsWithLotteryCode(UUID eventID,List<UUID> ticketIDs,UUID userID,boolean isConfirmedAge,String accessCode)
+    public ActivePurchaseDTO selectSittingTicketsWithLotteryCode(UUID eventID,List<UUID> ticketIDs,UUID userID,boolean isConfirmedAge,String accessCode)
     {
         logger.info("caller=" + userID + ", action=selectSittingTicketsWithLotteryCode, target=PurchaseDomainService.selectSittingTicketsWithLotteryCode, params={eventID=" + eventID + ", ticketCount=" + (ticketIDs == null ? 0 : ticketIDs.size()) + ", isConfirmedAge=" + isConfirmedAge + ", accessCodeProvided=" + (accessCode != null && !accessCode.isBlank()) + "}");
 
@@ -74,13 +75,15 @@ public class PurchaseService {
 
             requireQueueAccess(userID, eventID);
 
-            purchaseDomainService.selectSittingTicketsWithLotteryCode(
+                ActivePurchase activePurchase = purchaseDomainService.selectSittingTicketsWithLotteryCode(
                     eventID, ticketIDs, userID, isConfirmedAge, accessCode
-            );
+                );
 
-            logger.info("action=selectSittingTicketsWithLotteryCode completed successfully, caller=" + userID + ", params={eventID=" + eventID + ", ticketCount=" + ticketIDs.size() + "}");
+                eventPublisher.publish(new TicketReservedEvent(userID, eventID));
 
+                logger.info("action=selectSittingTicketsWithLotteryCode completed successfully, caller=" + userID + ", params={eventID=" + eventID + ", ticketCount=" + ticketIDs.size() + "}");
 
+                return toActivePurchaseDTO(activePurchase);
         } catch (DomainException e) {
             logger.severe("action=selectSittingTicketsWithLotteryCode failed, caller=" + userID + ", params={eventID=" + eventID + ", ticketCount=" + (ticketIDs == null ? 0 : ticketIDs.size()) + "}, error=" + e.getMessage());
             throw new IllegalStateException("Couldn't select lottery sitting tickets: " + e.getMessage());
@@ -89,7 +92,7 @@ public class PurchaseService {
             queueManager.releaseBatch(eventID, 1);
         }
     }
-    public void selectStandingTicketsWithLotteryCode(UUID eventID,int amount,UUID areaID,UUID userID,boolean isConfirmedAge,String accessCode)
+    public ActivePurchaseDTO selectStandingTicketsWithLotteryCode(UUID eventID,int amount,UUID areaID,UUID userID,boolean isConfirmedAge,String accessCode)
     {
         logger.info("caller=" + userID + ", action=selectStandingTicketsWithLotteryCode, target=PurchaseDomainService.selectStandingTicketsWithLotteryCode, params={eventID=" + eventID + ", areaID=" + areaID + ", amount=" + amount + ", isConfirmedAge=" + isConfirmedAge + ", accessCodeProvided=" + (accessCode != null && !accessCode.isBlank()) + "}");
 
@@ -121,13 +124,15 @@ public class PurchaseService {
 
             requireQueueAccess(userID, eventID);
 
-            purchaseDomainService.selectStandingTicketsWithLotteryCode(
+                ActivePurchase activePurchase = purchaseDomainService.selectStandingTicketsWithLotteryCode(
                     eventID, amount, userID, areaID, isConfirmedAge, accessCode
-            );
+                );
 
-            logger.info("action=selectStandingTicketsWithLotteryCode completed successfully, caller=" + userID + ", params={eventID=" + eventID + ", areaID=" + areaID + ", amount=" + amount + "}");
+                eventPublisher.publish(new TicketReservedEvent(userID, eventID));
 
+                logger.info("action=selectStandingTicketsWithLotteryCode completed successfully, caller=" + userID + ", params={eventID=" + eventID + ", areaID=" + areaID + ", amount=" + amount + "}");
 
+                return toActivePurchaseDTO(activePurchase);
         } catch (DomainException e) {
             logger.severe("action=selectStandingTicketsWithLotteryCode failed, caller=" + userID + ", params={eventID=" + eventID + ", areaID=" + areaID + ", amount=" + amount + "}, error=" + e.getMessage());
             throw new IllegalStateException("Couldn't select lottery standing tickets: " + e.getMessage());
@@ -157,6 +162,21 @@ public class PurchaseService {
         for (UUID buyerId : buyerIds) {
             notifier.notifyUser(buyerId, message);
         }
+    }
+
+    public LotteryStatusDTO getLotteryStatus(UUID eventId, UUID userId) {
+        boolean exists = purchaseDomainService.isLotteryEvent(eventId);
+        boolean winnersDrawn = false;
+        boolean isWinner = false;
+        boolean isRegistered = false;
+
+        if (exists) {
+            winnersDrawn = purchaseDomainService.areLotteryWinnersDrawn(eventId);
+            isWinner = purchaseDomainService.isUserWinner(eventId, userId);
+            isRegistered = purchaseDomainService.isUserRegisteredToLottery(eventId, userId);
+        }
+
+        return new LotteryStatusDTO(exists, winnersDrawn, isWinner, isRegistered);
     }
 
     /**
