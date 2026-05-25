@@ -788,12 +788,12 @@ public class PurchaseDomainService {
     }
 
 
-    public SalesReport getSalesReportForOwner(String ownerUsername, UUID companyId) {
+    public SalesReport getSalesReportForOwner(String ownerEmail, UUID companyId) {
         Company company = companyRepository.findByID(companyId).orElse(null);
         if (company == null) {
             throw new IllegalArgumentException("Company not found");
         }
-        User owner = userRepository.findByEmail(ownerUsername).orElse(null);
+        User owner = userRepository.findByEmail(ownerEmail).orElse(null);
         if (owner == null) {
             throw new IllegalArgumentException("Owner not found");
         }

@@ -11,6 +11,7 @@ import {
     getCompanyHierarchy,
     getCompanyPermissions,
     getCompanyPolicies,
+    getCompanySalesReport,
     getEventsForUserInCompany,
     inviteCompanyManager,
     inviteCompanyOwner,
@@ -18,11 +19,13 @@ import {
     removeCompanyMemberAsOwner,
     type CompanyAccessResponse,
     type CompanyPoliciesResponse as BackendCompanyPoliciesResponse,
+    type CompanySalesReportResponse as BackendCompanySalesReportResponse,
     type CompanyPermissionName as BackendCompanyPermissionName,
     type ChangeManagerPermissionsRequest,
     type InviteManagerRequest,
     type InviteOwnerRequest,
 } from "../../services/companyService";
+import { getEventById } from "../../services/eventSearchService";
 import { getCurrentUser, type CurrentUser } from "../../services/currentUserService";
 import type { EventSummary } from "../../types/event";
 import CompanyPoliciesSection from "./CompanyPoliciesSection";
@@ -71,6 +74,14 @@ type CompanyPoliciesViewModel = {
     discountRules: NonNullable<CompanyPoliciesSectionProps["discountRules"]>;
 };
 
+type CompanySalesReportViewModel = {
+    companyId: string;
+    ownerEmail: string;
+    // per-event summary with human-readable name and sold-tickets count
+    events: { id: string; name: string; soldTickets: number }[];
+    totalRevenue: number;
+};
+
 type PurchasePolicyCreateRequest =
     | {
           kind: "AGE";
@@ -115,6 +126,7 @@ type DiscountPolicyCreateRequest =
 type CompanyPageSectionId =
     | "company-overview"
     | "company-permissions"
+    | "company-sales-report"
     | "company-policies"
     | "company-invitations"
     | "company-events"
@@ -140,6 +152,8 @@ type CompanyPageState = {
     errorMessage: string;
     isLoading: boolean;
     companyPolicies: CompanyPoliciesViewModel | null;
+    salesReport: CompanySalesReportViewModel | null;
+    salesReportErrorMessage: string;
     hierarchyRoots: HierarchyNode[];
     hierarchyErrorMessage: string;
     hierarchySource: string;
@@ -300,16 +314,28 @@ function mapCompanyPolicies(response: BackendCompanyPoliciesResponse): CompanyPo
     };
 }
 
+function mapCompanySalesReport(response: BackendCompanySalesReportResponse): CompanySalesReportViewModel {
+    // Start with event IDs as placeholders; the caller will fetch names and compute sold counts.
+    return {
+        companyId: response.companyId,
+        ownerEmail: response.ownerEmail,
+        events: response.eventIds.map((id) => ({ id, name: id.slice(0, 8), soldTickets: 0 })),
+        totalRevenue: response.totalRevenue,
+    };
+}
+
 const COMPANY_SECTION_SCROLL_OFFSET_PX = 180;
 
 function buildCompanyPageSections(
     isHierarchyVisible: boolean,
     isInviteComposerVisible: boolean,
     isPoliciesVisible: boolean,
+    isSalesReportVisible: boolean,
 ): CompanyPageSection[] {
     return [
         { id: "company-overview", label: "Overview", isVisible: true },
         { id: "company-permissions", label: "Permissions", isVisible: true },
+        { id: "company-sales-report", label: "Sales report", isVisible: isSalesReportVisible },
         { id: "company-policies", label: "Policies", isVisible: isPoliciesVisible },
         { id: "company-invitations", label: "Invite users", isVisible: isInviteComposerVisible },
         { id: "company-events", label: "My Events", isVisible: true },
@@ -351,6 +377,14 @@ function formatEventDate(date: string) {
         dateStyle: "medium",
         timeStyle: "short",
     });
+}
+
+function formatCurrency(value: number) {
+    return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD",
+        maximumFractionDigits: 2,
+    }).format(value);
 }
 
 function getManagedEventStatus(event: ManagedEvent) {
@@ -567,6 +601,8 @@ export default function CompanyPage({
         errorMessage: "",
         isLoading: true,
         companyPolicies: null,
+        salesReport: null,
+        salesReportErrorMessage: "",
         hierarchyRoots: [],
         hierarchyErrorMessage: "",
         hierarchySource: "",
@@ -576,11 +612,13 @@ export default function CompanyPage({
 
     const isHierarchyVisible = isHierarchyViewerRole(state.company.role);
     const isInviteComposerVisible = isCompanyOwnerRole(state.company.role);
+    const isSalesReportVisible = isCompanyOwnerRole(state.company.role);
     const isPoliciesVisible = state.company.permissions.includes("Manage policies");
     const companyPageSections = buildCompanyPageSections(
         isHierarchyVisible,
         isInviteComposerVisible,
         isPoliciesVisible,
+        isSalesReportVisible,
     ).filter(
         (section) => section.isVisible,
     );
@@ -618,6 +656,8 @@ export default function CompanyPage({
                 let hierarchyErrorMessage = "";
                 let hierarchySource = "";
                 let companyPolicies: CompanyPoliciesViewModel | null = null;
+                let salesReport: CompanySalesReportViewModel | null = null;
+                let salesReportErrorMessage = "";
                 let managerPermissionsByNodeId: Record<string, BackendCompanyPermissionName[]> = {};
                 let managedEventsForUser: ManagedEvent[] = [];
 
@@ -644,6 +684,48 @@ export default function CompanyPage({
                         }
 
                         hierarchySource = hierarchyResponse.mermaidChart;
+
+                if (isCompanyOwnerRole(mappedCompany.role)) {
+                    try {
+                        const salesReportResponse = await getCompanySalesReport(company.id, user.email);
+                        if (isStale) {
+                            return;
+                        }
+
+                        // Base mapping
+                        const baseReport = mapCompanySalesReport(salesReportResponse);
+
+                        try {
+                            // Compute per-event human name and sold-ticket counts by fetching event details
+                            const ticketIdSet = new Set((salesReportResponse.ticketIds ?? []).map((t) => t.toString()));
+                            const events = await Promise.all(
+                                (salesReportResponse.eventIds ?? []).map(async (eventId) => {
+                                    try {
+                                        const evt = await getEventById(eventId);
+                                        const eventTicketIds = new Set((evt?.tickets ?? []).map((t) => t.id));
+                                        const soldCount = [...ticketIdSet].filter((tid) => eventTicketIds.has(tid)).length;
+                                        return { id: eventId, name: evt?.name ?? eventId.slice(0, 8), soldTickets: soldCount };
+                                    } catch (err) {
+                                        return { id: eventId, name: eventId.slice(0, 8), soldTickets: 0 };
+                                    }
+                                }),
+                            );
+
+                            baseReport.events = events;
+                        } catch (err) {
+                            // If event lookups fail, leave placeholder names and zero counts
+                        }
+
+                        salesReport = baseReport;
+                    } catch (error) {
+                        if (!isStale) {
+                            salesReportErrorMessage = getErrorMessage(
+                                error,
+                                "Failed to load the company sales report.",
+                            );
+                        }
+                    }
+                }
                         hierarchyRoots = parseMermaidHierarchy(hierarchyResponse.mermaidChart);
                         managerPermissionsByNodeId = parseManagerPermissionsFromMermaid(hierarchyResponse.mermaidChart);
                     } catch (error) {
@@ -709,6 +791,8 @@ export default function CompanyPage({
                     errorMessage: "",
                     isLoading: false,
                     companyPolicies,
+                    salesReport,
+                    salesReportErrorMessage,
                     hierarchyRoots,
                     hierarchyErrorMessage,
                     hierarchySource,
@@ -726,6 +810,8 @@ export default function CompanyPage({
                     isLoading: false,
                     errorMessage: getErrorMessage(error, "Failed to load company permissions."),
                     companyPolicies: null,
+                    salesReport: null,
+                    salesReportErrorMessage: "",
                     hierarchyRoots: [],
                     hierarchyErrorMessage: "",
                     hierarchySource: "",
@@ -1182,6 +1268,72 @@ export default function CompanyPage({
                     ))}
                 </div>
             </section>
+
+            {isSalesReportVisible && (
+                <section id="company-sales-report" className="company-sales-report-card" aria-label="Sales report">
+                    <div className="company-sales-report-header">
+                        <div>
+                            <span className="company-sales-report-label">Owner only</span>
+                            <h2>Sales report</h2>
+                            <p>
+                                A quick view of ticket sales and revenue for events managed by you or your subordinates. <br /> This report is updated in real-time as sales happen, so check back often to see how your events are performing!
+                            </p>
+                        </div>
+
+                        <span className="company-sales-report-badge">Live report</span>
+                    </div>
+
+                    {state.salesReportErrorMessage ? (
+                        <p className="company-sales-report-error" role="alert">
+                            {state.salesReportErrorMessage}
+                        </p>
+                    ) : state.salesReport ? (
+                        <>
+                            <div className="company-sales-report-metrics">
+                                <article className="company-sales-report-metric-card company-sales-report-metric-card--emphasis">
+                                    <span>Total revenue</span>
+                                    <strong>{formatCurrency(state.salesReport.totalRevenue)}</strong>
+                                </article>
+                                <article className="company-sales-report-metric-card">
+                                    <span>Events included</span>
+                                    <strong>{state.salesReport.events.length}</strong>
+                                </article>
+                                <article className="company-sales-report-metric-card">
+                                    <span>Sold tickets</span>
+                                    <strong>{state.salesReport.events.reduce((acc, e) => acc + e.soldTickets, 0)}</strong>
+                                </article>
+                            </div>
+
+                            <div className="company-sales-report-grid">
+                                <article className="company-sales-report-panel">
+                                    <span className="company-sales-report-panel-label">Owner email</span>
+                                    <p>{state.salesReport.ownerEmail}</p>
+                                    <span className="company-sales-report-panel-label">Company ID</span>
+                                    <p>{state.salesReport.companyId}</p>
+                                </article>
+
+                                <article className="company-sales-report-panel">
+                                    <span className="company-sales-report-panel-label">Events</span>
+                                    <div className="company-sales-report-chip-list company-sales-report-events-list">
+                                        {state.salesReport.events.length > 0 ? (
+                                            state.salesReport.events.map((ev) => (
+                                                <div key={ev.id} className="company-sales-report-event-row">
+                                                    <span className="company-sales-report-event-name">{ev.name}</span>
+                                                    <span className="company-sales-report-event-count">{ev.soldTickets} tickets</span>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <span className="company-sales-report-empty-inline">No events recorded yet.</span>
+                                        )}
+                                    </div>
+                                </article>
+                            </div>
+                        </>
+                    ) : (
+                        <p className="company-sales-report-empty">Loading the sales report...</p>
+                    )}
+                </section>
+            )}
 
             {isPoliciesVisible && (
                 <CompanyPoliciesSection

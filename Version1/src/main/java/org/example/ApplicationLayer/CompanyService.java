@@ -357,13 +357,26 @@ public class CompanyService {
         return new HierarchyResponse(companyId, mermaid);
     }
 
-    public SalesReportResponse getSalesReportForOwner(String ownerUsername, UUID companyId) {
-        if (ownerUsername == null || ownerUsername.isBlank()) {
-            throw new IllegalArgumentException("Owner username is required");
+    public SalesReportResponse getSalesReportForOwner(String ownerEmail, UUID companyId) {
+        if (ownerEmail == null || ownerEmail.isBlank()) {
+            throw new IllegalArgumentException("Owner email is required");
         }
 
-        String report = purchaseDomainService.getSalesReportForOwner(ownerUsername, companyId).toString();
-        return new SalesReportResponse(companyId, ownerUsername, report);
+        org.example.ApplicationLayer.dto.CompanyDTOs.CompanyAccessResponse access =
+            rolesDomainService.getCompanyAccess(companyId, ownerEmail);
+        String normalizedRole = access.role == null ? "" : access.role.trim().toLowerCase();
+        if (!normalizedRole.equals("owner") && !normalizedRole.equals("founder")) {
+            throw new IllegalArgumentException("Only company owners can view the sales report");
+        }
+
+        org.example.ApplicationLayer.dto.SalesReport report =
+            purchaseDomainService.getSalesReportForOwner(ownerEmail, companyId);
+        return new SalesReportResponse(
+                companyId,
+                ownerEmail,
+                report.getEventIds(),
+                report.getTicketIds(),
+                report.getTotalRevenue());
     }
 
     public CompanyPoliciesResponse getCompanyPolicies(UUID companyId, String userEmail) {

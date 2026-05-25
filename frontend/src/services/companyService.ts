@@ -82,6 +82,14 @@ export type CompanyPoliciesResponse = {
 	discountPolicy: CompanyDiscountPolicyResponse;
 };
 
+export type CompanySalesReportResponse = {
+	companyId: string;
+	ownerEmail: string;
+	eventIds: string[];
+	ticketIds: string[];
+	totalRevenue: number;
+};
+
 export type CompanyHierarchyResponse = {
 	companyId: string;
 	mermaidChart: string;
@@ -236,6 +244,17 @@ export async function getCompanyPolicies(
 	return response.data.data as CompanyPoliciesResponse;
 }
 
+export async function getCompanySalesReport(
+	companyId: string,
+	ownerEmail: string,
+): Promise<CompanySalesReportResponse> {
+	const response = await api.get(`/companies/${companyId}/sales-report`, {
+		params: { ownerEmail },
+	});
+
+	return response.data.data as CompanySalesReportResponse;
+}
+
 export async function getMyCompanies(userEmail: string): Promise<CompanyMembership[]> {
 	const response = await api.get("/companies/me/companies", {
 		params: { userEmail },
@@ -363,7 +382,7 @@ export async function removeDiscount(
 ): Promise<void> {
 	await api.delete(`/companies/${companyId}/discounts/${discountId}`, {
 		data: request,
- 	});
+	});
 }
 
 export type RemoveMemberOwnerRequest = {

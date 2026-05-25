@@ -433,10 +433,10 @@ public class CompanyController {
     @GetMapping("/{companyId}/sales-report")
     public ResponseEntity<ApiResponse<SalesReportResponse>> getSalesReport(
             @PathVariable("companyId") UUID companyId,
-            @RequestParam String owner) {
+            @RequestParam String ownerEmail) {
         try {
             SalesReportResponse report = companyService.getSalesReportForOwner(
-                    owner, companyId);
+                    ownerEmail, companyId);
             return ResponseEntity.ok(ApiResponse.success(report));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
