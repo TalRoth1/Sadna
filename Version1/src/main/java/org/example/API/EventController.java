@@ -36,6 +36,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.example.ApplicationLayer.dto.EventDTOs.AddSittingAreaRequest;
 import org.example.ApplicationLayer.dto.EventDTOs.AddStandingAreaRequest;
+import org.example.ApplicationLayer.dto.EventDTOs.EditEventPolicyRequest;
+import org.example.ApplicationLayer.dto.EventDTOs.DeleteAreaRequest;
+import org.example.ApplicationLayer.dto.EventDTOs.UpdateSittingAreaRequest;
+import org.example.ApplicationLayer.dto.EventDTOs.UpdateStandingAreaRequest;
 /**
  * EventController
  *
@@ -190,6 +194,76 @@ public class EventController {
                     .body(ApiResponse.error("Failed to create standing area: system exception"));
         }
     }
+    @PutMapping("/{eventId}/areas/{areaId}/standing")
+    public ResponseEntity<ApiResponse<Void>> updateStandingArea(
+            @PathVariable("eventId") UUID eventId,
+            @PathVariable("areaId") UUID areaId,
+            @RequestBody UpdateStandingAreaRequest request) {
+        try {
+            eventService.updateStandingArea(
+                    request.username,
+                    request.companyId,
+                    eventId,
+                    areaId,
+                    request.price,
+                    request.count
+            );
+
+            return ResponseEntity.ok(ApiResponse.success("Standing area updated successfully"));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to update standing area: system exception"));
+        }
+    }
+
+    @PutMapping("/{eventId}/areas/{areaId}/sitting")
+    public ResponseEntity<ApiResponse<Void>> updateSittingArea(
+            @PathVariable("eventId") UUID eventId,
+            @PathVariable("areaId") UUID areaId,
+            @RequestBody UpdateSittingAreaRequest request) {
+        try {
+            eventService.updateSittingArea(
+                    request.username,
+                    request.companyId,
+                    eventId,
+                    areaId,
+                    request.price,
+                    request.rows,
+                    request.seatsPerRow
+            );
+
+            return ResponseEntity.ok(ApiResponse.success("Sitting area updated successfully"));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to update sitting area: system exception"));
+        }
+    }
+
+    @DeleteMapping("/{eventId}/areas/{areaId}")
+    public ResponseEntity<ApiResponse<Void>> deleteArea(
+            @PathVariable("eventId") UUID eventId,
+            @PathVariable("areaId") UUID areaId,
+            @RequestBody DeleteAreaRequest request) {
+        try {
+            eventService.deleteArea(
+                    request.username,
+                    request.companyId,
+                    eventId,
+                    areaId
+            );
+
+            return ResponseEntity.ok(ApiResponse.success("Ticket area deleted successfully"));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to delete ticket area: system exception"));
+        }
+    }
 
     // ================================================================
     //  3. Purchase policy (per-event rules)
@@ -213,6 +287,29 @@ public class EventController {
         }
     }
 
+    @PutMapping("/{eventId}/policy")
+    public ResponseEntity<ApiResponse<Void>> editPolicy(
+            @PathVariable("eventId") UUID eventId,
+            @RequestBody EditEventPolicyRequest request) {
+        try {
+            eventService.editPolicy(
+                    request.username,
+                    request.companyId,
+                    eventId,
+                    request.age,
+                    request.minTicket,
+                    request.maxTicket,
+                    request.allowLoneSeat
+            );
+
+            return ResponseEntity.ok(ApiResponse.success("Policy updated successfully"));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to update policy: system exception"));
+        }
+    }
     @DeleteMapping("/{eventId}/policy/{ruleId}")
     public ResponseEntity<ApiResponse<Void>> deletePolicyRule(
             @PathVariable("eventId") UUID eventId,

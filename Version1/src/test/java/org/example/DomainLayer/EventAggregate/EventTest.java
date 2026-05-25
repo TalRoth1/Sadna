@@ -1,23 +1,21 @@
 package org.example.DomainLayer.EventAggregate;
 
-import org.junit.Before;
-import org.junit.Test;
-
-import org.example.DomainLayer.DomainException;
-import org.example.DomainLayer.PolicyManagment.IDiscountRule;
-import org.example.DomainLayer.PolicyManagment.OvertDiscount;
-
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.example.DomainLayer.DomainException;
+import org.example.DomainLayer.PolicyManagment.IDiscountRule;
+import org.example.DomainLayer.PolicyManagment.OvertDiscount;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import org.junit.Before;
+import org.junit.Test;
 
 /**
  * Unit tests for the {@link Event} aggregate (Domain Layer).
@@ -609,5 +607,225 @@ public class EventTest {
         // Final Verification
         assertTrue("No structural modifications should occur on an empty policy setup", 
                 event.getPurchasePolicy() == null || event.getPurchasePolicy().getRulesView() == null);
+    }
+
+    @Test
+    public void GivenStandingArea_WhenUpdateStandingAreaIncreasesCount_ThenAddsTicketsAndUpdatesAreaAndTicketPrices() {
+        Event event = activeEvent();
+        UUID areaId = UUID.randomUUID();
+
+        event.getLayout().addArea(new StandingArea(areaId, 50.0));
+        event.addStandingTickets(areaId, 2);
+
+        event.updateStandingArea(areaId, 80.0, 5);
+
+        Area area = event.getLayout().requireArea(areaId);
+
+        assertEquals(5, area.getTicketIdsView().size());
+        assertEquals(5, event.getTotalCapacity());
+        assertEquals(80.0, area.getPrice(), 0.0001);
+
+        for (UUID ticketId : area.getTicketIdsView()) {
+            assertEquals(80.0f, event.getTicket(ticketId).getPrice(), 0.0001);
+        }
+    }
+
+    @Test
+    public void GivenStandingArea_WhenUpdateStandingAreaDecreasesCount_ThenRemovesOnlyAvailableTickets() {
+        Event event = activeEvent();
+        UUID areaId = UUID.randomUUID();
+
+        event.getLayout().addArea(new StandingArea(areaId, 50.0));
+        event.addStandingTickets(areaId, 5);
+
+        event.updateStandingArea(areaId, 60.0, 3);
+
+        Area area = event.getLayout().requireArea(areaId);
+
+        assertEquals(3, area.getTicketIdsView().size());
+        assertEquals(3, event.getTotalCapacity());
+        assertEquals(60.0, area.getPrice(), 0.0001);
+    }
+
+    @Test
+    public void GivenStandingAreaWithReservedTickets_WhenReducingBelowReservedAmount_ThenThrowsAndKeepsTickets() {
+        Event event = activeEvent();
+        UUID areaId = UUID.randomUUID();
+
+        event.getLayout().addArea(new StandingArea(areaId, 50.0));
+        event.addStandingTickets(areaId, 5);
+
+        event.reserveStandingTickets(2, areaId);
+
+        assertThrows(IllegalStateException.class, () ->
+                event.updateStandingArea(areaId, 70.0, 1)
+        );
+
+        assertEquals(5, event.getTotalCapacity());
+        assertEquals(5, event.getLayout().requireArea(areaId).getTicketIdsView().size());
+    }
+
+    @Test
+    public void GivenAreaWithOnlyAvailableTickets_WhenDeleteArea_ThenAreaAndTicketsAreRemoved() {
+        Event event = activeEvent();
+        UUID areaId = UUID.randomUUID();
+
+        event.getLayout().addArea(new StandingArea(areaId, 50.0));
+        event.addStandingTickets(areaId, 3);
+
+        event.deleteArea(areaId);
+
+        assertEquals(0, event.getTotalCapacity());
+
+        assertThrows(IllegalArgumentException.class, () ->
+                event.getLayout().requireArea(areaId)
+        );
+    }
+
+    @Test
+    public void GivenAreaWithReservedTicket_WhenDeleteArea_ThenThrowsAndKeepsAreaAndTickets() {
+        Event event = activeEvent();
+        UUID areaId = UUID.randomUUID();
+
+        event.getLayout().addArea(new StandingArea(areaId, 50.0));
+        event.addStandingTickets(areaId, 3);
+
+        event.reserveStandingTickets(1, areaId);
+
+        assertThrows(IllegalStateException.class, () ->
+                event.deleteArea(areaId)
+        );
+
+        assertEquals(3, event.getTotalCapacity());
+        assertEquals(3, event.getLayout().requireArea(areaId).getTicketIdsView().size());
+    }
+
+    @Test
+    public void GivenSittingArea_WhenUpdateSittingAreaExpandsLayout_ThenAddsMissingSeatsAndUpdatesPrices() {
+        Event event = activeEvent();
+        UUID areaId = UUID.randomUUID();
+
+        event.getLayout().addArea(new SittingArea(areaId, 100.0));
+        event.addSittingTickets(areaId, 2, 2);
+
+        event.updateSittingArea(areaId, 150.0, 3, 3);
+
+        Area area = event.getLayout().requireArea(areaId);
+
+        assertEquals(9, area.getTicketIdsView().size());
+        assertEquals(9, event.getTotalCapacity());
+        assertEquals(150.0, area.getPrice(), 0.0001);
+
+        for (UUID ticketId : area.getTicketIdsView()) {
+            Ticket ticket = event.getTicket(ticketId);
+            assertEquals(150.0f, ticket.getPrice(), 0.0001);
+        }
+
+        SittingTicket lastSeat = null;
+
+        for (UUID ticketId : area.getTicketIdsView()) {
+            Ticket ticket = event.getTicket(ticketId);
+
+            if (ticket instanceof SittingTicket sittingTicket
+                    && sittingTicket.getSeatRow() == 3
+                    && sittingTicket.getSeatNumber() == 3) {
+                lastSeat = sittingTicket;
+            }
+        }
+
+        assertNotNull(lastSeat);
+    }
+
+    @Test
+    public void GivenSittingArea_WhenUpdateSittingAreaShrinksLayout_ThenRemovesSeatsOutsideNewLayout() {
+        Event event = activeEvent();
+        UUID areaId = UUID.randomUUID();
+
+        event.getLayout().addArea(new SittingArea(areaId, 100.0));
+        event.addSittingTickets(areaId, 2, 2);
+
+        event.updateSittingArea(areaId, 120.0, 1, 1);
+
+        Area area = event.getLayout().requireArea(areaId);
+
+        assertEquals(1, area.getTicketIdsView().size());
+        assertEquals(1, event.getTotalCapacity());
+
+        Ticket remainingTicket = event.getTicket(area.getTicketIdsView().get(0));
+
+        assertTrue(remainingTicket instanceof SittingTicket);
+
+        SittingTicket remainingSeat = (SittingTicket) remainingTicket;
+
+        assertEquals(1, remainingSeat.getSeatRow());
+        assertEquals(1, remainingSeat.getSeatNumber());
+        assertEquals(120.0f, remainingSeat.getPrice(), 0.0001);
+    }
+
+    @Test
+    public void GivenSittingAreaWithReservedSeatOutsideRequestedLayout_WhenShrinkingLayout_ThenThrowsAndKeepsAllSeats() {
+        Event event = activeEvent();
+        UUID areaId = UUID.randomUUID();
+
+        event.getLayout().addArea(new SittingArea(areaId, 100.0));
+        event.addSittingTickets(areaId, 2, 2);
+
+        UUID reservedSeatId = null;
+
+        for (UUID ticketId : event.getLayout().requireArea(areaId).getTicketIdsView()) {
+            Ticket ticket = event.getTicket(ticketId);
+
+            if (ticket instanceof SittingTicket sittingTicket
+                    && sittingTicket.getSeatRow() == 2
+                    && sittingTicket.getSeatNumber() == 2) {
+                reservedSeatId = ticketId;
+                break;
+            }
+        }
+
+        assertNotNull(reservedSeatId);
+
+        event.reserveSittingTickets(java.util.Collections.singletonList(reservedSeatId));
+
+        assertThrows(IllegalStateException.class, () ->
+                event.updateSittingArea(areaId, 120.0, 1, 1)
+        );
+
+        assertEquals(4, event.getTotalCapacity());
+        assertEquals(4, event.getLayout().requireArea(areaId).getTicketIdsView().size());
+    }
+
+    @Test
+    public void GivenStandingArea_WhenRemoveTicket_ThenTicketIsRemovedFromEventAndArea() {
+        Event event = activeEvent();
+        UUID areaId = UUID.randomUUID();
+
+        event.getLayout().addArea(new StandingArea(areaId, 50.0));
+        event.addStandingTickets(areaId, 2);
+
+        UUID ticketId = event.getLayout().requireArea(areaId).getTicketIdsView().get(0);
+
+        event.removeTicket(ticketId);
+
+        assertEquals(1, event.getTotalCapacity());
+        assertFalse(event.getLayout().requireArea(areaId).getTicketIdsView().contains(ticketId));
+    }
+
+    @Test
+    public void GivenReservedTicket_WhenRemoveTicket_ThenThrowsAndKeepsTicket() {
+        Event event = activeEvent();
+        UUID areaId = UUID.randomUUID();
+
+        event.getLayout().addArea(new StandingArea(areaId, 50.0));
+        event.addStandingTickets(areaId, 2);
+
+        UUID ticketId = event.reserveStandingTickets(1, areaId).get(0);
+
+        assertThrows(IllegalStateException.class, () ->
+                event.removeTicket(ticketId)
+        );
+
+        assertEquals(2, event.getTotalCapacity());
+        assertTrue(event.getLayout().requireArea(areaId).getTicketIdsView().contains(ticketId));
     }
 }

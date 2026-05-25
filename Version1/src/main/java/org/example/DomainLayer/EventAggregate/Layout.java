@@ -46,4 +46,13 @@ public class Layout {
         }
         throw new IllegalArgumentException("unknown area: " + areaId);
     }
+
+    public void removeArea(UUID areaId) {
+        if (areaId == null) {
+            throw new IllegalArgumentException("areaId is required");
+        }
+
+        Area area = requireArea(areaId);
+        areas.remove(area);
+    }
 }

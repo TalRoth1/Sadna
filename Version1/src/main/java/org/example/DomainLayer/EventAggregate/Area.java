@@ -51,4 +51,14 @@ public abstract class Area {
         }
         ticketIds.add(ticketId);
     }
+
+    public void unlinkTicketId(UUID ticketId) {
+        if (ticketId == null) {
+            throw new IllegalArgumentException("ticketId is required");
+        }
+
+        if (!ticketIds.remove(ticketId)) {
+            throw new IllegalArgumentException("ticket is not linked to area: " + ticketId);
+        }
+    }
 }
