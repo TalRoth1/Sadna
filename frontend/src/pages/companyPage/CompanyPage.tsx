@@ -1772,3 +1772,34 @@ function extractEmailFromHierarchyLabel(label: string) {
     const emailMatch = label.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/);
     return emailMatch ? emailMatch[0] : null;
 }
+
+function SubordinateEventCard({ event }: { event: SubordinateEvent }) {
+    return (
+        <article className="company-event-card">
+            <div className="company-event-card-main">
+                <div className="company-event-card-heading">
+                    <h3>{event.name}</h3>
+                    <span className="company-event-category-badge">{event.type}</span>
+                </div>
+
+                <p className="company-event-meta">{formatEventDate(event.date)}</p>
+                <p className="company-event-meta">{event.location}</p>
+                <p className="company-event-meta company-event-company">Managed by: {event.managerEmail}</p>
+            </div>
+
+            <div className="company-event-card-side">
+                <span className={getManagedEventStatusClass(event)}>
+                    {getManagedEventStatus(event)}
+                </span>
+                <span className="company-event-rating" aria-label={`Rating ${event.rating}`}>
+                    ★ {event.rating.toFixed(1)}
+                </span>
+                <span className="company-event-availability">
+                    {event.availableTickets > 0
+                        ? `${event.availableTickets} tickets left`
+                        : "No tickets left"}
+                </span>
+            </div>
+        </article>
+    );
+}

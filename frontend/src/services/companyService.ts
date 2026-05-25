@@ -404,7 +404,6 @@ export async function removeDiscount(
 	await api.delete(`/companies/${companyId}/discounts/${discountId}`, {
 		data: request,
 	});
-	});
 }
 
 export async function removeCompanyMemberAsOwner(
