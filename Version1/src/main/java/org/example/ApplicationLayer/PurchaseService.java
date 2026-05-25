@@ -38,7 +38,7 @@ public class PurchaseService {
         this.notifier = notifier;
     }
 
-    private void validateAdmin(UUID adminId) {
+    public void validateAdmin(UUID adminId) {
         if (adminId == null) {
             throw new IllegalArgumentException("Admin ID is required");
         }

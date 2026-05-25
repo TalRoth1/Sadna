@@ -8,8 +8,6 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 
-import org.example.ApplicationLayer.dto.NotificationDTOs.NotificationDTO;
-
 
 public class Broadcaster {
 
