@@ -441,6 +441,7 @@ public class EventServiceTest {
 
         assertNotNull(result);
         assertEquals(eventId, result.eventId());
+        assertEquals("description", result.description());
         verify(eventRepository).save(any(Event.class));
     }
 

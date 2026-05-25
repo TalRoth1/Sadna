@@ -611,7 +611,7 @@ public class PurchaseDomainServiceTest {
 
         UUID ownerId = UUID.randomUUID();
         org.example.DomainLayer.UserAggregate.User ownerUser =
-            new org.example.DomainLayer.UserAggregate.User(ownerId, ownerName, ownerName, "hash", 40);
+                new org.example.DomainLayer.UserAggregate.User(ownerId, ownerName, ownerName, "hash", 40);
         ownerUser.getCompanyRoles().put(companyId, new org.example.DomainLayer.UserAggregate.CompanyFounder(ownerName));
         userRepository.add(ownerUser);
 
@@ -710,6 +710,30 @@ public class PurchaseDomainServiceTest {
                 EventStatus.ACTIVE
         );
     }
+
+
+    @Test
+    public void selectSittingTickets_whenTicketDoesNotExist_throwsAndDoesNotCreateActivePurchase() {
+        UUID eventId = UUID.randomUUID();
+        UUID companyId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+
+        Event event = event(eventId, companyId);
+        eventRepository.save(event);
+        userRepository.add(new User(userId, "user", "mail", "pass", 20));
+
+        assertThrows(DomainException.class, () ->
+                purchaseDomainService.selectSittingTickets(
+                        eventId,
+                        List.of(UUID.randomUUID()),
+                        userId,
+                        true
+                )
+        );
+
+        assertNull(purchaseRepository.findByUserID(userId));
+    }
+
 
     @Test
     public void selectSittingTickets_whenTicketsAreAvailable_createsActivePurchaseAndReservesTickets() {
@@ -918,6 +942,58 @@ public class PurchaseDomainServiceTest {
         );
 
         assertTrue(historyRepository.getByUserId(userId).isEmpty());
+    }
+
+
+    @Test
+    public void completePurchase_whenTicketingFails_refundsReleasesTicketsDeletesActivePurchaseAndDoesNotAddHistory() {
+        UUID eventId = UUID.randomUUID();
+        UUID companyId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID areaId = UUID.randomUUID();
+        UUID ticketId = UUID.randomUUID();
+
+        Event event = event(eventId, companyId);
+        event.getLayout().addArea(new org.example.DomainLayer.EventAggregate.SittingArea(areaId, 100f));
+        event.addTicket(new org.example.DomainLayer.EventAggregate.SittingTicket(ticketId, eventId, areaId, 100f, 1, 1));
+        eventRepository.save(event);
+        userRepository.add(new User(userId, "user", "mail", "pass", 20));
+
+        purchaseDomainService.selectSittingTickets(eventId, List.of(ticketId), userId, true);
+        ActivePurchase purchase = purchaseRepository.findByUserID(userId);
+        final boolean[] refundWasCalled = {false};
+
+        purchaseDomainService.setPaymentGateway(new org.example.ApplicationLayer.IPaymentGateway() {
+            @Override
+            public boolean pay(UUID uid, float amount, org.example.ApplicationLayer.PaymentDetails details) {
+                return true;
+            }
+
+            @Override
+            public boolean refund(UUID uid, float amount, org.example.ApplicationLayer.PaymentDetails details) {
+                refundWasCalled[0] = true;
+                return true;
+            }
+        });
+        purchaseDomainService.setTicketingGateway((uid, eid, ticketIds) -> {
+            throw new DomainException("Ticketing failed");
+        });
+
+        assertThrows(DomainException.class, () ->
+                purchaseDomainService.completePurchase(
+                        purchase.getActivePurchaseId(),
+                        new org.example.ApplicationLayer.PaymentDetails(),
+                        null
+                )
+        );
+
+        assertTrue("payment must be refunded when ticket issuing fails", refundWasCalled[0]);
+        assertNull("failed ticketing must remove the active purchase after compensation",
+                purchaseRepository.findByID(purchase.getActivePurchaseId()));
+        assertEquals("ticket must be released back to AVAILABLE after ticketing failure",
+                TicketStatus.AVAILABLE, event.getTicket(ticketId).getStatus());
+        assertTrue("failed ticketing must not create purchase history",
+                historyRepository.getByUserId(userId).isEmpty());
     }
 
     @Test
@@ -1236,8 +1312,8 @@ public class PurchaseDomainServiceTest {
         );
 
         eventRepository.save(event);
-    userRepository.add(new User(user1Id, "user1", "user1@mail.com", "pass", 20));
-    userRepository.add(new User(user2Id, "user2", "user2@mail.com", "pass", 20));
+        userRepository.add(new User(user1Id, "user1", "user1@mail.com", "pass", 20));
+        userRepository.add(new User(user2Id, "user2", "user2@mail.com", "pass", 20));
 
         CountDownLatch startTogether = new CountDownLatch(1);
 

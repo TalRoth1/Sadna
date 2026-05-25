@@ -277,6 +277,7 @@ class AdminServiceTest {
             adminService.removeSubscriber(ADMIN_ID, ADMIN_USERNAME, targetUsername);
 
             verify(targetUser).removeFromPlatformAsAdmin();
+            verify(userRepository).add(targetUser);
             verify(notifier).notifyUser(eq(targetId), anyString());
             verify(adminRepository).saveActionLog(any(AdminActionLog.class));
         }

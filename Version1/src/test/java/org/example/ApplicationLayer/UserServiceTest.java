@@ -161,10 +161,10 @@ public class UserServiceTest {
 
         when(userRepositoryMock.existsByEmail(request.email)).thenReturn(true);
         when(authGatewayMock.verifyUserDetails(
-            request.email,
-            request.plainPassword,
-            request.age,
-            request.username
+                request.email,
+                request.plainPassword,
+                request.age,
+                request.username
         )).thenReturn(true);
 
         assertThrows(
@@ -280,19 +280,6 @@ public class UserServiceTest {
         verify(userRepositoryMock, never()).findByEmail(anyString());
     }
 
-    @Disabled
-    @Test
-    public void testLogin_UserNotFound_ThrowsException() {
-        LoginRequest request = new LoginRequest();
-        request.email = "ghost@example.com";
-        request.plainPassword = "Password123";
-
-        when(userRepositoryMock.findByEmail(request.email)).thenReturn(Optional.empty());
-
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> userService.login(request)
-        );
 
         verify(userRepositoryMock, times(1)).findByEmail(request.email);
         verify(authGatewayMock, times(1)).verifyPassword(anyString(), anyString());
@@ -321,6 +308,34 @@ public class UserServiceTest {
         );
 
         assertEquals(UserStatus.NOT_LOGGED_IN, existingUser.getStatus());
+        verify(userRepositoryMock, never()).add(any(User.class));
+    }
+
+
+    @Test
+    public void testLogin_RemovedUser_ThrowsExceptionAndKeepsUserRemoved() {
+        LoginRequest request = new LoginRequest();
+        request.email = "removed@example.com";
+        request.plainPassword = "Password123";
+
+        User removedUser = new User(
+                UUID.randomUUID(),
+                "RemovedUser",
+                request.email,
+                "hashed_password",
+                25
+        );
+        removedUser.removeFromPlatformAsAdmin();
+
+        when(userRepositoryMock.findByEmail(request.email)).thenReturn(Optional.of(removedUser));
+        when(authGatewayMock.verifyPassword(request.plainPassword, "hashed_password")).thenReturn(true);
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> userService.login(request)
+        );
+
+        assertEquals(UserStatus.REMOVED, removedUser.getStatus());
         verify(userRepositoryMock, never()).add(any(User.class));
     }
 
