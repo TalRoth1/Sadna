@@ -5,8 +5,6 @@ import java.util.UUID;
 import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.NotificationAggregate.Notification;
 import org.example.DomainLayer.NotificationAggregate.NotificationType;
-import org.springframework.stereotype.Component;
-
 public class Notifier implements INotifier {
 
     private final Broadcaster broadcaster;

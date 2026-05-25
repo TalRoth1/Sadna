@@ -12,11 +12,9 @@ import org.example.DomainLayer.UserAggregate.CompanyFounder;
 import org.example.DomainLayer.UserAggregate.User;
 import org.example.InfrastructureLayer.Broadcaster;
 import org.example.InfrastructureLayer.NotificationRepository;
-import org.example.InfrastructureLayer.Notifier;
 import org.example.InfrastructureLayer.WebSocketNotificationSender;
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.InOrder;
 import org.mockito.Mock;
 
 import java.time.LocalDateTime;
@@ -708,7 +706,6 @@ public class PurchaseServiceTest {
         InMemoryHistoryRepository inMemoryHistoryRepository;
         InMemoryPurchaseRepository inMemoryPurchaseRepository;
         InMemoryLotteryRepository inMemoryLotteryRepository;
-        Notifier notifer;
         NotificationRepository notificationRepository;
 
         QueueManager queueManager;
@@ -728,7 +725,6 @@ public class PurchaseServiceTest {
         setup.inMemoryLotteryRepository = new InMemoryLotteryRepository();
         setup.notificationRepository = new NotificationRepository();
         setup.broadcaster = new Broadcaster();
-        setup.notifer = new Notifier(setup.broadcaster, setup.notificationRepository);
 
 
         setup.queueManager = new QueueManager();
@@ -1490,9 +1486,6 @@ public class PurchaseServiceTest {
     {
         private final Map<UUID, Company> companiesByID = new LinkedHashMap<>();
 
-        public void save(UUID companyId, Company company) {
-            companiesByID.put(companyId, company);
-        }
 
         @Override
         public UUID createCompany(String founderUsername, String companyName) {
