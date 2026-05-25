@@ -268,17 +268,12 @@ public class PurchaseDomainService {
                     ? null
                     : couponCode.trim();
 
-            DiscountPolicy relevantDiscountPolicy;
-            if (event.getDiscountPolicy() != null) {
-                relevantDiscountPolicy = event.getDiscountPolicy();
-            } else {
-                relevantDiscountPolicy = companyRepository
-                        .findByID(event.getCompanyId())
-                        .orElseThrow(() -> new DomainException("Company not found"))
-                        .getDiscountPolicy();
-            }
+            DiscountPolicy relevantDiscountPolicy = resolveRelevantDiscountPolicy(event);
 
-            float finalPrice = relevantDiscountPolicy.applyDiscount(activePurchase);
+            float finalPrice =
+                    relevantDiscountPolicy == null
+                            ? activePurchase.getPrice()
+                            : relevantDiscountPolicy.applyDiscount(activePurchase);
             // Step 1: charge the user. A "declined" outcome is a normal
             // business answer (not an exception), so we leave the
             // reservation in place and let the user retry with a
@@ -325,6 +320,30 @@ public class PurchaseDomainService {
             return true;
         }
 
+    }
+
+    private DiscountPolicy resolveRelevantDiscountPolicy(Event event) {
+        DiscountPolicy eventPolicy = event.getDiscountPolicy();
+
+        if (hasDiscountRules(eventPolicy)) {
+            return eventPolicy;
+        }
+
+        Company company = companyRepository
+                .findByID(event.getCompanyId())
+                .orElseThrow(() -> new DomainException("Company not found"));
+
+        DiscountPolicy companyPolicy = company.getDiscountPolicy();
+
+        if (hasDiscountRules(companyPolicy)) {
+            return companyPolicy;
+        }
+
+        return null;
+    }
+
+    private boolean hasDiscountRules(DiscountPolicy policy) {
+        return policy != null && policy.hasRules();
     }
 
     /**
