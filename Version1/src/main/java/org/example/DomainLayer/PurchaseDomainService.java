@@ -230,8 +230,10 @@ public class PurchaseDomainService {
         ActivePurchase activePurchase = purchaseRepository.findByID(activePurchaseID);
         if (activePurchase == null)
             throw new DomainException("Active Purchase Not Found");
-        else if (activePurchase.isExpired(LocalDateTime.now()))
+        else if (activePurchase.isExpired(LocalDateTime.now())) {
+            cancelActivePurchase(activePurchaseID);
             throw new DomainException("The Active Purchase Has Expired");
+        }
         else if (!checkLastUpdate(activePurchase))
         {
             cancelActivePurchase(activePurchaseID);
