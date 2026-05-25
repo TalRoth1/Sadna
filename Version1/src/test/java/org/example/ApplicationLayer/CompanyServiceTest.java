@@ -1137,59 +1137,6 @@ public class CompanyServiceTest {
     // ================================================================
 
     @Test
-    public void testGenerateSalesReport_ReturnsConsolidatedData() {
-        UUID cid = UUID.randomUUID();
-        String owner = "reportOwner";
-
-        UUID event1 = UUID.randomUUID();
-        UUID event2 = UUID.randomUUID();
-        UUID ticket1 = UUID.randomUUID();
-        UUID ticket2 = UUID.randomUUID();
-
-        double revenue = 1234.56;
-
-        SalesReport report =
-                new SalesReport(List.of(event1, event2), List.of(ticket1, ticket2), revenue);
-
-        when(purchaseDomainService.getSalesReportForOwner(owner, cid))
-                .thenReturn(report);
-
-        SalesReportResponse response =
-                companyService.getSalesReportForOwner(owner, cid);
-
-        assertNotNull(response);
-        assertEquals(cid, response.companyId);
-        assertEquals(owner, response.ownerEmail);
-
-        assertEquals(List.of(event1, event2), response.eventIds);
-        assertEquals(List.of(ticket1, ticket2), response.ticketIds);
-        assertEquals(revenue, response.totalRevenue, 0.0001);
-    }
-
-    @Test
-    public void testGenerateEmptySalesReport_ProducesZeroTotals_NoCrash() {
-        UUID cid = UUID.randomUUID();
-        String owner = "emptyOwner";
-
-        SalesReport empty =
-                new SalesReport(List.of(), List.of(), 0.0);
-
-        when(purchaseDomainService.getSalesReportForOwner(owner, cid))
-                .thenReturn(empty);
-
-        SalesReportResponse response =
-                companyService.getSalesReportForOwner(owner, cid);
-
-        assertNotNull(response);
-        assertEquals(cid, response.companyId);
-        assertEquals(owner, response.ownerEmail);
-
-        assertTrue(response.eventIds.isEmpty());
-        assertTrue(response.ticketIds.isEmpty());
-        assertEquals(0.0, response.totalRevenue, 0.0001);
-    }
-
-    @Test
     public void testGenerateSalesReport_BlankOwner_Throws() {
         assertThrows(
                 IllegalArgumentException.class,

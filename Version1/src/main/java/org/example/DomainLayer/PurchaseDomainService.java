@@ -45,11 +45,11 @@ public class PurchaseDomainService {
     ITicketingGateway ticketingGateway;
 
     public PurchaseDomainService(IHistoryRepository historyRepository,
-            IEventRepository eventRepository,
-            IPurchaseRepository purchaseRepository,
-            ICompanyRepository companyRepository,
-            IUserRepository userRepository,
-            ILotteryRepository lotteryRepository) {
+                                 IEventRepository eventRepository,
+                                 IPurchaseRepository purchaseRepository,
+                                 ICompanyRepository companyRepository,
+                                 IUserRepository userRepository,
+                                 ILotteryRepository lotteryRepository) {
         this(historyRepository, eventRepository, purchaseRepository,
                 companyRepository, userRepository, lotteryRepository,
                 null, null);
@@ -62,13 +62,13 @@ public class PurchaseDomainService {
      * 6-arg constructor above and inject custom lambdas via the setters.
      */
     public PurchaseDomainService(IHistoryRepository historyRepository,
-            IEventRepository eventRepository,
-            IPurchaseRepository purchaseRepository,
-            ICompanyRepository companyRepository,
-            IUserRepository userRepository,
-            ILotteryRepository lotteryRepository,
-            IPaymentGateway paymentGateway,
-            ITicketingGateway ticketingGateway) {
+                                 IEventRepository eventRepository,
+                                 IPurchaseRepository purchaseRepository,
+                                 ICompanyRepository companyRepository,
+                                 IUserRepository userRepository,
+                                 ILotteryRepository lotteryRepository,
+                                 IPaymentGateway paymentGateway,
+                                 ITicketingGateway ticketingGateway) {
         this.historyRepository = historyRepository;
         this.eventRepository = eventRepository;
         this.purchaseRepository = purchaseRepository;
@@ -129,17 +129,17 @@ public class PurchaseDomainService {
     }
 
     public ActivePurchase selectSittingTickets(UUID eventID, List<UUID> ticketIDs, UUID userID,
-            boolean guestAgeConfirmed) {
+                                               boolean guestAgeConfirmed) {
         return selectSittingTickets(eventID, ticketIDs, userID, guestAgeConfirmed, null);
     }
 
     public ActivePurchase selectSittingTicketsWithLotteryCode(UUID eventID, List<UUID> ticketIDs, UUID userID,
-            boolean guestAgeConfirmed, String accessCode) {
+                                                              boolean guestAgeConfirmed, String accessCode) {
         return selectSittingTickets(eventID, ticketIDs, userID, guestAgeConfirmed, accessCode);
     }
 
     public ActivePurchase selectSittingTickets(UUID eventID, List<UUID> ticketIDs, UUID userID,
-            boolean guestAgeConfirmed, String accessCode) {
+                                               boolean guestAgeConfirmed, String accessCode) {
         ensureUserHasNoOtherActivePurchaseForEvent(userID, eventID);
 
         validateSelectionEligibility(eventID, userID, accessCode);
@@ -169,17 +169,17 @@ public class PurchaseDomainService {
     }
 
     public ActivePurchase selectStandingTickets(UUID eventID, int amount, UUID userID, UUID areaID,
-            boolean guestAgeConfirmed) {
+                                                boolean guestAgeConfirmed) {
         return selectStandingTickets(eventID, amount, userID, areaID, guestAgeConfirmed, null);
     }
 
     public ActivePurchase selectStandingTicketsWithLotteryCode(UUID eventID, int amount, UUID userID, UUID areaID,
-            boolean guestAgeConfirmed, String accessCode) {
+                                                               boolean guestAgeConfirmed, String accessCode) {
         return selectStandingTickets(eventID, amount, userID, areaID, guestAgeConfirmed, accessCode);
     }
 
     public ActivePurchase selectStandingTickets(UUID eventID, int amount, UUID userID, UUID areaID,
-            boolean guestAgeConfirmed, String accessCode) {
+                                                boolean guestAgeConfirmed, String accessCode) {
         ensureUserHasNoOtherActivePurchaseForEvent(userID, eventID);
 
         validateSelectionEligibility(eventID, userID, accessCode);
@@ -221,21 +221,21 @@ public class PurchaseDomainService {
     }
 
     public boolean completePurchase(UUID activePurchaseID, PaymentDetails paymentDetails, String couponCode) { // returns
-                                                                                                               // true
-                                                                                                               // if
-                                                                                                               // last
-                                                                                                               // ticket
-                                                                                                               // to
-                                                                                                               // event
-                                                                                                               // was
-                                                                                                               // bought
+        // true
+        // if
+        // last
+        // ticket
+        // to
+        // event
+        // was
+        // bought
         ActivePurchase activePurchase = purchaseRepository.findByID(activePurchaseID);
         if (activePurchase == null)
             throw new DomainException("Active Purchase Not Found");
         else if (activePurchase.isExpired(LocalDateTime.now())) {
             cancelActivePurchase(activePurchaseID);
             throw new DomainException("The Active Purchase Has Expired");
-        else if (!checkLastUpdate(activePurchase)) {
+        } else if (!checkLastUpdate(activePurchase)) {
             cancelActivePurchase(activePurchaseID);
             throw new DomainException("Purchase canceled due to inactivity");
         }
@@ -337,9 +337,9 @@ public class PurchaseDomainService {
      * don't want to swallow it under "tickets could not be issued".
      */
     private void compensateFailedTicketing(ActivePurchase activePurchase,
-            float chargedAmount,
-            PaymentDetails paymentDetails,
-            RuntimeException originalFailure) {
+                                           float chargedAmount,
+                                           PaymentDetails paymentDetails,
+                                           RuntimeException originalFailure) {
         boolean refunded;
         try {
             refunded = paymentGateway.refund(
