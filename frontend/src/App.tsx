@@ -18,7 +18,6 @@ import UserProfilePage from "./pages/UserProfilePage";
 import LoginPage from "./pages/LoginPage";
 import RegistrationPage from "./pages/RegistrationPage";
 import LotteryRegistrationPage from "./pages/LotteryRegistrationPage";
-import MyActivePurchasesPage from "./pages/MyActivePurchasesPage";
 import MyCompaniesPage from "./pages/myCompanies/MyCompaniesPage";
 import QueueWaitingPage from "./pages/QueueWaitingPage";
 import CreateEventPage from "./pages/createEvent/CreateEventPage";
@@ -205,11 +204,6 @@ function App() {
         setCurrentPage("event-queue");
     }
 
-    function handleOpenActivePurchase(eventId: string) {
-        setSelectedEventId(eventId);
-        setSelectionAccessExpiresAt(null);
-        setCurrentPage("event-purchase");
-    }
 
     function handleEventCreated(eventId: string) {
         setSelectedEventId(eventId);
@@ -285,13 +279,6 @@ function App() {
             );
         }
 
-        if (currentPage === "user-tickets") {
-            return (
-                <MyActivePurchasesPage
-                    onOpenPurchase={handleOpenActivePurchase}
-                />
-            );
-        }
 
         if (currentPage === "login") {
             return (

@@ -46,7 +46,7 @@ public class DiscountPolicy {
         // already-discounted ActivePurchase.price.
         float basePrice = purchase.getTicketIDs().values().stream().reduce(0.0f, Float::sum);
         purchase.setPrice(basePrice);
-        float price = basePrice;
+        float price = purchase.getPrice();
 
         for (IDiscountRule discountRule : discounts) {
             if (discountRule instanceof CouponCode couponRule) {
