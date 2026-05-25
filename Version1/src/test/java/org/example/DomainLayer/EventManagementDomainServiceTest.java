@@ -332,4 +332,132 @@ public class EventManagementDomainServiceTest {
         verify(event).addSittingTickets(areaId, 2, 4);
         verify(eventRepository).save(event);
     }
+
+    @Test
+    public void updateStandingArea_whenUserHasManageInventoryPermission_updatesAreaAndSavesEvent() {
+        UUID areaId = UUID.randomUUID();
+
+        when(eventRepository.getById(eventId)).thenReturn(event);
+        when(companyRepository.findByID(companyId)).thenReturn(Optional.of(company));
+        when(userRepository.hasPermission(username, companyId, CompanyPermission.MANAGE_INVENTORY, eventId))
+                .thenReturn(true);
+
+        service.updateStandingArea(username, companyId, eventId, areaId, 120.0, 50);
+
+        verify(event).updateStandingArea(areaId, 120.0, 50);
+        verify(eventRepository).save(event);
+    }
+
+    @Test
+    public void updateStandingArea_whenUserHasConfigureLayoutPermission_updatesAreaAndSavesEvent() {
+        UUID areaId = UUID.randomUUID();
+
+        when(eventRepository.getById(eventId)).thenReturn(event);
+        when(companyRepository.findByID(companyId)).thenReturn(Optional.of(company));
+        when(userRepository.hasPermission(username, companyId, CompanyPermission.MANAGE_INVENTORY, eventId))
+                .thenReturn(false);
+        when(userRepository.hasPermission(username, companyId, CompanyPermission.CONFIGURE_LAYOUT, eventId))
+                .thenReturn(true);
+
+        service.updateStandingArea(username, companyId, eventId, areaId, 120.0, 50);
+
+        verify(event).updateStandingArea(areaId, 120.0, 50);
+        verify(eventRepository).save(event);
+    }
+
+    @Test
+    public void updateStandingArea_whenUserHasNoInventoryOrLayoutPermission_throwsAndDoesNotSave() {
+        UUID areaId = UUID.randomUUID();
+
+        when(eventRepository.getById(eventId)).thenReturn(event);
+        when(companyRepository.findByID(companyId)).thenReturn(Optional.of(company));
+        when(userRepository.hasPermission(username, companyId, CompanyPermission.MANAGE_INVENTORY, eventId))
+                .thenReturn(false);
+        when(userRepository.hasPermission(username, companyId, CompanyPermission.CONFIGURE_LAYOUT, eventId))
+                .thenReturn(false);
+
+        assertThrows(IllegalArgumentException.class, () ->
+                service.updateStandingArea(username, companyId, eventId, areaId, 120.0, 50)
+        );
+
+        verify(event, never()).updateStandingArea(any(), any(Double.class), any(Integer.class));
+        verify(eventRepository, never()).save(any());
+    }
+
+    @Test
+    public void updateSittingArea_whenUserHasManageInventoryPermission_updatesAreaAndSavesEvent() {
+        UUID areaId = UUID.randomUUID();
+
+        when(eventRepository.getById(eventId)).thenReturn(event);
+        when(companyRepository.findByID(companyId)).thenReturn(Optional.of(company));
+        when(userRepository.hasPermission(username, companyId, CompanyPermission.MANAGE_INVENTORY, eventId))
+                .thenReturn(true);
+
+        service.updateSittingArea(username, companyId, eventId, areaId, 180.0, 20, 10);
+
+        verify(event).updateSittingArea(areaId, 180.0, 20, 10);
+        verify(eventRepository).save(event);
+    }
+
+    @Test
+    public void deleteArea_whenUserHasManageInventoryPermission_deletesAreaAndSavesEvent() {
+        UUID areaId = UUID.randomUUID();
+
+        when(eventRepository.getById(eventId)).thenReturn(event);
+        when(companyRepository.findByID(companyId)).thenReturn(Optional.of(company));
+        when(userRepository.hasPermission(username, companyId, CompanyPermission.MANAGE_INVENTORY, eventId))
+                .thenReturn(true);
+
+        service.deleteArea(username, companyId, eventId, areaId);
+
+        verify(event).deleteArea(areaId);
+        verify(eventRepository).save(event);
+    }
+
+    @Test
+    public void deleteArea_whenUserHasNoInventoryOrLayoutPermission_throwsAndDoesNotSave() {
+        UUID areaId = UUID.randomUUID();
+
+        when(eventRepository.getById(eventId)).thenReturn(event);
+        when(companyRepository.findByID(companyId)).thenReturn(Optional.of(company));
+        when(userRepository.hasPermission(username, companyId, CompanyPermission.MANAGE_INVENTORY, eventId))
+                .thenReturn(false);
+        when(userRepository.hasPermission(username, companyId, CompanyPermission.CONFIGURE_LAYOUT, eventId))
+                .thenReturn(false);
+
+        assertThrows(IllegalArgumentException.class, () ->
+                service.deleteArea(username, companyId, eventId, areaId)
+        );
+
+        verify(event, never()).deleteArea(any());
+        verify(eventRepository, never()).save(any());
+    }
+
+    @Test
+    public void updateSittingArea_whenEventDoesNotExist_throwsAndDoesNotSave() {
+        UUID areaId = UUID.randomUUID();
+
+        when(eventRepository.getById(eventId)).thenReturn(null);
+
+        assertThrows(DomainException.class, () ->
+                service.updateSittingArea(username, companyId, eventId, areaId, 180.0, 20, 10)
+        );
+
+        verify(eventRepository, never()).save(any());
+    }
+
+    @Test
+    public void updateStandingArea_whenCompanyDoesNotExist_throwsAndDoesNotSave() {
+        UUID areaId = UUID.randomUUID();
+
+        when(eventRepository.getById(eventId)).thenReturn(event);
+        when(companyRepository.findByID(companyId)).thenReturn(Optional.empty());
+
+        assertThrows(IllegalArgumentException.class, () ->
+                service.updateStandingArea(username, companyId, eventId, areaId, 120.0, 50)
+        );
+
+        verify(event, never()).updateStandingArea(any(), any(Double.class), any(Integer.class));
+        verify(eventRepository, never()).save(any());
+    }
 }

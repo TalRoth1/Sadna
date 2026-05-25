@@ -223,6 +223,200 @@ public class Event {
         return ticketsById.get(ticketId);
     }
 
+    public synchronized void updateAreaPrice(UUID areaId, double price) {
+        if (areaId == null) {
+            throw new IllegalArgumentException("areaId is required");
+        }
+        if (price < 0) {
+            throw new IllegalArgumentException("price must be non-negative");
+        }
+
+        Area area = layout.requireArea(areaId);
+        area.setPrice(price);
+
+        for (UUID ticketId : area.getTicketIdsView()) {
+            Ticket ticket = ticketsById.get(ticketId);
+            if (ticket != null) {
+                ticket.setPrice((float) price);
+            }
+        }
+    }
+
+    public synchronized void removeTicket(UUID ticketId) {
+        if (ticketId == null) {
+            throw new IllegalArgumentException("ticketId is required");
+        }
+
+        Ticket ticket = ticketsById.get(ticketId);
+
+        if (ticket == null) {
+            throw new IllegalArgumentException("unknown ticket: " + ticketId);
+        }
+
+        if (ticket.getStatus() != TicketStatus.AVAILABLE) {
+            throw new IllegalStateException("cannot remove sold or reserved ticket: " + ticketId);
+        }
+
+        Area area = layout.requireArea(ticket.getAreaId());
+        area.unlinkTicketId(ticketId);
+        ticketsById.remove(ticketId);
+    }
+
+    public synchronized void deleteArea(UUID areaId) {
+        if (areaId == null) {
+            throw new IllegalArgumentException("areaId is required");
+        }
+
+        Area area = layout.requireArea(areaId);
+
+        for (UUID ticketId : area.getTicketIdsView()) {
+            Ticket ticket = ticketsById.get(ticketId);
+
+            if (ticket != null && ticket.getStatus() != TicketStatus.AVAILABLE) {
+                throw new IllegalStateException(
+                        "cannot delete area because it contains sold or reserved tickets"
+                );
+            }
+        }
+
+        List<UUID> ticketIdsToRemove = new ArrayList<>(area.getTicketIdsView());
+
+        for (UUID ticketId : ticketIdsToRemove) {
+            removeTicket(ticketId);
+        }
+
+        layout.removeArea(areaId);
+    }
+
+    public synchronized void updateStandingArea(UUID areaId, double price, int desiredCount) {
+        if (areaId == null) {
+            throw new IllegalArgumentException("areaId is required");
+        }
+        if (price < 0) {
+            throw new IllegalArgumentException("price must be non-negative");
+        }
+        if (desiredCount <= 0) {
+            throw new IllegalArgumentException("standing ticket count must be positive");
+        }
+
+        Area area = layout.requireArea(areaId);
+
+        if (!(area instanceof StandingArea)) {
+            throw new IllegalArgumentException("area is not a standing area: " + areaId);
+        }
+
+        updateAreaPrice(areaId, price);
+
+        int currentCount = area.getTicketIdsView().size();
+
+        if (desiredCount > currentCount) {
+            addStandingTickets(areaId, desiredCount - currentCount);
+            return;
+        }
+
+        if (desiredCount < currentCount) {
+            int amountToRemove = currentCount - desiredCount;
+
+            List<UUID> removableTickets = area.getTicketIdsView().stream()
+                    .map(ticketsById::get)
+                    .filter(ticket -> ticket != null && ticket.getStatus() == TicketStatus.AVAILABLE)
+                    .limit(amountToRemove)
+                    .map(Ticket::getTicketId)
+                    .toList();
+
+            if (removableTickets.size() < amountToRemove) {
+                throw new IllegalStateException(
+                        "cannot reduce standing area because not enough tickets are available to remove"
+                );
+            }
+
+            for (UUID ticketId : removableTickets) {
+                removeTicket(ticketId);
+            }
+        }
+    }
+
+    public synchronized void updateSittingArea(UUID areaId, double price, int desiredRows, int desiredSeatsPerRow) {
+        if (areaId == null) {
+            throw new IllegalArgumentException("areaId is required");
+        }
+        if (price < 0) {
+            throw new IllegalArgumentException("price must be non-negative");
+        }
+        if (desiredRows <= 0) {
+            throw new IllegalArgumentException("rows must be positive");
+        }
+        if (desiredSeatsPerRow <= 0) {
+            throw new IllegalArgumentException("seatsPerRow must be positive");
+        }
+
+        Area area = layout.requireArea(areaId);
+
+        if (!(area instanceof SittingArea)) {
+            throw new IllegalArgumentException("area is not a sitting area: " + areaId);
+        }
+
+        updateAreaPrice(areaId, price);
+
+        List<SittingTicket> existingSittingTickets = area.getTicketIdsView().stream()
+                .map(ticketsById::get)
+                .filter(ticket -> ticket instanceof SittingTicket)
+                .map(ticket -> (SittingTicket) ticket)
+                .toList();
+
+        for (SittingTicket ticket : existingSittingTickets) {
+            boolean outsideRequestedLayout =
+                    ticket.getSeatRow() > desiredRows ||
+                    ticket.getSeatNumber() > desiredSeatsPerRow;
+
+            if (outsideRequestedLayout && ticket.getStatus() != TicketStatus.AVAILABLE) {
+                throw new IllegalStateException(
+                        "cannot reduce sitting area because sold or reserved seats would be removed"
+                );
+            }
+        }
+
+        List<UUID> ticketsToRemove = existingSittingTickets.stream()
+                .filter(ticket ->
+                        ticket.getSeatRow() > desiredRows ||
+                        ticket.getSeatNumber() > desiredSeatsPerRow
+                )
+                .map(Ticket::getTicketId)
+                .toList();
+
+        for (UUID ticketId : ticketsToRemove) {
+            removeTicket(ticketId);
+        }
+
+        Set<String> existingSeats = area.getTicketIdsView().stream()
+                .map(ticketsById::get)
+                .filter(ticket -> ticket instanceof SittingTicket)
+                .map(ticket -> (SittingTicket) ticket)
+                .map(ticket -> ticket.getSeatRow() + ":" + ticket.getSeatNumber())
+                .collect(java.util.stream.Collectors.toSet());
+
+        float updatedPrice = (float) price;
+
+        for (int row = 1; row <= desiredRows; row++) {
+            for (int seat = 1; seat <= desiredSeatsPerRow; seat++) {
+                String key = row + ":" + seat;
+
+                if (!existingSeats.contains(key)) {
+                    UUID ticketId = UUID.randomUUID();
+                    SittingTicket ticket = new SittingTicket(
+                            ticketId,
+                            eventId,
+                            areaId,
+                            updatedPrice,
+                            seat,
+                            row
+                    );
+                    addTicket(ticket);
+                }
+            }
+        }
+    }
+
     public void checkAvailabilityOfSittingTickets(List<UUID> ticketIDs) {
         if (ticketIDs == null || ticketIDs.isEmpty()) {
             throw new DomainException("Ticket id list is empty");

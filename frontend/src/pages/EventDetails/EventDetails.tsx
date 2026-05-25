@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { getEventById } from "../../services/eventSearchService";
+import { getCurrentUser, type CurrentUser } from "../../services/currentUserService";
+import { getMyCompanies, type CompanyMembership } from "../../services/companyService";
+import { drawLotteryWinners } from "../../services/lotteryService";
+// Edit actions removed: editEvent, addEventPolicyRule, deleteEventPolicyRule
 import {
     getAvailableTicketsCount,
     getPriceRange,
@@ -17,6 +21,7 @@ type EventDetailsPageProps = {
     onStartPurchase: (eventId: string) => void;
     onBackToCompany?: (companyId: string) => void;
     onStartLotteryRegistration: (eventId: string) => void;
+    onEditEvent: (eventId: string) => void;
 };
 
 
@@ -59,6 +64,24 @@ function formatDateRange(fromDate: string, toDate: string): string {
         return parsed.toLocaleDateString("he-IL");
     };
     return `${formatPart(fromDate)} – ${formatPart(toDate)}`;
+}
+
+function getDrawWinnersErrorMessage(error: unknown) {
+    const rawMessage =
+        error instanceof Error
+            ? error.message
+            : "Failed to draw lottery winners.";
+
+    const normalizedMessage = rawMessage.toLowerCase();
+
+    if (
+        normalizedMessage.includes("winners have already been drawn") ||
+        normalizedMessage.includes("already been drawn")
+    ) {
+        return "Winners have already been drawn for this lottery. You cannot draw winners again.";
+    }
+
+    return rawMessage;
 }
 
 function describeEventStatus(status: EventStatus): {
@@ -137,6 +160,33 @@ function decidePrimaryAction(event: Event): PrimaryAction {
     return { kind: "queue" };
 }
 
+function isLotteryEvent(event: Event) {
+    const rawEvent = event as any;
+
+    const eventType = String(
+        rawEvent.type ??
+        rawEvent.eventType ??
+        rawEvent.saleMode ??
+        "",
+    )
+        .trim()
+        .toLowerCase();
+
+    return (
+        eventType === "lottery" ||
+        eventType === "הגרלה" ||
+        eventType.includes("lottery") ||
+        Boolean(rawEvent.lotteryId)
+    );
+}
+
+function buildLotteryCodeExpiry() {
+    const expiry = new Date();
+    expiry.setHours(expiry.getHours() + 24);
+
+    return expiry.toISOString();
+}
+
 type StatusBadgeProps = {
     status: EventStatus;
 };
@@ -166,6 +216,7 @@ export default function EventDetailsPage({
     onStartPurchase,
     onStartLotteryRegistration,
     onBackToCompany,
+    onEditEvent,
 }: EventDetailsPageProps) {
 
     const [event, setEvent] = useState<Event | null>(null);
@@ -174,6 +225,10 @@ export default function EventDetailsPage({
     const [actionMessage, setActionMessage] =
         useState<ActionResultMessage | null>(null);
     const [isPerformingAction, setIsPerformingAction] = useState(false);
+    const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+    const [companies, setCompanies] = useState<CompanyMembership[]>([]);
+    const [isDrawingWinners, setIsDrawingWinners] = useState(false);
+    // Edit mode removed — view-only event details page
 
     useEffect(() => {
         let isCancelled = false;
@@ -211,10 +266,85 @@ export default function EventDetailsPage({
         };
     }, [eventId]);
 
+    useEffect(() => {
+        let isCancelled = false;
+
+        async function loadUserPermissions() {
+            try {
+                const user = await getCurrentUser();
+
+                if (isCancelled) {
+                    return;
+                }
+
+                setCurrentUser(user);
+
+                if (!user || user.role === "GUEST") {
+                    setCompanies([]);
+                    return;
+                }
+
+                const userCompanies = await getMyCompanies(user.email);
+
+                if (!isCancelled) {
+                    setCompanies(userCompanies);
+                }
+            } catch {
+                if (!isCancelled) {
+                    setCompanies([]);
+                }
+            }
+        }
+
+        loadUserPermissions();
+
+        return () => {
+            isCancelled = true;
+        };
+    }, []);
+
     const primaryAction = useMemo<PrimaryAction | null>(
         () => (event ? decidePrimaryAction(event) : null),
         [event],
     );
+
+    const currentCompanyMembership = useMemo(() => {
+        if (!event) {
+            return null;
+        }
+
+        return companies.find((company) => company.companyId === event.companyId) ?? null;
+    }, [companies, event]);
+
+    const canEditEvent = useMemo(() => {
+        if (!event || !currentUser) {
+            return false;
+        }
+
+        if (currentUser.role === "ADMIN") {
+            return true;
+        }
+
+        if (!currentCompanyMembership) {
+            return false;
+        }
+
+        const role = String((currentCompanyMembership as any).role ?? "").toLowerCase();
+        const permissions = ((currentCompanyMembership as any).permissions ?? []) as string[];
+
+        return (
+            role === "founder" ||
+            role === "owner" ||
+            role === "manager" ||
+            permissions.includes("Manage inventory") ||
+            permissions.includes("Manage policies") ||
+            permissions.includes("Configure layout")
+        );
+    }, [currentUser, currentCompanyMembership, event]);
+
+    const canDrawLotteryWinners = useMemo(() => {
+        return Boolean(event && canEditEvent && isLotteryEvent(event));
+    }, [event, canEditEvent]);
 
     function handlePrimaryActionClick() {
         if (!event || !primaryAction || primaryAction.kind === "unavailable") {
@@ -250,6 +380,49 @@ export default function EventDetailsPage({
             }
         }, 350);
     }
+
+    async function handleDrawWinners() {
+        if (!event) {
+            return;
+        }
+
+        const confirmed = window.confirm(
+            `Draw winners for "${event.name}"? This action cannot be undone.`,
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+            setIsDrawingWinners(true);
+            setActionMessage(null);
+
+            const winners = await drawLotteryWinners(
+                event.id,
+                buildLotteryCodeExpiry(),
+            );
+
+            const winnerCount =
+                winners && typeof winners === "object"
+                    ? Object.keys(winners).length
+                    : 0;
+
+            setActionMessage({
+                kind: "success",
+                text:
+                    winnerCount > 0
+                        ? `Winners were drawn successfully. ${winnerCount} winner(s) received access codes.`
+                        : "Winners were drawn successfully. Access codes were generated.",
+        });
+            } catch (error) {
+            const message = getDrawWinnersErrorMessage(error);
+window.alert(message);
+        } finally {
+            setIsDrawingWinners(false);
+        }
+    }
+    // Edit handlers removed.
 
     if (isLoading) {
         return (
@@ -303,6 +476,29 @@ export default function EventDetailsPage({
                         </p>
                     </div>
                     <StatusBadge status={event.status} />
+
+                    {canEditEvent && (
+                        <div className="event-details-owner-actions">
+                            {canDrawLotteryWinners && (
+                                <button
+                                    type="button"
+                                    className="event-action-secondary event-action-draw-winners"
+                                    onClick={handleDrawWinners}
+                                    disabled={isDrawingWinners}
+                                >
+                                    {isDrawingWinners ? "Drawing winners..." : "Draw winners"}
+                                </button>
+                            )}
+
+                            <button
+                                type="button"
+                                className="event-action-secondary"
+                                onClick={() => onEditEvent(event.id)}
+                            >
+                                Edit event
+                            </button>
+                        </div>
+                    )}
                 </div>
             </section>
 
@@ -317,6 +513,7 @@ export default function EventDetailsPage({
                 </section>
             )}
 
+            {/* Edit form removed from details view */}
             <div className="event-details-grid">
                 <section className="event-details-card">
                     <h2>Event details</h2>

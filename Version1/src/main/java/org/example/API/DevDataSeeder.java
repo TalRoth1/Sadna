@@ -512,7 +512,15 @@ public class DevDataSeeder implements CommandLineRunner {
                         "Test", "Tel Aviv",
                         LocalDateTime.now().plusDays(6), EventStatus.ACTIVE);
                 addStandingArea(oneTicketEvent, 10.0, 1);
-
+// 12. Indie Lottery Night — lottery event managed by founder.indie@demo.test.
+// This event is intentionally seeded with registered lottery participants,
+// but without pre-drawn winners, so the Company Page "Draw winners" button
+// can be tested manually.
+UUID indieLottery = createEvent("indie-lottery", indieId, "founder.indie@demo.test",
+                "Indie Secret Show – Lottery", "Surprise Indie Artist",
+                "Lottery", "Levontin 7, Tel Aviv",
+                LocalDateTime.now().plusDays(20), EventStatus.ACTIVE);
+addStandingArea(indieLottery, 160.0, 12);
 
         }
 
@@ -620,28 +628,64 @@ public class DevDataSeeder implements CommandLineRunner {
         // flag it as a lottery event.
         // =================================================================
         private void seedLottery() {
-                UUID taylorEventId = eventsByKey.get("taylor-swift");
-                UUID lotteryId = UUID.randomUUID();
+        seedTaylorSwiftLottery();
+        seedIndieLottery();
+}
 
-                PuchaseLottery lottery = new PuchaseLottery(
-                                lotteryId,
-                                taylorEventId,
-                                LocalDateTime.now().minusDays(1),
-                                LocalDateTime.now().plusDays(14));
+private void seedTaylorSwiftLottery() {
+        UUID taylorEventId = eventsByKey.get("taylor-swift");
+        UUID lotteryId = UUID.randomUUID();
 
-                User bob = usersByEmail.get("bob@demo.test");
-                lottery.registerMember(bob.getId().toString(), 2, LocalDateTime.now());
-                lottery.addWinner(bob.getId().toString());
-                lottery.generateWinnerAccessCode(
-                                bob.getId().toString(),
-                                LocalDateTime.now().plusDays(1));
+        PuchaseLottery lottery = new PuchaseLottery(
+                        lotteryId,
+                        taylorEventId,
+                        LocalDateTime.now().minusDays(1),
+                        LocalDateTime.now().plusDays(14));
 
-                lotteryRepository.save(lottery);
+        User bob = usersByEmail.get("bob@demo.test");
+        lottery.registerMember(bob.getId().toString(), 2, LocalDateTime.now());
+        lottery.addWinner(bob.getId().toString());
+        lottery.generateWinnerAccessCode(
+                        bob.getId().toString(),
+                        LocalDateTime.now().plusDays(1));
 
-                Event taylor = eventRepository.getById(taylorEventId);
-                taylor.setLotteryId(lotteryId.toString());
-                eventRepository.save(taylor);
-        }
+        lotteryRepository.save(lottery);
+
+        Event taylor = eventRepository.getById(taylorEventId);
+        taylor.setLotteryId(lotteryId.toString());
+        eventRepository.save(taylor);
+}
+
+private void seedIndieLottery() {
+        UUID indieLotteryEventId = eventsByKey.get("indie-lottery");
+        UUID lotteryId = UUID.randomUUID();
+
+        LocalDateTime registrationOpen = LocalDateTime.now().minusDays(10);
+        LocalDateTime registrationClose = LocalDateTime.now().minusDays(1);
+        LocalDateTime demoRegistrationTime = LocalDateTime.now().minusDays(2);
+
+        PuchaseLottery lottery = new PuchaseLottery(
+                        lotteryId,
+                        indieLotteryEventId,
+                        registrationOpen,
+                        registrationClose);
+
+        User alice = usersByEmail.get("alice@demo.test");
+        User bob = usersByEmail.get("bob@demo.test");
+        User carol = usersByEmail.get("carol@demo.test");
+        User dave = usersByEmail.get("dave@demo.test");
+
+        lottery.registerMember(alice.getId().toString(), 2, demoRegistrationTime);
+        lottery.registerMember(bob.getId().toString(), 1, demoRegistrationTime);
+        lottery.registerMember(carol.getId().toString(), 3, demoRegistrationTime);
+        lottery.registerMember(dave.getId().toString(), 2, demoRegistrationTime);
+
+        lotteryRepository.save(lottery);
+
+        Event indieLottery = eventRepository.getById(indieLotteryEventId);
+        indieLottery.setLotteryId(lotteryId.toString());
+        eventRepository.save(indieLottery);
+}
 
         // =================================================================
         // SECTION 10: Close Closed Co.

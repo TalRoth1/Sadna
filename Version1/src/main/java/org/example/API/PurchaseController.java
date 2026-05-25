@@ -6,10 +6,28 @@ import java.util.UUID;
 
 import org.example.ApplicationLayer.PurchaseService;
 import org.example.ApplicationLayer.dto.ApiResponse;
-import org.example.ApplicationLayer.dto.PurchaseDTOs.*;
+import org.example.ApplicationLayer.dto.PurchaseDTOs.ActivePurchaseDTO;
+import org.example.ApplicationLayer.dto.PurchaseDTOs.CompletePurchaseRequest;
+import org.example.ApplicationLayer.dto.PurchaseDTOs.LotteryDrawRequest;
+import org.example.ApplicationLayer.dto.PurchaseDTOs.LotteryRegisterRequest;
+import org.example.ApplicationLayer.dto.PurchaseDTOs.PurchaseHistoryDTO;
+import org.example.ApplicationLayer.dto.PurchaseDTOs.SelectSittingRequest;
+import org.example.ApplicationLayer.dto.PurchaseDTOs.SelectStandingRequest;
+import org.example.ApplicationLayer.dto.PurchaseDTOs.SelectionAccessDTO;
+import org.example.ApplicationLayer.dto.PurchaseDTOs.SelectionAccessRequest;
+import org.example.ApplicationLayer.dto.PurchaseDTOs.UpdateSittingRequest;
+import org.example.ApplicationLayer.dto.PurchaseDTOs.UpdateStandingRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 /**
  * PurchaseController
@@ -258,12 +276,12 @@ public class PurchaseController {
 
     // TODO (V3): Extract caller identity from JWT and verify authorization
     @PostMapping("/events/{eventId}/lottery/draw")
-    public ResponseEntity<ApiResponse<Void>> drawLotteryForEvent(
+    public ResponseEntity<ApiResponse<java.util.Map<String, String>>> drawLotteryForEvent(
             @PathVariable("eventId") UUID eventId,
             @RequestBody LotteryDrawRequest request) {
         try {
-            purchaseService.drawLotteryForEvent(eventId, request.codeExpiry);
-            return ResponseEntity.ok(ApiResponse.success("Lottery drawn successfully"));
+            java.util.Map<String, String> winnerCodes = purchaseService.drawLotteryForEvent(eventId, request.codeExpiry);
+            return ResponseEntity.ok(ApiResponse.success("Lottery drawn successfully", winnerCodes));
         } catch (IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {

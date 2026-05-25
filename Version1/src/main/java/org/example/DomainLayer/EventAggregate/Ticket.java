@@ -13,7 +13,7 @@ public abstract class Ticket {
     private final UUID eventId;
     private final UUID areaId;
     private TicketStatus status;
-    private final float price;
+    private float price;
 
     protected Ticket(UUID ticketId, UUID eventId, UUID areaId, float price, TicketStatus initialStatus) {
         this.ticketId = ticketId;
@@ -41,6 +41,13 @@ public abstract class Ticket {
 
     public float getPrice() {
         return price;
+    }
+
+    public void setPrice(float price) {
+        if (price < 0) {
+            throw new IllegalArgumentException("price must be non-negative");
+        }
+        this.price = price;
     }
 
     public void reserve() {

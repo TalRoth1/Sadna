@@ -269,7 +269,7 @@ public class UserService {
                     ? user.getPasswordHash()
                     : DUMMY_PASSWORD_HASH;
 
-            if (user.getStatus() == UserStatus.REMOVED) {
+            if (user != null && user.getStatus() == UserStatus.REMOVED) {
                 throw new IllegalArgumentException("This account was removed from the platform.");
             }
 

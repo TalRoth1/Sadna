@@ -106,6 +106,19 @@ public class EventServiceTest {
         return new Company("founder-" + name, name);
     }
 
+    private void stubInventoryAuthorizedRepositories(Event event) {
+        when(eventRepository.getById(eventId)).thenReturn(event);
+        when(companyRepository.findByID(companyId))
+                .thenReturn(Optional.of(authorizedCompany(ownerUsername, eventId)));
+
+        when(userRepository.hasPermission(
+                ownerUsername,
+                companyId,
+                org.example.DomainLayer.CompanyAggregate.CompanyPermission.MANAGE_INVENTORY,
+                eventId
+        )).thenReturn(true);
+    }
+
     private Company authorizedCompany(String founderUsername, UUID eventId) {
         Company c = new Company(founderUsername, "TestCompany");
         c.addEvent(eventId);
@@ -1167,5 +1180,143 @@ public class EventServiceTest {
                 eventService.searchEvents(EventSearchCriteria.empty());
         assertEquals("after settling, every persisted event must be reachable as a summary",
                 writerCount * eventsPerWriter, finalSnapshot.size());
+    }
+
+    @Test
+    public void GivenNullUsername_WhenUpdateStandingArea_ThenIllegalArgumentExceptionIsThrown() {
+        assertThrows(IllegalArgumentException.class, () ->
+                eventService.updateStandingArea(null, companyId, eventId, UUID.randomUUID(), 100.0, 10)
+        );
+
+        verifyNoInteractions(eventRepository);
+    }
+
+    @Test
+    public void GivenNegativePrice_WhenUpdateStandingArea_ThenIllegalArgumentExceptionIsThrown() {
+        assertThrows(IllegalArgumentException.class, () ->
+                eventService.updateStandingArea(ownerUsername, companyId, eventId, UUID.randomUUID(), -1.0, 10)
+        );
+
+        verifyNoInteractions(eventRepository);
+    }
+
+    @Test
+    public void GivenZeroCount_WhenUpdateStandingArea_ThenIllegalArgumentExceptionIsThrown() {
+        assertThrows(IllegalArgumentException.class, () ->
+                eventService.updateStandingArea(ownerUsername, companyId, eventId, UUID.randomUUID(), 100.0, 0)
+        );
+
+        verifyNoInteractions(eventRepository);
+    }
+
+    @Test
+    public void GivenNegativePrice_WhenUpdateSittingArea_ThenIllegalArgumentExceptionIsThrown() {
+        assertThrows(IllegalArgumentException.class, () ->
+                eventService.updateSittingArea(ownerUsername, companyId, eventId, UUID.randomUUID(), -1.0, 10, 10)
+        );
+
+        verifyNoInteractions(eventRepository);
+    }
+
+    @Test
+    public void GivenZeroRows_WhenUpdateSittingArea_ThenIllegalArgumentExceptionIsThrown() {
+        assertThrows(IllegalArgumentException.class, () ->
+                eventService.updateSittingArea(ownerUsername, companyId, eventId, UUID.randomUUID(), 100.0, 0, 10)
+        );
+
+        verifyNoInteractions(eventRepository);
+    }
+
+    @Test
+    public void GivenZeroSeatsPerRow_WhenUpdateSittingArea_ThenIllegalArgumentExceptionIsThrown() {
+        assertThrows(IllegalArgumentException.class, () ->
+                eventService.updateSittingArea(ownerUsername, companyId, eventId, UUID.randomUUID(), 100.0, 10, 0)
+        );
+
+        verifyNoInteractions(eventRepository);
+    }
+
+    @Test
+    public void GivenNullAreaId_WhenDeleteArea_ThenIllegalArgumentExceptionIsThrown() {
+        assertThrows(IllegalArgumentException.class, () ->
+                eventService.deleteArea(ownerUsername, companyId, eventId, null)
+        );
+
+        verifyNoInteractions(eventRepository);
+    }
+
+    @Test
+    public void GivenStandingArea_WhenUpdateStandingArea_ThenAreaQuantityAndPriceAreUpdated() {
+        Event event = newRealEvent();
+        UUID areaId = UUID.randomUUID();
+
+        event.getLayout().addArea(new StandingArea(areaId, 50.0));
+        event.addStandingTickets(areaId, 2);
+
+        stubInventoryAuthorizedRepositories(event);
+
+        eventService.updateStandingArea(ownerUsername, companyId, eventId, areaId, 90.0, 5);
+
+        assertEquals(5, event.getLayout().requireArea(areaId).getTicketIdsView().size());
+        assertEquals(90.0, event.getLayout().requireArea(areaId).getPrice(), 0.0001);
+
+        verify(eventRepository, atLeast(1)).save(event);
+    }
+
+    @Test
+    public void GivenSittingArea_WhenUpdateSittingArea_ThenLayoutAndPriceAreUpdated() {
+        Event event = newRealEvent();
+        UUID areaId = UUID.randomUUID();
+
+        event.getLayout().addArea(new SittingArea(areaId, 100.0));
+        event.addSittingTickets(areaId, 2, 2);
+
+        stubInventoryAuthorizedRepositories(event);
+
+        eventService.updateSittingArea(ownerUsername, companyId, eventId, areaId, 150.0, 3, 3);
+
+        assertEquals(9, event.getLayout().requireArea(areaId).getTicketIdsView().size());
+        assertEquals(150.0, event.getLayout().requireArea(areaId).getPrice(), 0.0001);
+
+        verify(eventRepository, atLeast(1)).save(event);
+    }
+
+    @Test
+    public void GivenAreaWithAvailableTickets_WhenDeleteArea_ThenAreaIsDeletedAndTicketsAreRemoved() {
+        Event event = newRealEvent();
+        UUID areaId = UUID.randomUUID();
+
+        event.getLayout().addArea(new StandingArea(areaId, 50.0));
+        event.addStandingTickets(areaId, 3);
+
+        stubInventoryAuthorizedRepositories(event);
+
+        eventService.deleteArea(ownerUsername, companyId, eventId, areaId);
+
+        assertEquals(0, event.getTotalCapacity());
+
+        assertThrows(IllegalArgumentException.class, () ->
+                event.getLayout().requireArea(areaId)
+        );
+
+        verify(eventRepository, atLeast(1)).save(event);
+    }
+
+    @Test
+    public void GivenAreaWithReservedTicket_WhenDeleteArea_ThenIllegalStateExceptionIsPropagated() {
+        Event event = newRealEvent();
+        UUID areaId = UUID.randomUUID();
+
+        event.getLayout().addArea(new StandingArea(areaId, 50.0));
+        event.addStandingTickets(areaId, 3);
+        event.reserveStandingTickets(1, areaId);
+
+        stubInventoryAuthorizedRepositories(event);
+
+        assertThrows(IllegalStateException.class, () ->
+                eventService.deleteArea(ownerUsername, companyId, eventId, areaId)
+        );
+
+        assertEquals(3, event.getTotalCapacity());
     }
 }

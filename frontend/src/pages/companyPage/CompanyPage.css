@@ -1238,3 +1238,31 @@
         justify-content: center;
     }
 }
+.company-event-title-button {
+    border: none;
+    background: transparent;
+    padding: 0;
+    color: inherit;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+    text-align: left;
+}
+
+.company-event-title-button:hover {
+    text-decoration: underline;
+}
+
+.company-event-edit-button {
+    border: 1px solid #111827;
+    background: #111827;
+    color: #ffffff;
+    border-radius: 999px;
+    padding: 0.55rem 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.company-event-edit-button:hover {
+    transform: translateY(-1px);
+}

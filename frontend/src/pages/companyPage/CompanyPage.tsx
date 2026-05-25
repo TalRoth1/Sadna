@@ -29,6 +29,7 @@ import {
 } from "../../services/companyService";
 import { getEventById } from "../../services/eventSearchService";
 import { getCurrentUser, type CurrentUser } from "../../services/currentUserService";
+import { drawLotteryWinners } from "../../services/lotteryService";
 import type { EventSummary } from "../../types/event";
 import CompanyPoliciesSection from "./CompanyPoliciesSection";
 import "./CompanyPage.css";
@@ -149,7 +150,8 @@ type CompanyPageProps = {
     company: CompanyViewModel;
     onBackToCompanies: () => void;
     onCreateEvent: (companyId: string) => void;
-
+    onSelectEvent: (eventId: string) => void;
+    onEditEvent: (eventId: string) => void;
 };
 
 type CompanyPageState = {
@@ -350,6 +352,23 @@ function buildCompanyPageSections(
         { id: "company-hierarchy", label: "Hierarchy", isVisible: isHierarchyVisible },
     ];
 }
+function getDrawWinnersErrorMessage(error: unknown) {
+    const rawMessage =
+        error instanceof Error
+            ? error.message
+            : getErrorMessage(error, "Failed to draw winners.");
+
+    const normalizedMessage = rawMessage.toLowerCase();
+
+    if (
+        normalizedMessage.includes("winners have already been drawn") ||
+        normalizedMessage.includes("already been drawn")
+    ) {
+        return "Winners have already been drawn for this lottery. You cannot draw winners again.";
+    }
+
+    return rawMessage;
+}
 
 function scrollToCompanySection(sectionId: CompanyPageSectionId) {
     const targetElement = document.getElementById(sectionId);
@@ -543,18 +562,49 @@ function isPermissionGranted(
     return companyPermissions.includes(permission);
 }
 
+function isLotteryEvent(event: ManagedEvent) {
+    const rawEvent = event as any;
+
+    const eventType = String(
+        rawEvent.type ??
+        rawEvent.eventType ??
+        rawEvent.saleMode ??
+        "",
+    )
+        .trim()
+        .toLowerCase();
+
+    return (
+        eventType === "lottery" ||
+        eventType === "הגרלה" ||
+        eventType.includes("lottery") ||
+        Boolean(rawEvent.lotteryId)
+    );
+}
+
 function ManagedEventCard({
     event,
+    onOpenEvent,
+    onEditEvent,
     onDelete,
 }: {
     event: ManagedEvent;
+    onOpenEvent: (eventId: string) => void;
+    onEditEvent: (eventId: string) => void;
     onDelete: (eventId: string, eventName: string) => Promise<void>;
 }) {
+    const isLottery = isLotteryEvent(event);
     return (
         <article className="company-event-card">
             <div className="company-event-card-main">
                 <div className="company-event-card-heading">
-                    <h3>{event.name}</h3>
+                    <button
+                        type="button"
+                        className="company-event-title-button"
+                        onClick={() => onOpenEvent(event.id)}
+                    >
+                        {event.name}
+                    </button>
                     <span className="company-event-category-badge">{event.type}</span>
                 </div>
 
@@ -578,6 +628,18 @@ function ManagedEventCard({
                         : "No tickets left"}
                 </span>
 
+                {isLottery && (
+                    <LotteryDrawButton eventId={event.id} />
+                )}
+
+                <button
+                    type="button"
+                    className="company-event-edit-button"
+                    onClick={() => onEditEvent(event.id)}
+                >
+                    Edit event
+                </button>
+
                 <button
                     type="button"
                     className="company-event-delete-button"
@@ -590,10 +652,50 @@ function ManagedEventCard({
     );
 }
 
+function LotteryDrawButton({ eventId }: { eventId: string }) {
+    const [isLoading, setIsLoading] = useState(false);
+
+    async function handleDraw() {
+        if (!window.confirm("Draw winners for this lottery? This action cannot be undone.")) {
+            return;
+        }
+
+        try {
+            setIsLoading(true);
+            // default expiry: 24 hours from now
+            const expiry = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+            const winners = await drawLotteryWinners(eventId, expiry);
+
+            const winnerCount = Object.keys(winners || {}).length;
+            window.alert(`Winners were drawn successfully. ${winnerCount} winner(s).`);
+            console.log("Lottery winners:", winners);
+        } catch (error) {
+            const message = getDrawWinnersErrorMessage(error);
+            window.alert(message);
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
+    return (
+        <button
+            type="button"
+            className="company-event-draw-button"
+            onClick={handleDraw}
+            disabled={isLoading}
+            style={{ marginBottom: 8 }}
+        >
+            {isLoading ? "Drawing..." : "Draw winners"}
+        </button>
+    );
+}
+
 export default function CompanyPage({
     company,
     onBackToCompanies,
     onCreateEvent,
+    onSelectEvent,
+    onEditEvent,
 }: CompanyPageProps) {
     const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
     const [inviteEmail, setInviteEmail] = useState("");
@@ -1490,6 +1592,8 @@ export default function CompanyPage({
                         <ManagedEventCard
                             key={event.id}
                             event={event}
+                            onOpenEvent={onSelectEvent}
+                            onEditEvent={onEditEvent}
                             onDelete={async (eventId, eventName) => {
                                 const shouldDelete = window.confirm(
                                     `Delete event \"${eventName}\"? This cannot be undone.`,

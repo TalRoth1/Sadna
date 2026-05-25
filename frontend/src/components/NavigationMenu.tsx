@@ -14,7 +14,6 @@ export type AppPage =
     | "event-purchase"
     | "login"
     | "registration"
-    | "user-tickets"
     | "purchase-history"
     | "my-companies"
     | "company-creation"
@@ -28,7 +27,8 @@ export type AppPage =
     | "admin-analytics"
     | "admin-queues"
     | "lottery-registration"
-    | "create-event";
+    | "create-event"
+    | "edit-event";
 
 type NavigationMenuProps = {
     currentPage: AppPage;
@@ -37,19 +37,19 @@ type NavigationMenuProps = {
 
 const mainLinks: { page: AppPage; label: string }[] = [
     { page: "event-search", label: "Event Search" },
-    { page: "user-tickets", label: "My Active Purchases" },
     { page: "purchase-history", label: "Purchase History" },
     { page: "my-companies", label: "My Companies" },
     { page: "profile", label: "Profile" },
 ];
 
 export default function NavigationMenu({
-                                           currentPage,
-                                           onNavigate,
-                                       }: NavigationMenuProps) {
+    currentPage,
+    onNavigate,
+}: NavigationMenuProps) {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
     const [isAdmin, setIsAdmin] = useState(false);
+
     const isGuest =
         currentUser?.role === "GUEST" ||
         currentUser?.username?.startsWith("guest-");
@@ -58,7 +58,6 @@ export default function NavigationMenu({
         currentUser !== null &&
         !isGuest &&
         currentUser.status === "LOGGED_IN";
-
 
     useEffect(() => {
         let isMounted = true;
@@ -81,11 +80,11 @@ export default function NavigationMenu({
                     return;
                 }
 
-                const isGuest =
+                const isGuestUser =
                     user.role === "GUEST" ||
                     user.username?.startsWith("guest-");
 
-                if (isGuest) {
+                if (isGuestUser) {
                     console.log("[NavigationMenu] guest user, skipping admin check");
                     setIsAdmin(false);
                     return;
@@ -134,6 +133,7 @@ export default function NavigationMenu({
             window.removeEventListener("auth-session-invalid", handleInvalidSession);
         };
     }, [currentPage]);
+
     function handleNavigate(page: AppPage) {
         onNavigate(page);
         setIsMenuOpen(false);
@@ -141,13 +141,13 @@ export default function NavigationMenu({
 
     const visibleMainLinks = isLoggedIn
         ? mainLinks
-        : mainLinks.filter((link) => link.page == "event-search");
+        : mainLinks.filter((link) => link.page === "event-search");
 
     async function handleLogout() {
         try {
-            console.log("Initiating logout process..."); // for debugging
+            console.log("Initiating logout process...");
             await logoutUser();
-            console.log("Logout successful, clearing user state..."); // for debugging
+            console.log("Logout successful, clearing user state...");
         } finally {
             setCurrentUser(null);
             setIsAdmin(false);
