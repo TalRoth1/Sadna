@@ -28,7 +28,8 @@ export type AppPage =
     | "admin-analytics"
     | "admin-queues"
     | "lottery-registration"
-    | "create-event";
+    | "create-event"
+    | "edit-event";
 
 type NavigationMenuProps = {
     currentPage: AppPage;

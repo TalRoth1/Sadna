@@ -142,6 +142,87 @@ public class EventService {
         );
     }
 
+    public void editPolicy(String username,
+                        UUID companyId,
+                        UUID eventId,
+                        Float age,
+                        Integer minTicket,
+                        Integer maxTicket,
+                        Boolean allowLoneSeat) {
+        logger.info("[Event Log] Method: editPolicy called with parameters: username=" + username
+                + ", companyId=" + companyId
+                + ", eventId=" + eventId
+                + ", age=" + age
+                + ", minTicket=" + minTicket
+                + ", maxTicket=" + maxTicket
+                + ", allowLoneSeat=" + allowLoneSeat);
+
+        try {
+            if (username == null || username.isBlank()) {
+                throw new IllegalArgumentException("username is required");
+            }
+            if (companyId == null) {
+                throw new IllegalArgumentException("companyId is required");
+            }
+            if (eventId == null) {
+                throw new IllegalArgumentException("eventId is required");
+            }
+            if (age != null && age < 0) {
+                throw new IllegalArgumentException("Age must be a non negative number");
+            }
+            if (minTicket != null && minTicket < 0) {
+                throw new IllegalArgumentException("Minimum ticket amount must be a non negative integer");
+            }
+            if (maxTicket != null && maxTicket < 0) {
+                throw new IllegalArgumentException("Maximum ticket amount must be a non negative integer");
+            }
+            if (minTicket != null && maxTicket != null && minTicket > maxTicket) {
+                throw new IllegalArgumentException("Minimum ticket amount cannot be greater than maximum ticket amount");
+            }
+
+            Event event = eventManagementDomainService.getEventForView(eventId);
+
+            List<PurchaseRuleDto> existingRules = new ArrayList<>();
+            collectPurchaseLeaves(event.getPurchasePolicy().getRulesView(), existingRules);
+
+            for (PurchaseRuleDto rule : existingRules) {
+                if (rule.id() != null) {
+                    eventManagementDomainService.deletePurchasePolicy(
+                            username,
+                            companyId,
+                            eventId,
+                            rule.id()
+                    );
+                }
+            }
+
+            boolean hasNewPolicy =
+                    age != null ||
+                    minTicket != null ||
+                    maxTicket != null ||
+                    allowLoneSeat != null;
+
+            if (hasNewPolicy) {
+                addPolicyRule(
+                        username,
+                        companyId,
+                        eventId,
+                        Optional.ofNullable(age),
+                        Optional.ofNullable(minTicket),
+                        Optional.ofNullable(maxTicket),
+                        Optional.ofNullable(allowLoneSeat),
+                        true
+                );
+            }
+
+        } catch (IllegalArgumentException | DomainException e) {
+            logger.info("[Event Log] Business rejection in editPolicy: " + e.getMessage());
+            throw e;
+        } catch (RuntimeException e) {
+            logger.log(Level.SEVERE, "[Error Log] System error in editPolicy: " + e.getMessage(), e);
+            throw e;
+        }
+    }
     public boolean deleteEvent(UUID eventId, String userEmail, String eventManagerEmail) {
         logger.info("[Event Log] Method: deleteEvent called with parameters: eventId=" + eventId
                 + ", userEmail=" + userEmail + ", eventManagerEmail=" + eventManagerEmail);

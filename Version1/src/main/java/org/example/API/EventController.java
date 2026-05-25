@@ -36,6 +36,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.example.ApplicationLayer.dto.EventDTOs.AddSittingAreaRequest;
 import org.example.ApplicationLayer.dto.EventDTOs.AddStandingAreaRequest;
+import org.example.ApplicationLayer.dto.EventDTOs.EditEventPolicyRequest;
 /**
  * EventController
  *
@@ -211,6 +212,29 @@ public ResponseEntity<ApiResponse<EventDetailsDto>> createEvent(@RequestBody Cre
         }
     }
 
+    @PutMapping("/{eventId}/policy")
+    public ResponseEntity<ApiResponse<Void>> editPolicy(
+            @PathVariable("eventId") UUID eventId,
+            @RequestBody EditEventPolicyRequest request) {
+        try {
+            eventService.editPolicy(
+                    request.username,
+                    request.companyId,
+                    eventId,
+                    request.age,
+                    request.minTicket,
+                    request.maxTicket,
+                    request.allowLoneSeat
+            );
+
+            return ResponseEntity.ok(ApiResponse.success("Policy updated successfully"));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to update policy: system exception"));
+        }
+    }
     @DeleteMapping("/{eventId}/policy/{ruleId}")
     public ResponseEntity<ApiResponse<Void>> deletePolicyRule(
             @PathVariable("eventId") UUID eventId,

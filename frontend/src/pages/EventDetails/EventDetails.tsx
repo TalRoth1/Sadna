@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { getEventById } from "../../services/eventSearchService";
+import { getCurrentUser, type CurrentUser } from "../../services/currentUserService";
+import { getMyCompanies, type CompanyMembership } from "../../services/companyService";
+// Edit actions removed: editEvent, addEventPolicyRule, deleteEventPolicyRule
 import {
     getAvailableTicketsCount,
     getPriceRange,
@@ -17,6 +20,7 @@ type EventDetailsPageProps = {
     onStartPurchase: (eventId: string) => void;
     onBackToCompany?: (companyId: string) => void;
     onStartLotteryRegistration: (eventId: string) => void;
+    onEditEvent: (eventId: string) => void;
 };
 
 
@@ -166,6 +170,7 @@ export default function EventDetailsPage({
     onStartPurchase,
     onStartLotteryRegistration,
     onBackToCompany,
+    onEditEvent,
 }: EventDetailsPageProps) {
 
     const [event, setEvent] = useState<Event | null>(null);
@@ -174,6 +179,9 @@ export default function EventDetailsPage({
     const [actionMessage, setActionMessage] =
         useState<ActionResultMessage | null>(null);
     const [isPerformingAction, setIsPerformingAction] = useState(false);
+    const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+    const [companies, setCompanies] = useState<CompanyMembership[]>([]);
+    // Edit mode removed — view-only event details page
 
     useEffect(() => {
         let isCancelled = false;
@@ -211,10 +219,81 @@ export default function EventDetailsPage({
         };
     }, [eventId]);
 
+    useEffect(() => {
+        let isCancelled = false;
+
+        async function loadUserPermissions() {
+            try {
+                const user = await getCurrentUser();
+
+                if (isCancelled) {
+                    return;
+                }
+
+                setCurrentUser(user);
+
+                if (!user || user.role === "GUEST") {
+                    setCompanies([]);
+                    return;
+                }
+
+                const userCompanies = await getMyCompanies(user.email);
+
+                if (!isCancelled) {
+                    setCompanies(userCompanies);
+                }
+            } catch {
+                if (!isCancelled) {
+                    setCompanies([]);
+                }
+            }
+        }
+
+        loadUserPermissions();
+
+        return () => {
+            isCancelled = true;
+        };
+    }, []);
+
     const primaryAction = useMemo<PrimaryAction | null>(
         () => (event ? decidePrimaryAction(event) : null),
         [event],
     );
+
+    const currentCompanyMembership = useMemo(() => {
+        if (!event) {
+            return null;
+        }
+
+        return companies.find((company) => company.companyId === event.companyId) ?? null;
+    }, [companies, event]);
+
+    const canEditEvent = useMemo(() => {
+        if (!event || !currentUser) {
+            return false;
+        }
+
+        if (currentUser.role === "ADMIN") {
+            return true;
+        }
+
+        if (!currentCompanyMembership) {
+            return false;
+        }
+
+        const role = String((currentCompanyMembership as any).role ?? "").toLowerCase();
+        const permissions = ((currentCompanyMembership as any).permissions ?? []) as string[];
+
+        return (
+            role === "founder" ||
+            role === "owner" ||
+            role === "manager" ||
+            permissions.includes("Manage inventory") ||
+            permissions.includes("Manage policies") ||
+            permissions.includes("Configure layout")
+        );
+    }, [currentUser, currentCompanyMembership, event]);
 
     function handlePrimaryActionClick() {
         if (!event || !primaryAction || primaryAction.kind === "unavailable") {
@@ -250,6 +329,8 @@ export default function EventDetailsPage({
             }
         }, 350);
     }
+
+    // Edit handlers removed.
 
     if (isLoading) {
         return (
@@ -303,6 +384,15 @@ export default function EventDetailsPage({
                         </p>
                     </div>
                     <StatusBadge status={event.status} />
+                    {canEditEvent && (
+                        <button
+                            type="button"
+                            className="event-action-secondary"
+                            onClick={() => onEditEvent(event.id)}
+                        >
+                            Edit event
+                        </button>
+                    )}
                 </div>
             </section>
 
@@ -317,6 +407,7 @@ export default function EventDetailsPage({
                 </section>
             )}
 
+            {/* Edit form removed from details view */}
             <div className="event-details-grid">
                 <section className="event-details-card">
                     <h2>Event details</h2>

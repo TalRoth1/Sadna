@@ -22,7 +22,7 @@ import MyActivePurchasesPage from "./pages/MyActivePurchasesPage";
 import MyCompaniesPage from "./pages/myCompanies/MyCompaniesPage";
 import QueueWaitingPage from "./pages/QueueWaitingPage";
 import CreateEventPage from "./pages/createEvent/CreateEventPage";
-
+import EditEventPage from "./pages/editEvent/EditEventPage";
 import type { CompanyResponse } from "./services/companyService";
 import type { AdminActionId } from "./types/admin";
 import "./App.css";
@@ -105,7 +105,12 @@ function App() {
     const [createEventCompanyId, setCreateEventCompanyId] = useState<string | null>(null);
 
     function navigate(page: AppPage) {
-        if (page !== "event-details" && page !== "event-queue" && page !== "event-purchase") {
+        if (
+            page !== "event-details" &&
+            page !== "event-queue" &&
+            page !== "event-purchase" &&
+            page !== "edit-event"
+        ) {
             setSelectedEventId(null);
             setSelectionAccessExpiresAt(null);
         }
@@ -152,6 +157,11 @@ function App() {
     function handleStartLotteryRegistration(eventId: string) {
         setSelectedEventId(eventId);
         setCurrentPage("lottery-registration");
+    }
+
+    function handleEditEvent(eventId: string) {
+        setSelectedEventId(eventId);
+        setCurrentPage("edit-event");
     }
 
     function handleStartCompanyCreation() {
@@ -226,12 +236,13 @@ function App() {
                 return <EventSearchPage onSelectEvent={handleSelectEvent} />;
             }
             return (
-                    <EventDetailsPage
-                        eventId={selectedEventId}
-                        onBackToSearch={handleBackToSearch}
-                        onStartPurchase={handleStartPurchase}
-                        onStartLotteryRegistration={handleStartLotteryRegistration}
-                    />
+                <EventDetailsPage
+                    eventId={selectedEventId}
+                    onBackToSearch={handleBackToSearch}
+                    onStartPurchase={handleStartPurchase}
+                    onStartLotteryRegistration={handleStartLotteryRegistration}
+                    onEditEvent={handleEditEvent}
+                />
             );
         }
 
@@ -281,6 +292,25 @@ function App() {
                 <LotteryRegistrationPage
                     eventId={selectedEventId}
                     onBackToEvent={handleBackToEvent}
+                />
+            );
+        }
+
+        if (currentPage === "edit-event") {
+            if (!selectedEventId) {
+                return <EventSearchPage onSelectEvent={handleSelectEvent} />;
+            }
+
+            return (
+                <EditEventPage
+                    eventId={selectedEventId}
+                    onBackToEvent={handleBackToEvent}
+                    onLogin={() => setCurrentPage("login")}
+                    onRegister={() => setCurrentPage("registration")}
+                    onEventUpdated={(eventId) => {
+                        setSelectedEventId(eventId);
+                        setCurrentPage("event-details");
+                    }}
                 />
             );
         }
