@@ -25,6 +25,7 @@ import EditEventPage from "./pages/editEvent/EditEventPage";
 import type { CompanyResponse } from "./services/companyService";
 import type { AdminActionId } from "./types/admin";
 import "./App.css";
+import MyActivePurchasesPage from "./pages/MyActivePurchasesPage";
 
 type CompanyStatus = "Active" | "Suspended" | "Closed";
 
@@ -119,6 +120,12 @@ function App() {
         }
 
         setCurrentPage(page);
+    }
+
+    function handleOpenActivePurchase(eventId: string) {
+        setSelectedEventId(eventId);
+        setSelectionAccessExpiresAt(null);
+        setCurrentPage("event-purchase");
     }
 
     function handleCreateEventForCompany(companyId: string) {
@@ -223,6 +230,14 @@ function App() {
     }
 
     function renderPage() {
+        if (currentPage === "active-purchases") {
+            return (
+                <MyActivePurchasesPage
+                    onOpenPurchase={handleOpenActivePurchase}
+                />
+            );
+        }
+
         if (currentPage === "event-search") {
             return <EventSearchPage onSelectEvent={handleSelectEvent} />;
         }
