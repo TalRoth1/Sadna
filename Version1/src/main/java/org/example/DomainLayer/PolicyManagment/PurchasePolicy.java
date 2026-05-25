@@ -1,6 +1,7 @@
 package org.example.DomainLayer.PolicyManagment;
 
 import java.util.UUID;
+import java.util.Objects;
 
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 import org.example.DomainLayer.EventAggregate.Event;
@@ -23,7 +24,11 @@ public class PurchasePolicy {
     }
 
     public void removeRule(UUID ruleId) {
-        if (ruleId == rules.getId()) {
+        if (rules == null) {
+            return;
+        }
+
+        if (Objects.equals(ruleId, rules.getId())) {
             rules = null;
         } else if (rules instanceof PurchaseComposite)
             rules = ((PurchaseComposite) rules).removeRule(ruleId);

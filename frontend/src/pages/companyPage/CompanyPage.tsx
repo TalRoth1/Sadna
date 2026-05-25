@@ -1,14 +1,19 @@
 import { useEffect, useState } from "react";
+import type { ComponentProps } from "react";
 import {
     changeManagerPermissions,
     deleteEvent,
+    deletePolicyRule,
     getCompanyHierarchy,
     getCompanyPermissions,
+    getCompanyPolicies,
     getEventsForUserInCompany,
     inviteCompanyManager,
     inviteCompanyOwner,
+    removeDiscount,
     removeCompanyMemberAsOwner,
     type CompanyAccessResponse,
+    type CompanyPoliciesResponse as BackendCompanyPoliciesResponse,
     type CompanyPermissionName as BackendCompanyPermissionName,
     type ChangeManagerPermissionsRequest,
     type InviteManagerRequest,
@@ -16,6 +21,7 @@ import {
 } from "../../services/companyService";
 import { getCurrentUser, type CurrentUser } from "../../services/currentUserService";
 import type { EventSummary } from "../../types/event";
+import CompanyPoliciesSection from "./CompanyPoliciesSection";
 import "./CompanyPage.css";
 
 type CompanyStatus = "Active" | "Suspended" | "Closed";
@@ -54,9 +60,17 @@ type CompanyViewModel = {
     permissions: CompanyPermissionName[];
 };
 
+type CompanyPoliciesSectionProps = ComponentProps<typeof CompanyPoliciesSection>;
+
+type CompanyPoliciesViewModel = {
+    purchaseRules: NonNullable<CompanyPoliciesSectionProps["purchaseRules"]>;
+    discountRules: NonNullable<CompanyPoliciesSectionProps["discountRules"]>;
+};
+
 type CompanyPageSectionId =
     | "company-overview"
     | "company-permissions"
+    | "company-policies"
     | "company-invitations"
     | "company-events"
     | "company-hierarchy";
@@ -80,6 +94,7 @@ type CompanyPageState = {
     company: CompanyViewModel;
     errorMessage: string;
     isLoading: boolean;
+    companyPolicies: CompanyPoliciesViewModel | null;
     hierarchyRoots: HierarchyNode[];
     hierarchyErrorMessage: string;
     hierarchySource: string;
@@ -164,15 +179,93 @@ function getStatusClass(status: CompanyStatus) {
     return `company-status company-status--${status.toLowerCase()}`;
 }
 
+function mapCompanyPurchaseRules(
+    rules: BackendCompanyPoliciesResponse["purchasePolicy"]["rules"],
+): CompanyPoliciesViewModel["purchaseRules"] {
+    return rules.map((rule) => {
+        switch (rule.kind) {
+            case "AGE":
+                return {
+                    id: rule.id,
+                    kind: "AGE",
+                    minAge: rule.minAge ?? 0,
+                };
+            case "MIN_TICKETS":
+                return {
+                    id: rule.id,
+                    kind: "MIN_TICKETS",
+                    minTickets: rule.minTickets ?? 0,
+                };
+            case "MAX_TICKETS":
+                return {
+                    id: rule.id,
+                    kind: "MAX_TICKETS",
+                    maxTickets: rule.maxTickets ?? 0,
+                };
+            case "LONE_SEAT":
+                return {
+                    id: rule.id,
+                    kind: "LONE_SEAT",
+                    allowLoneSeat: rule.allowLoneSeat ?? false,
+                };
+        }
+    });
+}
+
+function mapCompanyDiscountRules(
+    rules: BackendCompanyPoliciesResponse["discountPolicy"]["rules"],
+): CompanyPoliciesViewModel["discountRules"] {
+    return rules.map((rule) => {
+        switch (rule.kind) {
+            case "OVERT":
+                return {
+                    id: rule.id,
+                    kind: "OVERT",
+                    percent: rule.percent ?? 0,
+                    fromDate: rule.fromDate,
+                    toDate: rule.toDate,
+                };
+            case "CONDITIONAL":
+                return {
+                    id: rule.id,
+                    kind: "CONDITIONAL",
+                    percent: rule.percent ?? 0,
+                    fromDate: rule.fromDate,
+                    toDate: rule.toDate,
+                    requiredTickets: rule.requiredTickets ?? 0,
+                    appliedTickets: rule.appliedTickets ?? 0,
+                };
+            case "COUPON":
+                return {
+                    id: rule.id,
+                    kind: "COUPON",
+                    percent: rule.percent ?? 0,
+                    fromDate: rule.fromDate,
+                    toDate: rule.toDate,
+                    code: rule.code ?? "",
+                };
+        }
+    });
+}
+
+function mapCompanyPolicies(response: BackendCompanyPoliciesResponse): CompanyPoliciesViewModel {
+    return {
+        purchaseRules: mapCompanyPurchaseRules(response.purchasePolicy.rules),
+        discountRules: mapCompanyDiscountRules(response.discountPolicy.rules),
+    };
+}
+
 const COMPANY_SECTION_SCROLL_OFFSET_PX = 180;
 
 function buildCompanyPageSections(
     isHierarchyVisible: boolean,
     isInviteComposerVisible: boolean,
+    isPoliciesVisible: boolean,
 ): CompanyPageSection[] {
     return [
         { id: "company-overview", label: "Overview", isVisible: true },
         { id: "company-permissions", label: "Permissions", isVisible: true },
+        { id: "company-policies", label: "Policies", isVisible: isPoliciesVisible },
         { id: "company-invitations", label: "Invite users", isVisible: isInviteComposerVisible },
         { id: "company-events", label: "My Events", isVisible: true },
         { id: "company-hierarchy", label: "Hierarchy", isVisible: isHierarchyVisible },
@@ -428,6 +521,7 @@ export default function CompanyPage({
         company,
         errorMessage: "",
         isLoading: true,
+        companyPolicies: null,
         hierarchyRoots: [],
         hierarchyErrorMessage: "",
         hierarchySource: "",
@@ -437,9 +531,11 @@ export default function CompanyPage({
 
     const isHierarchyVisible = isHierarchyViewerRole(state.company.role);
     const isInviteComposerVisible = isCompanyOwnerRole(state.company.role);
+    const isPoliciesVisible = state.company.permissions.includes("Manage policies");
     const companyPageSections = buildCompanyPageSections(
         isHierarchyVisible,
         isInviteComposerVisible,
+        isPoliciesVisible,
     ).filter(
         (section) => section.isVisible,
     );
@@ -476,8 +572,24 @@ export default function CompanyPage({
                 let hierarchyRoots: HierarchyNode[] = [];
                 let hierarchyErrorMessage = "";
                 let hierarchySource = "";
+                let companyPolicies: CompanyPoliciesViewModel | null = null;
                 let managerPermissionsByNodeId: Record<string, BackendCompanyPermissionName[]> = {};
                 let managedEventsForUser: ManagedEvent[] = [];
+
+                if (mappedCompany.permissions.includes("Manage policies")) {
+                    try {
+                        const policiesResponse = await getCompanyPolicies(company.id, user.email);
+                        if (isStale) {
+                            return;
+                        }
+
+                        companyPolicies = mapCompanyPolicies(policiesResponse);
+                    } catch (error) {
+                        if (!isStale) {
+                            console.error("Failed to load company policies:", error);
+                        }
+                    }
+                }
 
                 if (isHierarchyViewerRole(mappedCompany.role)) {
                     try {
@@ -551,6 +663,7 @@ export default function CompanyPage({
                     company: mappedCompany,
                     errorMessage: "",
                     isLoading: false,
+                    companyPolicies,
                     hierarchyRoots,
                     hierarchyErrorMessage,
                     hierarchySource,
@@ -567,6 +680,7 @@ export default function CompanyPage({
                     ...currentState,
                     isLoading: false,
                     errorMessage: getErrorMessage(error, "Failed to load company permissions."),
+                    companyPolicies: null,
                     hierarchyRoots: [],
                     hierarchyErrorMessage: "",
                     hierarchySource: "",
@@ -726,6 +840,66 @@ export default function CompanyPage({
                 ? currentPermissions.filter((currentPermission) => currentPermission !== permission)
                 : [...currentPermissions, permission],
         );
+    }
+
+    async function refreshCompanyPolicies() {
+        if (!currentUser || !isPoliciesVisible) {
+            return;
+        }
+
+        const policiesResponse = await getCompanyPolicies(state.company.id, currentUser.email);
+        setState((currentState) => ({
+            ...currentState,
+            companyPolicies: mapCompanyPolicies(policiesResponse),
+        }));
+    }
+
+    async function handleRemovePurchasePolicyRule(ruleId: string, ruleLabel: string) {
+        if (!currentUser || currentUser.role === "GUEST") {
+            window.alert("Please log in again before removing a policy.");
+            return;
+        }
+
+        const confirmed = window.confirm(
+            `Remove policy rule \"${ruleLabel}\"? This action cannot be undone.`,
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+            await deletePolicyRule(state.company.id, ruleId, {
+                username: currentUser.email,
+            });
+            await refreshCompanyPolicies();
+        } catch (error) {
+            window.alert(getErrorMessage(error, "Failed to remove the policy rule."));
+        }
+    }
+
+    async function handleRemoveDiscountRule(ruleId: string, ruleLabel: string) {
+        if (!currentUser || currentUser.role === "GUEST") {
+            window.alert("Please log in again before removing a discount.");
+            return;
+        }
+
+        const confirmed = window.confirm(
+            `Remove discount \"${ruleLabel}\"? This action cannot be undone.`,
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+            await removeDiscount(state.company.id, ruleId, {
+                username: currentUser.email,
+            });
+            await refreshCompanyPolicies();
+        } catch (error) {
+            window.alert(getErrorMessage(error, "Failed to remove the discount."));
+        }
     }
 
     async function savePermissionDraft() {
@@ -890,6 +1064,15 @@ export default function CompanyPage({
                     ))}
                 </div>
             </section>
+
+            {isPoliciesVisible && (
+                <CompanyPoliciesSection
+                    purchaseRules={state.companyPolicies?.purchaseRules}
+                    discountRules={state.companyPolicies?.discountRules}
+                    onRemovePurchaseRule={handleRemovePurchasePolicyRule}
+                    onRemoveDiscountRule={handleRemoveDiscountRule}
+                />
+            )}
 
             {isInviteComposerVisible && (
                 <section id="company-invitations" className="company-invite-card">

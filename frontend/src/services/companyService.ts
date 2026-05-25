@@ -39,6 +39,49 @@ export type CompanyAccessResponse = {
 	grantedPermissions: CompanyPermissionName[];
 };
 
+export type CompanyPurchasePolicyRuleKind =
+	| "AGE"
+	| "MIN_TICKETS"
+	| "MAX_TICKETS"
+	| "LONE_SEAT";
+
+export type CompanyPurchasePolicyRuleResponse = {
+	id: string;
+	kind: CompanyPurchasePolicyRuleKind;
+	minAge: number | null;
+	minTickets: number | null;
+	maxTickets: number | null;
+	allowLoneSeat: boolean | null;
+};
+
+export type CompanyPurchasePolicyResponse = {
+	rules: CompanyPurchasePolicyRuleResponse[];
+};
+
+export type CompanyDiscountRuleKind = "OVERT" | "CONDITIONAL" | "COUPON";
+
+export type CompanyDiscountRuleResponse = {
+	id: string;
+	kind: CompanyDiscountRuleKind;
+	fromDate: string;
+	toDate: string;
+	percent: number | null;
+	requiredTickets: number | null;
+	appliedTickets: number | null;
+	code: string | null;
+};
+
+export type CompanyDiscountPolicyResponse = {
+	rules: CompanyDiscountRuleResponse[];
+};
+
+export type CompanyPoliciesResponse = {
+	companyId: string;
+	companyName: string;
+	purchasePolicy: CompanyPurchasePolicyResponse;
+	discountPolicy: CompanyDiscountPolicyResponse;
+};
+
 export type CompanyHierarchyResponse = {
 	companyId: string;
 	mermaidChart: string;
@@ -74,6 +117,14 @@ export type ChangeManagerPermissionsRequest = {
 	ownerUsername: string;
 	managerUsername: string;
 	newPermissions: CompanyPermissionName[];
+};
+
+export type DeletePolicyRuleRequest = {
+	username: string;
+};
+
+export type RemoveDiscountRequest = {
+	username: string;
 };
 
 type EventSummaryResponse = {
@@ -140,6 +191,17 @@ export async function getCompanyPermissions(
 	});
 
 	return response.data.data as CompanyAccessResponse;
+}
+
+export async function getCompanyPolicies(
+	companyId: string,
+	userEmail: string,
+): Promise<CompanyPoliciesResponse> {
+	const response = await api.get(`/companies/${companyId}/policies`, {
+		params: { userEmail },
+	});
+
+	return response.data.data as CompanyPoliciesResponse;
 }
 
 export async function getMyCompanies(userEmail: string): Promise<CompanyMembership[]> {
@@ -222,6 +284,27 @@ export async function changeManagerPermissions(
 	request: ChangeManagerPermissionsRequest,
 ): Promise<void> {
 	await api.patch(`/companies/${companyId}/managers/permissions`, request);
+}
+
+export async function deletePolicyRule(
+	companyId: string,
+	ruleId: string,
+	request: DeletePolicyRuleRequest,
+): Promise<void> {
+	await api.delete(`/companies/${companyId}/policy/${ruleId}`, {
+		data: request,
+	});
+}
+
+export async function removeDiscount(
+	companyId: string,
+	discountId: string,
+	request: RemoveDiscountRequest,
+): Promise<void> {
+	await api.delete(`/companies/${companyId}/discounts/${discountId}`, {
+		data: request,
+}
+);
 }
 
 export type RemoveMemberOwnerRequest = {

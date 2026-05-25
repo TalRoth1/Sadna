@@ -14,6 +14,7 @@ import org.example.ApplicationLayer.dto.CompanyDTOs.ChangeManagerPermissionsRequ
 import org.example.ApplicationLayer.dto.CompanyDTOs.CloseCompanyRequest;
 import org.example.ApplicationLayer.dto.CompanyDTOs.CompanyAccessResponse;
 import org.example.ApplicationLayer.dto.CompanyDTOs.CompanyMembershipResponse;
+import org.example.ApplicationLayer.dto.CompanyDTOs.CompanyPoliciesResponse;
 import org.example.ApplicationLayer.dto.CompanyDTOs.CompanyResponse;
 import org.example.ApplicationLayer.dto.CompanyDTOs.CreateCompanyRequest;
 import org.example.ApplicationLayer.dto.CompanyDTOs.DeletePolicyRuleRequest;
@@ -116,6 +117,21 @@ public class CompanyController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to load company permissions"));
+        }
+    }
+
+    @GetMapping("/{companyId}/policies")
+    public ResponseEntity<ApiResponse<CompanyPoliciesResponse>> getCompanyPolicies(
+            @PathVariable("companyId") UUID companyId,
+            @RequestParam String userEmail) {
+        try {
+            CompanyPoliciesResponse policies = companyService.getCompanyPolicies(companyId, userEmail);
+            return ResponseEntity.ok(ApiResponse.success("Company policies loaded successfully", policies));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error("Not authorized to view company policies"));
         }
     }
 
