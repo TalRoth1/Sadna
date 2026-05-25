@@ -505,7 +505,7 @@ public class DevDataSeeder implements CommandLineRunner {
                 // OvertDiscount so the UI can demonstrate "expired" badges /
                 // skip-logic.
                 jazz.addCouponCode(today.minusDays(2), today.plusDays(30), 20f, "JAZZ20");
-                jazz.addOvertDiscount(today.minusMonths(2), today.minusMonths(1), 30f);
+                jazz.addOvertDiscount(today.minusDays(2), today.plusDays(30), 30f);
 
                 // Adults Only: age rule. `minor@demo.test` (16) should fail,
                 // `dave@demo.test` (19) should pass.

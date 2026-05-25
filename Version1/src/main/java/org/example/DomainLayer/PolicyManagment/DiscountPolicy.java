@@ -41,7 +41,12 @@ public class DiscountPolicy {
         boolean couponWasProvided = normalizedCouponCode != null;
         boolean couponWasMatched = false;
 
-        float price = purchase.getPrice();
+        // Always start from the original ticket prices. Otherwise, after a
+        // declined payment, a retry can apply the same discount on top of an
+        // already-discounted ActivePurchase.price.
+        float basePrice = purchase.getTicketIDs().values().stream().reduce(0.0f, Float::sum);
+        purchase.setPrice(basePrice);
+        float price = basePrice;
 
         for (IDiscountRule discountRule : discounts) {
             if (discountRule instanceof CouponCode couponRule) {
