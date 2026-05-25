@@ -24,6 +24,8 @@ import org.example.DomainLayer.DomainException;
 import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.PurchaseDomainService;
 import org.example.DomainLayer.RolesDomainService;
+import org.example.ApplicationLayer.EventService;
+import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.EventSummaryDto;
 import org.example.DomainLayer.PolicyManagment.AgeRule;
 import org.example.DomainLayer.PolicyManagment.ConditionalDiscount;
 import org.example.DomainLayer.PolicyManagment.CouponCode;
@@ -45,13 +47,16 @@ public class CompanyService {
     private final RolesDomainService rolesDomainService;
     private final PurchaseDomainService purchaseDomainService;
     private final INotifier notifier;
+    private final EventService eventService;
 
     public CompanyService(RolesDomainService rolesDomainService,
             PurchaseDomainService purchaseDomainService,
-            INotifier notifier) {
+            INotifier notifier,
+            EventService eventService) {
         this.rolesDomainService = rolesDomainService;
         this.purchaseDomainService = purchaseDomainService;
         this.notifier = notifier;
+        this.eventService = eventService;
     }
 
     public CompanyResponse createCompany(String founderEmail, String companyName) {
@@ -357,13 +362,59 @@ public class CompanyService {
         return new HierarchyResponse(companyId, mermaid);
     }
 
-    public SalesReportResponse getSalesReportForOwner(String ownerUsername, UUID companyId) {
-        if (ownerUsername == null || ownerUsername.isBlank()) {
-            throw new IllegalArgumentException("Owner username is required");
+    public SalesReportResponse getSalesReportForOwner(String ownerEmail, UUID companyId) {
+        if (ownerEmail == null || ownerEmail.isBlank()) {
+            throw new IllegalArgumentException("Owner email is required");
         }
 
-        String report = purchaseDomainService.getSalesReportForOwner(ownerUsername, companyId).toString();
-        return new SalesReportResponse(companyId, ownerUsername, report);
+        org.example.ApplicationLayer.dto.CompanyDTOs.CompanyAccessResponse access =
+            rolesDomainService.getCompanyAccess(companyId, ownerEmail);
+        String normalizedRole = access.role == null ? "" : access.role.trim().toLowerCase();
+        if (!normalizedRole.equals("owner") && !normalizedRole.equals("founder")) {
+            throw new IllegalArgumentException("Only company owners can view the sales report");
+        }
+
+        org.example.ApplicationLayer.dto.SalesReport report =
+            purchaseDomainService.getSalesReportForOwner(ownerEmail, companyId);
+        return new SalesReportResponse(
+                companyId,
+                ownerEmail,
+                report.getEventIds(),
+                report.getTicketIds(),
+                report.getTotalRevenue());
+    }
+
+    public List<org.example.ApplicationLayer.dto.CompanyDTOs.SubordinateEventDto> getEventsManagedBySubordinates(String ownerEmail, UUID companyId) {
+        if (ownerEmail == null || ownerEmail.isBlank()) {
+            throw new IllegalArgumentException("Owner email is required");
+        }
+
+        org.example.ApplicationLayer.dto.CompanyDTOs.CompanyAccessResponse access =
+            rolesDomainService.getCompanyAccess(companyId, ownerEmail);
+        String normalizedRole = access.role == null ? "" : access.role.trim().toLowerCase();
+        if (!normalizedRole.equals("owner") && !normalizedRole.equals("founder")) {
+            throw new IllegalArgumentException("Only company owners can view subordinate events");
+        }
+
+        List<String> managers = rolesDomainService.getOwnerAndSubordinatesUsernames(companyId, ownerEmail);
+
+        List<org.example.ApplicationLayer.dto.CompanyDTOs.SubordinateEventDto> out = new java.util.ArrayList<>();
+        java.util.Set<java.util.UUID> seen = new java.util.HashSet<>();
+        for (String mgr : managers) {
+            List<EventSummaryDto> events = eventService.getEventsForUserInCompany(mgr, companyId);
+            for (EventSummaryDto e : events) {
+                if (!seen.contains(e.eventId())) {
+                    seen.add(e.eventId());
+                    out.add(new org.example.ApplicationLayer.dto.CompanyDTOs.SubordinateEventDto(
+                            e.eventId(), e.companyId(), e.companyName(), e.companyRating(),
+                            e.name(), e.artist(), e.eventType(), e.date(), e.location(), e.rating(),
+                            e.priceMin(), e.priceMax(), e.availableTickets(), e.totalTickets(),
+                            mgr
+                    ));
+                }
+            }
+        }
+        return out;
     }
 
     public CompanyPoliciesResponse getCompanyPolicies(UUID companyId, String userEmail) {

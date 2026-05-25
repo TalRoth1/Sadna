@@ -1,18 +1,23 @@
 package org.example.ApplicationLayer.dto.CompanyDTOs;
 
 import java.util.UUID;
+import java.util.List;
 
 /**
  * Payload for the sales report endpoint.
  */
 public class SalesReportResponse {
     public final UUID companyId;
-    public final String ownerUsername;
-    public final String report;
+    public final String ownerEmail;
+    public final List<UUID> eventIds;
+    public final List<UUID> ticketIds;
+    public final double totalRevenue;
 
-    public SalesReportResponse(UUID companyId, String ownerUsername, String report) {
+    public SalesReportResponse(UUID companyId, String ownerEmail, List<UUID> eventIds, List<UUID> ticketIds, double totalRevenue) {
         this.companyId = companyId;
-        this.ownerUsername = ownerUsername;
-        this.report = report;
+        this.ownerEmail = ownerEmail;
+        this.eventIds = eventIds;
+        this.ticketIds = ticketIds;
+        this.totalRevenue = totalRevenue;
     }
 }

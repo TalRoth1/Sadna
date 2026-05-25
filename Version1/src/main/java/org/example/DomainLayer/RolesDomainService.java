@@ -488,6 +488,50 @@ public class RolesDomainService {
                 grantedPermissions);
     }
 
+    /**
+     * Return the list of usernames (emails) of the owner and all subordinates
+     * in the company hierarchy. Throws when caller is not an owner/founder.
+     */
+    public List<String> getOwnerAndSubordinatesUsernames(UUID companyId, String ownerEmail) {
+        if (companyId == null) {
+            throw new IllegalArgumentException("Company ID is required");
+        }
+        if (ownerEmail == null || ownerEmail.isBlank()) {
+            throw new IllegalArgumentException("Owner email is required");
+        }
+
+        User ownerUser = userRepository.findByEmail(ownerEmail)
+                .orElseThrow(() -> new IllegalArgumentException("Owner user not found"));
+
+        ICompanyMember role = ownerUser.getCompanyRole(companyId);
+        if (!(role instanceof CompanyOwner) && !(role instanceof CompanyFounder)) {
+            throw new IllegalArgumentException("The caller is not a company owner or founder");
+        }
+
+        List<String> out = new java.util.ArrayList<>();
+        // owner username is stored on the role/role.getUsername(); use that to remain consistent
+        out.add(role.getUsername());
+
+        if (role instanceof CompanyOwner ownerRole) {
+            collectSubordinatesUsernames(ownerRole, out);
+        }
+
+        return out;
+    }
+
+    private void collectSubordinatesUsernames(ICompanyMember member, List<String> out) {
+        if (member == null) return;
+        if (member instanceof CompanyOwner owner) {
+            for (ICompanyMember sub : owner.getSubordinates()) {
+                out.add(sub.getUsername());
+                collectSubordinatesUsernames(sub, out);
+            }
+        } else if (member instanceof org.example.DomainLayer.UserAggregate.CompanyManager manager) {
+            // managers don't have further subordinates in this model
+            return;
+        }
+    }
+
     private boolean hasCompanyPermission(ICompanyMember role, CompanyPermission permission) {
         if (role instanceof CompanyFounder || role instanceof CompanyOwner) {
             return true;

@@ -26,6 +26,7 @@ import org.example.ApplicationLayer.dto.CompanyDTOs.RateCompanyRequest;
 import org.example.ApplicationLayer.dto.CompanyDTOs.RemoveDiscountRequest;
 import org.example.ApplicationLayer.dto.CompanyDTOs.RemoveMemberOwnerRequest;
 import org.example.ApplicationLayer.dto.CompanyDTOs.SalesReportResponse;
+import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.EventSummaryDto;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -132,6 +133,21 @@ public class CompanyController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(ApiResponse.error("Not authorized to view company policies"));
+        }
+    }
+
+    @GetMapping("/{companyId}/events/subordinates")
+    public ResponseEntity<ApiResponse<List<org.example.ApplicationLayer.dto.CompanyDTOs.SubordinateEventDto>>> getSubordinatesEvents(
+            @PathVariable("companyId") UUID companyId,
+            @RequestParam String ownerEmail) {
+        try {
+            List<org.example.ApplicationLayer.dto.CompanyDTOs.SubordinateEventDto> events = companyService.getEventsManagedBySubordinates(ownerEmail, companyId);
+            return ResponseEntity.ok(ApiResponse.success("Subordinate events loaded successfully", events));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error("Not authorized to view subordinate events"));
         }
     }
 
@@ -433,10 +449,10 @@ public class CompanyController {
     @GetMapping("/{companyId}/sales-report")
     public ResponseEntity<ApiResponse<SalesReportResponse>> getSalesReport(
             @PathVariable("companyId") UUID companyId,
-            @RequestParam String owner) {
+            @RequestParam String ownerEmail) {
         try {
             SalesReportResponse report = companyService.getSalesReportForOwner(
-                    owner, companyId);
+                    ownerEmail, companyId);
             return ResponseEntity.ok(ApiResponse.success(report));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));

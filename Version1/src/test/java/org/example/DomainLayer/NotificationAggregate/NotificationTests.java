@@ -337,7 +337,8 @@ public class NotificationTests {
         CompanyService companyService = new CompanyService(
                 rolesDomainService,
                 purchaseDomainService,
-                notifier
+                notifier,
+                mock(EventService.class)
         );
 
         String ownerUsername = "owner_bob";
