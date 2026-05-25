@@ -1,32 +1,5 @@
 package org.example.ApplicationLayer;
 
-import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.AreaSummaryDto;
-import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.CompanyCatalogDto;
-import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.EventDetailsDto;
-import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.EventSummaryDto;
-import org.example.ApplicationLayer.dto.PurchaseDTOs.PurchaseHistoryDTO;
-import org.example.DomainLayer.DomainException;
-import org.example.DomainLayer.EventManagementDomainService;
-import org.example.DomainLayer.ICompanyRepository;
-import org.example.DomainLayer.IEventRepository;
-import org.example.DomainLayer.IHistoryRepository;
-import org.example.DomainLayer.IUserRepository;
-import org.example.DomainLayer.CompanyAggregate.Company;
-import org.example.DomainLayer.EventAggregate.Event;
-import org.example.DomainLayer.EventAggregate.EventSearchCriteria;
-import org.example.DomainLayer.EventAggregate.EventStatus;
-import org.example.DomainLayer.EventAggregate.SittingArea;
-import org.example.DomainLayer.EventAggregate.StandingArea;
-import org.example.DomainLayer.NotificationAggregate.INotifier;
-import org.example.DomainLayer.PolicyManagment.IDiscountRule;
-import org.example.DomainLayer.UserAggregate.CompanyFounder;
-import org.example.DomainLayer.UserAggregate.User;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnitRunner;
-
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -42,13 +15,46 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.AreaSummaryDto;
+import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.CompanyCatalogDto;
+import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.EventDetailsDto;
+import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.EventSummaryDto;
+import org.example.ApplicationLayer.dto.PurchaseDTOs.PurchaseHistoryDTO;
+import org.example.DomainLayer.CompanyAggregate.Company;
+import org.example.DomainLayer.DomainException;
+import org.example.DomainLayer.EventAggregate.Event;
+import org.example.DomainLayer.EventAggregate.EventSearchCriteria;
+import org.example.DomainLayer.EventAggregate.EventStatus;
+import org.example.DomainLayer.EventAggregate.SittingArea;
+import org.example.DomainLayer.EventAggregate.StandingArea;
+import org.example.DomainLayer.EventManagementDomainService;
+import org.example.DomainLayer.ICompanyRepository;
+import org.example.DomainLayer.IEventRepository;
+import org.example.DomainLayer.IHistoryRepository;
+import org.example.DomainLayer.IUserRepository;
+import org.example.DomainLayer.NotificationAggregate.INotifier;
+import org.example.DomainLayer.PolicyManagment.IDiscountRule;
+import org.example.DomainLayer.UserAggregate.CompanyFounder;
+import org.example.DomainLayer.UserAggregate.User;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import org.mockito.Mock;
+import static org.mockito.Mockito.atLeast;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
+import org.mockito.junit.MockitoJUnitRunner;
 
 @RunWith(MockitoJUnitRunner.class)
 public class EventServiceTest {
@@ -128,8 +134,8 @@ public class EventServiceTest {
 
         when(userRepository.findByEmail(ownerUsername)).thenReturn(Optional.of(ownerUser));
         when(userRepository.hasPermission(ownerUsername, companyId,
-            org.example.DomainLayer.CompanyAggregate.CompanyPermission.MANAGE_POLICIES, eventId))
-            .thenReturn(true);
+                org.example.DomainLayer.CompanyAggregate.CompanyPermission.MANAGE_POLICIES, eventId))
+                .thenReturn(true);
     }
 
     // =====================================================================
@@ -278,7 +284,7 @@ public class EventServiceTest {
     public void GivenNullEventId_WhenAddEvent_ThenIllegalArgumentExceptionIsThrown() {
         assertThrows(IllegalArgumentException.class,
                 () -> eventService.addEvent(null, companyId, ownerUsername, "name", LocalDateTime.now().plusDays(10),
-                        "Tel Aviv", "Some Artist", "concert", EventStatus.ACTIVE));
+                        "Tel Aviv", "Some Artist", "concert", EventStatus.ACTIVE, "description"));
         verifyNoInteractions(eventRepository);
     }
 
@@ -286,14 +292,14 @@ public class EventServiceTest {
     public void GivenNullCompanyId_WhenAddEvent_ThenIllegalArgumentExceptionIsThrown() {
         assertThrows(IllegalArgumentException.class,
                 () -> eventService.addEvent(eventId, null, ownerUsername, "name", LocalDateTime.now().plusDays(10),
-                        "Tel Aviv", "Some Artist", "concert", EventStatus.ACTIVE));
+                        "Tel Aviv", "Some Artist", "concert", EventStatus.ACTIVE, "description"));
         verifyNoInteractions(eventRepository);
     }
 
     @Test
     public void GivenNullEventId_WhenEditEvent_ThenIllegalArgumentExceptionIsThrown() {
         assertThrows(IllegalArgumentException.class,
-                () -> eventService.editEvent(null, null, null, null, null, null, null));
+                () -> eventService.editEvent(null, null, null, null, null, null, null, null));
         verifyNoInteractions(eventRepository);
     }
 
@@ -409,7 +415,13 @@ public class EventServiceTest {
                 "concert",
                 EventStatus.ACTIVE
         );
+        created.setName("Headline Show");
+        created.setDescription("description");
 
+        User ownerUser = new User(UUID.randomUUID(), ownerUsername, ownerUsername, "hash", 40);
+        ownerUser.getCompanyRoles().put(companyId, new CompanyFounder(ownerUsername));
+
+        when(userRepository.findByEmail(ownerUsername)).thenReturn(Optional.of(ownerUser));
         when(eventRepository.getById(eventId))
                 .thenReturn(null)
                 .thenReturn(created);
@@ -417,13 +429,14 @@ public class EventServiceTest {
         EventDetailsDto result = eventService.addEvent(
                 eventId,
                 companyId,
-            ownerUsername,
+                ownerUsername,
                 "Headline Show",
                 date,
                 "Tel Aviv",
                 "Some Artist",
                 "concert",
-                EventStatus.ACTIVE
+                EventStatus.ACTIVE,
+                "description"
         );
 
         assertNotNull(result);
@@ -438,7 +451,7 @@ public class EventServiceTest {
         LocalDateTime newDate = LocalDateTime.now().plusDays(60);
 
         EventSummaryDto result = eventService.editEvent(eventId, "Renamed Show", newDate, "Haifa",
-                "New Artist", "festival", EventStatus.CANCELED);
+                "New Artist", "festival", EventStatus.CANCELED, "Updated description");
 
         assertNotNull(result);
         assertEquals("Renamed Show", result.name());
@@ -460,7 +473,7 @@ public class EventServiceTest {
         Event event = newRealEvent();
         when(eventRepository.getById(eventId)).thenReturn(event);
 
-        EventSummaryDto result = eventService.editEvent(eventId, null, null, null, null, null, null);
+        EventSummaryDto result = eventService.editEvent(eventId, null, null, null, null, null, null, null);
 
         assertNotNull(result);
         verify(eventRepository).save(any(Event.class));
@@ -898,8 +911,8 @@ public class EventServiceTest {
         when(eventRepository.getById(eventId)).thenReturn(newRealEvent());
 
         assertThrows(DomainException.class,
-            () -> eventService.addEvent(eventId, companyId, ownerUsername, "name", LocalDateTime.now().plusDays(10),
-                        "Tel Aviv", "Some Artist", "concert", EventStatus.ACTIVE));
+                () -> eventService.addEvent(eventId, companyId, ownerUsername, "name", LocalDateTime.now().plusDays(10),
+                        "Tel Aviv", "Some Artist", "concert", EventStatus.ACTIVE, "description"));
         verify(eventRepository, never()).save(any(Event.class));
     }
 
@@ -908,7 +921,7 @@ public class EventServiceTest {
         when(eventRepository.getById(eventId)).thenReturn(null);
 
         assertThrows(DomainException.class,
-                () -> eventService.editEvent(eventId, null, null, null, null, null, null));
+                () -> eventService.editEvent(eventId, null, null, null, null, null, null, null));
         verify(eventRepository, never()).save(any(Event.class));
     }
 
@@ -919,7 +932,7 @@ public class EventServiceTest {
         doThrow(new RuntimeException("DB down")).when(eventRepository).save(any(Event.class));
 
         DomainException ex = assertThrows(DomainException.class,
-            () -> eventService.rateEvent(userId, eventId, 4));
+                () -> eventService.rateEvent(userId, eventId, 4));
         assertEquals("DB down", ex.getMessage());
     }
 

@@ -167,6 +167,11 @@ export type RemoveDiscountRequest = {
 	username: string;
 };
 
+export type RemoveMemberOwnerRequest = {
+	ownerEmail: string;
+	emailToRemove: string;
+};
+
 type EventSummaryResponse = {
 	eventId: string;
 	companyId: string;
@@ -399,12 +404,8 @@ export async function removeDiscount(
 	await api.delete(`/companies/${companyId}/discounts/${discountId}`, {
 		data: request,
 	});
+	});
 }
-
-export type RemoveMemberOwnerRequest = {
-	ownerEmail: string;
-	emailToRemove: string;
-};
 
 export async function removeCompanyMemberAsOwner(
 	companyId: string,

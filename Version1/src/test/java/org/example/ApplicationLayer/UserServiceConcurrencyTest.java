@@ -21,7 +21,6 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 import org.junit.Before;
 import org.junit.Test;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyFloat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -82,8 +81,9 @@ public class UserServiceConcurrencyTest {
         when(gatewayMock.verifyPassword(anyString(), anyString()))
                 .thenReturn(true);
 
-        // The new constructor we're forcing into existence.
-        userService = new UserService(realRepo, gatewayMock, notifierMock, keyedLock);
+        // EventPublisher is a no-subscriber no-op in this concurrency test context.
+        userService = new UserService(realRepo, gatewayMock, notifierMock, keyedLock,
+                new EventPublisher());
     }
 
     // ================================================================

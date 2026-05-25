@@ -37,6 +37,44 @@ public class PurchaseController {
     //  1. Ticket selection (creates active purchase)
     // ================================================================
 
+    @PostMapping("/events/{eventId}/selection-access")
+    public ResponseEntity<ApiResponse<SelectionAccessDTO>> requestSelectionAccess(
+            @PathVariable("eventId") UUID eventId,
+            @RequestBody SelectionAccessRequest request) {
+        try {
+            SelectionAccessDTO access = purchaseService.requestSelectionAccess(
+                    request.userId,
+                    eventId
+            );
+
+            return ResponseEntity.ok(ApiResponse.success(access.message, access));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to request selection access: system exception"));
+        }
+    }
+
+    @GetMapping("/events/{eventId}/selection-access")
+    public ResponseEntity<ApiResponse<SelectionAccessDTO>> getSelectionAccessStatus(
+            @PathVariable("eventId") UUID eventId,
+            @RequestParam("userId") UUID userId) {
+        try {
+            SelectionAccessDTO access = purchaseService.getSelectionAccessStatus(
+                    userId,
+                    eventId
+            );
+
+            return ResponseEntity.ok(ApiResponse.success(access.message, access));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to fetch selection access status: system exception"));
+        }
+    }
+
     // TODO (V3): Extract userID from JWT token
     @PostMapping("/events/{eventId}/sitting")
     public ResponseEntity<ApiResponse<ActivePurchaseDTO>> selectSittingTickets(

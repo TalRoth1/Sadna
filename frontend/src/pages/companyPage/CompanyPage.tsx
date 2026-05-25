@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { ComponentProps } from "react";
+import type { ComponentProps, FormEvent } from "react";
 import {
     addConditionalDiscount,
     addCouponCode,
@@ -148,6 +148,8 @@ type InvitationTargetRole = "manager" | "owner";
 type CompanyPageProps = {
     company: CompanyViewModel;
     onBackToCompanies: () => void;
+    onCreateEvent: (companyId: string) => void;
+
 };
 
 type CompanyPageState = {
@@ -591,6 +593,7 @@ function ManagedEventCard({
 export default function CompanyPage({
     company,
     onBackToCompanies,
+    onCreateEvent,
 }: CompanyPageProps) {
     const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
     const [inviteEmail, setInviteEmail] = useState("");
@@ -847,7 +850,7 @@ export default function CompanyPage({
         };
     }, [company]);
 
-    async function handleInviteSubmit(event: React.FormEvent<HTMLFormElement>) {
+    async function handleInviteSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
 
         const email = inviteEmail.trim();
@@ -1474,6 +1477,9 @@ export default function CompanyPage({
                     <button
                         type="button"
                         className="company-event-create-button"
+                        onClick={() => {
+                            onCreateEvent(state.company.id);
+                        }}
                     >
                         Create event
                     </button>
@@ -1765,39 +1771,4 @@ function HierarchyBranch({
 function extractEmailFromHierarchyLabel(label: string) {
     const emailMatch = label.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/);
     return emailMatch ? emailMatch[0] : null;
-}
-
-function SubordinateEventCard({
-    event,
-}: {
-    event: SubordinateEvent;
-}) {
-    return (
-        <article className="company-event-card">
-            <div className="company-event-card-main">
-                <div className="company-event-card-heading">
-                    <h3>{event.name}</h3>
-                    <span className="company-event-category-badge">{event.type}</span>
-                </div>
-
-                <p className="company-event-meta">{formatEventDate(event.date)}</p>
-                <p className="company-event-meta">{event.location}</p>
-                <p className="company-event-meta company-event-company">Managed by: {event.managerEmail}</p>
-            </div>
-
-            <div className="company-event-card-side">
-                <span className={getManagedEventStatusClass(event as ManagedEvent)}>
-                    {getManagedEventStatus(event as ManagedEvent)}
-                </span>
-                <span className="company-event-rating" aria-label={`Rating ${event.rating}`}>
-                    ★ {event.rating.toFixed(1)}
-                </span>
-                <span className="company-event-availability">
-                    {event.availableTickets > 0
-                        ? `${event.availableTickets} tickets left`
-                        : "No tickets left"}
-                </span>
-            </div>
-        </article>
-    );
 }

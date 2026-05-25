@@ -27,7 +27,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.*;
 
 
 public class UserServiceTest {
@@ -36,15 +35,19 @@ public class UserServiceTest {
     private IAuthenticationGateway authGatewayMock;
     private UserService userService;
     private INotifier notifier;
+    // EventPublisher is passed to UserService so it can emit UserRegisteredEvent.
+    // A real (non-mocked) instance is used here — it has no subscribers in the
+    // test context, so publish() is a no-op that does not affect behaviour.
+    private EventPublisher eventPublisher;
 
     @Before
     public void setUp() {
         userRepositoryMock = mock(IUserRepository.class);
         authGatewayMock = mock(IAuthenticationGateway.class);
-        // FIX: Mock the notifier so a valid mock instance is injected into the service 
-        notifier = mock(INotifier.class); 
+        notifier = mock(INotifier.class);
+        eventPublisher = new EventPublisher();
         userService = new UserService(userRepositoryMock, authGatewayMock, notifier,
-                new InMemoryKeyedLock<>());
+                new InMemoryKeyedLock<>(), eventPublisher);
     }
 
     // ================================================================
@@ -168,7 +171,11 @@ public class UserServiceTest {
         );
 
         verify(userRepositoryMock, times(1)).existsByEmail(request.email);
-        verify(authGatewayMock, never()).verifyUserDetails(any(), any(), anyInt(), any());
+        // verifyUserDetails runs *before* the email check (outside the keyed lock,
+        // because it is CPU-bound and must not hold the lock while hashing).
+        // The test must therefore expect it to have been called exactly once.
+        verify(authGatewayMock, times(1)).verifyUserDetails(
+                request.email, request.plainPassword, request.age, request.username);
         verify(userRepositoryMock, never()).add(any(User.class));
     }
 

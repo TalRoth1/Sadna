@@ -9,11 +9,14 @@ import org.example.ApplicationLayer.IActiveSessionRegistry;
 import org.example.ApplicationLayer.IKeyedLock;
 import org.example.ApplicationLayer.ILoginRateLimiter;
 import org.example.ApplicationLayer.IPaymentGateway;
+import org.example.ApplicationLayer.ISystemMetricsTracker;
 import org.example.ApplicationLayer.ITicketingGateway;
 import org.example.ApplicationLayer.ITokenBlacklist;
 import org.example.ApplicationLayer.JwtService;
 import org.example.ApplicationLayer.PurchaseService;
 import org.example.ApplicationLayer.QueueManager;
+import org.example.ApplicationLayer.SystemMetricsCollector;
+import org.example.InfrastructureLayer.InMemorySystemMetricsTracker;
 import org.example.DomainLayer.EventManagementDomainService;
 import org.example.DomainLayer.ICompanyRepository;
 import org.example.DomainLayer.IEventRepository;
@@ -21,6 +24,7 @@ import org.example.DomainLayer.IHistoryRepository;
 import org.example.DomainLayer.ILotteryRepository;
 import org.example.DomainLayer.IPurchaseRepository;
 import org.example.DomainLayer.IUserRepository;
+import org.example.DomainLayer.INotificationRepository;
 import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.PurchaseDomainService;
 import org.example.DomainLayer.RolesDomainService;
@@ -174,13 +178,13 @@ public class BeanConfig {
     }
 
     @Bean
-    public NotificationRepository notificationRepository() {
+    public INotificationRepository notificationRepository() {
         return new NotificationRepository();
     }
 
     @Bean
     public INotifier notifier(Broadcaster broadcaster,
-                              NotificationRepository notificationRepository) {
+                              INotificationRepository notificationRepository) {
         return new Notifier(broadcaster, notificationRepository);
     }
 
@@ -233,6 +237,34 @@ public class BeanConfig {
     @Bean
     public QueueManager queueManager(INotifier notifier) {
         return new QueueManager(notifier);
+    }
+
+    // ---------------------------------------------------------------------
+    // System Analytics — sliding-window rate tracker + event collector.
+    //
+    // InMemorySystemMetricsTracker is the Infrastructure adapter that
+    // implements the ISystemMetricsTracker port.  SystemMetricsCollector is
+    // the Application-layer handler that bridges domain events to the
+    // tracker.  Both are framework-free (no @Service / @Component), so they
+    // must be wired explicitly here.
+    //
+    // The collector is subscribed to the shared EventPublisher in the same
+    // factory method that creates it, so no other class needs to know about
+    // the subscription.
+    // ---------------------------------------------------------------------
+
+    @Bean
+    public ISystemMetricsTracker systemMetricsTracker() {
+        return new InMemorySystemMetricsTracker();
+    }
+
+    @Bean
+    public SystemMetricsCollector systemMetricsCollector(
+            ISystemMetricsTracker metricsTracker,
+            EventPublisher eventPublisher) {
+        SystemMetricsCollector collector = new SystemMetricsCollector(metricsTracker);
+        eventPublisher.subscribe(collector::handle);
+        return collector;
     }
 
     // ---------------------------------------------------------------------

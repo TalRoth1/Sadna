@@ -5,9 +5,9 @@ import java.util.UUID;
 import java.util.logging.Logger;
 
 import org.example.ApplicationLayer.dto.NotificationDTOs.NotificationDTO;
+import org.example.DomainLayer.INotificationRepository;
 import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.NotificationAggregate.NotificationType;
-import org.example.InfrastructureLayer.NotificationRepository;
 import org.example.InfrastructureLayer.Notifier;
 import org.springframework.stereotype.Service;
 
@@ -17,10 +17,10 @@ public class NotificationService {
     private static final Logger logger = Logger.getLogger(NotificationService.class.getName());
 
     private final INotifier notifier;
-    private final NotificationRepository notificationRepository;
+    private final INotificationRepository notificationRepository;
 
     public NotificationService(INotifier notifier,
-                               NotificationRepository notificationRepository) {
+                               INotificationRepository notificationRepository) {
         if (notifier == null) {
             throw new IllegalArgumentException("Notifier is required");
         }
@@ -68,7 +68,7 @@ public class NotificationService {
     public List<NotificationDTO> getAllNotifications(String userId) {
         validateUserId(userId);
 
-        return notificationRepository.findByRecipient(userId)
+        return notificationRepository.findAllByRecipient(userId)
                 .stream()
                 .map(NotificationDTO::new)
                 .toList();

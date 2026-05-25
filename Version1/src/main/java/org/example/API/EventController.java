@@ -25,8 +25,17 @@ import org.example.ApplicationLayer.dto.PurchaseDTOs.PurchaseHistoryDTO;
 import org.example.DomainLayer.EventAggregate.EventSearchCriteria;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.example.ApplicationLayer.dto.EventDTOs.AddSittingAreaRequest;
+import org.example.ApplicationLayer.dto.EventDTOs.AddStandingAreaRequest;
 /**
  * EventController
  *
@@ -64,7 +73,9 @@ public class EventController {
                     request.location,
                     request.artist,
                     request.type,
-                    request.status);
+                    request.status,
+                    request.description);
+
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(ApiResponse.success("Event created successfully", event));
         } catch (IllegalArgumentException | IllegalStateException e) {
@@ -75,6 +86,7 @@ public class EventController {
         }
     }
 
+
     @PutMapping("/{eventId}")
     public ResponseEntity<ApiResponse<EventSummaryDto>> editEvent(
             @PathVariable("eventId") UUID eventId,
@@ -82,7 +94,7 @@ public class EventController {
         try {
             EventSummaryDto event = eventService.editEvent(
                     eventId, request.name, request.date, request.location,
-                    request.artist, request.type, request.status);
+                    request.artist, request.type, request.status, request.description);
             return ResponseEntity.ok(ApiResponse.success("Event updated successfully", event));
         } catch (IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
@@ -142,6 +154,40 @@ public class EventController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to add sitting tickets: system exception"));
+        }
+    }
+
+    @PostMapping("/{eventId}/areas/sitting")
+    public ResponseEntity<ApiResponse<Void>> addSittingArea(
+            @PathVariable("eventId") UUID eventId,
+            @RequestBody AddSittingAreaRequest request) {
+        try {
+            eventService.addSittingArea(eventId, request.price, request.rows, request.seatsPerRow);
+
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.success("Sitting area created successfully"));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to create sitting area: system exception"));
+        }
+    }
+
+    @PostMapping("/{eventId}/areas/standing")
+    public ResponseEntity<ApiResponse<Void>> addStandingArea(
+            @PathVariable("eventId") UUID eventId,
+            @RequestBody AddStandingAreaRequest request) {
+        try {
+            eventService.addStandingArea(eventId, request.price, request.count);
+
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.success("Standing area created successfully"));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to create standing area: system exception"));
         }
     }
 

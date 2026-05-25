@@ -210,6 +210,20 @@ public class PurchaseDomainService {
         }
     }
 
+    public UUID getEventManagerUserId(UUID eventId) {
+        String managerIdentifier = getEventManager(eventId);
+
+        return userRepository.getAllUsers().values().stream()
+                .filter(user ->
+                        managerIdentifier.equalsIgnoreCase(user.getEmail())
+                                || managerIdentifier.equalsIgnoreCase(user.getUsername()))
+                .map(User::getId)
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException(
+                        "Event manager user not found: " + managerIdentifier
+                ));
+    }
+
 
     public boolean completePurchase(UUID activePurchaseID, PaymentDetails paymentDetails, String couponCode) 
     { //returns true if last ticket to event was bought
@@ -250,13 +264,25 @@ public class PurchaseDomainService {
                 throw e;
             }
 
+            String normalizedCouponCode =
+                    couponCode == null || couponCode.isBlank()
+                            ? null
+                            : couponCode.trim();
+
             DiscountPolicy relevantDiscountPolicy;
-            if (event.getDiscountPolicy() != null)
+            if (event.getDiscountPolicy() != null) {
                 relevantDiscountPolicy = event.getDiscountPolicy();
-            else relevantDiscountPolicy = companyRepository.findByID(event.getCompanyId()).get().getDiscountPolicy();
+            } else {
+                relevantDiscountPolicy = companyRepository
+                        .findByID(event.getCompanyId())
+                        .orElseThrow(() -> new DomainException("Company not found"))
+                        .getDiscountPolicy();
+            }
 
-            float finalPrice = relevantDiscountPolicy.applyDiscount(activePurchase);
-
+            float finalPrice = relevantDiscountPolicy.applyDiscount(
+                    activePurchase,
+                    normalizedCouponCode
+            );
             // Step 1: charge the user. A "declined" outcome is a normal
             // business answer (not an exception), so we leave the
             // reservation in place and let the user retry with a

@@ -193,6 +193,7 @@ type EventDetailsResponse = {
     eventType: string;
     date: string;
     location: string;
+    description: string | null;
     tags: string[];
     status: EventStatus;
     rating: number;
@@ -336,6 +337,9 @@ function toEventDetails(response: EventDetailsResponse): Event {
     };
     if (response.lotteryId) {
         event.lotteryId = response.lotteryId;
+    }
+    if (response.description != null) {
+        event.description = response.description;
     }
     return event;
 }

@@ -11,6 +11,7 @@ import org.example.DomainLayer.DomainException;
 import org.example.DomainLayer.EventAggregate.Event;
 import org.example.DomainLayer.Events.LotteryWonEvent;
 import org.example.DomainLayer.Events.PurchaseCompletedEvent;
+import org.example.DomainLayer.Events.TicketReservedEvent;
 import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.PurchaseDomainService;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
@@ -19,6 +20,7 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import org.example.ApplicationLayer.dto.PurchaseDTOs.ActivePurchaseDTO;
 import org.example.ApplicationLayer.dto.PurchaseDTOs.PurchaseHistoryDTO;
+import org.example.ApplicationLayer.dto.PurchaseDTOs.SelectionAccessDTO;
 
 @Service
 public class PurchaseService {
@@ -36,7 +38,7 @@ public class PurchaseService {
         this.notifier = notifier;
     }
 
-    private void validateAdmin(UUID adminId) {
+    public void validateAdmin(UUID adminId) {
         if (adminId == null) {
             throw new IllegalArgumentException("Admin ID is required");
         }
@@ -71,20 +73,21 @@ public class PurchaseService {
             // קודם בודקים זכאות, לפני תור
             purchaseDomainService.validateSelectionEligibility(eventID, userID, accessCode);
 
-            validateQueueAccess(userID, eventID);
+            requireQueueAccess(userID, eventID);
 
             purchaseDomainService.selectSittingTicketsWithLotteryCode(
                     eventID, ticketIDs, userID, isConfirmedAge, accessCode
             );
 
-            queueManager.finishAccess(userID, eventID);
-            queueManager.releaseBatch(eventID, 1);
             logger.info("action=selectSittingTicketsWithLotteryCode completed successfully, caller=" + userID + ", params={eventID=" + eventID + ", ticketCount=" + ticketIDs.size() + "}");
 
 
         } catch (DomainException e) {
             logger.severe("action=selectSittingTicketsWithLotteryCode failed, caller=" + userID + ", params={eventID=" + eventID + ", ticketCount=" + (ticketIDs == null ? 0 : ticketIDs.size()) + "}, error=" + e.getMessage());
             throw new IllegalStateException("Couldn't select lottery sitting tickets: " + e.getMessage());
+        } finally {
+            queueManager.finishAccess(userID, eventID);
+            queueManager.releaseBatch(eventID, 1);
         }
     }
     public void selectStandingTicketsWithLotteryCode(UUID eventID,int amount,UUID areaID,UUID userID,boolean isConfirmedAge,String accessCode)
@@ -117,87 +120,138 @@ public class PurchaseService {
             // קודם בודקים זכאות, לפני תור
             purchaseDomainService.validateSelectionEligibility(eventID, userID, accessCode);
 
-            validateQueueAccess(userID, eventID);
+            requireQueueAccess(userID, eventID);
 
             purchaseDomainService.selectStandingTicketsWithLotteryCode(
                     eventID, amount, userID, areaID, isConfirmedAge, accessCode
             );
 
-            queueManager.finishAccess(userID, eventID);
-            queueManager.releaseBatch(eventID, 1);
             logger.info("action=selectStandingTicketsWithLotteryCode completed successfully, caller=" + userID + ", params={eventID=" + eventID + ", areaID=" + areaID + ", amount=" + amount + "}");
 
 
         } catch (DomainException e) {
             logger.severe("action=selectStandingTicketsWithLotteryCode failed, caller=" + userID + ", params={eventID=" + eventID + ", areaID=" + areaID + ", amount=" + amount + "}, error=" + e.getMessage());
             throw new IllegalStateException("Couldn't select lottery standing tickets: " + e.getMessage());
+        } finally {
+            queueManager.finishAccess(userID, eventID);
+            queueManager.releaseBatch(eventID, 1);
         }
     }
 
-    private void validateQueueAccess(UUID userId, UUID eventId)
-    {
+    public void sendProducerMessageToEventBuyers(UUID eventId, String message) {
+        if (eventId == null) {
+            throw new IllegalArgumentException("Event ID is required");
+        }
+
+        if (message == null || message.isBlank()) {
+            throw new IllegalArgumentException("Message is required");
+        }
+
+        List<PurchaseHistory> histories =
+                purchaseDomainService.getHistoryByEvent(eventId);
+
+        List<UUID> buyerIds = histories.stream()
+                .map(PurchaseHistory::getUserId)
+                .distinct()
+                .toList();
+
+        for (UUID buyerId : buyerIds) {
+            notifier.notifyUser(buyerId, message);
+        }
+    }
+
+    /**
+     * Entry point used by the waiting-room UI before the user reaches the
+     * practical ticket-selection stage. This method may grant immediate access
+     * or place the user in the event queue. It does not reserve tickets.
+     */
+    public SelectionAccessDTO requestSelectionAccess(UUID userId, UUID eventId) {
         QueueAccessResult result = queueManager.requestSelectionAccess(userId, eventId);
-        if (!result.isAllowed())
-            throw new IllegalStateException("User is waiting in queue. Position: " + result.getUserPositionInQueue() + "/" + result.getQueueSize());
+        return toSelectionAccessDTO(userId, eventId, result);
+    }
+
+    /**
+     * Read-only status used by the waiting-room polling loop. It must not add
+     * a user to the queue if they are not already waiting.
+     */
+    public SelectionAccessDTO getSelectionAccessStatus(UUID userId, UUID eventId) {
+        QueueAccessResult result = queueManager.getSelectionAccessStatus(userId, eventId);
+        return toSelectionAccessDTO(userId, eventId, result);
+    }
+
+    /**
+     * Reservation endpoints use this method. It only verifies that the user
+     * already owns a live selection window; it never queues the user.
+     */
+    private void requireQueueAccess(UUID userId, UUID eventId) {
+        queueManager.requireSelectionAccess(userId, eventId);
     }
 
     public ActivePurchaseDTO selectSittingTickets(UUID eventID, List<UUID> ticketIDs, UUID userID, boolean isConfirmedAge) {
-        if (ticketIDs == null || ticketIDs.isEmpty()) {
-            throw new IllegalArgumentException("Amount must be greater than zero");
-        }
-        if (userID == null) {
-            throw new IllegalArgumentException("User ID is required");
-        }
-        if (purchaseDomainService.isLotteryEvent(eventID)) {
-            throw new IllegalStateException("זה אירוע המיועד להגרלה. אי אפשר לקנות ממנו כרטיסים באופן רגיל.");
-        }
-
-        validateQueueAccess(userID, eventID);
-
-        try {
-            ActivePurchase activePurchase =
-                    purchaseDomainService.selectSittingTickets(eventID, ticketIDs, userID, isConfirmedAge);
-
-            queueManager.finishAccess(userID, eventID);
-            queueManager.releaseBatch(eventID, 1);
-
-            return toActivePurchaseDTO(activePurchase);
-        } catch (DomainException e) {
-            throw new IllegalStateException("Couldn't select the sitting tickets: " + e.getMessage());
-        }
+    if (ticketIDs == null || ticketIDs.isEmpty()) {
+        throw new IllegalArgumentException("Amount must be greater than zero");
     }
+    if (userID == null) {
+        throw new IllegalArgumentException("User ID is required");
+    }
+    if (purchaseDomainService.isLotteryEvent(eventID)) {
+        throw new IllegalStateException("זה אירוע המיועד להגרלה. אי אפשר לקנות ממנו כרטיסים באופן רגיל.");
+    }
+
+    requireQueueAccess(userID, eventID);
+
+    try {
+        ActivePurchase activePurchase =
+                purchaseDomainService.selectSittingTickets(eventID, ticketIDs, userID, isConfirmedAge);
+
+        eventPublisher.publish(new TicketReservedEvent(userID, eventID));
+
+        return toActivePurchaseDTO(activePurchase);
+    } catch (DomainException e) {
+        throw new IllegalStateException("Couldn't select the sitting tickets: " + e.getMessage());
+    } finally {
+        queueManager.finishAccess(userID, eventID);
+        queueManager.releaseBatch(eventID, 1);
+    }
+}
 
     public ActivePurchaseDTO selectStandingTickets(UUID eventID, int amount, UUID areaID, UUID userID, boolean isConfirmedAge) {
-        if (amount <= 0) {
-            throw new IllegalArgumentException("Amount must be greater than zero");
-        }
-        if (userID == null) {
-            throw new IllegalArgumentException("User ID is required");
-        }
-        if (purchaseDomainService.isLotteryEvent(eventID)) {
-            throw new IllegalStateException("זה אירוע המיועד להגרלה. אי אפשר לקנות ממנו כרטיסים באופן רגיל.");
-        }
-
-        validateQueueAccess(userID, eventID);
-
-        try {
-            ActivePurchase activePurchase =
-                    purchaseDomainService.selectStandingTickets(eventID, amount, userID, areaID, isConfirmedAge);
-
-            queueManager.finishAccess(userID, eventID);
-            queueManager.releaseBatch(eventID, 1);
-
-            return toActivePurchaseDTO(activePurchase);
-        } catch (DomainException e) {
-            throw new IllegalStateException("Couldn't select the standing tickets: " + e.getMessage());
-        }
+    if (amount <= 0) {
+        throw new IllegalArgumentException("Amount must be greater than zero");
     }
+    if (userID == null) {
+        throw new IllegalArgumentException("User ID is required");
+    }
+    if (purchaseDomainService.isLotteryEvent(eventID)) {
+        throw new IllegalStateException("זה אירוע המיועד להגרלה. אי אפשר לקנות ממנו כרטיסים באופן רגיל.");
+    }
+
+    requireQueueAccess(userID, eventID);
+
+    try {
+        ActivePurchase activePurchase =
+                purchaseDomainService.selectStandingTickets(eventID, amount, userID, areaID, isConfirmedAge);
+
+        eventPublisher.publish(new TicketReservedEvent(userID, eventID));
+
+        return toActivePurchaseDTO(activePurchase);
+    } catch (DomainException e) {
+        throw new IllegalStateException("Couldn't select the standing tickets: " + e.getMessage());
+    } finally {
+        queueManager.finishAccess(userID, eventID);
+        queueManager.releaseBatch(eventID, 1);
+    }
+}
 
     public void completePurchase(UUID activePurchaseID, PaymentDetails paymentDetails, String couponCode)
     {
-        logger.info("Starting completePurchase: activePurchaseID=" + activePurchaseID +
-                ", couponCode=" + (couponCode != null ? couponCode : "none"));
+        String normalizedCouponCode =
+                couponCode == null || couponCode.isBlank()
+                        ? null
+                        : couponCode.trim();
 
+        logger.info("Starting completePurchase: activePurchaseID=" + activePurchaseID +
+                ", couponCode=" + (normalizedCouponCode != null ? normalizedCouponCode : "none"));
         if (activePurchaseID == null) {
             logger.warning("Purchase completion failed: activePurchaseID is null");
             throw new IllegalArgumentException("Active Purchase ID is required");
@@ -210,14 +264,23 @@ public class PurchaseService {
         {
             ActivePurchase activePurchase = purchaseDomainService.viewActivePurchase(activePurchaseID);
             UUID userId = activePurchase.getUserID();
-            boolean isSoldOut = purchaseDomainService.completePurchase(activePurchaseID, paymentDetails, couponCode);
+            boolean isSoldOut = purchaseDomainService.completePurchase(
+                    activePurchaseID,
+                    paymentDetails,
+                    normalizedCouponCode
+            );
             logger.info("Purchase completed successfully for activePurchaseID: " + activePurchaseID);
             notifier.notifyUser(activePurchase.getUserID(), "Purchase Complete");
             if(isSoldOut)
-                {
-                    String managerUsername = purchaseDomainService.getEventManager(activePurchase.getEventID());
-                    notifier.notifyUser(managerUsername, "Tickets to event: " + activePurchase.getEventID() + " have been SOLD OUT");
-                }
+            {
+                String managerIdentifier =
+                        purchaseDomainService.getEventManager(activePurchase.getEventID());
+
+                notifier.notifyUser(
+                        managerIdentifier,
+                        "Tickets to event: " + activePurchase.getEventID() + " have been SOLD OUT"
+                );
+            }
             eventPublisher.publish(new PurchaseCompletedEvent(userId));
         }
         catch (DomainException e) {
@@ -496,6 +559,25 @@ public class PurchaseService {
             throw new IllegalStateException("Couldn't draw lottery: " + e.getMessage());
         }
     }
+    private SelectionAccessDTO toSelectionAccessDTO(UUID userId, UUID eventId, QueueAccessResult result) {
+        String message = result.isAllowed()
+                ? "Selection access granted"
+                : result.getUserPositionInQueue() > 0
+                ? "You are waiting in queue. Position: "
+                + result.getUserPositionInQueue() + "/" + result.getQueueSize()
+                : "You are not currently waiting in this queue";
+
+        return new SelectionAccessDTO(
+                eventId,
+                userId,
+                result.isAllowed(),
+                result.getUserPositionInQueue(),
+                result.getQueueSize(),
+                result.getAccessExpiresAt(),
+                message
+        );
+    }
+
     private ActivePurchaseDTO toActivePurchaseDTO(ActivePurchase purchase) {
         if (purchase == null) {
             throw new IllegalStateException("Active purchase was not created");

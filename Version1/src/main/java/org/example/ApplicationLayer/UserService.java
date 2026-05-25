@@ -7,6 +7,7 @@ import java.util.logging.Logger;
 import org.example.ApplicationLayer.dto.UserDTOs.LoginRequest;
 import org.example.ApplicationLayer.dto.UserDTOs.RegisterRequest;
 import org.example.ApplicationLayer.dto.UserDTOs.UserResponse;
+import org.example.DomainLayer.Events.UserRegisteredEvent;
 import org.example.DomainLayer.IUserRepository;
 import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.UserAggregate.User;
@@ -77,6 +78,7 @@ public class UserService {
     private final IUserRepository   userRepository;
     private final IAuthenticationGateway authGateway;
     private final INotifier         notifier;
+    private final EventPublisher    eventPublisher;
 
     /**
      * Per-key mutual exclusion.
@@ -113,15 +115,21 @@ public class UserService {
      *                       inject {@code InMemoryKeyedLock<String>} for
      *                       single-JVM deployments, a Redis-backed
      *                       implementation for clustered ones
+     * @param eventPublisher shared application event bus; a
+     *                       {@code UserRegisteredEvent} is published after
+     *                       every successful registration so that
+     *                       {@code SystemMetricsCollector} can record the rate
      */
-    public UserService(IUserRepository      userRepository,
+    public UserService(IUserRepository        userRepository,
                        IAuthenticationGateway authGateway,
-                       INotifier            notifier,
-                       IKeyedLock<String>   keyedLock) {
-        this.userRepository = userRepository;
-        this.authGateway    = authGateway;
-        this.notifier       = notifier;
-        this.keyedLock      = keyedLock;
+                       INotifier              notifier,
+                       IKeyedLock<String>     keyedLock,
+                       EventPublisher         eventPublisher) {
+        this.userRepository  = userRepository;
+        this.authGateway     = authGateway;
+        this.notifier        = notifier;
+        this.keyedLock       = keyedLock;
+        this.eventPublisher  = eventPublisher;
     }
 
     // ------------------------------------------------------------------
@@ -187,7 +195,7 @@ public class UserService {
         // closed at the repository layer: IUserRepository.add() re-checks
         // both email and username inside its own internal lock before
         // committing the insert.
-        return keyedLock.withLock(emailKey, () -> {
+        UserResponse response = keyedLock.withLock(emailKey, () -> {
             if (userRepository.existsByEmail(request.email)) {
                 throw new IllegalArgumentException("User email already exists.");
             }
@@ -215,6 +223,11 @@ public class UserService {
             logger.info("Registered new user id=" + newUser.getId());
             return toResponse(newUser);
         });
+
+        // Publish outside the per-email lock so that the event handler
+        // (SystemMetricsCollector) does not contend on the same lock key.
+        eventPublisher.publish(new UserRegisteredEvent(response.userId));
+        return response;
     }
 
     /**
@@ -255,6 +268,10 @@ public class UserService {
             String hashToCheck = (user != null)
                     ? user.getPasswordHash()
                     : DUMMY_PASSWORD_HASH;
+
+            if (user.getStatus() == UserStatus.REMOVED) {
+                throw new IllegalArgumentException("This account was removed from the platform.");
+            }
 
             boolean isPasswordCorrect;
             try {
@@ -354,6 +371,29 @@ public class UserService {
             logger.severe(e.toString());
             throw e;
         }
+    }
+
+    /**
+     * Returns the public DTO for the given user ID.
+     *
+     * <p>Used by {@code GET /api/users/me} so the frontend can validate
+     * that its stored session is still live on the current server
+     * instance (important after an in-memory restart where all user data
+     * is wiped but old JWTs remain cryptographically valid).
+     *
+     * @param userId the user's UUID; must not be {@code null}
+     * @return the user's public {@link UserResponse}
+     * @throws IllegalArgumentException if {@code userId} is {@code null}
+     *                                  or no such user exists in the repository
+     */
+    public UserResponse getUserById(UUID userId) {
+        if (userId == null) {
+            throw new IllegalArgumentException("User ID is required");
+        }
+        User user = userRepository.getUser(userId)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("User not found: " + userId));
+        return toResponse(user);
     }
 
     // ------------------------------------------------------------------

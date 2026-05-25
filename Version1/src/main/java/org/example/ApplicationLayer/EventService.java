@@ -1,5 +1,15 @@
 package org.example.ApplicationLayer;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.AreaSummaryDto;
 import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.CompanyCatalogDto;
 import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.DiscountPolicyDto;
@@ -9,9 +19,9 @@ import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.EventSummaryDto;
 import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.PurchasePolicyDto;
 import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.PurchaseRuleDto;
 import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.TicketDetailsDto;
-import org.example.DomainLayer.DomainException;
-import org.example.DomainLayer.EventManagementDomainService;
+import org.example.ApplicationLayer.dto.PurchaseDTOs.PurchaseHistoryDTO;
 import org.example.DomainLayer.CompanyAggregate.Company;
+import org.example.DomainLayer.DomainException;
 import org.example.DomainLayer.EventAggregate.Area;
 import org.example.DomainLayer.EventAggregate.Event;
 import org.example.DomainLayer.EventAggregate.EventSearchCriteria;
@@ -21,6 +31,7 @@ import org.example.DomainLayer.EventAggregate.SittingTicket;
 import org.example.DomainLayer.EventAggregate.StandingArea;
 import org.example.DomainLayer.EventAggregate.Ticket;
 import org.example.DomainLayer.EventAggregate.TicketStatus;
+import org.example.DomainLayer.EventManagementDomainService;
 import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.PolicyManagment.AgeRule;
 import org.example.DomainLayer.PolicyManagment.ConditionalDiscount;
@@ -33,19 +44,6 @@ import org.example.DomainLayer.PolicyManagment.MinTicketRule;
 import org.example.DomainLayer.PolicyManagment.OvertDiscount;
 import org.example.DomainLayer.PolicyManagment.PurchaseComposite;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
-
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
-import org.example.ApplicationLayer.dto.PurchaseDTOs.PurchaseHistoryDTO;
-
 import org.springframework.stereotype.Service;
 
 @Service
@@ -61,7 +59,7 @@ public class EventService {
 
     public EventDetailsDto addEvent(UUID eventId, UUID companyId, String eventManagerEmail, String name,
                                     LocalDateTime date, String location, String artist, String type,
-                                    EventStatus status) {
+                                    EventStatus status, String description) {
         logger.info("[Event Log] Method: addEvent called");
 
         if (eventId == null) {
@@ -72,7 +70,7 @@ public class EventService {
         }
 
         eventManagementDomainService.addEvent(
-                eventId, companyId, eventManagerEmail, name, date, location, artist, type, status);
+                eventId, companyId, eventManagerEmail, name, date, location, artist, type, status, description);
 
         Event event = eventManagementDomainService.getEventForView(eventId);
         return toDetails(event);
@@ -84,11 +82,12 @@ public class EventService {
                                  String location,
                                  String artist,
                                  String type,
-                                 EventStatus status) {
+                                 EventStatus status,
+                                 String description) {
 
     logger.info("[Event Log] Method: editEvent called with parameters: eventId=" + eventId
             + ", date=" + date + ", location=" + location + ", artist=" + artist
-            + ", type=" + type + ", status=" + status);
+            + ", type=" + type + ", status=" + status + ", description=" + description);
 
     try {
         if (eventId == null) {
@@ -102,7 +101,8 @@ public class EventService {
                 location,
                 artist,
                 type,
-                status
+                status,
+                description
         );
 
         for (UUID uid : participants) {
@@ -125,6 +125,8 @@ public class EventService {
         throw e;
     }
 }
+
+    
 
     public void addPolicyRule(String username, UUID companyId, UUID eventId,
                               Float age, Integer minTicket, Integer maxTicket, Boolean allowLoneSeat) {
@@ -612,6 +614,7 @@ public class EventService {
                 e.getType(),
                 e.getDate(),
                 e.getLocation(),
+                e.getDescription(),
                 e.getTagsView(),
                 e.getStatus(),
                 e.getRating(),
@@ -734,6 +737,66 @@ public class EventService {
                 Optional.ofNullable(minCompanyRating),
                 Optional.ofNullable(companyId)
         );
+    }
+
+    public void addStandingArea(UUID eventId, double price, int count) {
+        logger.info("[Event Log] Method: addStandingArea called with parameters: eventId=" + eventId
+                + ", price=" + price + ", count=" + count);
+
+        try {
+            if (eventId == null) {
+                throw new IllegalArgumentException("eventId is required");
+            }
+            if (price < 0) {
+                throw new IllegalArgumentException("price must be non-negative");
+            }
+            if (count <= 0) {
+                throw new IllegalArgumentException("count must be positive");
+            }
+
+            Event event = eventManagementDomainService.getEventForView(eventId);
+            UUID areaId = UUID.randomUUID();
+
+            event.getLayout().addArea(new StandingArea(areaId, price));
+            eventManagementDomainService.addStandingTickets(eventId, areaId, count);
+
+        } catch (IllegalArgumentException | DomainException e) {
+            logger.info("[Event Log] Business rejection in addStandingArea: " + e.getMessage());
+            throw e;
+        } catch (RuntimeException e) {
+            logger.log(Level.SEVERE, "[Error Log] System error in addStandingArea: " + e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    public void addSittingArea(UUID eventId, double price, int rows, int seatsPerRow) {
+        logger.info("[Event Log] Method: addSittingArea called with parameters: eventId=" + eventId
+                + ", price=" + price + ", rows=" + rows + ", seatsPerRow=" + seatsPerRow);
+
+        try {
+            if (eventId == null) {
+                throw new IllegalArgumentException("eventId is required");
+            }
+            if (price < 0) {
+                throw new IllegalArgumentException("price must be non-negative");
+            }
+            if (rows <= 0 || seatsPerRow <= 0) {
+                throw new IllegalArgumentException("rows and seatsPerRow must be positive");
+            }
+
+            Event event = eventManagementDomainService.getEventForView(eventId);
+            UUID areaId = UUID.randomUUID();
+
+            event.getLayout().addArea(new SittingArea(areaId, price));
+            eventManagementDomainService.addSittingTickets(eventId, areaId, rows, seatsPerRow);
+
+        } catch (IllegalArgumentException | DomainException e) {
+            logger.info("[Event Log] Business rejection in addSittingArea: " + e.getMessage());
+            throw e;
+        } catch (RuntimeException e) {
+            logger.log(Level.SEVERE, "[Error Log] System error in addSittingArea: " + e.getMessage(), e);
+            throw e;
+        }
     }
 
 }

@@ -15,6 +15,7 @@ public class EditEventRequest {
     public String artist;
     public String type;
     public EventStatus status;
+    public String description;
 
     public EditEventRequest() {}
 }

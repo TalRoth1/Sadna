@@ -29,6 +29,60 @@ function mergeNotification(
     return [incoming, ...currentNotifications];
 }
 
+function getNotificationPresentation(type?: string) {
+    switch (type) {
+        case "PURCHASE_COMPLETED":
+            return {
+                icon: "✓",
+                label: "Purchase",
+                className: "notification-card--success",
+            };
+
+        case "ACTIVE_PURCHASE_EXPIRING":
+            return {
+                icon: "⏳",
+                label: "Expiring soon",
+                className: "notification-card--warning",
+            };
+
+        case "COMPANY_CLOSED":
+        case "EVENT_CANCELLED":
+            return {
+                icon: "!",
+                label: "Important",
+                className: "notification-card--danger",
+            };
+
+        case "QUEUE_ACCESS_GRANTED":
+            return {
+                icon: "→",
+                label: "Queue",
+                className: "notification-card--info",
+            };
+
+        case "ROLE_CHANGED":
+            return {
+                icon: "♢",
+                label: "Role update",
+                className: "notification-card--purple",
+            };
+
+        case "LOTTERY_WON":
+            return {
+                icon: "★",
+                label: "Lottery",
+                className: "notification-card--gold",
+            };
+
+        default:
+            return {
+                icon: "i",
+                label: "Notification",
+                className: "notification-card--default",
+            };
+    }
+}
+
 export default function NotificationsPopup({
     currentUser,
 }: NotificationsPopupProps) {
@@ -182,36 +236,62 @@ export default function NotificationsPopup({
                         notifications.length > 0 && (
                             <>
                                 <div className="notifications-list">
-                                    {notifications.map((notification) => (
-                                        <article
-                                            key={notification.id}
-                                            className="notification-card"
-                                        >
-                                            <div className="notification-card-content">
-                                                <strong>
-                                                    {notification.title}
-                                                </strong>
-                                                <p>{notification.message}</p>
-                                                <small>
-                                                    {new Date(
-                                                        notification.createdAt,
-                                                    ).toLocaleString()}
-                                                </small>
-                                            </div>
+                                    {notifications.map((notification) => {
+                                        const presentation = getNotificationPresentation(notification.type);
 
-                                            <button
-                                                type="button"
-                                                className="notification-read-button"
-                                                onClick={() =>
-                                                    handleMarkAsRead(
-                                                        notification.id,
-                                                    )
-                                                }
+                                        return (
+                                            <article
+                                                key={notification.id}
+                                                className={`notification-card ${presentation.className}`}
                                             >
-                                                Mark as read
-                                            </button>
-                                        </article>
-                                    ))}
+                                                <div className="notification-icon" aria-hidden="true">
+                                                    {presentation.icon}
+                                                </div>
+
+                                                <div className="notification-card-content">
+                                                    <div className="notification-card-topline">
+                                                        <span className="notification-type-pill">
+                                                            {presentation.label}
+                                                        </span>
+
+                                                        <small>
+                                                            {new Date(notification.createdAt).toLocaleString()}
+                                                        </small>
+                                                    </div>
+
+                                                    <strong>
+                                                        {notification.title || "New notification"}
+                                                    </strong>
+
+                                                    <p>{notification.message}</p>
+
+                                                    <div className="notification-actions">
+                                                        {notification.targetUrl && (
+                                                            <button
+                                                                type="button"
+                                                                className="notification-open-button"
+                                                                onClick={() => {
+                                                                    window.location.href = notification.targetUrl!;
+                                                                }}
+                                                            >
+                                                                Open
+                                                            </button>
+                                                        )}
+
+                                                        <button
+                                                            type="button"
+                                                            className="notification-read-button"
+                                                            onClick={() =>
+                                                                handleMarkAsRead(notification.id)
+                                                            }
+                                                        >
+                                                            Mark as read
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </article>
+                                        );
+                                    })}
                                 </div>
 
                                 <button

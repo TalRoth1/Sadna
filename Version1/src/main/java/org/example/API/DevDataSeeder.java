@@ -505,6 +505,15 @@ public class DevDataSeeder implements CommandLineRunner {
                                 "Showcase", "Mega Arena, Tel Aviv",
                                 LocalDateTime.now().plusDays(24), EventStatus.ACTIVE);
                 addStandingArea(megaLaunch, 180.0, 120);
+
+    // 4b. One Ticket Test — single-ticket event for sold-out notification testing.
+                UUID oneTicketEvent = createEvent("one-ticket-test", indieId, "founder.indie@demo.test",
+                        "One Ticket Test", "Test Artist",
+                        "Test", "Tel Aviv",
+                        LocalDateTime.now().plusDays(6), EventStatus.ACTIVE);
+                addStandingArea(oneTicketEvent, 10.0, 1);
+
+
         }
 
         // =================================================================
@@ -549,7 +558,7 @@ public class DevDataSeeder implements CommandLineRunner {
                 // OvertDiscount so the UI can demonstrate "expired" badges /
                 // skip-logic.
                 jazz.addCouponCode(today.minusDays(2), today.plusDays(30), 20f, "JAZZ20");
-                jazz.addOvertDiscount(today.minusMonths(2), today.minusMonths(1), 30f);
+                jazz.addOvertDiscount(today.minusDays(2), today.plusDays(30), 30f);
 
                 // Adults Only: age rule. `minor@demo.test` (16) should fail,
                 // `dave@demo.test` (19) should pass.
@@ -744,12 +753,15 @@ public class DevDataSeeder implements CommandLineRunner {
         // =================================================================
         private void seedAnalytics() {
                 adminRepository.saveAnalyticsSnapshot(new SystemAnalyticsSnapshot(
-                                /* registeredUsersCount= */ 14,
-                                /* loggedInUsersCount= */ 2,
-                                /* activeCompaniesCount= */ 2,
-                                /* activeQueuesCount= */ 0,
-                                /* activePurchasesCount= */ 0,
-                                /* totalPurchasesCount= */ 5));
+                                /* registeredUsersCount= */      14,
+                                /* loggedInUsersCount= */         2,
+                                /* activeCompaniesCount= */       2,
+                                /* activeQueuesCount= */          0,
+                                /* activePurchasesCount= */       0,
+                                /* totalPurchasesCount= */        5,
+                                /* newSubscriberRatePerMin= */    0.0,
+                                /* ticketReservationRatePerMin= */ 0.0,
+                                /* ticketPurchaseRatePerMin= */   0.0));
         }
 
         // =================================================================
@@ -822,7 +834,7 @@ public class DevDataSeeder implements CommandLineRunner {
                         LocalDateTime date, EventStatus status) {
                 UUID eventId = UUID.randomUUID();
                 eventManagement.addEvent(eventId, companyId, eventManagerEmail, name, date, location,
-                                artist, type, status);
+                                artist, type, status , "");
                 eventsByKey.put(key, eventId);
                 return eventId;
         }

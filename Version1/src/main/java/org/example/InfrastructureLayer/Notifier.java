@@ -2,18 +2,18 @@ package org.example.InfrastructureLayer;
 
 import java.util.UUID;
 
+import org.example.ApplicationLayer.dto.NotificationDTOs.NotificationDTO;
+import org.example.DomainLayer.INotificationRepository;
 import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.NotificationAggregate.Notification;
 import org.example.DomainLayer.NotificationAggregate.NotificationType;
-import org.springframework.stereotype.Component;
-
 public class Notifier implements INotifier {
 
     private final Broadcaster broadcaster;
-    private final NotificationRepository notificationRepository;
+    private final INotificationRepository notificationRepository;
 
     public Notifier(Broadcaster broadcaster,
-                    NotificationRepository notificationRepository) {
+                    INotificationRepository notificationRepository) {
         if (broadcaster == null) {
             throw new IllegalArgumentException("Broadcaster is required");
         }
@@ -52,6 +52,7 @@ public class Notifier implements INotifier {
         Notification notification = new Notification(userId, type, message, targetUrl);
         notificationRepository.save(notification);
 
-        return broadcaster.broadcast(userId, message);
+        NotificationDTO dto = new NotificationDTO(notification);
+        return broadcaster.broadcast(userId, dto);
     }
 }

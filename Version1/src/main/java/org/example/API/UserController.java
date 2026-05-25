@@ -14,6 +14,7 @@ import org.example.ApplicationLayer.dto.UserDTOs.RegisterRequest;
 import org.example.ApplicationLayer.dto.UserDTOs.UserResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -50,6 +51,47 @@ public class UserController {
         this.jwtService     = jwtService;
         this.tokenBlacklist = tokenBlacklist;
         this.sessionService = sessionService;
+    }
+
+    /**
+     * GET /api/users/me
+     *
+     * Validates that the caller's JWT is still usable on this server instance
+     * and that the user actually exists in the repository.
+     *
+     * This endpoint is intentionally NOT in JwtAuthFilter#PUBLIC_PATHS, so the
+     * filter enforces token signature + expiry before this method runs.
+     *
+     * The extra repository lookup catches the "ghost login" scenario: after an
+     * in-memory server restart the JWT is still cryptographically valid, but
+     * all user data has been wiped. Without this check the frontend would read
+     * stale localStorage and show the user as logged-in while every protected
+     * API call silently fails.
+     *
+     * Returns:
+     *   200 — token is valid AND the user exists in the repository.
+     *   401 — no userId attribute (filter let an un-authed request through) or
+     *          the user was not found in the repository (stale session).
+     *   500 — unexpected error.
+     */
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<UserResponse>> me(HttpServletRequest httpRequest) {
+        UUID userId = (UUID) httpRequest.getAttribute("userId");
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error("Not authenticated"));
+        }
+        try {
+            UserResponse user = userService.getUserById(userId);
+            return ResponseEntity.ok(ApiResponse.success("User found", user));
+        } catch (IllegalArgumentException e) {
+            // User not found in repository — session is stale (e.g. after restart).
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error("Session is no longer valid"));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to fetch user: " + e.getMessage()));
+        }
     }
 
     /**

@@ -71,6 +71,7 @@
 
 .company-summary-card,
 .company-permissions-card,
+.company-policies-card,
 .company-invite-card,
 .company-hierarchy-card {
     padding: 22px 24px;
@@ -433,6 +434,8 @@
     font-size: 24px;
 }
 
+.company-permissions-card p,
+.company-hierarchy-card p,
 .company-invite-card p {
     margin: 0;
     color: #6b7280;

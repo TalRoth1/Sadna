@@ -47,6 +47,7 @@ public class AdminService {
     private final PurchaseDomainService purchaseDomainService;
     private final QueueManager queueManager;
     private final INotifier notifier;
+    private final ISystemMetricsTracker metricsTracker;
 
     public AdminService(
             IUserRepository userRepository,
@@ -57,7 +58,8 @@ public class AdminService {
             RolesDomainService rolesDomainService,
             PurchaseDomainService purchaseDomainService,
             QueueManager queueManager,
-            INotifier notifier) {
+            INotifier notifier,
+            ISystemMetricsTracker metricsTracker) {
         this.userRepository = userRepository;
         this.companyRepository = companyRepository;
         this.purchaseRepository = purchaseRepository;
@@ -67,6 +69,7 @@ public class AdminService {
         this.purchaseDomainService = purchaseDomainService;
         this.queueManager = queueManager;
         this.notifier = notifier;
+        this.metricsTracker = metricsTracker;
     }
 
     public void closeCompany(UUID adminId, String adminUsername, UUID companyId) {
@@ -87,22 +90,31 @@ public class AdminService {
                 throw new IllegalStateException("Company is already closed");
             }
 
-            String founderUsername = company.getFounderUsername();
-
             rolesDomainService.closeCompanyAsAdmin(adminUsername, companyId);
 
-            if (founderUsername != null && !founderUsername.isBlank()) {
-                notifier.notifyUser(
-                        founderUsername,
-                        "Company " + company.getName() + " has been closed by system admin."
-                );
-            }
-
+            notifyCompanyStaff(
+                    companyId,
+                    "Company " + company.getName() + " has been closed by system admin."
+            );
             saveActionLog(adminId, adminUsername, action, companyId.toString());
             logInfo(adminId, adminUsername, action, "Completed successfully. companyId=" + companyId);
         } catch (RuntimeException e) {
             logError(adminId, adminUsername, action, "Failed. companyId=" + companyId, e);
             throw e;
+        }
+    }
+
+    private void notifyCompanyStaff(UUID companyId, String message) {
+        if (companyId == null || message == null || message.isBlank()) {
+            return;
+        }
+
+        for (User user : userRepository.getAllUsers().values()) {
+            ICompanyMember role = user.getCompanyRole(companyId);
+
+            if (role != null) {
+                notifier.notifyUser(user.getId(), message);
+            }
         }
     }
 
@@ -129,6 +141,8 @@ public class AdminService {
                     .orElseThrow(() -> new IllegalArgumentException("Subscriber not found"));
 
             userToRemove.removeFromPlatformAsAdmin();
+            userRepository.add(userToRemove);
+
 
             notifier.notifyUser(
                     userToRemove.getId(),
@@ -646,13 +660,21 @@ public class AdminService {
             int activePurchasesCount = purchaseRepository.findAll().size();
             int totalPurchasesCount = historyRepository.getAll().size();
 
+            // Query the sliding-window tracker for the three real-time rates.
+            double newSubscriberRatePerMin     = metricsTracker.getSubscriptionRatePerMinute();
+            double ticketReservationRatePerMin = metricsTracker.getReservationRatePerMinute();
+            double ticketPurchaseRatePerMin    = metricsTracker.getPurchaseRatePerMinute();
+
             SystemAnalyticsSnapshot snapshot = new SystemAnalyticsSnapshot(
                     registeredUsersCount,
                     loggedInUsersCount,
                     activeCompaniesCount,
                     activeQueuesCount,
                     activePurchasesCount,
-                    totalPurchasesCount
+                    totalPurchasesCount,
+                    newSubscriberRatePerMin,
+                    ticketReservationRatePerMin,
+                    ticketPurchaseRatePerMin
             );
 
             adminRepository.saveAnalyticsSnapshot(snapshot);
@@ -665,7 +687,10 @@ public class AdminService {
                             + ", activeCompaniesCount=" + activeCompaniesCount
                             + ", activeQueuesCount=" + activeQueuesCount
                             + ", activePurchasesCount=" + activePurchasesCount
-                            + ", totalPurchasesCount=" + totalPurchasesCount);
+                            + ", totalPurchasesCount=" + totalPurchasesCount
+                            + ", newSubscriberRatePerMin=" + newSubscriberRatePerMin
+                            + ", ticketReservationRatePerMin=" + ticketReservationRatePerMin
+                            + ", ticketPurchaseRatePerMin=" + ticketPurchaseRatePerMin);
 
             return result;
         } catch (RuntimeException e) {
@@ -843,13 +868,17 @@ public class AdminService {
     private AdminAnalyticsDTO toAnalyticsDTO(SystemAnalyticsSnapshot snapshot) {
         AdminAnalyticsDTO dto = new AdminAnalyticsDTO();
 
-        dto.registeredUsersCount = snapshot.getRegisteredUsersCount();
-        dto.loggedInUsersCount = snapshot.getLoggedInUsersCount();
-        dto.activeCompaniesCount = snapshot.getActiveCompaniesCount();
-        dto.activeQueuesCount = snapshot.getActiveQueuesCount();
-        dto.activePurchasesCount = snapshot.getActivePurchasesCount();
-        dto.totalPurchasesCount = snapshot.getTotalPurchasesCount();
-        dto.createdAt = snapshot.getCreatedAt();
+        dto.registeredUsersCount  = snapshot.getRegisteredUsersCount();
+        dto.loggedInUsersCount    = snapshot.getLoggedInUsersCount();
+        dto.activeCompaniesCount  = snapshot.getActiveCompaniesCount();
+        dto.activeQueuesCount     = snapshot.getActiveQueuesCount();
+        dto.activePurchasesCount  = snapshot.getActivePurchasesCount();
+        dto.totalPurchasesCount   = snapshot.getTotalPurchasesCount();
+        // Real-time rate fields from the sliding-window tracker
+        dto.newSubscriberRatePerMin     = snapshot.getNewSubscriberRatePerMin();
+        dto.ticketReservationRatePerMin = snapshot.getTicketReservationRatePerMin();
+        dto.ticketPurchaseRatePerMin    = snapshot.getTicketPurchaseRatePerMin();
+        dto.createdAt             = snapshot.getCreatedAt();
 
         return dto;
     }

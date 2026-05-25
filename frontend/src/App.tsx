@@ -20,6 +20,8 @@ import RegistrationPage from "./pages/RegistrationPage";
 import LotteryRegistrationPage from "./pages/LotteryRegistrationPage";
 import MyActivePurchasesPage from "./pages/MyActivePurchasesPage";
 import MyCompaniesPage from "./pages/myCompanies/MyCompaniesPage";
+import QueueWaitingPage from "./pages/QueueWaitingPage";
+import CreateEventPage from "./pages/createEvent/CreateEventPage";
 
 import type { CompanyResponse } from "./services/companyService";
 import type { AdminActionId } from "./types/admin";
@@ -98,16 +100,24 @@ function normalizeStatus(status: string): CompanyStatus {
 function App() {
     const [currentPage, setCurrentPage] = useState<AppPage>("event-search");
     const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+    const [selectionAccessExpiresAt, setSelectionAccessExpiresAt] = useState<string | null>(null);
     const [selectedCompany, setSelectedCompany] = useState<SelectedCompany | null>(null);
+    const [createEventCompanyId, setCreateEventCompanyId] = useState<string | null>(null);
 
     function navigate(page: AppPage) {
-        if (page !== "event-details" && page !== "event-purchase") {
+        if (page !== "event-details" && page !== "event-queue" && page !== "event-purchase") {
             setSelectedEventId(null);
+            setSelectionAccessExpiresAt(null);
         }
         if (page !== "company-details") {
             setSelectedCompany(null);
         }
         setCurrentPage(page);
+    }
+
+    function handleCreateEventForCompany(companyId: string) {
+        setCreateEventCompanyId(companyId);
+        setCurrentPage("create-event");
     }
 
     function handleAdminNavigate(page: AdminActionId) {
@@ -135,7 +145,8 @@ function App() {
 
     function handleStartPurchase(eventId: string) {
         setSelectedEventId(eventId);
-        setCurrentPage("event-purchase");
+        setSelectionAccessExpiresAt(null);
+        setCurrentPage("event-queue");
     }
 
     function handleStartLotteryRegistration(eventId: string) {
@@ -180,12 +191,29 @@ function App() {
             setCurrentPage("event-search");
             return;
         }
+        setSelectionAccessExpiresAt(null);
         setCurrentPage("event-details");
+    }
+
+    function handleSelectionAccessGranted(accessExpiresAt: string | null) {
+        setSelectionAccessExpiresAt(accessExpiresAt);
+        setCurrentPage("event-purchase");
+    }
+
+    function handleSelectionAccessExpired() {
+        setSelectionAccessExpiresAt(null);
+        setCurrentPage("event-queue");
     }
 
     function handleOpenActivePurchase(eventId: string) {
         setSelectedEventId(eventId);
+        setSelectionAccessExpiresAt(null);
         setCurrentPage("event-purchase");
+    }
+
+    function handleEventCreated(eventId: string) {
+        setSelectedEventId(eventId);
+        setCurrentPage("event-details");
     }
 
     function renderPage() {
@@ -207,6 +235,21 @@ function App() {
             );
         }
 
+
+        if (currentPage === "event-queue") {
+            if (!selectedEventId) {
+                return <EventSearchPage onSelectEvent={handleSelectEvent} />;
+            }
+
+            return (
+                <QueueWaitingPage
+                    eventId={selectedEventId}
+                    onBackToEvent={handleBackToEvent}
+                    onAccessGranted={handleSelectionAccessGranted}
+                />
+            );
+        }
+
         if (currentPage === "event-purchase") {
             if (!selectedEventId) {
                 return <EventSearchPage onSelectEvent={handleSelectEvent} />;
@@ -222,6 +265,8 @@ function App() {
                 <TicketPurchasePage
                     key={selectedEventId}
                     eventId={selectedEventId}
+                    selectionAccessExpiresAt={selectionAccessExpiresAt}
+                    onSelectionAccessExpired={handleSelectionAccessExpired}
                     onBackToEvent={handleBackToEvent}
                 />
             );
@@ -299,6 +344,7 @@ function App() {
                 <CompanyPage
                     company={selectedCompany}
                     onBackToCompanies={() => setCurrentPage("my-companies")}
+                    onCreateEvent={handleCreateEventForCompany}
                 />
             );
         }
@@ -333,6 +379,18 @@ function App() {
 
         if (currentPage === "admin-queues") {
             return <AdminQueuesPage />;
+        }
+
+        if (currentPage === "create-event") {
+            return (
+                <CreateEventPage
+                    initialCompanyId={createEventCompanyId}
+                    onCreateCompany={handleStartCompanyCreation}
+                    onLogin={() => setCurrentPage("login")}
+                    onRegister={() => setCurrentPage("registration")}
+                    onEventCreated={handleEventCreated}
+                />
+            );
         }
 
         return (

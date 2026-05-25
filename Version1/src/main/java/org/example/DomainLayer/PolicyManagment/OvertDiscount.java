@@ -39,8 +39,10 @@ public class OvertDiscount implements IDiscountRule {
 
     public float apply(ActivePurchase purchase)
     {
-        if (LocalDate.now().isAfter(fromDate) && LocalDate.now().isBefore(toDate))
-            return  purchase.getPrice() * (100 - discountPrecent);
-        throw new IllegalArgumentException("date is not in the discount time");
+        LocalDate today = LocalDate.now();
+        if (today.isBefore(fromDate) || today.isAfter(toDate)) {
+            return purchase.getPrice();
+        }
+        return purchase.getPrice() * ((100 - discountPrecent) / 100.0f);
     }
 }

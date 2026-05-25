@@ -562,6 +562,22 @@
     color: #111827;
 }
 
+.purchase-summary-total.purchase-summary-subtotal {
+    border-bottom: none;
+    color: #4b5563;
+    font-weight: 600;
+}
+
+.purchase-summary-discount {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 0 12px;
+    color: #166534;
+    font-size: 14px;
+    font-weight: 700;
+}
+
 .purchase-policy-message {
     padding: 10px 14px;
     border-radius: 10px;

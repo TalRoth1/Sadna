@@ -1,23 +1,22 @@
 package org.example.DomainLayer;
 
-import org.example.DomainLayer.CompanyAggregate.Company;
-import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
-import org.example.DomainLayer.EventAggregate.Event;
-import org.example.DomainLayer.EventAggregate.EventStatus;
-import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
-import org.example.DomainLayer.UserAggregate.ICompanyMember;
-import org.example.DomainLayer.UserAggregate.User;
-
-import java.util.ArrayList;
-import java.util.HashSet;
-
-import org.example.DomainLayer.EventAggregate.EventSearchCriteria;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+
+import org.example.DomainLayer.CompanyAggregate.Company;
+import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
+import org.example.DomainLayer.EventAggregate.Event;
+import org.example.DomainLayer.EventAggregate.EventSearchCriteria;
+import org.example.DomainLayer.EventAggregate.EventStatus;
+import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
+import org.example.DomainLayer.UserAggregate.ICompanyMember;
+import org.example.DomainLayer.UserAggregate.User;
 
 public class EventManagementDomainService {
 
@@ -143,7 +142,7 @@ public class EventManagementDomainService {
     }
 
     public void addEvent(UUID eventId, UUID companyId, String eventManagerEmail, String name,
-            LocalDateTime date, String location, String artist, String type, EventStatus status) {
+            LocalDateTime date, String location, String artist, String type, EventStatus status, String description) {
         if (eventRepository.getById(eventId) != null) {
             throw new DomainException("Event already exists: " + eventId);
         }
@@ -168,6 +167,9 @@ public class EventManagementDomainService {
         if (name != null) {
             event.setName(name);
         }
+        if (description != null) {
+            event.setDescription(description);
+        }
         eventRepository.save(event);
 
         managerRole.getEventsIds().add(eventId);
@@ -179,7 +181,8 @@ public class EventManagementDomainService {
                             String location,
                             String artist,
                             String type,
-                            EventStatus status) {
+                            EventStatus status,
+                            String description) {
 
         Event event = eventRepository.getById(eventId);
 
@@ -209,6 +212,10 @@ public class EventManagementDomainService {
 
         if (status != null) {
             event.setStatus(status);
+        }
+
+        if (description != null) {
+            event.setDescription(description);
         }
 
     Set<UUID> participants = new HashSet<>();
