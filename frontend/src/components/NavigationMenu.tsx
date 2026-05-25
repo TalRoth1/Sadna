@@ -14,7 +14,6 @@ export type AppPage =
     | "event-purchase"
     | "login"
     | "registration"
-    | "user-tickets"
     | "purchase-history"
     | "my-companies"
     | "company-creation"
@@ -37,7 +36,6 @@ type NavigationMenuProps = {
 
 const mainLinks: { page: AppPage; label: string }[] = [
     { page: "event-search", label: "Event Search" },
-    { page: "user-tickets", label: "My Active Purchases" },
     { page: "purchase-history", label: "Purchase History" },
     { page: "my-companies", label: "My Companies" },
     { page: "profile", label: "Profile" },
