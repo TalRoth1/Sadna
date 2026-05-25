@@ -193,6 +193,7 @@ type EventDetailsResponse = {
     eventType: string;
     date: string;
     location: string;
+    description: string | null;
     tags: string[];
     status: EventStatus;
     rating: number;

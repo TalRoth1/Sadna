@@ -15,8 +15,8 @@ import org.example.ApplicationLayer.dto.EventDTOs.AddEventPolicyRuleRequest;
 import org.example.ApplicationLayer.dto.EventDTOs.AddSittingTicketsRequest;
 import org.example.ApplicationLayer.dto.EventDTOs.AddStandingTicketsRequest;
 import org.example.ApplicationLayer.dto.EventDTOs.CreateEventRequest;
-import org.example.ApplicationLayer.dto.EventDTOs.DeleteEventPolicyRuleRequest;
 import org.example.ApplicationLayer.dto.EventDTOs.DeleteEventRequest;
+import org.example.ApplicationLayer.dto.EventDTOs.DeleteEventPolicyRuleRequest;
 import org.example.ApplicationLayer.dto.EventDTOs.EditEventRequest;
 import org.example.ApplicationLayer.dto.EventDTOs.EventSearchCriteriaRequest;
 import org.example.ApplicationLayer.dto.EventDTOs.RateEventRequest;
@@ -65,29 +65,31 @@ public class EventController {
     //  1. Event lifecycle
     // ================================================================
 
-   @PostMapping
-public ResponseEntity<ApiResponse<EventDetailsDto>> createEvent(@RequestBody CreateEventRequest request) {
-    try {
-        EventDetailsDto event = eventService.addEvent(
-                UUID.randomUUID(),
-                request.companyId,
-                request.eventManagerEmail,
-                request.name,
-                request.date,
-                request.location,
-                request.artist,
-                request.type,
-                request.status,
-                request.description);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success("Event created successfully", event));
-    } catch (Exception e) { // תפיסת כל השגיאות זמנית לצורך הדיבאג
-        e.printStackTrace(); // זה ידפיס לכם את השורה המדויקת שקרסה בטרמינל של ה-Java
-        
-        // נחזיר את הודעת השגיאה האמיתית לפרונטאנד במקום 500 גנרי
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error(e.getMessage())); 
+    @PostMapping
+    public ResponseEntity<ApiResponse<EventDetailsDto>> createEvent(@RequestBody CreateEventRequest request) {
+        try {
+            EventDetailsDto event = eventService.addEvent(
+                    UUID.randomUUID(),
+                    request.companyId,
+                    request.eventManagerEmail,
+                    request.name,
+                    request.date,
+                    request.location,
+                    request.artist,
+                    request.type,
+                    request.status,
+                    request.description);
+
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.success("Event created successfully", event));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to create event: system exception"));
+        }
     }
-}
+
 
     @PutMapping("/{eventId}")
     public ResponseEntity<ApiResponse<EventSummaryDto>> editEvent(

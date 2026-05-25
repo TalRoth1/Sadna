@@ -1,4 +1,4 @@
-package org.example.NotificationAggregate;
+package org.example.DomainLayer.NotificationAggregate;
 
 import org.example.ApplicationLayer.*;
 import org.example.DomainLayer.EventManagementDomainService;
@@ -15,7 +15,6 @@ import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
 import org.example.DomainLayer.EventAggregate.EventStatus;
 import org.example.DomainLayer.Events.PurchaseCompletedEvent;
-import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.UserAggregate.CompanyManager;
 import org.example.DomainLayer.UserAggregate.CompanyOwner;
 import org.example.DomainLayer.UserAggregate.ICompanyMember;
@@ -23,7 +22,6 @@ import org.example.DomainLayer.UserAggregate.User;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
@@ -64,7 +62,8 @@ public class NotificationTests {
             RolesDomainService rolesDomainService,
             PurchaseDomainService purchaseDomainService,
             QueueManager queueManager,
-            INotifier notifier
+            INotifier notifier,
+            ISystemMetricsTracker iSystemMetricsTracker
     ) {
         return new AdminService(
                 userRepository,
@@ -75,7 +74,8 @@ public class NotificationTests {
                 rolesDomainService,
                 purchaseDomainService,
                 queueManager,
-                notifier
+                notifier,
+                iSystemMetricsTracker
         );
     }
 
@@ -100,6 +100,7 @@ public class NotificationTests {
         PurchaseDomainService purchaseDomainService = mock(PurchaseDomainService.class);
         QueueManager queueManager = mock(QueueManager.class);
         INotifier notifier = mock(INotifier.class);
+        ISystemMetricsTracker iSystemMetricsTracker = mock(ISystemMetricsTracker.class);
 
         mockValidAdmin(userRepository);
 
@@ -124,7 +125,8 @@ public class NotificationTests {
                 rolesDomainService,
                 purchaseDomainService,
                 queueManager,
-                notifier
+                notifier,
+                iSystemMetricsTracker
         );
 
         service.sendSystemMessage(
@@ -156,6 +158,7 @@ public class NotificationTests {
         PurchaseDomainService purchaseDomainService = mock(PurchaseDomainService.class);
         QueueManager queueManager = mock(QueueManager.class);
         INotifier notifier = mock(INotifier.class);
+        ISystemMetricsTracker iSystemMetricsTracker = mock(ISystemMetricsTracker.class);
 
         mockValidAdmin(userRepository);
 
@@ -192,7 +195,8 @@ public class NotificationTests {
                 rolesDomainService,
                 purchaseDomainService,
                 queueManager,
-                notifier
+                notifier,
+                iSystemMetricsTracker
         );
 
         service.closeCompany(ADMIN_ID, ADMIN_USERNAME, companyId);
@@ -222,6 +226,7 @@ public class NotificationTests {
         );
 
         UUID activePurchaseId = UUID.randomUUID();
+        String managerIdentifier = "manager@demo.test";
         UUID buyerId = UUID.randomUUID();
         UUID eventId = UUID.randomUUID();
 
@@ -234,21 +239,18 @@ public class NotificationTests {
         when(purchaseDomainService.viewActivePurchase(activePurchaseId))
                 .thenReturn(activePurchase);
 
-        when(purchaseDomainService.completePurchase(
-                eq(activePurchaseId),
-                eq(paymentDetails),
-                isNull()
-        )).thenReturn(true);
+        when(purchaseDomainService.completePurchase(any(), any(), any()))
+                .thenReturn(true);
 
         when(purchaseDomainService.getEventManager(eventId))
-                .thenReturn("manager@demo.test");
+                .thenReturn(managerIdentifier);
 
         service.completePurchase(activePurchaseId, paymentDetails, null);
 
         verify(notifier).notifyUser(buyerId, "Purchase Complete");
         verify(notifier).notifyUser(
-                "manager@demo.test",
-                "Tickets to event: " + eventId + " have been SOLD OUT"
+                eq(managerIdentifier),
+                eq("Tickets to event: " + eventId + " have been SOLD OUT")
         );
 
         verify(eventPublisher).publish(any(PurchaseCompletedEvent.class));
@@ -284,7 +286,8 @@ public class NotificationTests {
                 eq("Tel Aviv"),
                 eq("Coldplay"),
                 eq("Concert"),
-                eq(EventStatus.ACTIVE)
+                eq(EventStatus.ACTIVE),
+                eq("hello")
         )).thenReturn(Set.of(buyer1, buyer2));
 
         /*
@@ -303,7 +306,7 @@ public class NotificationTests {
                         "Tel Aviv",
                         "Coldplay",
                         "Concert",
-                        EventStatus.ACTIVE
+                        EventStatus.ACTIVE, "hello"
                 )
         );
 
@@ -326,30 +329,37 @@ public class NotificationTests {
 
     @Test
     void changeManagerPermissions_shouldNotifyManager_requirement() {
+        // Arrange
         RolesDomainService rolesDomainService = mock(RolesDomainService.class);
         PurchaseDomainService purchaseDomainService = mock(PurchaseDomainService.class);
         INotifier notifier = mock(INotifier.class);
 
-        UUID companyId = UUID.randomUUID();
-        String ownerEmail = "owner@demo.test";
-        String managerEmail = "manager@demo.test";
-
         CompanyService companyService = new CompanyService(
-                rolesDomainService, purchaseDomainService, notifier);
-
-        companyService.changeManagerPermissions(
-                ownerEmail,
-                companyId,
-                managerEmail,
-                Set.of()
+                rolesDomainService,
+                purchaseDomainService,
+                notifier
         );
 
-        verify(notifier).notifyUser(
-                managerEmail,
+        String ownerUsername = "owner_bob";
+        UUID companyId = UUID.randomUUID();
+        String managerUsername = "manager_alice";
+        Set<CompanyPermission> newPermissions =
+                Set.of(CompanyPermission.MANAGE_INVENTORY);
+
+        // Act
+        companyService.changeManagerPermissions(
+                ownerUsername,
+                companyId,
+                managerUsername,
+                newPermissions
+        );
+
+        // Assert
+        verify(notifier, times(1)).notifyUser(
+                managerUsername,
                 "Your manager permissions have changed."
         );
     }
-
     // ---------------------------------------------------------------------
     // 7. Producer / company message
     // דרישה: כלל המנויים או רוכשים רלוונטיים מקבלים הודעה ממפיק / חברת הפקה

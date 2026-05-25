@@ -7,7 +7,6 @@ import org.example.DomainLayer.INotificationRepository;
 import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.NotificationAggregate.Notification;
 import org.example.DomainLayer.NotificationAggregate.NotificationType;
-
 public class Notifier implements INotifier {
 
     private final Broadcaster broadcaster;

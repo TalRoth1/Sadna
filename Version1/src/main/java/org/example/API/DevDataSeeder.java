@@ -17,6 +17,7 @@ import java.util.logging.Logger;
 import org.example.DomainLayer.AdminAggregate.Admin;
 import org.example.DomainLayer.AdminAggregate.AdminComplaint;
 import org.example.DomainLayer.AdminAggregate.SystemAnalyticsSnapshot;
+import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
 import org.example.DomainLayer.EventAggregate.Event;
 import org.example.DomainLayer.EventAggregate.EventStatus;
@@ -145,6 +146,7 @@ public class DevDataSeeder implements CommandLineRunner {
                 seedAdmin();
                 seedCompanies();
                 seedCompanyRoles();
+                seedCompanyPolicies();
                 seedPendingInvitations();
                 seedEvents();
                 attachEventPolicies();
@@ -330,7 +332,42 @@ public class DevDataSeeder implements CommandLineRunner {
         }
 
         // =================================================================
-        // SECTION 5: Pending invitations
+        // SECTION 5: Company policies
+        //
+        // Mega Events Group gets a mix of purchase-policy and discount rules
+        // so the company policies panel can render real data on first load.
+        // =================================================================
+        private void seedCompanyPolicies() {
+                UUID megaId = companiesByName.get("Mega Events Group");
+                Company megaCompany = companyRepository.findByID(megaId)
+                                .orElseThrow(() -> new IllegalStateException("Mega Events Group company not found"));
+
+                // Purchase policy: age gate + minimum purchase size + lone-seat protection + max tickets.
+                megaCompany.addPurchasePolicy(
+                                Optional.of(18f),
+                                Optional.of(2),
+                                Optional.empty(),
+                                Optional.of(false),
+                                true);
+                megaCompany.addPurchasePolicy(
+                                Optional.empty(),
+                                Optional.empty(),
+                                Optional.of(8),
+                                Optional.empty(),
+                                true);
+
+                // Discount policy: active company-wide discount, conditional bulk discount,
+                // and a coupon code for the demo UI.
+                LocalDate today = LocalDate.now();
+                megaCompany.addOvertDiscount(today.minusDays(3), today.plusDays(21), 12f);
+                megaCompany.addConditionalDiscount(today.minusDays(1), today.plusDays(30), 18f, 4, 2);
+                megaCompany.addCouponCode(today.minusDays(2), today.plusDays(14), 25f, "MEGA25");
+
+                companyRepository.save(megaCompany);
+        }
+
+        // =================================================================
+        // SECTION 6: Pending invitations
         //
         // Two invitations that have NOT been accepted, so the "pending
         // invitations" UI has something to render and the accept/reject
@@ -362,7 +399,7 @@ public class DevDataSeeder implements CommandLineRunner {
         }
 
         // =================================================================
-        // SECTION 6: Events
+        // SECTION 7: Events
         //
         // 10 events covering every shape the catalog/search/details pages
         // need to render. Each event is created via EventManagementDomainService
@@ -464,7 +501,7 @@ public class DevDataSeeder implements CommandLineRunner {
         }
 
         // =================================================================
-        // SECTION 7: Event-level purchase + discount policies
+        // SECTION 8: Event-level purchase + discount policies
         //
         // We attach policies directly on the Event aggregate rather than
         // going through EventManagementDomainService.addPurchasePolicy(...)
@@ -505,7 +542,7 @@ public class DevDataSeeder implements CommandLineRunner {
                 // OvertDiscount so the UI can demonstrate "expired" badges /
                 // skip-logic.
                 jazz.addCouponCode(today.minusDays(2), today.plusDays(30), 20f, "JAZZ20");
-                jazz.addOvertDiscount(today.minusMonths(2), today.minusMonths(1), 30f);
+                jazz.addOvertDiscount(today.minusDays(2), today.plusDays(30), 30f);
 
                 // Adults Only: age rule. `minor@demo.test` (16) should fail,
                 // `dave@demo.test` (19) should pass.
@@ -555,7 +592,7 @@ public class DevDataSeeder implements CommandLineRunner {
         }
 
         // =================================================================
-        // SECTION 8: Lottery
+        // SECTION 9: Lottery
         //
         // Taylor Swift event is lottery-gated. We:
         // 1. Create the PuchaseLottery aggregate with a 14-day open
@@ -591,7 +628,7 @@ public class DevDataSeeder implements CommandLineRunner {
         }
 
         // =================================================================
-        // SECTION 9: Close Closed Co.
+        // SECTION 10: Close Closed Co.
         //
         // We close the company AFTER seeding its events, otherwise the
         // events under it wouldn't exist when the close happens. Closing
@@ -604,7 +641,7 @@ public class DevDataSeeder implements CommandLineRunner {
         }
 
         // =================================================================
-        // SECTION 10: Purchase history
+        // SECTION 11: Purchase history
         //
         // Five historical purchase rows so the sales-report / personal
         // history UIs render without anyone running checkout. The Eurovision
@@ -621,7 +658,7 @@ public class DevDataSeeder implements CommandLineRunner {
         }
 
         // =================================================================
-        // SECTION 11: Complaints
+        // SECTION 12: Complaints
         //
         // One in each AdminComplaintStatus so the admin complaint queue
         // shows variety from the first page load.
@@ -658,7 +695,7 @@ public class DevDataSeeder implements CommandLineRunner {
         }
 
         // =================================================================
-        // SECTION 12: Notifications
+        // SECTION 13: Notifications
         //
         // Five demo notifications across different types so the bell icon
         // and notifications page have something interesting on the very
@@ -687,7 +724,7 @@ public class DevDataSeeder implements CommandLineRunner {
         }
 
         // =================================================================
-        // SECTION 13: Admin analytics snapshot
+        // SECTION 14: Admin analytics snapshot
         //
         // One historical snapshot from "1 hour ago" so the analytics page
         // can render a comparison alongside the live snapshot. Numbers are
@@ -772,14 +809,12 @@ public class DevDataSeeder implements CommandLineRunner {
          * areas they want via {@link #addStandingArea} / {@link #addSittingArea}.
          * Indexed under {@code key} so later sections can refer to it by name.
          */
-
-        private String description = "";
         private UUID createEvent(String key, UUID companyId, String eventManagerEmail, String name,
                         String artist, String type, String location,
                         LocalDateTime date, EventStatus status) {
                 UUID eventId = UUID.randomUUID();
                 eventManagement.addEvent(eventId, companyId, eventManagerEmail, name, date, location,
-                                artist, type, status, description);
+                                artist, type, status , "");
                 eventsByKey.put(key, eventId);
                 return eventId;
         }

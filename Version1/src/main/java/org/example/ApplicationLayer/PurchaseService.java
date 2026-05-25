@@ -38,7 +38,7 @@ public class PurchaseService {
         this.notifier = notifier;
     }
 
-    private void validateAdmin(UUID adminId) {
+    public void validateAdmin(UUID adminId) {
         if (adminId == null) {
             throw new IllegalArgumentException("Admin ID is required");
         }
@@ -245,9 +245,13 @@ public class PurchaseService {
 
     public void completePurchase(UUID activePurchaseID, PaymentDetails paymentDetails, String couponCode)
     {
-        logger.info("Starting completePurchase: activePurchaseID=" + activePurchaseID +
-                ", couponCode=" + (couponCode != null ? couponCode : "none"));
+        String normalizedCouponCode =
+                couponCode == null || couponCode.isBlank()
+                        ? null
+                        : couponCode.trim();
 
+        logger.info("Starting completePurchase: activePurchaseID=" + activePurchaseID +
+                ", couponCode=" + (normalizedCouponCode != null ? normalizedCouponCode : "none"));
         if (activePurchaseID == null) {
             logger.warning("Purchase completion failed: activePurchaseID is null");
             throw new IllegalArgumentException("Active Purchase ID is required");
@@ -260,7 +264,11 @@ public class PurchaseService {
         {
             ActivePurchase activePurchase = purchaseDomainService.viewActivePurchase(activePurchaseID);
             UUID userId = activePurchase.getUserID();
-            boolean isSoldOut = purchaseDomainService.completePurchase(activePurchaseID, paymentDetails, couponCode);
+            boolean isSoldOut = purchaseDomainService.completePurchase(
+                    activePurchaseID,
+                    paymentDetails,
+                    normalizedCouponCode
+            );
             logger.info("Purchase completed successfully for activePurchaseID: " + activePurchaseID);
             notifier.notifyUser(activePurchase.getUserID(), "Purchase Complete");
             if(isSoldOut)

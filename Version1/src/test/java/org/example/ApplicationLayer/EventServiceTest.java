@@ -134,8 +134,8 @@ public class EventServiceTest {
 
         when(userRepository.findByEmail(ownerUsername)).thenReturn(Optional.of(ownerUser));
         when(userRepository.hasPermission(ownerUsername, companyId,
-            org.example.DomainLayer.CompanyAggregate.CompanyPermission.MANAGE_POLICIES, eventId))
-            .thenReturn(true);
+                org.example.DomainLayer.CompanyAggregate.CompanyPermission.MANAGE_POLICIES, eventId))
+                .thenReturn(true);
     }
 
     // =====================================================================
@@ -415,7 +415,13 @@ public class EventServiceTest {
                 "concert",
                 EventStatus.ACTIVE
         );
+        created.setName("Headline Show");
+        created.setDescription("description");
 
+        User ownerUser = new User(UUID.randomUUID(), ownerUsername, ownerUsername, "hash", 40);
+        ownerUser.getCompanyRoles().put(companyId, new CompanyFounder(ownerUsername));
+
+        when(userRepository.findByEmail(ownerUsername)).thenReturn(Optional.of(ownerUser));
         when(eventRepository.getById(eventId))
                 .thenReturn(null)
                 .thenReturn(created);
@@ -423,7 +429,7 @@ public class EventServiceTest {
         EventDetailsDto result = eventService.addEvent(
                 eventId,
                 companyId,
-            ownerUsername,
+                ownerUsername,
                 "Headline Show",
                 date,
                 "Tel Aviv",
@@ -905,7 +911,7 @@ public class EventServiceTest {
         when(eventRepository.getById(eventId)).thenReturn(newRealEvent());
 
         assertThrows(DomainException.class,
-            () -> eventService.addEvent(eventId, companyId, ownerUsername, "name", LocalDateTime.now().plusDays(10),
+                () -> eventService.addEvent(eventId, companyId, ownerUsername, "name", LocalDateTime.now().plusDays(10),
                         "Tel Aviv", "Some Artist", "concert", EventStatus.ACTIVE, "description"));
         verify(eventRepository, never()).save(any(Event.class));
     }
@@ -926,7 +932,7 @@ public class EventServiceTest {
         doThrow(new RuntimeException("DB down")).when(eventRepository).save(any(Event.class));
 
         DomainException ex = assertThrows(DomainException.class,
-            () -> eventService.rateEvent(userId, eventId, 4));
+                () -> eventService.rateEvent(userId, eventId, 4));
         assertEquals("DB down", ex.getMessage());
     }
 

@@ -1,0 +1,277 @@
+.company-policies-card {
+    max-width: 960px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 24px;
+    background:
+        radial-gradient(circle at top left, rgba(17, 24, 39, 0.08), transparent 44%),
+        linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    border: 1px solid #dbe1ea;
+    border-radius: 18px;
+    box-shadow: 0 16px 36px rgba(15, 23, 42, 0.08);
+}
+
+.company-policies-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.company-policies-header h2 {
+    margin: 0 0 8px;
+    font-size: 26px;
+}
+
+.company-policies-header p {
+    margin: 0;
+    color: #5b6472;
+    line-height: 1.5;
+}
+
+.company-policies-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: rgba(17, 24, 39, 0.08);
+    color: #111827;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.company-policies-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+}
+
+.company-policy-panel {
+    padding: 18px;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.82);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.company-policy-panel-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.company-policy-panel-label {
+    display: inline-block;
+    margin-bottom: 4px;
+    color: #6b7280;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.company-policy-panel h3 {
+    margin: 0;
+    font-size: 20px;
+    color: #111827;
+}
+
+.company-policy-panel-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 7px 10px;
+    border-radius: 999px;
+    background: #eef2ff;
+    color: #3730a3;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.company-policy-empty-state {
+    margin: 0 0 14px;
+    color: #5b6472;
+    line-height: 1.5;
+}
+
+.company-policy-legend {
+    display: grid;
+    gap: 12px;
+}
+
+.company-policy-legend-title {
+    color: #111827;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.company-policy-legend-grid {
+    display: grid;
+    gap: 10px;
+}
+
+.company-policy-legend-item {
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+}
+
+.company-policy-legend-item strong {
+    display: block;
+    margin-bottom: 4px;
+    color: #111827;
+    font-size: 14px;
+}
+
+.company-policy-legend-item p {
+    margin: 0;
+    color: #5b6472;
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.company-policy-rules-list {
+    display: grid;
+    gap: 12px;
+}
+
+.company-policy-rule-group {
+    display: grid;
+    gap: 10px;
+}
+
+.company-policy-rule-children {
+    display: grid;
+    gap: 10px;
+    padding-left: 18px;
+    margin-left: 6px;
+    border-left: 1px solid #dbe1ea;
+}
+
+.company-policy-rule-card {
+    padding: 14px 16px;
+    border-radius: 14px;
+    border: 1px solid #d9dee7;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
+}
+
+.company-policy-rule-card--composite {
+    border-style: dashed;
+    background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+}
+
+.company-policy-rule-card--discount {
+    border-color: #f1d0a5;
+    background: linear-gradient(180deg, #fffaf2 0%, #fff7ed 100%);
+}
+
+.company-policy-rule-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.company-policy-rule-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.company-policy-rule-kind {
+    display: inline-flex;
+    margin-bottom: 4px;
+    color: #6b7280;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.company-policy-rule-card h4 {
+    margin: 0;
+    color: #111827;
+    font-size: 16px;
+}
+
+.company-policy-rule-badge,
+.company-policy-rule-id {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: rgba(17, 24, 39, 0.06);
+    color: #374151;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.company-policy-remove-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: 1px solid #dc2626;
+    background: #fff1f2;
+    color: #991b1b;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.05s ease, border-color 0.15s ease;
+}
+
+.company-policy-remove-button:hover {
+    background: #fee2e2;
+    border-color: #b91c1c;
+}
+
+.company-policy-remove-button:active {
+    transform: translateY(1px);
+}
+
+.company-policy-rule-note {
+    margin: 0;
+    color: #5b6472;
+    line-height: 1.5;
+}
+
+@media (max-width: 900px) {
+    .company-policies-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .company-policies-header,
+    .company-policy-panel-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+
+@media (max-width: 640px) {
+    .company-policies-card {
+        padding: 18px;
+    }
+
+    .company-policy-panel {
+        padding: 14px;
+    }
+}

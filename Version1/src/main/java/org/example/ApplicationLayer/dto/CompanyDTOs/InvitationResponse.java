@@ -12,16 +12,18 @@ import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
 public class InvitationResponse {
     public final UUID invitationId;
     public final UUID companyId;
+    public final String companyName;
     public final String appointerUsername;
     public final String appointeeUsername;
     public final String invitationType;              // "MANAGER" or "OWNER"
     public final Set<CompanyPermission> permissions; // null for OWNER invitations
 
-    public InvitationResponse(UUID invitationId, UUID companyId,
+    public InvitationResponse(UUID invitationId, UUID companyId, String companyName,
                               String appointerUsername, String appointeeUsername,
                               String invitationType, Set<CompanyPermission> permissions) {
         this.invitationId = invitationId;
         this.companyId = companyId;
+        this.companyName = companyName;
         this.appointerUsername = appointerUsername;
         this.appointeeUsername = appointeeUsername;
         this.invitationType = invitationType;
