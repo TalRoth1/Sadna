@@ -281,10 +281,6 @@ public class UserServiceTest {
     }
 
 
-        verify(userRepositoryMock, times(1)).findByEmail(request.email);
-        verify(authGatewayMock, times(1)).verifyPassword(anyString(), anyString());
-    }
-
     @Test
     public void testLogin_WrongPassword_ThrowsExceptionAndKeepsUserLoggedOut() {
         LoginRequest request = new LoginRequest();
