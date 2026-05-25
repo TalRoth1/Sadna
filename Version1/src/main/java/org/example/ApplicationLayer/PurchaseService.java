@@ -265,11 +265,11 @@ public class PurchaseService {
             notifier.notifyUser(activePurchase.getUserID(), "Purchase Complete");
             if(isSoldOut)
             {
-                UUID managerUserId =
-                        purchaseDomainService.getEventManagerUserId(activePurchase.getEventID());
+                String managerIdentifier =
+                        purchaseDomainService.getEventManager(activePurchase.getEventID());
 
                 notifier.notifyUser(
-                        managerUserId,
+                        managerIdentifier,
                         "Tickets to event: " + activePurchase.getEventID() + " have been SOLD OUT"
                 );
             }

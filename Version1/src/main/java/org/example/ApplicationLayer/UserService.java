@@ -369,6 +369,29 @@ public class UserService {
         }
     }
 
+    /**
+     * Returns the public DTO for the given user ID.
+     *
+     * <p>Used by {@code GET /api/users/me} so the frontend can validate
+     * that its stored session is still live on the current server
+     * instance (important after an in-memory restart where all user data
+     * is wiped but old JWTs remain cryptographically valid).
+     *
+     * @param userId the user's UUID; must not be {@code null}
+     * @return the user's public {@link UserResponse}
+     * @throws IllegalArgumentException if {@code userId} is {@code null}
+     *                                  or no such user exists in the repository
+     */
+    public UserResponse getUserById(UUID userId) {
+        if (userId == null) {
+            throw new IllegalArgumentException("User ID is required");
+        }
+        User user = userRepository.getUser(userId)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("User not found: " + userId));
+        return toResponse(user);
+    }
+
     // ------------------------------------------------------------------
     // Private helpers
     // ------------------------------------------------------------------

@@ -41,10 +41,16 @@ api.interceptors.response.use(
                 const isLogout = url.includes("/users/logout");
 
                 if (!isLogout) {
-                    console.error("User not authenticated or token expired - redirecting to login page");
+                    console.error("User not authenticated or token expired - clearing auth data");
+                    // Clear ALL auth-related keys so no stale data remains.
+                    // This handles server restarts: the JWT is still valid
+                    // cryptographically but the in-memory user is gone, so the
+                    // backend returns 401. Clearing everything ensures the UI
+                    // reflects the true "logged out" state on the next render.
                     localStorage.removeItem('token');
-                    // מומלץ להשאיר את זה דולק כדי שהאפליקציה תגיב בזמן אמת לפקיעת טוקן
-                    // window.location.href = '/login';
+                    localStorage.removeItem('userId');
+                    localStorage.removeItem('userRole');
+                    localStorage.removeItem('currentUser');
                 }
             }
 

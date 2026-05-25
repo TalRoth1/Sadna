@@ -84,6 +84,8 @@ export async function markAllNotificationsAsRead(userId: string): Promise<void> 
 export function connectNotificationStream(
     userId: string,
     onNotification: (notification: UserNotification) => void,
+    onConnected?: () => void,
+    onDisconnected?: () => void,
 ): () => void {
     const source = new EventSource(
         `${API_BASE_URL}/notifications/stream/${userId}`,
@@ -97,12 +99,16 @@ export function connectNotificationStream(
         onNotification(fromStreamData(event.data));
     });
 
-    source.addEventListener("connected", (event) => {
-        console.log("Notifications stream connected:", event.data);
+    source.addEventListener("connected", () => {
+        if (onConnected) {
+            onConnected();
+        }
     });
 
-    source.onerror = (error) => {
-        console.warn("Notifications stream error:", error);
+    source.onerror = () => {
+        if (onDisconnected) {
+            onDisconnected();
+        }
     };
 
     return () => source.close();

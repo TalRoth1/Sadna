@@ -8,13 +8,15 @@ import java.util.UUID;
 
 public interface INotificationRepository {
 
-    Notification save(Notification notification);
+    void save(Notification notification);
 
     Optional<Notification> findById(UUID notificationId);
 
-    List<Notification> findUnreadByRecipient(String recipient);
+    List<Notification> findAllByRecipient(String recipientId);
 
-    List<Notification> findAllByRecipient(String recipient);
+    List<Notification> findUnreadByRecipient(String recipientId);
 
-    void markAllAsRead(String recipient);
+    void markAsRead(String recipientId, UUID notificationId);
+
+    int markAllAsRead(String recipientId);
 }

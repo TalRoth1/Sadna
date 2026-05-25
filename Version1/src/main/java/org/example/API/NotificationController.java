@@ -55,15 +55,15 @@ public class NotificationController {
 
         SseEmitter emitter = new SseEmitter(SSE_TIMEOUT);
 
-        AtomicReference<Consumer<String>> listenerRef = new AtomicReference<>();
+        AtomicReference<Consumer<NotificationDTO>> listenerRef = new AtomicReference<>();
 
-        Consumer<String> listener = message -> {
+        Consumer<NotificationDTO> listener = dto -> {
             try {
                 emitter.send(SseEmitter.event()
                         .name("notification")
-                        .data(message));
+                        .data(dto));
             } catch (IOException | IllegalStateException e) {
-                Consumer<String> registeredListener = listenerRef.get();
+                Consumer<NotificationDTO> registeredListener = listenerRef.get();
                 if (registeredListener != null) {
                     broadcaster.unregister(userId, registeredListener);
                 }

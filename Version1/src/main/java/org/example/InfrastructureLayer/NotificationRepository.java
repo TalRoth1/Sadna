@@ -3,17 +3,19 @@ package org.example.InfrastructureLayer;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.example.DomainLayer.INotificationRepository;
 import org.example.DomainLayer.NotificationAggregate.Notification;
-import org.springframework.stereotype.Repository;
 
 
-public class NotificationRepository {
+public class NotificationRepository implements INotificationRepository {
 
     private final ConcurrentHashMap<UUID, Notification> notifications = new ConcurrentHashMap<>();
 
+    @Override
     public void save(Notification notification) {
         if (notification == null) {
             throw new IllegalArgumentException("Notification is required");
@@ -21,14 +23,16 @@ public class NotificationRepository {
         notifications.put(notification.getId(), notification);
     }
 
-    public Notification findById(UUID notificationId) {
+    @Override
+    public Optional<Notification> findById(UUID notificationId) {
         if (notificationId == null) {
             throw new IllegalArgumentException("Notification ID is required");
         }
-        return notifications.get(notificationId);
+        return Optional.ofNullable(notifications.get(notificationId));
     }
 
-    public List<Notification> findByRecipient(String recipientId) {
+    @Override
+    public List<Notification> findAllByRecipient(String recipientId) {
         if (recipientId == null || recipientId.isBlank()) {
             throw new IllegalArgumentException("Recipient ID is required");
         }
@@ -39,6 +43,7 @@ public class NotificationRepository {
                 .toList();
     }
 
+    @Override
     public List<Notification> findUnreadByRecipient(String recipientId) {
         if (recipientId == null || recipientId.isBlank()) {
             throw new IllegalArgumentException("Recipient ID is required");
@@ -51,12 +56,10 @@ public class NotificationRepository {
                 .toList();
     }
 
+    @Override
     public void markAsRead(String recipientId, UUID notificationId) {
-        Notification notification = findById(notificationId);
-
-        if (notification == null) {
-            throw new IllegalArgumentException("Notification not found");
-        }
+        Notification notification = findById(notificationId)
+                .orElseThrow(() -> new IllegalArgumentException("Notification not found"));
 
         if (!notification.getRecipientId().equals(recipientId)) {
             throw new IllegalArgumentException("Notification does not belong to this user");
@@ -66,6 +69,7 @@ public class NotificationRepository {
         save(notification);
     }
 
+    @Override
     public int markAllAsRead(String recipientId) {
         List<Notification> unread = new ArrayList<>(findUnreadByRecipient(recipientId));
 

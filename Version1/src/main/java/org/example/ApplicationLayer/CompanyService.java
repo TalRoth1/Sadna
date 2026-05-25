@@ -185,7 +185,7 @@ public class CompanyService {
         rolesDomainService.changeManagerPermissions(
                 ownerUsername, companyId, managerUsername, newPermissions);
 
-        notifier.notifyUser(managerUsername, "Your permissions changed");
+        notifier.notifyUser(managerUsername, "Your manager permissions have changed.");
     }
 
     public void addPolicyRule(String username,

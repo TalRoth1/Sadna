@@ -24,6 +24,7 @@ import org.example.DomainLayer.IHistoryRepository;
 import org.example.DomainLayer.ILotteryRepository;
 import org.example.DomainLayer.IPurchaseRepository;
 import org.example.DomainLayer.IUserRepository;
+import org.example.DomainLayer.INotificationRepository;
 import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.PurchaseDomainService;
 import org.example.DomainLayer.RolesDomainService;
@@ -177,13 +178,13 @@ public class BeanConfig {
     }
 
     @Bean
-    public NotificationRepository notificationRepository() {
+    public INotificationRepository notificationRepository() {
         return new NotificationRepository();
     }
 
     @Bean
     public INotifier notifier(Broadcaster broadcaster,
-                              NotificationRepository notificationRepository) {
+                              INotificationRepository notificationRepository) {
         return new Notifier(broadcaster, notificationRepository);
     }
 
