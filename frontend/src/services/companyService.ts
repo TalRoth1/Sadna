@@ -119,6 +119,38 @@ export type ChangeManagerPermissionsRequest = {
 	newPermissions: CompanyPermissionName[];
 };
 
+export type AddPolicyRuleRequest = {
+	username: string;
+	age?: number | null;
+	minTicket?: number | null;
+	maxTicket?: number | null;
+	allowLoneSeat?: boolean | null;
+};
+
+export type AddOvertDiscountRequest = {
+	username: string;
+	fromDate: string;
+	toDate: string;
+	discountPercent: number;
+};
+
+export type AddConditionalDiscountRequest = {
+	username: string;
+	fromDate: string;
+	toDate: string;
+	discountPercent: number;
+	requiredTickets: number;
+	appliedTickets: number;
+};
+
+export type AddCouponRequest = {
+	username: string;
+	fromDate: string;
+	toDate: string;
+	discountPercent: number;
+	code: string;
+};
+
 export type DeletePolicyRuleRequest = {
 	username: string;
 };
@@ -286,6 +318,34 @@ export async function changeManagerPermissions(
 	await api.patch(`/companies/${companyId}/managers/permissions`, request);
 }
 
+export async function addPolicyRule(
+	companyId: string,
+	request: AddPolicyRuleRequest,
+): Promise<void> {
+	await api.post(`/companies/${companyId}/policy`, request);
+}
+
+export async function addOvertDiscount(
+	companyId: string,
+	request: AddOvertDiscountRequest,
+): Promise<void> {
+	await api.post(`/companies/${companyId}/discounts/overt`, request);
+}
+
+export async function addConditionalDiscount(
+	companyId: string,
+	request: AddConditionalDiscountRequest,
+): Promise<void> {
+	await api.post(`/companies/${companyId}/discounts/conditional`, request);
+}
+
+export async function addCouponCode(
+	companyId: string,
+	request: AddCouponRequest,
+): Promise<void> {
+	await api.post(`/companies/${companyId}/discounts/coupon`, request);
+}
+
 export async function deletePolicyRule(
 	companyId: string,
 	ruleId: string,
@@ -303,8 +363,7 @@ export async function removeDiscount(
 ): Promise<void> {
 	await api.delete(`/companies/${companyId}/discounts/${discountId}`, {
 		data: request,
-}
-);
+ 	});
 }
 
 export type RemoveMemberOwnerRequest = {

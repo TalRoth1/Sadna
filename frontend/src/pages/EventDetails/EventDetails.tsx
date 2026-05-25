@@ -434,12 +434,11 @@ export default function EventDetailsPage({
                     )}
 
                     {actionMessage && (
-                        <div
+                        <div>
                             className={`event-action-message tone-${actionMessage.kind}`}
                             role={
                                 actionMessage.kind === "error" ? "alert" : "status"
                             }
-                        >
                             {actionMessage.text}
                         </div>
                     )}

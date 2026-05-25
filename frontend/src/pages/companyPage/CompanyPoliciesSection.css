@@ -19,6 +19,14 @@
     margin-bottom: 20px;
 }
 
+.company-policies-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
 .company-policies-header h2 {
     margin: 0 0 8px;
     font-size: 26px;
@@ -43,6 +51,304 @@
     letter-spacing: 0.08em;
     text-transform: uppercase;
     white-space: nowrap;
+}
+
+.company-policy-add-button,
+.company-policy-secondary-button,
+.company-policy-primary-button,
+.company-policy-modal-close-button,
+.company-policy-family-option {
+    border: 0;
+    font: inherit;
+    cursor: pointer;
+}
+
+.company-policy-add-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #111827 0%, #374151 100%);
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 800;
+    box-shadow: 0 10px 20px rgba(17, 24, 39, 0.18);
+    transition: transform 0.05s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+
+.company-policy-add-button:hover {
+    box-shadow: 0 14px 26px rgba(17, 24, 39, 0.22);
+}
+
+.company-policy-add-button:active {
+    transform: translateY(1px);
+}
+
+.company-policy-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(15, 23, 42, 0.48);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+}
+
+.company-policy-modal {
+    width: min(1120px, 100%);
+    max-height: min(90vh, 960px);
+    overflow: auto;
+    padding: 24px;
+    border-radius: 24px;
+    border: 1px solid rgba(148, 163, 184, 0.4);
+    background:
+        radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 26%),
+        linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    box-shadow: 0 30px 80px rgba(15, 23, 42, 0.3);
+}
+
+.company-policy-modal-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.company-policy-modal-kicker {
+    display: inline-flex;
+    margin-bottom: 8px;
+    color: #1d4ed8;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.company-policy-modal-header h3 {
+    margin: 0 0 8px;
+    color: #111827;
+    font-size: 28px;
+}
+
+.company-policy-modal-header p {
+    max-width: 64ch;
+    margin: 0;
+    color: #5b6472;
+    line-height: 1.55;
+}
+
+.company-policy-modal-close-button,
+.company-policy-secondary-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: #eef2ff;
+    color: #1e3a8a;
+    font-weight: 800;
+    transition: background 0.15s ease, transform 0.05s ease;
+}
+
+.company-policy-modal-close-button:hover,
+.company-policy-secondary-button:hover {
+    background: #dbeafe;
+}
+
+.company-policy-modal-close-button:active,
+.company-policy-secondary-button:active {
+    transform: translateY(1px);
+}
+
+.company-policy-modal-body {
+    display: grid;
+    gap: 18px;
+}
+
+.company-policy-family-switch {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.company-policy-family-option {
+    padding: 14px 16px;
+    border-radius: 16px;
+    background: #f8fafc;
+    color: #334155;
+    font-weight: 800;
+    text-align: center;
+    transition: background 0.15s ease, transform 0.05s ease, box-shadow 0.15s ease;
+    box-shadow: inset 0 0 0 1px #e2e8f0;
+}
+
+.company-policy-family-option:hover {
+    background: #eef2ff;
+}
+
+.company-policy-family-option--active {
+    background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
+    color: #ffffff;
+    box-shadow: 0 12px 22px rgba(37, 99, 235, 0.24);
+}
+
+.company-policy-modal-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr);
+    gap: 16px;
+}
+
+.company-policy-modal-form-panel,
+.company-policy-modal-preview {
+    padding: 18px;
+    border-radius: 18px;
+    border: 1px solid #e5e7eb;
+    background: rgba(255, 255, 255, 0.88);
+}
+
+.company-policy-form-stack {
+    display: grid;
+    gap: 14px;
+}
+
+.company-policy-split-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.company-policy-field {
+    display: grid;
+    gap: 6px;
+}
+
+.company-policy-field span {
+    color: #111827;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.company-policy-field input,
+.company-policy-field select {
+    width: 100%;
+    min-height: 44px;
+    padding: 10px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    background: #ffffff;
+    color: #111827;
+    font: inherit;
+}
+
+.company-policy-field input:focus,
+.company-policy-field select:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.company-policy-field-help {
+    margin: 0;
+    color: #5b6472;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.company-policy-modal-preview {
+    display: grid;
+    gap: 14px;
+    align-content: start;
+    background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
+    color: #e5e7eb;
+}
+
+.company-policy-modal-preview-label {
+    color: #93c5fd;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.company-policy-modal-preview-card {
+    padding: 16px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.company-policy-modal-preview-card strong {
+    display: block;
+    margin-bottom: 8px;
+    color: #ffffff;
+    font-size: 18px;
+}
+
+.company-policy-modal-preview-card p {
+    margin: 0;
+    color: #cbd5e1;
+    line-height: 1.55;
+}
+
+.company-policy-preview-list {
+    display: grid;
+    gap: 10px;
+}
+
+.company-policy-preview-item {
+    display: grid;
+    gap: 4px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.company-policy-preview-item span {
+    color: #93c5fd;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.company-policy-preview-item strong {
+    color: #ffffff;
+    font-size: 14px;
+    line-height: 1.45;
+}
+
+.company-policy-modal-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.company-policy-primary-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 16px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
+    color: #ffffff;
+    font-weight: 800;
+    box-shadow: 0 14px 26px rgba(37, 99, 235, 0.22);
+    transition: transform 0.05s ease, box-shadow 0.15s ease;
+}
+
+.company-policy-primary-button:hover {
+    box-shadow: 0 16px 30px rgba(37, 99, 235, 0.26);
+}
+
+.company-policy-primary-button:active {
+    transform: translateY(1px);
 }
 
 .company-policies-grid {
@@ -259,10 +565,28 @@
         grid-template-columns: 1fr;
     }
 
+    .company-policy-modal-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .company-policy-split-fields {
+        grid-template-columns: 1fr;
+    }
+
     .company-policies-header,
-    .company-policy-panel-header {
+    .company-policy-panel-header,
+    .company-policy-modal-header {
         flex-direction: column;
         align-items: flex-start;
+    }
+
+    .company-policy-modal-footer {
+        justify-content: stretch;
+        flex-direction: column;
+    }
+
+    .company-policy-modal-footer > * {
+        width: 100%;
     }
 }
 
@@ -273,5 +597,18 @@
 
     .company-policy-panel {
         padding: 14px;
+    }
+
+    .company-policy-modal-overlay {
+        padding: 12px;
+    }
+
+    .company-policy-modal {
+        padding: 18px;
+        border-radius: 20px;
+    }
+
+    .company-policy-family-switch {
+        grid-template-columns: 1fr;
     }
 }

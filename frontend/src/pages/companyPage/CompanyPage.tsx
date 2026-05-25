@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import type { ComponentProps } from "react";
 import {
+    addConditionalDiscount,
+    addCouponCode,
+    addOvertDiscount,
+    addPolicyRule,
     changeManagerPermissions,
     deleteEvent,
     deletePolicyRule,
@@ -66,6 +70,47 @@ type CompanyPoliciesViewModel = {
     purchaseRules: NonNullable<CompanyPoliciesSectionProps["purchaseRules"]>;
     discountRules: NonNullable<CompanyPoliciesSectionProps["discountRules"]>;
 };
+
+type PurchasePolicyCreateRequest =
+    | {
+          kind: "AGE";
+          age: number;
+      }
+    | {
+          kind: "MIN_TICKETS";
+          minTicket: number;
+      }
+    | {
+          kind: "MAX_TICKETS";
+          maxTicket: number;
+      }
+    | {
+          kind: "LONE_SEAT";
+          allowLoneSeat: boolean;
+      };
+
+type DiscountPolicyCreateRequest =
+    | {
+          kind: "OVERT";
+          fromDate: string;
+          toDate: string;
+          discountPercent: number;
+      }
+    | {
+          kind: "CONDITIONAL";
+          fromDate: string;
+          toDate: string;
+          discountPercent: number;
+          requiredTickets: number;
+          appliedTickets: number;
+      }
+    | {
+          kind: "COUPON";
+          fromDate: string;
+          toDate: string;
+          discountPercent: number;
+          code: string;
+      };
 
 type CompanyPageSectionId =
     | "company-overview"
@@ -854,6 +899,79 @@ export default function CompanyPage({
         }));
     }
 
+    async function handleCreatePurchasePolicyRule(request: PurchasePolicyCreateRequest) {
+        if (!currentUser || currentUser.role === "GUEST") {
+            throw new Error("Please log in again before creating a policy.");
+        }
+
+        switch (request.kind) {
+            case "AGE":
+                await addPolicyRule(state.company.id, {
+                    username: currentUser.email,
+                    age: request.age,
+                });
+                break;
+            case "MIN_TICKETS":
+                await addPolicyRule(state.company.id, {
+                    username: currentUser.email,
+                    minTicket: request.minTicket,
+                });
+                break;
+            case "MAX_TICKETS":
+                await addPolicyRule(state.company.id, {
+                    username: currentUser.email,
+                    maxTicket: request.maxTicket,
+                });
+                break;
+            case "LONE_SEAT":
+                await addPolicyRule(state.company.id, {
+                    username: currentUser.email,
+                    allowLoneSeat: request.allowLoneSeat,
+                });
+                break;
+        }
+
+        await refreshCompanyPolicies();
+    }
+
+    async function handleCreateDiscountPolicyRule(request: DiscountPolicyCreateRequest) {
+        if (!currentUser || currentUser.role === "GUEST") {
+            throw new Error("Please log in again before creating a discount.");
+        }
+
+        switch (request.kind) {
+            case "OVERT":
+                await addOvertDiscount(state.company.id, {
+                    username: currentUser.email,
+                    fromDate: request.fromDate,
+                    toDate: request.toDate,
+                    discountPercent: request.discountPercent,
+                });
+                break;
+            case "CONDITIONAL":
+                await addConditionalDiscount(state.company.id, {
+                    username: currentUser.email,
+                    fromDate: request.fromDate,
+                    toDate: request.toDate,
+                    discountPercent: request.discountPercent,
+                    requiredTickets: request.requiredTickets,
+                    appliedTickets: request.appliedTickets,
+                });
+                break;
+            case "COUPON":
+                await addCouponCode(state.company.id, {
+                    username: currentUser.email,
+                    fromDate: request.fromDate,
+                    toDate: request.toDate,
+                    discountPercent: request.discountPercent,
+                    code: request.code,
+                });
+                break;
+        }
+
+        await refreshCompanyPolicies();
+    }
+
     async function handleRemovePurchasePolicyRule(ruleId: string, ruleLabel: string) {
         if (!currentUser || currentUser.role === "GUEST") {
             window.alert("Please log in again before removing a policy.");
@@ -1071,6 +1189,8 @@ export default function CompanyPage({
                     discountRules={state.companyPolicies?.discountRules}
                     onRemovePurchaseRule={handleRemovePurchasePolicyRule}
                     onRemoveDiscountRule={handleRemoveDiscountRule}
+                    onCreatePurchaseRule={handleCreatePurchasePolicyRule}
+                    onCreateDiscountRule={handleCreateDiscountPolicyRule}
                 />
             )}
 
