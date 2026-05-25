@@ -1,4 +1,4 @@
-import { useNotifications } from "../context/NotificationProvider";
+import { useNotifications } from "../NotificationProvider";
 
 export function NotificationsPage() {
     const { notifications, markRead, markAllRead } = useNotifications();

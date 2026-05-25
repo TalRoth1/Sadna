@@ -2,7 +2,10 @@ package org.example.InfrastructureLayer;
 
 import java.util.UUID;
 
+import org.example.ApplicationLayer.dto.NotificationDTOs.NotificationDTO;
 import org.example.DomainLayer.NotificationAggregate.INotifier;
+import org.example.DomainLayer.NotificationAggregate.Notification;
+import org.example.DomainLayer.NotificationAggregate.NotificationType;
 
 public class WebSocketNotificationSender implements INotifier {
 
@@ -18,16 +21,12 @@ public class WebSocketNotificationSender implements INotifier {
             throw new IllegalArgumentException("User ID is required");
         }
 
-        if (message == null || message.isBlank()) {
-            throw new IllegalArgumentException("Notification message is required");
-        }
-
-        return broadcaster.broadcast(userId.toString(), message);
+        return notifyUser(userId.toString(), message);
     }
 
-        @Override
+    @Override
     public boolean notifyUser(String userId, String message) {
-        if (userId == null) {
+        if (userId == null || userId.isBlank()) {
             throw new IllegalArgumentException("User ID is required");
         }
 
@@ -35,6 +34,8 @@ public class WebSocketNotificationSender implements INotifier {
             throw new IllegalArgumentException("Notification message is required");
         }
 
-        return broadcaster.broadcast(userId, message);
+        NotificationDTO dto = new NotificationDTO(
+                new Notification(userId, NotificationType.GENERAL, message, null));
+        return broadcaster.broadcast(userId, dto);
     }
 }
