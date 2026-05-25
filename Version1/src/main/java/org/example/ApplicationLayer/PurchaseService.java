@@ -1,11 +1,15 @@
 package org.example.ApplicationLayer;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Logger;
 
+import org.example.ApplicationLayer.dto.PurchaseDTOs.ActivePurchaseDTO;
+import org.example.ApplicationLayer.dto.PurchaseDTOs.PurchaseHistoryDTO;
+import org.example.ApplicationLayer.dto.PurchaseDTOs.SelectionAccessDTO;
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 import org.example.DomainLayer.DomainException;
 import org.example.DomainLayer.EventAggregate.Event;
@@ -16,11 +20,6 @@ import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.PurchaseDomainService;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.springframework.stereotype.Service;
-
-import java.util.ArrayList;
-import org.example.ApplicationLayer.dto.PurchaseDTOs.ActivePurchaseDTO;
-import org.example.ApplicationLayer.dto.PurchaseDTOs.PurchaseHistoryDTO;
-import org.example.ApplicationLayer.dto.PurchaseDTOs.SelectionAccessDTO;
 
 @Service
 public class PurchaseService {
@@ -519,7 +518,7 @@ public class PurchaseService {
         }
     }
 
-    public void drawLotteryForEvent(UUID eventId, LocalDateTime codeExpiry) {
+    public Map<String, String> drawLotteryForEvent(UUID eventId, LocalDateTime codeExpiry) {
         logger.info("caller=system/admin"
                 + ", action=drawLotteryForEvent"
                 + ", target=PurchaseDomainService.drawLotteryForEvent"
@@ -548,7 +547,8 @@ public class PurchaseService {
                         new LotteryWonEvent(winnerId, eventId, accessCode, codeExpiry)
                 );
             }
-
+            
+            return winnerCodes;
         } catch (DomainException e) {
             logger.severe("action=drawLotteryForEvent failed"
                     + ", caller=system/admin"
