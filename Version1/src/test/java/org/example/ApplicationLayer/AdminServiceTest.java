@@ -227,7 +227,7 @@ class AdminServiceTest {
 
             adminService.closeCompany(ADMIN_ID, ADMIN_USERNAME, companyId);
 
-            verify(notifier, never()).notifyUser(any(), anyString());
+            verify(notifier, never()).notifyUser(any(UUID.class), anyString());
         }
     }
 

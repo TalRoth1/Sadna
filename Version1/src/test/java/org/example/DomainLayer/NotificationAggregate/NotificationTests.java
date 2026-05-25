@@ -19,6 +19,7 @@ import org.example.DomainLayer.UserAggregate.CompanyManager;
 import org.example.DomainLayer.UserAggregate.CompanyOwner;
 import org.example.DomainLayer.UserAggregate.ICompanyMember;
 import org.example.DomainLayer.UserAggregate.User;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -61,7 +62,8 @@ public class NotificationTests {
             RolesDomainService rolesDomainService,
             PurchaseDomainService purchaseDomainService,
             QueueManager queueManager,
-            INotifier notifier
+            INotifier notifier,
+            ISystemMetricsTracker iSystemMetricsTracker
     ) {
         return new AdminService(
                 userRepository,
@@ -72,7 +74,8 @@ public class NotificationTests {
                 rolesDomainService,
                 purchaseDomainService,
                 queueManager,
-                notifier
+                notifier,
+                iSystemMetricsTracker
         );
     }
 
@@ -97,6 +100,7 @@ public class NotificationTests {
         PurchaseDomainService purchaseDomainService = mock(PurchaseDomainService.class);
         QueueManager queueManager = mock(QueueManager.class);
         INotifier notifier = mock(INotifier.class);
+        ISystemMetricsTracker iSystemMetricsTracker = mock(ISystemMetricsTracker.class);
 
         mockValidAdmin(userRepository);
 
@@ -121,7 +125,8 @@ public class NotificationTests {
                 rolesDomainService,
                 purchaseDomainService,
                 queueManager,
-                notifier
+                notifier,
+                iSystemMetricsTracker
         );
 
         service.sendSystemMessage(
@@ -153,6 +158,7 @@ public class NotificationTests {
         PurchaseDomainService purchaseDomainService = mock(PurchaseDomainService.class);
         QueueManager queueManager = mock(QueueManager.class);
         INotifier notifier = mock(INotifier.class);
+        ISystemMetricsTracker iSystemMetricsTracker = mock(ISystemMetricsTracker.class);
 
         mockValidAdmin(userRepository);
 
@@ -189,7 +195,8 @@ public class NotificationTests {
                 rolesDomainService,
                 purchaseDomainService,
                 queueManager,
-                notifier
+                notifier,
+                iSystemMetricsTracker
         );
 
         service.closeCompany(ADMIN_ID, ADMIN_USERNAME, companyId);
@@ -279,7 +286,7 @@ public class NotificationTests {
                 eq("Tel Aviv"),
                 eq("Coldplay"),
                 eq("Concert"),
-                eq(EventStatus.ACTIVE)
+                eq(EventStatus.ACTIVE), "hello"
         )).thenReturn(Set.of(buyer1, buyer2));
 
         /*
@@ -298,7 +305,7 @@ public class NotificationTests {
                         "Tel Aviv",
                         "Coldplay",
                         "Concert",
-                        EventStatus.ACTIVE
+                        EventStatus.ACTIVE, "hello"
                 )
         );
 

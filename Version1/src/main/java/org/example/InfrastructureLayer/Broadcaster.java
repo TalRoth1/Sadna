@@ -1,5 +1,7 @@
 package org.example.InfrastructureLayer;
 
+import org.example.ApplicationLayer.dto.NotificationDTOs.NotificationDTO;
+
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
