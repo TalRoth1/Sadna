@@ -814,7 +814,7 @@ public class DevDataSeeder implements CommandLineRunner {
                         LocalDateTime date, EventStatus status) {
                 UUID eventId = UUID.randomUUID();
                 eventManagement.addEvent(eventId, companyId, eventManagerEmail, name, date, location,
-                                artist, type, status);
+                                artist, type, status , "");
                 eventsByKey.put(key, eventId);
                 return eventId;
         }
