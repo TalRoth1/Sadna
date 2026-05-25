@@ -221,14 +221,7 @@ public class PurchaseDomainService {
     }
 
     public boolean completePurchase(UUID activePurchaseID, PaymentDetails paymentDetails, String couponCode) { // returns
-        // true
-        // if
-        // last
-        // ticket
-        // to
-        // event
-        // was
-        // bought
+
         ActivePurchase activePurchase = purchaseRepository.findByID(activePurchaseID);
         if (activePurchase == null)
             throw new DomainException("Active Purchase Not Found");
@@ -268,17 +261,14 @@ public class PurchaseDomainService {
                     ? null
                     : couponCode.trim();
 
-            DiscountPolicy relevantDiscountPolicy;
-            if (event.getDiscountPolicy() != null) {
-                relevantDiscountPolicy = event.getDiscountPolicy();
-            } else {
-                relevantDiscountPolicy = companyRepository
-                        .findByID(event.getCompanyId())
-                        .orElseThrow(() -> new DomainException("Company not found"))
-                        .getDiscountPolicy();
-            }
+            activePurchase.setCoupon(normalizedCouponCode == null ? "" : normalizedCouponCode);
 
-            float finalPrice = relevantDiscountPolicy.applyDiscount(activePurchase);
+            DiscountPolicy relevantDiscountPolicy = resolveRelevantDiscountPolicy(event);
+
+            float finalPrice =
+                    relevantDiscountPolicy == null
+                            ? activePurchase.getPrice()
+                            : relevantDiscountPolicy.applyDiscount(activePurchase);
             // Step 1: charge the user. A "declined" outcome is a normal
             // business answer (not an exception), so we leave the
             // reservation in place and let the user retry with a
@@ -325,6 +315,42 @@ public class PurchaseDomainService {
             return true;
         }
 
+    }
+
+    private DiscountPolicy resolveRelevantDiscountPolicy(Event event) {
+        if (event == null) {
+            return null;
+        }
+
+        DiscountPolicy eventPolicy = event.getDiscountPolicy();
+
+        if (hasDiscountRules(eventPolicy)) {
+            return eventPolicy;
+        }
+
+        if (event.getCompanyId() == null) {
+            return null;
+        }
+
+        Company company = companyRepository
+                .findByID(event.getCompanyId())
+                .orElse(null);
+
+        if (company == null) {
+            return null;
+        }
+
+        DiscountPolicy companyPolicy = company.getDiscountPolicy();
+
+        if (hasDiscountRules(companyPolicy)) {
+            return companyPolicy;
+        }
+
+        return null;
+    }
+
+    private boolean hasDiscountRules(DiscountPolicy policy) {
+        return policy != null && policy.hasRules();
     }
 
     /**

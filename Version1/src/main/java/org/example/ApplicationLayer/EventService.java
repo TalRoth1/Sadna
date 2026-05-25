@@ -46,6 +46,8 @@ import org.example.DomainLayer.PolicyManagment.PurchaseComposite;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.springframework.stereotype.Service;
 
+import org.example.DomainLayer.PolicyManagment.DiscountPolicy;
+
 @Service
 public class EventService {
     private static final Logger logger = Logger.getLogger(EventService.class.getName());
@@ -800,7 +802,8 @@ public class EventService {
      * Map a domain Event to the extended details payload consumed by the
      * Event Details page. Compared to {@link #toSummary(Event)} this also
      * carries the venue layout, the per-ticket inventory snapshot, the
-     * structured purchase + discount policies, and the lottery id.
+     * structured purchase + discount policies, the effective discount policy,
+     * and the lottery id.
      */
     private EventDetailsDto toDetails(Event e) {
         Company company = eventManagementDomainService.findCompanyById(e.getCompanyId());
@@ -811,8 +814,11 @@ public class EventService {
         for (Area a : e.getLayout().getAreasView()) {
             String kind = (a instanceof StandingArea) ? "STANDING"
                     : (a instanceof SittingArea) ? "SITTING" : "UNKNOWN";
+
             areas.add(new AreaSummaryDto(
-                    a.getAreaId(), kind, a.getPrice(),
+                    a.getAreaId(),
+                    kind,
+                    a.getPrice(),
                     new ArrayList<>(a.getTicketIdsView())));
         }
 
@@ -820,16 +826,26 @@ public class EventService {
         for (Ticket t : e.getTicketsView().values()) {
             Integer row = null;
             Integer seat = null;
+
             if (t instanceof SittingTicket st) {
                 row = st.getSeatRow();
                 seat = st.getSeatNumber();
             }
+
             tickets.add(new TicketDetailsDto(
-                    t.getTicketId(), t.getAreaId(), t.getStatus(),
-                    t.getPrice(), row, seat));
+                    t.getTicketId(),
+                    t.getAreaId(),
+                    t.getStatus(),
+                    t.getPrice(),
+                    row,
+                    seat));
         }
 
         InventorySnapshot snap = snapshotOf(e);
+
+        DiscountPolicyDto eventDiscountPolicy = toDiscountPolicyDto(e);
+        DiscountPolicyDto effectiveDiscountPolicy =
+                resolveEffectiveDiscountPolicyDto(e, company, eventDiscountPolicy);
 
         return new EventDetailsDto(
                 e.getEventId(),
@@ -853,7 +869,8 @@ public class EventService {
                 areas,
                 tickets,
                 toPurchasePolicyDto(e),
-                toDiscountPolicyDto(e));
+                eventDiscountPolicy,
+                effectiveDiscountPolicy);
     }
 
     /**
@@ -893,28 +910,76 @@ public class EventService {
     }
 
     private static DiscountPolicyDto toDiscountPolicyDto(Event e) {
+        if (e == null) {
+            return new DiscountPolicyDto(List.of());
+        }
+
+        return toDiscountPolicyDto(e.getDiscountPolicy());
+    }
+
+    private static DiscountPolicyDto toDiscountPolicyDto(DiscountPolicy policy) {
         List<DiscountRuleDto> out = new ArrayList<>();
-        for (IDiscountRule r : e.getDiscountPolicy().getDiscountRules()) {
+
+        if (policy == null || policy.getDiscountRules() == null) {
+            return new DiscountPolicyDto(out);
+        }
+
+        for (IDiscountRule r : policy.getDiscountRules()) {
             if (r instanceof OvertDiscount overt) {
                 out.add(new DiscountRuleDto(
-                        overt.getId(), "OVERT",
-                        overt.getFromDate(), overt.getToDate(),
-                        overt.getDiscountPercent(), null, null, null));
+                        overt.getId(),
+                        "OVERT",
+                        overt.getFromDate(),
+                        overt.getToDate(),
+                        overt.getDiscountPercent(),
+                        null,
+                        null,
+                        null));
             } else if (r instanceof ConditionalDiscount cond) {
                 out.add(new DiscountRuleDto(
-                        cond.getId(), "CONDITIONAL",
-                        cond.getFromDate(), cond.getToDate(),
+                        cond.getId(),
+                        "CONDITIONAL",
+                        cond.getFromDate(),
+                        cond.getToDate(),
                         cond.getDiscountPercent(),
-                        cond.getRequiredTickets(), cond.getAppliedTickets(), null));
+                        cond.getRequiredTickets(),
+                        cond.getAppliedTickets(),
+                        null));
             } else if (r instanceof CouponCode coupon) {
                 out.add(new DiscountRuleDto(
-                        coupon.getId(), "COUPON",
-                        coupon.getFromDate(), coupon.getToDate(),
-                        coupon.getDiscountPercent(), null, null,
+                        coupon.getId(),
+                        "COUPON",
+                        coupon.getFromDate(),
+                        coupon.getToDate(),
+                        coupon.getDiscountPercent(),
+                        null,
+                        null,
                         coupon.getCode()));
             }
         }
+
         return new DiscountPolicyDto(out);
+    }
+
+    private static boolean hasDiscountRules(DiscountPolicyDto policy) {
+        return policy != null
+                && policy.rules() != null
+                && !policy.rules().isEmpty();
+    }
+    private static DiscountPolicyDto resolveEffectiveDiscountPolicyDto(
+            Event event,
+            Company company,
+            DiscountPolicyDto eventDiscountPolicy) {
+
+        if (hasDiscountRules(eventDiscountPolicy)) {
+            return eventDiscountPolicy;
+        }
+
+        if (company == null) {
+            return new DiscountPolicyDto(List.of());
+        }
+
+        return toDiscountPolicyDto(company.getDiscountPolicy());
     }
 
     private PurchaseHistoryDTO toPurchaseHistoryDTO(PurchaseHistory history) {
