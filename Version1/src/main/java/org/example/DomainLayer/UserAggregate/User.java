@@ -53,12 +53,17 @@ public class User {
     }
 
     public void login() {
+        if (this.status == UserStatus.REMOVED) {
+            throw new IllegalStateException("The user was removed from the platform.");
+        }
+
         if (this.status == UserStatus.LOGGED_IN) {
             throw new IllegalStateException("The user is already logged in.");
         }
-        this.status = UserStatus.LOGGED_IN;
-    }
 
+        this.status = UserStatus.LOGGED_IN;
+        this.role = UserRole.MEMBER;
+    }
     public void logout() {
         if (this.status == UserStatus.NOT_LOGGED_IN) {
             throw new IllegalStateException("The user is already logged out.");

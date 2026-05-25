@@ -45,9 +45,9 @@ type SelectedCompany = {
 };
 
 function PlaceholderPage({
-                             title,
-                             description,
-                         }: {
+    title,
+    description,
+}: {
     title: string;
     description: string;
 }) {
@@ -113,9 +113,11 @@ function App() {
             setSelectedEventId(null);
             setSelectionAccessExpiresAt(null);
         }
+
         if (page !== "company-details") {
             setSelectedCompany(null);
         }
+
         setCurrentPage(page);
     }
 
@@ -200,6 +202,7 @@ function App() {
             setCurrentPage("event-search");
             return;
         }
+
         setSelectionAccessExpiresAt(null);
         setCurrentPage("event-details");
     }
@@ -213,7 +216,6 @@ function App() {
         setSelectionAccessExpiresAt(null);
         setCurrentPage("event-queue");
     }
-
 
     function handleEventCreated(eventId: string) {
         setSelectedEventId(eventId);
@@ -229,6 +231,7 @@ function App() {
             if (!selectedEventId) {
                 return <EventSearchPage onSelectEvent={handleSelectEvent} />;
             }
+
             return (
                 <EventDetailsPage
                     eventId={selectedEventId}
@@ -239,7 +242,6 @@ function App() {
                 />
             );
         }
-
 
         if (currentPage === "event-queue") {
             if (!selectedEventId) {
@@ -259,14 +261,8 @@ function App() {
             if (!selectedEventId) {
                 return <EventSearchPage onSelectEvent={handleSelectEvent} />;
             }
+
             return (
-                // `key` forces React to remount TicketPurchasePage when the
-                // user switches events. That way each event page gets its
-                // own state (selection, resumed reservation, timer) and
-                // they don't bleed into each other — which is critical for
-                // the "parallel independence" requirement, since the
-                // backend can now hold concurrent reservations across
-                // different events for the same user.
                 <TicketPurchasePage
                     key={selectedEventId}
                     eventId={selectedEventId}
@@ -305,14 +301,6 @@ function App() {
                         setSelectedEventId(eventId);
                         setCurrentPage("event-details");
                     }}
-                />
-            );
-        }
-
-        if (currentPage === "user-tickets") {
-            return (
-                <MyActivePurchasesPage
-                    onOpenPurchase={handleOpenActivePurchase}
                 />
             );
         }
@@ -369,6 +357,8 @@ function App() {
                     company={selectedCompany}
                     onBackToCompanies={() => setCurrentPage("my-companies")}
                     onCreateEvent={handleCreateEventForCompany}
+                    onSelectEvent={handleSelectEvent}
+                    onEditEvent={handleEditEvent}
                 />
             );
         }

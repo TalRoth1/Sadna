@@ -89,7 +89,8 @@ type CompanyPageProps = {
     company: CompanyViewModel;
     onBackToCompanies: () => void;
     onCreateEvent: (companyId: string) => void;
-
+    onSelectEvent: (eventId: string) => void;
+    onEditEvent: (eventId: string) => void;
 };
 
 type CompanyPageState = {
@@ -460,16 +461,26 @@ function isPermissionGranted(
 
 function ManagedEventCard({
     event,
+    onOpenEvent,
+    onEditEvent,
     onDelete,
 }: {
     event: ManagedEvent;
+    onOpenEvent: (eventId: string) => void;
+    onEditEvent: (eventId: string) => void;
     onDelete: (eventId: string, eventName: string) => Promise<void>;
 }) {
     return (
         <article className="company-event-card">
             <div className="company-event-card-main">
                 <div className="company-event-card-heading">
-                    <h3>{event.name}</h3>
+                    <button
+                        type="button"
+                        className="company-event-title-button"
+                        onClick={() => onOpenEvent(event.id)}
+                    >
+                        {event.name}
+                    </button>
                     <span className="company-event-category-badge">{event.type}</span>
                 </div>
 
@@ -495,6 +506,14 @@ function ManagedEventCard({
 
                 <button
                     type="button"
+                    className="company-event-edit-button"
+                    onClick={() => onEditEvent(event.id)}
+                >
+                    Edit event
+                </button>
+
+                <button
+                    type="button"
                     className="company-event-delete-button"
                     onClick={() => onDelete(event.id, event.name)}
                 >
@@ -509,6 +528,8 @@ export default function CompanyPage({
     company,
     onBackToCompanies,
     onCreateEvent,
+    onSelectEvent,
+    onEditEvent,
 }: CompanyPageProps) {
     const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
     const [inviteEmail, setInviteEmail] = useState("");
@@ -1197,6 +1218,8 @@ export default function CompanyPage({
                         <ManagedEventCard
                             key={event.id}
                             event={event}
+                            onOpenEvent={onSelectEvent}
+                            onEditEvent={onEditEvent}
                             onDelete={async (eventId, eventName) => {
                                 const shouldDelete = window.confirm(
                                     `Delete event \"${eventName}\"? This cannot be undone.`,

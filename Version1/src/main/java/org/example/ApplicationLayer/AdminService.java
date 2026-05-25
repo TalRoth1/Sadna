@@ -141,6 +141,8 @@ public class AdminService {
                     .orElseThrow(() -> new IllegalArgumentException("Subscriber not found"));
 
             userToRemove.removeFromPlatformAsAdmin();
+            userRepository.add(userToRemove);
+
 
             notifier.notifyUser(
                     userToRemove.getId(),
