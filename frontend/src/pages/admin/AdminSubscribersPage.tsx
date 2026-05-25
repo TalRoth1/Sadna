@@ -37,7 +37,7 @@ export default function AdminSubscribersPage() {
     const selectedSubscriber = useMemo(
         () =>
             subscribers.find(
-                (subscriber) => subscriber.id === selectedSubscriberId,
+                (subscriber) => subscriber.username === selectedSubscriberId,
             ) ?? null,
         [subscribers, selectedSubscriberId],
     );
@@ -142,10 +142,7 @@ export default function AdminSubscribersPage() {
                                 }}
                             >
                                 {subscribers.map((subscriber) => (
-                                    <option
-                                        key={subscriber.id}
-                                        value={subscriber.id}
-                                    >
+                                    <option key={subscriber.id} value={subscriber.username}>
                                         {subscriber.username} - {subscriber.email}
                                     </option>
                                 ))}
