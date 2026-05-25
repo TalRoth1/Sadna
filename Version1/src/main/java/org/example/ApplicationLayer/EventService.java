@@ -285,7 +285,153 @@ public class EventService {
             throw e;
         }
     }
+    
+    public void updateStandingArea(String username,
+                                UUID companyId,
+                                UUID eventId,
+                                UUID areaId,
+                                double price,
+                                int count) {
+        logger.info("[Event Log] Method: updateStandingArea called with parameters: username=" + username
+                + ", companyId=" + companyId
+                + ", eventId=" + eventId
+                + ", areaId=" + areaId
+                + ", price=" + price
+                + ", count=" + count);
 
+        try {
+            if (username == null || username.isBlank()) {
+                throw new IllegalArgumentException("username is required");
+            }
+            if (companyId == null) {
+                throw new IllegalArgumentException("companyId is required");
+            }
+            if (eventId == null) {
+                throw new IllegalArgumentException("eventId is required");
+            }
+            if (areaId == null) {
+                throw new IllegalArgumentException("areaId is required");
+            }
+            if (price < 0) {
+                throw new IllegalArgumentException("price must be non-negative");
+            }
+            if (count <= 0) {
+                throw new IllegalArgumentException("standing ticket count must be positive");
+            }
+
+            eventManagementDomainService.updateStandingArea(
+                    username,
+                    companyId,
+                    eventId,
+                    areaId,
+                    price,
+                    count
+            );
+
+        } catch (IllegalArgumentException | DomainException e) {
+            logger.info("[Event Log] Business rejection in updateStandingArea: " + e.getMessage());
+            throw e;
+        } catch (RuntimeException e) {
+            logger.log(Level.SEVERE, "[Error Log] System error in updateStandingArea: " + e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    public void updateSittingArea(String username,
+                                UUID companyId,
+                                UUID eventId,
+                                UUID areaId,
+                                double price,
+                                int rows,
+                                int seatsPerRow) {
+        logger.info("[Event Log] Method: updateSittingArea called with parameters: username=" + username
+                + ", companyId=" + companyId
+                + ", eventId=" + eventId
+                + ", areaId=" + areaId
+                + ", price=" + price
+                + ", rows=" + rows
+                + ", seatsPerRow=" + seatsPerRow);
+
+        try {
+            if (username == null || username.isBlank()) {
+                throw new IllegalArgumentException("username is required");
+            }
+            if (companyId == null) {
+                throw new IllegalArgumentException("companyId is required");
+            }
+            if (eventId == null) {
+                throw new IllegalArgumentException("eventId is required");
+            }
+            if (areaId == null) {
+                throw new IllegalArgumentException("areaId is required");
+            }
+            if (price < 0) {
+                throw new IllegalArgumentException("price must be non-negative");
+            }
+            if (rows <= 0) {
+                throw new IllegalArgumentException("rows must be positive");
+            }
+            if (seatsPerRow <= 0) {
+                throw new IllegalArgumentException("seatsPerRow must be positive");
+            }
+
+            eventManagementDomainService.updateSittingArea(
+                    username,
+                    companyId,
+                    eventId,
+                    areaId,
+                    price,
+                    rows,
+                    seatsPerRow
+            );
+
+        } catch (IllegalArgumentException | DomainException e) {
+            logger.info("[Event Log] Business rejection in updateSittingArea: " + e.getMessage());
+            throw e;
+        } catch (RuntimeException e) {
+            logger.log(Level.SEVERE, "[Error Log] System error in updateSittingArea: " + e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    public void deleteArea(String username,
+                        UUID companyId,
+                        UUID eventId,
+                        UUID areaId) {
+        logger.info("[Event Log] Method: deleteArea called with parameters: username=" + username
+                + ", companyId=" + companyId
+                + ", eventId=" + eventId
+                + ", areaId=" + areaId);
+
+        try {
+            if (username == null || username.isBlank()) {
+                throw new IllegalArgumentException("username is required");
+            }
+            if (companyId == null) {
+                throw new IllegalArgumentException("companyId is required");
+            }
+            if (eventId == null) {
+                throw new IllegalArgumentException("eventId is required");
+            }
+            if (areaId == null) {
+                throw new IllegalArgumentException("areaId is required");
+            }
+
+            eventManagementDomainService.deleteArea(
+                    username,
+                    companyId,
+                    eventId,
+                    areaId
+            );
+
+        } catch (IllegalArgumentException | DomainException e) {
+            logger.info("[Event Log] Business rejection in deleteArea: " + e.getMessage());
+            throw e;
+        } catch (RuntimeException e) {
+            logger.log(Level.SEVERE, "[Error Log] System error in deleteArea: " + e.getMessage(), e);
+            throw e;
+        }
+    }
     public List<PurchaseHistoryDTO> getEventPurchaseHistoryForOwner(String ownerUsername, UUID eventId) {
         if (ownerUsername == null || ownerUsername.isBlank()) {
             throw new IllegalArgumentException("Owner username is required");

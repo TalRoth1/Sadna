@@ -35,6 +35,97 @@ public class EventManagementDomainService {
         this.userRepository = userRepository;
     }
 
+    private Event requireEvent(UUID eventId) {
+        Event event = eventRepository.getById(eventId);
+
+        if (event == null) {
+            throw new DomainException("Event not found");
+        }
+
+        return event;
+    }
+
+    private void requireCompanyExists(UUID companyId) {
+        if (companyId == null) {
+            throw new IllegalArgumentException("Company ID is required");
+        }
+
+        Company company = companyRepository.findByID(companyId).orElse(null);
+
+        if (company == null) {
+            throw new IllegalArgumentException("Company not found");
+        }
+    }
+
+    private void requireInventoryPermission(String username, UUID companyId, UUID eventId) {
+        if (username == null || username.isBlank()) {
+            throw new IllegalArgumentException("username is required");
+        }
+
+        requireCompanyExists(companyId);
+
+        if (!userRepository.hasPermission(username, companyId, CompanyPermission.MANAGE_INVENTORY, eventId)
+                && !userRepository.hasPermission(username, companyId, CompanyPermission.CONFIGURE_LAYOUT, eventId)) {
+            throw new IllegalArgumentException("User has no permissions to change event inventory");
+        }
+    }
+
+    public void updateStandingArea(String username,
+                                    UUID companyId,
+                                    UUID eventId,
+                                    UUID areaId,
+                                    double price,
+                                    int count) {
+            Event event = requireEvent(eventId);
+
+            if (areaId == null) {
+                throw new IllegalArgumentException("areaId is required");
+            }
+
+            requireInventoryPermission(username, companyId, eventId);
+
+            event.updateStandingArea(areaId, price, count);
+
+            eventRepository.save(event);
+        }
+
+        public void updateSittingArea(String username,
+                                    UUID companyId,
+                                    UUID eventId,
+                                    UUID areaId,
+                                    double price,
+                                    int rows,
+                                    int seatsPerRow) {
+            Event event = requireEvent(eventId);
+
+            if (areaId == null) {
+                throw new IllegalArgumentException("areaId is required");
+            }
+
+            requireInventoryPermission(username, companyId, eventId);
+
+            event.updateSittingArea(areaId, price, rows, seatsPerRow);
+
+            eventRepository.save(event);
+        }
+
+        public void deleteArea(String username,
+                            UUID companyId,
+                            UUID eventId,
+                            UUID areaId) {
+            Event event = requireEvent(eventId);
+
+            if (areaId == null) {
+                throw new IllegalArgumentException("areaId is required");
+            }
+
+            requireInventoryPermission(username, companyId, eventId);
+
+            event.deleteArea(areaId);
+
+            eventRepository.save(event);
+        }
+
     public List<PurchaseHistory> getEventPurchaseHistory(String username, UUID eventId) {
         Event event = eventRepository.getById(eventId);
 

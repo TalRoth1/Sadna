@@ -5,10 +5,20 @@ import { getMyCompanies, type CompanyMembership } from "../../services/companySe
 import type { Event, EventStatus } from "../../types/event";
 import "../createEvent/CreateEventPage.css";
 import {
+    addConditionalDiscount,
+    addCouponDiscount,
+    addOvertDiscount,
+    addSittingArea,
+    addStandingArea,
+    deleteEventArea,
     editEvent,
     editEventPolicy,
+    removeEventDiscount,
+    updateSittingArea,
+    updateStandingArea,
     type EditEventRequest,
 } from "../../services/eventService";
+
 type EditEventPageProps = {
     eventId: string;
     onBackToEvent: () => void;
@@ -22,13 +32,40 @@ type FormErrors = {
     date?: string;
     location?: string;
     type?: string;
+    ticketAreas?: string;
+    discount?: string;
 };
+
+type TicketAreaType = "STANDING" | "SITTING";
+
+type TicketAreaDraft = {
+    id: string;
+    areaId?: string;
+    areaType: TicketAreaType;
+    price: string;
+    standingCount: string;
+    rows: string;
+    seatsPerRow: string;
+    currentTicketCount: number;
+    isNew: boolean;
+    isDeleted: boolean;
+};
+
+type DiscountType = "NONE" | "OVERT" | "COUPON" | "CONDITIONAL";
 
 const statusOptions: { value: EventStatus; label: string }[] = [
     { value: "ACTIVE", label: "Active" },
     { value: "ENDED", label: "Ended" },
     { value: "CANCELED", label: "Canceled" },
 ];
+
+function createLocalId() {
+    if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+        return crypto.randomUUID();
+    }
+
+    return `local-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
 
 function toDateTimeLocalValue(date: string) {
     const parsed = new Date(date);
@@ -41,6 +78,13 @@ function toDateTimeLocalValue(date: string) {
     return new Date(parsed.getTime() - offsetMs).toISOString().slice(0, 16);
 }
 
+function normalizePermission(value: unknown): string {
+    return String(value ?? "")
+        .trim()
+        .toLowerCase()
+        .replace(/[\s_-]/g, "");
+}
+
 function canUserEditEvent(
     event: Event | null,
     currentUser: CurrentUser | null,
@@ -50,7 +94,9 @@ function canUserEditEvent(
         return false;
     }
 
-    if (currentUser.role === "ADMIN") {
+    const userRole = normalizePermission(currentUser.role);
+
+    if (userRole === "admin" || userRole === "platformadmin") {
         return true;
     }
 
@@ -62,16 +108,186 @@ function canUserEditEvent(
         return false;
     }
 
-    const role = String((companyMembership as any).role ?? "").toLowerCase();
-    const permissions = ((companyMembership as any).permissions ?? []) as string[];
+    const membership = companyMembership as any;
+
+    const role = normalizePermission(
+        membership.role ??
+            membership.companyRole ??
+            membership.memberRole ??
+            membership.roleName,
+    );
+
+    const permissions = (
+        membership.permissions ??
+        membership.permissionNames ??
+        membership.companyPermissions ??
+        []
+    ).map(normalizePermission);
+
+    const managedEventIds = (
+        membership.eventIds ??
+        membership.eventsIds ??
+        membership.managedEventIds ??
+        membership.eventIdsManaged ??
+        []
+    ).map(String);
 
     return (
-        role === "founder" ||
-        role === "owner" ||
-        role === "manager" ||
-        permissions.includes("Manage inventory") ||
-        permissions.includes("Manage policies") ||
-        permissions.includes("Configure layout")
+        role.includes("founder") ||
+        role.includes("owner") ||
+        role.includes("manager") ||
+        permissions.includes("manageinventory") ||
+        permissions.includes("managepolicies") ||
+        permissions.includes("configurelayout") ||
+        managedEventIds.includes(event.id)
+    );
+}
+
+function getTicketRow(ticket: any): number | null {
+    const row = ticket.row ?? ticket.seatRow ?? ticket.seat_row;
+    const parsed = Number(row);
+
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function getTicketSeat(ticket: any): number | null {
+    const seat = ticket.seat ?? ticket.seatNumber ?? ticket.seat_number;
+    const parsed = Number(seat);
+
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function computeSittingLayout(event: Event, areaId: string) {
+    const tickets = ((event as any).tickets ?? []).filter((ticket: any) => {
+        return String(ticket.areaId) === String(areaId);
+    });
+
+    let rows = 0;
+    let seatsPerRow = 0;
+
+    for (const ticket of tickets) {
+        const row = getTicketRow(ticket);
+        const seat = getTicketSeat(ticket);
+
+        if (row !== null) {
+            rows = Math.max(rows, row);
+        }
+
+        if (seat !== null) {
+            seatsPerRow = Math.max(seatsPerRow, seat);
+        }
+    }
+
+    return { rows, seatsPerRow };
+}
+
+function buildAreaDrafts(event: Event): TicketAreaDraft[] {
+    const rawEvent = event as any;
+
+    const areas =
+        rawEvent.areas ??
+        rawEvent.layout?.areas ??
+        rawEvent.ticketAreas ??
+        [];
+
+    const tickets =
+        rawEvent.tickets ??
+        rawEvent.ticketDetails ??
+        rawEvent.inventory?.tickets ??
+        [];
+
+    console.log("EDIT EVENT loaded event:", rawEvent);
+    console.log("EDIT EVENT areas:", areas);
+    console.log("EDIT EVENT tickets:", tickets);
+
+    return areas.map((area: any) => {
+        const areaId = String(
+            area.areaId ??
+                area.id ??
+                area.uuid ??
+                "",
+        );
+
+        const areaType = String(
+            area.kind ??
+                area.areaType ??
+                area.type ??
+                "",
+        ).toUpperCase() as TicketAreaType;
+
+        const ticketIds =
+            area.ticketIds ??
+            area.ticketsIds ??
+            area.ticketIDs ??
+            area.ticketIdsView ??
+            [];
+
+        const areaTickets = tickets.filter((ticket: any) => {
+            return String(ticket.areaId ?? ticket.areaID) === areaId;
+        });
+
+        const currentTicketCount =
+            Array.isArray(ticketIds) && ticketIds.length > 0
+                ? ticketIds.length
+                : areaTickets.length;
+
+        if (areaType === "SITTING") {
+            let rows = 0;
+            let seatsPerRow = 0;
+
+            for (const ticket of areaTickets) {
+                const row = getTicketRow(ticket);
+                const seat = getTicketSeat(ticket);
+
+                if (row !== null) {
+                    rows = Math.max(rows, row);
+                }
+
+                if (seat !== null) {
+                    seatsPerRow = Math.max(seatsPerRow, seat);
+                }
+            }
+
+            return {
+                id: areaId || createLocalId(),
+                areaId,
+                areaType: "SITTING",
+                price: String(area.price ?? ""),
+                standingCount: "",
+                rows: rows > 0 ? String(rows) : "",
+                seatsPerRow: seatsPerRow > 0 ? String(seatsPerRow) : "",
+                currentTicketCount,
+                isNew: false,
+                isDeleted: false,
+            };
+        }
+
+        return {
+            id: areaId || createLocalId(),
+            areaId,
+            areaType: "STANDING",
+            price: String(area.price ?? ""),
+            standingCount: String(currentTicketCount),
+            rows: "",
+            seatsPerRow: "",
+            currentTicketCount,
+            isNew: false,
+            isDeleted: false,
+        };
+    });
+}
+
+function hasPolicyFields(
+    minAge: string,
+    minTickets: string,
+    maxTickets: string,
+    allowLoneSeat: string,
+) {
+    return (
+        minAge.trim() !== "" ||
+        minTickets.trim() !== "" ||
+        maxTickets.trim() !== "" ||
+        allowLoneSeat !== ""
     );
 }
 
@@ -101,6 +317,16 @@ export default function EditEventPage({
     const [minTickets, setMinTickets] = useState("");
     const [maxTickets, setMaxTickets] = useState("");
     const [allowLoneSeat, setAllowLoneSeat] = useState("");
+
+    const [discountType, setDiscountType] = useState<DiscountType>("NONE");
+    const [discountPercent, setDiscountPercent] = useState("");
+    const [discountFromDate, setDiscountFromDate] = useState("");
+    const [discountToDate, setDiscountToDate] = useState("");
+    const [couponCode, setCouponCode] = useState("");
+    const [requiredTickets, setRequiredTickets] = useState("");
+    const [appliedTickets, setAppliedTickets] = useState("");
+
+    const [ticketAreas, setTicketAreas] = useState<TicketAreaDraft[]>([]);
 
     const [errors, setErrors] = useState<FormErrors>({});
     const [successMessage, setSuccessMessage] = useState("");
@@ -161,6 +387,36 @@ export default function EditEventPage({
                         : String(loadedEvent.purchasePolicy.allowLoneSeat),
                 );
 
+                setTicketAreas(buildAreaDrafts(loadedEvent));
+
+                const firstDiscount = loadedEvent.discountPolicy.rules[0];
+
+                if (!firstDiscount) {
+                    setDiscountType("NONE");
+                    setDiscountPercent("");
+                    setDiscountFromDate("");
+                    setDiscountToDate("");
+                    setCouponCode("");
+                    setRequiredTickets("");
+                    setAppliedTickets("");
+                } else {
+                    setDiscountType(firstDiscount.kind as DiscountType);
+                    setDiscountPercent(String(firstDiscount.percent ?? ""));
+                    setDiscountFromDate(firstDiscount.fromDate ?? "");
+                    setDiscountToDate(firstDiscount.toDate ?? "");
+                    setCouponCode(firstDiscount.code ?? "");
+                    setRequiredTickets(
+                        firstDiscount.requiredTickets !== undefined
+                            ? String(firstDiscount.requiredTickets)
+                            : "",
+                    );
+                    setAppliedTickets(
+                        firstDiscount.appliedTickets !== undefined
+                            ? String(firstDiscount.appliedTickets)
+                            : "",
+                    );
+                }
+
                 if (!user || user.role === "GUEST") {
                     setCompanies([]);
                     return;
@@ -196,6 +452,22 @@ export default function EditEventPage({
 
     const isGuest = currentUser === null || currentUser.role === "GUEST";
 
+    const visibleExistingAreas = ticketAreas.filter(
+        (area) => !area.isNew && !area.isDeleted,
+    );
+
+    const deletedExistingAreas = ticketAreas.filter(
+        (area) => !area.isNew && area.isDeleted,
+    );
+
+    const newStandingAreas = ticketAreas.filter(
+        (area) => area.isNew && !area.isDeleted && area.areaType === "STANDING",
+    );
+
+    const newSittingAreas = ticketAreas.filter(
+        (area) => area.isNew && !area.isDeleted && area.areaType === "SITTING",
+    );
+
     function validateForm() {
         const validation: FormErrors = {};
 
@@ -204,7 +476,207 @@ export default function EditEventPage({
         if (!location.trim()) validation.location = "Location is required.";
         if (!type.trim()) validation.type = "Category or event type is required.";
 
+        const activeAreas = ticketAreas.filter((area) => !area.isDeleted);
+
+        if (activeAreas.length === 0) {
+            validation.ticketAreas = "The event must have at least one ticket area.";
+            return validation;
+        }
+
+        for (const area of activeAreas) {
+            const price = Number(area.price);
+
+            if (!area.price.trim() || Number.isNaN(price) || price < 0) {
+                validation.ticketAreas = "Each area must have a valid non-negative price.";
+                break;
+            }
+
+            if (area.areaType === "STANDING") {
+                const count = Number(area.standingCount);
+
+                if (
+                    !area.standingCount.trim() ||
+                    Number.isNaN(count) ||
+                    count <= 0 ||
+                    !Number.isInteger(count)
+                ) {
+                    validation.ticketAreas = "Each standing area must have a positive ticket quantity.";
+                    break;
+                }
+            }
+
+            if (area.areaType === "SITTING") {
+                const rows = Number(area.rows);
+                const seatsPerRow = Number(area.seatsPerRow);
+
+                if (
+                    !area.rows.trim() ||
+                    !area.seatsPerRow.trim() ||
+                    Number.isNaN(rows) ||
+                    Number.isNaN(seatsPerRow) ||
+                    rows <= 0 ||
+                    seatsPerRow <= 0 ||
+                    !Number.isInteger(rows) ||
+                    !Number.isInteger(seatsPerRow)
+                ) {
+                    validation.ticketAreas = "Each sitting area must have valid rows and seats per row.";
+                    break;
+                }
+            }
+        }
+
+        if (discountType !== "NONE") {
+            const percent = Number(discountPercent);
+
+            if (
+                !discountPercent.trim() ||
+                Number.isNaN(percent) ||
+                percent < 0 ||
+                percent > 100
+            ) {
+                validation.discount = "Discount percent must be between 0 and 100.";
+            }
+
+            if (!discountToDate) {
+                validation.discount = "Discount end date is required.";
+            }
+
+            if (discountType === "COUPON" && !couponCode.trim()) {
+                validation.discount = "Coupon code is required.";
+            }
+
+            if (discountType === "CONDITIONAL") {
+                const required = Number(requiredTickets);
+                const applied = Number(appliedTickets);
+
+                if (
+                    !requiredTickets.trim() ||
+                    !appliedTickets.trim() ||
+                    Number.isNaN(required) ||
+                    Number.isNaN(applied) ||
+                    required <= 0 ||
+                    applied <= 0 ||
+                    !Number.isInteger(required) ||
+                    !Number.isInteger(applied)
+                ) {
+                    validation.discount = "Conditional discount requires positive ticket amounts.";
+                }
+            }
+        }
+
         return validation;
+    }
+
+    function updateTicketArea(
+        id: string,
+        field: keyof TicketAreaDraft,
+        value: string | boolean | number,
+    ) {
+        setTicketAreas((current) =>
+            current.map((area) =>
+                area.id === id ? { ...area, [field]: value } : area,
+            ),
+        );
+    }
+
+    function addNewStandingArea() {
+        setTicketAreas((current) => [
+            ...current,
+            {
+                id: createLocalId(),
+                areaType: "STANDING",
+                price: "",
+                standingCount: "",
+                rows: "",
+                seatsPerRow: "",
+                currentTicketCount: 0,
+                isNew: true,
+                isDeleted: false,
+            },
+        ]);
+    }
+
+    function addNewSittingArea() {
+        setTicketAreas((current) => [
+            ...current,
+            {
+                id: createLocalId(),
+                areaType: "SITTING",
+                price: "",
+                standingCount: "",
+                rows: "",
+                seatsPerRow: "",
+                currentTicketCount: 0,
+                isNew: true,
+                isDeleted: false,
+            },
+        ]);
+    }
+
+    function removeNewArea(id: string) {
+        setTicketAreas((current) => current.filter((area) => area.id !== id));
+    }
+
+    function markExistingAreaForDeletion(id: string) {
+        setTicketAreas((current) =>
+            current.map((area) =>
+                area.id === id ? { ...area, isDeleted: true } : area,
+            ),
+        );
+    }
+
+    function undoDeleteArea(id: string) {
+        setTicketAreas((current) =>
+            current.map((area) =>
+                area.id === id ? { ...area, isDeleted: false } : area,
+            ),
+        );
+    }
+
+    async function saveDiscountChanges(eventToEdit: Event, username: string) {
+        const existingDiscounts = eventToEdit.discountPolicy.rules ?? [];
+
+        for (const discount of existingDiscounts) {
+            if (discount.id) {
+                await removeEventDiscount(eventToEdit.id, discount.id, {
+                    username,
+                    companyId: eventToEdit.companyId,
+                });
+            }
+        }
+
+        if (discountType === "NONE") {
+            return;
+        }
+
+        const commonRequest = {
+            username,
+            companyId: eventToEdit.companyId,
+            fromDate: discountFromDate || null,
+            toDate: discountToDate,
+            discountPercent: Number(discountPercent),
+        };
+
+        if (discountType === "OVERT") {
+            await addOvertDiscount(eventToEdit.id, commonRequest);
+            return;
+        }
+
+        if (discountType === "COUPON") {
+            await addCouponDiscount(eventToEdit.id, {
+                ...commonRequest,
+                code: couponCode.trim(),
+            });
+            return;
+        }
+
+        if (discountType === "CONDITIONAL") {
+            await addConditionalDiscount(eventToEdit.id, {
+                ...commonRequest,
+                requiredTickets: Number(requiredTickets),
+                appliedTickets: Number(appliedTickets),
+            });
+        }
     }
 
     async function handleSubmit(submitEvent: FormEvent<HTMLFormElement>) {
@@ -251,6 +723,59 @@ export default function EditEventPage({
 
             await editEvent(event.id, request);
 
+            for (const area of deletedExistingAreas) {
+                if (!area.areaId) {
+                    continue;
+                }
+
+                await deleteEventArea(event.id, area.areaId, {
+                    username: currentUser.email,
+                    companyId: event.companyId,
+                });
+            }
+
+            for (const area of visibleExistingAreas) {
+                if (!area.areaId) {
+                    continue;
+                }
+
+                const price = Number(area.price);
+
+                if (area.areaType === "STANDING") {
+                    await updateStandingArea(event.id, area.areaId, {
+                        username: currentUser.email,
+                        companyId: event.companyId,
+                        price,
+                        count: Number(area.standingCount),
+                    });
+                }
+
+                if (area.areaType === "SITTING") {
+                    await updateSittingArea(event.id, area.areaId, {
+                        username: currentUser.email,
+                        companyId: event.companyId,
+                        price,
+                        rows: Number(area.rows),
+                        seatsPerRow: Number(area.seatsPerRow),
+                    });
+                }
+            }
+
+            for (const area of newStandingAreas) {
+                await addStandingArea(event.id, {
+                    price: Number(area.price),
+                    count: Number(area.standingCount),
+                });
+            }
+
+            for (const area of newSittingAreas) {
+                await addSittingArea(event.id, {
+                    price: Number(area.price),
+                    rows: Number(area.rows),
+                    seatsPerRow: Number(area.seatsPerRow),
+                });
+            }
+
             await editEventPolicy(event.id, {
                 username: currentUser.email,
                 companyId: event.companyId,
@@ -262,6 +787,8 @@ export default function EditEventPage({
                         ? null
                         : allowLoneSeat === "true",
             });
+
+            await saveDiscountChanges(event, currentUser.email);
 
             setSuccessMessage("Event updated successfully.");
 
@@ -277,6 +804,163 @@ export default function EditEventPage({
         } finally {
             setIsSubmitting(false);
         }
+    }
+
+    function renderStandingAreaFields(area: TicketAreaDraft) {
+        return (
+            <>
+                <label className="form-field">
+                    <span>Ticket price</span>
+                    <input
+                        type="number"
+                        min={0}
+                        value={area.price}
+                        disabled={area.isDeleted}
+                        onChange={(e) =>
+                            updateTicketArea(area.id, "price", e.target.value)
+                        }
+                        placeholder="e.g. 120"
+                    />
+                </label>
+
+                <label className="form-field">
+                    <span>Ticket quantity</span>
+                    <input
+                        type="number"
+                        min={1}
+                        step={1}
+                        value={area.standingCount}
+                        disabled={area.isDeleted}
+                        onChange={(e) =>
+                            updateTicketArea(
+                                area.id,
+                                "standingCount",
+                                e.target.value,
+                            )
+                        }
+                        placeholder="e.g. 100"
+                    />
+                </label>
+            </>
+        );
+    }
+
+    function renderSittingAreaFields(area: TicketAreaDraft) {
+        return (
+            <>
+                <label className="form-field">
+                    <span>Ticket price</span>
+                    <input
+                        type="number"
+                        min={0}
+                        value={area.price}
+                        disabled={area.isDeleted}
+                        onChange={(e) =>
+                            updateTicketArea(area.id, "price", e.target.value)
+                        }
+                        placeholder="e.g. 180"
+                    />
+                </label>
+
+                <label className="form-field">
+                    <span>Rows</span>
+                    <input
+                        type="number"
+                        min={1}
+                        step={1}
+                        value={area.rows}
+                        disabled={area.isDeleted}
+                        onChange={(e) =>
+                            updateTicketArea(area.id, "rows", e.target.value)
+                        }
+                        placeholder="e.g. 20"
+                    />
+                </label>
+
+                <label className="form-field">
+                    <span>Seats per row</span>
+                    <input
+                        type="number"
+                        min={1}
+                        step={1}
+                        value={area.seatsPerRow}
+                        disabled={area.isDeleted}
+                        onChange={(e) =>
+                            updateTicketArea(
+                                area.id,
+                                "seatsPerRow",
+                                e.target.value,
+                            )
+                        }
+                        placeholder="e.g. 10"
+                    />
+                </label>
+            </>
+        );
+    }
+
+    function renderAreaCard(area: TicketAreaDraft) {
+        const title =
+            area.areaType === "STANDING" ? "Standing area" : "Sitting area";
+
+        return (
+            <article
+                key={area.id}
+                className="ticket-area-card"
+                style={{
+                    opacity: area.isDeleted ? 0.55 : 1,
+                    border: area.isDeleted ? "1px solid #ef4444" : undefined,
+                }}
+            >
+                <div className="create-event-panel-header">
+                    <div>
+                        <h3>{title}</h3>
+                        {!area.isNew && (
+                            <p className="form-note">
+                                Current tickets: {area.currentTicketCount}
+                            </p>
+                        )}
+                        {area.isDeleted && (
+                            <p className="create-event-error">
+                                This area will be deleted after saving.
+                            </p>
+                        )}
+                    </div>
+
+                    {area.isNew ? (
+                        <button
+                            type="button"
+                            className="create-event-remove-area"
+                            onClick={() => removeNewArea(area.id)}
+                        >
+                            Remove
+                        </button>
+                    ) : area.isDeleted ? (
+                        <button
+                            type="button"
+                            className="create-event-button create-event-button--secondary"
+                            onClick={() => undoDeleteArea(area.id)}
+                        >
+                            Undo delete
+                        </button>
+                    ) : (
+                        <button
+                            type="button"
+                            className="create-event-remove-area"
+                            onClick={() => markExistingAreaForDeletion(area.id)}
+                        >
+                            Delete area
+                        </button>
+                    )}
+                </div>
+
+                <div className="create-event-grid">
+                    {area.areaType === "STANDING"
+                        ? renderStandingAreaFields(area)
+                        : renderSittingAreaFields(area)}
+                </div>
+            </article>
+        );
     }
 
     return (
@@ -306,7 +990,11 @@ export default function EditEventPage({
                     <h2>Member access required</h2>
                     <p>You need to be logged in to edit an event.</p>
                     <div className="create-event-actions">
-                        <button type="button" className="create-event-button" onClick={onLogin}>
+                        <button
+                            type="button"
+                            className="create-event-button"
+                            onClick={onLogin}
+                        >
                             Log in
                         </button>
                         <button
@@ -407,10 +1095,15 @@ export default function EditEventPage({
                                     <span>Event status</span>
                                     <select
                                         value={status}
-                                        onChange={(e) => setStatus(e.target.value as EventStatus)}
+                                        onChange={(e) =>
+                                            setStatus(e.target.value as EventStatus)
+                                        }
                                     >
                                         {statusOptions.map((option) => (
-                                            <option key={option.value} value={option.value}>
+                                            <option
+                                                key={option.value}
+                                                value={option.value}
+                                            >
                                                 {option.label}
                                             </option>
                                         ))}
@@ -431,21 +1124,55 @@ export default function EditEventPage({
                             <section className="create-event-panel">
                                 <h2>Ticket areas</h2>
                                 <p className="form-note">
-                                    Ticket area editing needs a backend endpoint for updating an existing area.
-                                    For now, current prices and tickets are shown in the event details page.
+                                    Edit existing standing and sitting areas, delete areas,
+                                    or add new ones.
                                 </p>
 
-                                <div className="create-event-feedback">
+                                {errors.ticketAreas && (
                                     <p className="create-event-error">
-                                        Existing backend supports creating ticket areas, but not editing existing ticket area prices yet.
+                                        {errors.ticketAreas}
                                     </p>
+                                )}
+
+                                {visibleExistingAreas.length === 0 &&
+                                    deletedExistingAreas.length === 0 && (
+                                        <p className="form-note">
+                                            No existing ticket areas.
+                                        </p>
+                                    )}
+
+                                {visibleExistingAreas.map(renderAreaCard)}
+                                {deletedExistingAreas.map(renderAreaCard)}
+
+                                <div className="create-event-actions">
+                                    <button
+                                        type="button"
+                                        className="create-event-button create-event-button--secondary"
+                                        onClick={addNewStandingArea}
+                                    >
+                                        Add standing area
+                                    </button>
                                 </div>
+
+                                {newStandingAreas.map(renderAreaCard)}
+
+                                <div className="create-event-actions">
+                                    <button
+                                        type="button"
+                                        className="create-event-button create-event-button--secondary"
+                                        onClick={addNewSittingArea}
+                                    >
+                                        Add sitting area
+                                    </button>
+                                </div>
+
+                                {newSittingAreas.map(renderAreaCard)}
                             </section>
 
                             <section className="create-event-panel">
                                 <h2>Purchase policy</h2>
                                 <p className="form-note">
-                                    Updating this section currently adds a policy rule through the existing backend endpoint.
+                                    Update purchase restrictions for this event.
                                 </p>
 
                                 <label className="form-field">
@@ -494,13 +1221,149 @@ export default function EditEventPage({
                                         <option value="false">Not allowed</option>
                                     </select>
                                 </label>
+
+                                {!hasPolicyFields(
+                                    minAge,
+                                    minTickets,
+                                    maxTickets,
+                                    allowLoneSeat,
+                                ) && (
+                                    <p className="form-note">
+                                        Saving with all fields empty will remove the
+                                        current purchase policy rules.
+                                    </p>
+                                )}
+                            </section>
+
+                            <section className="create-event-panel">
+                                <h2>Discount</h2>
+                                <p className="form-note">
+                                    Saving this section replaces the existing discount rules.
+                                </p>
+
+                                {errors.discount && (
+                                    <p className="create-event-error">
+                                        {errors.discount}
+                                    </p>
+                                )}
+
+                                <label className="form-field">
+                                    <span>Discount type</span>
+                                    <select
+                                        value={discountType}
+                                        onChange={(e) =>
+                                            setDiscountType(e.target.value as DiscountType)
+                                        }
+                                    >
+                                        <option value="NONE">No discount</option>
+                                        <option value="OVERT">Overt discount</option>
+                                        <option value="COUPON">Coupon code</option>
+                                        <option value="CONDITIONAL">
+                                            Conditional discount
+                                        </option>
+                                    </select>
+                                </label>
+
+                                {discountType !== "NONE" && (
+                                    <>
+                                        <label className="form-field">
+                                            <span>Discount percent</span>
+                                            <input
+                                                type="number"
+                                                min={0}
+                                                max={100}
+                                                value={discountPercent}
+                                                onChange={(e) =>
+                                                    setDiscountPercent(e.target.value)
+                                                }
+                                                placeholder="e.g. 20"
+                                            />
+                                        </label>
+
+                                        <label className="form-field">
+                                            <span>From date</span>
+                                            <input
+                                                type="date"
+                                                value={discountFromDate}
+                                                onChange={(e) =>
+                                                    setDiscountFromDate(e.target.value)
+                                                }
+                                            />
+                                        </label>
+
+                                        <label className="form-field">
+                                            <span>To date</span>
+                                            <input
+                                                type="date"
+                                                value={discountToDate}
+                                                onChange={(e) =>
+                                                    setDiscountToDate(e.target.value)
+                                                }
+                                            />
+                                        </label>
+                                    </>
+                                )}
+
+                                {discountType === "COUPON" && (
+                                    <label className="form-field">
+                                        <span>Coupon code</span>
+                                        <input
+                                            type="text"
+                                            value={couponCode}
+                                            onChange={(e) =>
+                                                setCouponCode(e.target.value)
+                                            }
+                                            placeholder="e.g. SUMMER20"
+                                        />
+                                    </label>
+                                )}
+
+                                {discountType === "CONDITIONAL" && (
+                                    <>
+                                        <label className="form-field">
+                                            <span>Required tickets</span>
+                                            <input
+                                                type="number"
+                                                min={1}
+                                                step={1}
+                                                value={requiredTickets}
+                                                onChange={(e) =>
+                                                    setRequiredTickets(e.target.value)
+                                                }
+                                                placeholder="e.g. 2"
+                                            />
+                                        </label>
+
+                                        <label className="form-field">
+                                            <span>Applied tickets</span>
+                                            <input
+                                                type="number"
+                                                min={1}
+                                                step={1}
+                                                value={appliedTickets}
+                                                onChange={(e) =>
+                                                    setAppliedTickets(e.target.value)
+                                                }
+                                                placeholder="e.g. 1"
+                                            />
+                                        </label>
+                                    </>
+                                )}
                             </section>
                         </div>
 
                         {(errorMessage || successMessage) && (
                             <div className="create-event-feedback">
-                                {errorMessage && <p className="create-event-error">{errorMessage}</p>}
-                                {successMessage && <p className="create-event-success">{successMessage}</p>}
+                                {errorMessage && (
+                                    <p className="create-event-error">
+                                        {errorMessage}
+                                    </p>
+                                )}
+                                {successMessage && (
+                                    <p className="create-event-success">
+                                        {successMessage}
+                                    </p>
+                                )}
                             </div>
                         )}
 
