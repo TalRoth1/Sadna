@@ -70,6 +70,12 @@ export type DeleteEventRequest = {
 	eventManagerEmail: string;
 };
 
+export type ChangeManagerPermissionsRequest = {
+	ownerUsername: string;
+	managerUsername: string;
+	newPermissions: CompanyPermissionName[];
+};
+
 type EventSummaryResponse = {
 	eventId: string;
 	companyId: string;
@@ -209,6 +215,13 @@ export async function deleteEvent(
 	await api.delete(`/events/${eventId}`, {
 		data: request,
 	});
+}
+
+export async function changeManagerPermissions(
+	companyId: string,
+	request: ChangeManagerPermissionsRequest,
+): Promise<void> {
+	await api.patch(`/companies/${companyId}/managers/permissions`, request);
 }
 
 export type RemoveMemberOwnerRequest = {

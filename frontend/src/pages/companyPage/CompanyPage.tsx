@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {
+    changeManagerPermissions,
     deleteEvent,
     getCompanyHierarchy,
     getCompanyPermissions,
@@ -9,6 +10,7 @@ import {
     removeCompanyMemberAsOwner,
     type CompanyAccessResponse,
     type CompanyPermissionName as BackendCompanyPermissionName,
+    type ChangeManagerPermissionsRequest,
     type InviteManagerRequest,
     type InviteOwnerRequest,
 } from "../../services/companyService";
@@ -33,6 +35,15 @@ const ALL_PERMISSIONS: CompanyPermissionName[] = [
     "Customer service",
     "View history",
     "Generate sales reports",
+];
+
+const ALL_BACKEND_PERMISSIONS: BackendCompanyPermissionName[] = [
+    "MANAGE_INVENTORY",
+    "CONFIGURE_LAYOUT",
+    "MANAGE_POLICIES",
+    "CUSTOMER_SERVICE",
+    "VIEW_HISTORY",
+    "REPORTS_GENERATION",
 ];
 
 type CompanyViewModel = {
@@ -73,6 +84,7 @@ type CompanyPageState = {
     hierarchyErrorMessage: string;
     hierarchySource: string;
     subordinateIds: string[];
+    managerPermissionsByNodeId: Record<string, BackendCompanyPermissionName[]>;
 };
 
 type HierarchyNode = {
@@ -240,6 +252,45 @@ function normalizeMermaidLabel(value: string) {
     return cleaned.trim();
 }
 
+function isManagerHierarchyLabel(label: string) {
+    return /\(Manager\)$/i.test(label.trim());
+}
+
+function parseManagerPermissionsFromMermaid(chart: string) {
+    const permissionsByNodeId: Record<string, BackendCompanyPermissionName[]> = {};
+
+    const lines = chart
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => line !== "");
+
+    for (const line of lines) {
+        const nodeMatch = line.match(/^([A-Za-z0-9_]+)\[(.+)\]$/);
+        if (!nodeMatch) {
+            continue;
+        }
+
+        const nodeId = nodeMatch[1];
+        const rawLabel = nodeMatch[2];
+        const permissionsMatch = rawLabel.match(/Perms:?\[([^\]]*)\]/i);
+
+        if (!permissionsMatch) {
+            continue;
+        }
+
+        const permissions = permissionsMatch[1]
+            .split(",")
+            .map((permission) => permission.trim())
+            .filter((permission): permission is BackendCompanyPermissionName =>
+                ALL_BACKEND_PERMISSIONS.includes(permission as BackendCompanyPermissionName),
+            );
+
+        permissionsByNodeId[nodeId] = permissions;
+    }
+
+    return permissionsByNodeId;
+}
+
 function parseMermaidHierarchy(chart: string): HierarchyNode[] {
     const labelById = new Map<string, string>();
     const childrenById = new Map<string, Set<string>>();
@@ -370,6 +421,9 @@ export default function CompanyPage({
     const [inviteSuccessMessage, setInviteSuccessMessage] = useState("");
     const [isInviteSubmitting, setIsInviteSubmitting] = useState(false);
     const [managedEvents, setManagedEvents] = useState<ManagedEvent[]>([]);
+    const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
+    const [selectedManagerNode, setSelectedManagerNode] = useState<HierarchyNode | null>(null);
+    const [permissionDraft, setPermissionDraft] = useState<BackendCompanyPermissionName[]>([]);
     const [state, setState] = useState<CompanyPageState>({
         company,
         errorMessage: "",
@@ -378,6 +432,7 @@ export default function CompanyPage({
         hierarchyErrorMessage: "",
         hierarchySource: "",
         subordinateIds: [],
+        managerPermissionsByNodeId: {},
     });
 
     const isHierarchyVisible = isHierarchyViewerRole(state.company.role);
@@ -421,6 +476,7 @@ export default function CompanyPage({
                 let hierarchyRoots: HierarchyNode[] = [];
                 let hierarchyErrorMessage = "";
                 let hierarchySource = "";
+                let managerPermissionsByNodeId: Record<string, BackendCompanyPermissionName[]> = {};
                 let managedEventsForUser: ManagedEvent[] = [];
 
                 if (isHierarchyViewerRole(mappedCompany.role)) {
@@ -432,6 +488,7 @@ export default function CompanyPage({
 
                         hierarchySource = hierarchyResponse.mermaidChart;
                         hierarchyRoots = parseMermaidHierarchy(hierarchyResponse.mermaidChart);
+                        managerPermissionsByNodeId = parseManagerPermissionsFromMermaid(hierarchyResponse.mermaidChart);
                     } catch (error) {
                         if (isStale) {
                             return;
@@ -498,6 +555,7 @@ export default function CompanyPage({
                     hierarchyErrorMessage,
                     hierarchySource,
                     subordinateIds,
+                    managerPermissionsByNodeId,
                 });
                 setManagedEvents(managedEventsForUser);
             } catch (error) {
@@ -512,6 +570,8 @@ export default function CompanyPage({
                     hierarchyRoots: [],
                     hierarchyErrorMessage: "",
                     hierarchySource: "",
+                    subordinateIds: [],
+                    managerPermissionsByNodeId: {},
                 }));
             }
         }
@@ -594,6 +654,9 @@ export default function CompanyPage({
                 const hierarchyResponse = await getCompanyHierarchy(state.company.id, currentUser.email);
                 const hierarchySource = hierarchyResponse.mermaidChart;
                 const hierarchyRoots = parseMermaidHierarchy(hierarchyResponse.mermaidChart);
+                const managerPermissionsByNodeId = parseManagerPermissionsFromMermaid(
+                    hierarchyResponse.mermaidChart,
+                );
 
                 // recompute subordinate ids
                 let subordinateIds: string[] = [];
@@ -633,6 +696,7 @@ export default function CompanyPage({
                     hierarchyRoots,
                     hierarchySource,
                     subordinateIds,
+                    managerPermissionsByNodeId,
                 }));
             } catch (err) {
                 // if refresh fails, at least notify success of removal
@@ -641,6 +705,97 @@ export default function CompanyPage({
             window.alert("Member removed successfully.");
         } catch (error) {
             window.alert(getErrorMessage(error, "Failed to remove member."));
+        }
+    }
+
+    function openPermissionsModal(node: HierarchyNode) {
+        setSelectedManagerNode(node);
+        setPermissionDraft(state.managerPermissionsByNodeId[node.id] ?? []);
+        setIsPermissionsModalOpen(true);
+    }
+
+    function closePermissionsModal() {
+        setIsPermissionsModalOpen(false);
+        setSelectedManagerNode(null);
+        setPermissionDraft([]);
+    }
+
+    function togglePermissionDraft(permission: BackendCompanyPermissionName) {
+        setPermissionDraft((currentPermissions) =>
+            currentPermissions.includes(permission)
+                ? currentPermissions.filter((currentPermission) => currentPermission !== permission)
+                : [...currentPermissions, permission],
+        );
+    }
+
+    async function savePermissionDraft() {
+        if (!currentUser || !selectedManagerNode) {
+            return;
+        }
+
+        const managerEmail = extractEmailFromHierarchyLabel(selectedManagerNode.label);
+        if (!managerEmail) {
+            window.alert("This manager node does not contain an email address.");
+            return;
+        }
+
+        const request: ChangeManagerPermissionsRequest = {
+            ownerUsername: currentUser.email,
+            managerUsername: managerEmail,
+            newPermissions: permissionDraft,
+        };
+
+        try {
+            await changeManagerPermissions(state.company.id, request);
+
+            const hierarchyResponse = await getCompanyHierarchy(state.company.id, currentUser.email);
+            const hierarchySource = hierarchyResponse.mermaidChart;
+            const hierarchyRoots = parseMermaidHierarchy(hierarchyResponse.mermaidChart);
+            const managerPermissionsByNodeId = parseManagerPermissionsFromMermaid(
+                hierarchyResponse.mermaidChart,
+            );
+
+            let subordinateIds: string[] = [];
+            if (hierarchyRoots.length > 0) {
+                function findNode(
+                    nodes: HierarchyNode[],
+                    predicate: (n: HierarchyNode) => boolean,
+                ): HierarchyNode | null {
+                    for (const n of nodes) {
+                        if (predicate(n)) return n;
+                        const found = findNode(n.children, predicate);
+                        if (found) return found;
+                    }
+                    return null;
+                }
+
+                const userNode = findNode(hierarchyRoots, (n) => {
+                    return n.label.includes(currentUser.email);
+                });
+                if (userNode) {
+                    const ids = new Set<string>();
+                    function collectDescendants(n: HierarchyNode) {
+                        for (const c of n.children) {
+                            ids.add(c.id);
+                            collectDescendants(c);
+                        }
+                    }
+
+                    collectDescendants(userNode);
+                    subordinateIds = [...ids];
+                }
+            }
+
+            setState((currentState) => ({
+                ...currentState,
+                hierarchyRoots,
+                hierarchySource,
+                subordinateIds,
+                managerPermissionsByNodeId,
+            }));
+            closePermissionsModal();
+        } catch (error) {
+            window.alert(getErrorMessage(error, "Failed to save manager permissions."));
         }
     }
 
@@ -921,6 +1076,7 @@ export default function CompanyPage({
                             {(() => {
                                 const subordinateSet = new Set<string>(state.subordinateIds || []);
                                 const canRemoveMembers = isCompanyOwnerRole(state.company.role) && !!currentUser;
+                                const canManagePermissions = canRemoveMembers;
 
                                 return state.hierarchyRoots.map((rootNode) => (
                                     <HierarchyBranch
@@ -929,6 +1085,8 @@ export default function CompanyPage({
                                         subordinateIds={subordinateSet}
                                         onRemove={handleRemoveMember}
                                         canRemove={canRemoveMembers}
+                                        onManagePermissions={openPermissionsModal}
+                                        canManagePermissions={canManagePermissions}
                                     />
                                 ));
                             })()}
@@ -940,6 +1098,77 @@ export default function CompanyPage({
                             <summary>Mermaid source</summary>
                             <pre>{state.hierarchySource}</pre>
                         </details>
+                    )}
+
+                    {isPermissionsModalOpen && selectedManagerNode && (
+                        <div className="company-permissions-modal-backdrop" role="presentation">
+                            <div
+                                className="company-permissions-modal"
+                                role="dialog"
+                                aria-modal="true"
+                                aria-labelledby="company-permissions-modal-title"
+                            >
+                                <div className="company-permissions-modal-header">
+                                    <div>
+                                        <h3 id="company-permissions-modal-title">Manage permissions</h3>
+                                        <p>
+                                            Adjust the permissions for {selectedManagerNode.label}.
+                                        </p>
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        className="company-permissions-modal-close"
+                                        onClick={closePermissionsModal}
+                                        aria-label="Close permissions modal"
+                                    >
+                                        ×
+                                    </button>
+                                </div>
+
+                                <div className="company-permissions-modal-current">
+                                    <span className="company-permissions-modal-current-label">
+                                        Current permissions
+                                    </span>
+                                    <div className="company-permissions-modal-chip-grid">
+                                        {ALL_BACKEND_PERMISSIONS.map((permission) => {
+                                            const isEnabled = permissionDraft.includes(permission);
+                                            return (
+                                                <button
+                                                    key={permission}
+                                                    type="button"
+                                                    className={
+                                                        isEnabled
+                                                            ? "company-permissions-modal-chip company-permissions-modal-chip--active"
+                                                            : "company-permissions-modal-chip"
+                                                    }
+                                                    onClick={() => togglePermissionDraft(permission)}
+                                                >
+                                                    {getPermissionLabel(permission)}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                <div className="company-permissions-modal-footer">
+                                    <button
+                                        type="button"
+                                        className="company-permissions-modal-secondary"
+                                        onClick={closePermissionsModal}
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="company-permissions-modal-primary"
+                                        onClick={savePermissionDraft}
+                                    >
+                                        Save
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     )}
                 </section>
             )}
@@ -968,18 +1197,18 @@ function HierarchyBranch({
     subordinateIds,
     onRemove,
     canRemove,
+    onManagePermissions,
+    canManagePermissions,
 }: {
     node: HierarchyNode;
     subordinateIds: Set<string>;
     onRemove: (emailToRemove: string) => Promise<void>;
     canRemove: boolean;
+    onManagePermissions: (node: HierarchyNode) => void;
+    canManagePermissions: boolean;
 }) {
-    function extractEmail(label: string) {
-        const emailMatch = label.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/);
-        return emailMatch ? emailMatch[0] : null;
-    }
-
     const showRemove = canRemove && subordinateIds.has(node.id);
+    const showManagePermissions = canManagePermissions && subordinateIds.has(node.id) && isManagerHierarchyLabel(node.label);
 
     return (
         <ul className="company-hierarchy-list">
@@ -991,7 +1220,7 @@ function HierarchyBranch({
                             type="button"
                             className="company-hierarchy-remove-button"
                             onClick={() => {
-                                const email = extractEmail(node.label);
+                                const email = extractEmailFromHierarchyLabel(node.label);
                                 if (!email) {
                                     window.alert("This node does not contain an email address yet. Please refresh after server restart so hierarchy labels are email-based.");
                                     return;
@@ -1000,6 +1229,15 @@ function HierarchyBranch({
                             }}
                         >
                             Remove from company
+                        </button>
+                    )}
+                    {showManagePermissions && (
+                        <button
+                            type="button"
+                            className="company-hierarchy-permissions-button"
+                            onClick={() => onManagePermissions(node)}
+                        >
+                            Manage permissions
                         </button>
                     )}
                 </div>
@@ -1012,6 +1250,8 @@ function HierarchyBranch({
                                 subordinateIds={subordinateIds}
                                 onRemove={onRemove}
                                 canRemove={canRemove}
+                                onManagePermissions={onManagePermissions}
+                                canManagePermissions={canManagePermissions}
                             />
                         ))}
                     </div>
@@ -1019,4 +1259,9 @@ function HierarchyBranch({
             </li>
         </ul>
     );
+}
+
+function extractEmailFromHierarchyLabel(label: string) {
+    const emailMatch = label.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/);
+    return emailMatch ? emailMatch[0] : null;
 }
