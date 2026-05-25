@@ -15,6 +15,7 @@ import org.example.ApplicationLayer.dto.EventDTOs.AddEventPolicyRuleRequest;
 import org.example.ApplicationLayer.dto.EventDTOs.AddSittingTicketsRequest;
 import org.example.ApplicationLayer.dto.EventDTOs.AddStandingTicketsRequest;
 import org.example.ApplicationLayer.dto.EventDTOs.CreateEventRequest;
+import org.example.ApplicationLayer.dto.EventDTOs.CreateLotteryRequest;
 import org.example.ApplicationLayer.dto.EventDTOs.DeleteEventRequest;
 import org.example.ApplicationLayer.dto.EventDTOs.DeleteEventPolicyRuleRequest;
 import org.example.ApplicationLayer.dto.EventDTOs.EditEventRequest;
@@ -521,6 +522,31 @@ public class EventController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to fetch event history: system exception"));
+        }
+    }
+
+    // ================================================================
+    //  8. (Future) Lottery management endpoints would go here
+    // ================================================================
+
+    @PostMapping("/{eventId}/lottery")
+    public ResponseEntity<ApiResponse<Void>> createLotteryForEvent(
+            @PathVariable("eventId") UUID eventId,
+            @RequestBody CreateLotteryRequest request) {
+        try {
+            eventService.createLotteryForEvent(
+                    eventId,
+                    request.registrationOpen,
+                    request.registrationClose
+            );
+
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.success("Lottery created successfully"));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to create lottery: system exception"));
         }
     }
 

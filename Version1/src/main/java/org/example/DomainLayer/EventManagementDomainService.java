@@ -14,6 +14,7 @@ import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
 import org.example.DomainLayer.EventAggregate.Event;
 import org.example.DomainLayer.EventAggregate.EventSearchCriteria;
 import org.example.DomainLayer.EventAggregate.EventStatus;
+import org.example.DomainLayer.LotteryAggregate.PuchaseLottery;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.example.DomainLayer.UserAggregate.ICompanyMember;
 import org.example.DomainLayer.UserAggregate.User;
@@ -24,15 +25,17 @@ public class EventManagementDomainService {
     private final IHistoryRepository historyRepository;
     private final ICompanyRepository companyRepository;
     private final IUserRepository userRepository;
-
+    private final ILotteryRepository lotteryRepository;
     public EventManagementDomainService(IEventRepository eventRepository,
             IHistoryRepository historyRepository,
             ICompanyRepository companyRepository,
-            IUserRepository userRepository) {
+            IUserRepository userRepository,
+            ILotteryRepository lotteryRepository) {
         this.eventRepository = eventRepository;
         this.historyRepository = historyRepository;
         this.companyRepository = companyRepository;
         this.userRepository = userRepository;
+        this.lotteryRepository = lotteryRepository;
     }
 
     private Event requireEvent(UUID eventId) {
@@ -476,6 +479,47 @@ public class EventManagementDomainService {
             }
         });
         return out;
+    }
+
+    public void createLotteryForEvent(UUID eventId,
+                                    LocalDateTime registrationOpen,
+                                    LocalDateTime registrationClose) {
+        if (eventId == null) {
+            throw new DomainException("Event id is required");
+        }
+
+        if (registrationOpen == null || registrationClose == null) {
+            throw new DomainException("Lottery registration dates are required");
+        }
+
+        if (!registrationClose.isAfter(registrationOpen)) {
+            throw new DomainException("Lottery registration close time must be after open time");
+        }
+
+        Event event = eventRepository.getById(eventId);
+
+        if (event == null) {
+            throw new DomainException("Event not found");
+        }
+
+        if (event.getLotteryId() != null && !event.getLotteryId().isBlank()) {
+            throw new DomainException("Event already has a lottery");
+        }
+
+        UUID lotteryId = UUID.randomUUID();
+
+        PuchaseLottery lottery = new PuchaseLottery(
+                lotteryId,
+                eventId,
+                registrationOpen,
+                registrationClose
+        );
+
+        lotteryRepository.save(lottery);
+
+        event.setLotteryId(lotteryId.toString());
+
+        eventRepository.save(event);
     }
 
 }

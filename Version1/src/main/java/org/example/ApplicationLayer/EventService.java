@@ -285,7 +285,7 @@ public class EventService {
             throw e;
         }
     }
-    
+
     public void updateStandingArea(String username,
                                 UUID companyId,
                                 UUID eventId,
@@ -1025,5 +1025,48 @@ public class EventService {
             throw e;
         }
     }
+
+    public void createLotteryForEvent(UUID eventId,
+                                    LocalDateTime registrationOpen,
+                                    LocalDateTime registrationClose) {
+        logger.info("[Event Log] Method: createLotteryForEvent called with parameters: eventId="
+                + eventId + ", registrationOpen=" + registrationOpen
+                + ", registrationClose=" + registrationClose);
+
+        try {
+            if (eventId == null) {
+                throw new IllegalArgumentException("eventId is required");
+            }
+
+            if (registrationOpen == null) {
+                throw new IllegalArgumentException("registrationOpen is required");
+            }
+
+            if (registrationClose == null) {
+                throw new IllegalArgumentException("registrationClose is required");
+            }
+
+            if (!registrationClose.isAfter(registrationOpen)) {
+                throw new IllegalArgumentException("Lottery registration close time must be after open time");
+            }
+
+            eventManagementDomainService.createLotteryForEvent(
+                    eventId,
+                    registrationOpen,
+                    registrationClose
+            );
+
+        } catch (IllegalArgumentException | DomainException e) {
+            logger.info("[Event Log] Business rejection in createLotteryForEvent: " + e.getMessage());
+            throw e;
+        } catch (RuntimeException e) {
+            logger.log(Level.SEVERE,
+                    "[Error Log] System error in createLotteryForEvent: " + e.getMessage(),
+                    e);
+            throw e;
+        }
+    }
+
+    
 
 }

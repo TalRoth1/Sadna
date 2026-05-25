@@ -31,6 +31,7 @@ import org.example.DomainLayer.EventManagementDomainService;
 import org.example.DomainLayer.ICompanyRepository;
 import org.example.DomainLayer.IEventRepository;
 import org.example.DomainLayer.IHistoryRepository;
+import org.example.DomainLayer.ILotteryRepository;
 import org.example.DomainLayer.IUserRepository;
 import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.PolicyManagment.IDiscountRule;
@@ -67,6 +68,8 @@ public class EventServiceTest {
     private IHistoryRepository historyRepository;
     @Mock
     private IUserRepository userRepository;
+    @Mock
+    private ILotteryRepository lotteryRepository;
 
     private EventService eventService;
 
@@ -83,7 +86,7 @@ public class EventServiceTest {
 
         notifier = mock(INotifier.class);
         EventManagementDomainService eventManagementDomainService =
-                new EventManagementDomainService(eventRepository, historyRepository, companyRepository, userRepository);
+                new EventManagementDomainService(eventRepository, historyRepository, companyRepository, userRepository, lotteryRepository);
         eventService = new EventService(eventManagementDomainService, notifier);
 
         eventId = UUID.randomUUID();

@@ -32,7 +32,9 @@ public class EventManagementDomainServiceTest {
     private IHistoryRepository historyRepository;
     private ICompanyRepository companyRepository;
     private IUserRepository userRepository;
+    private ILotteryRepository lotteryRepository;
     private EventManagementDomainService service;
+    
 
     private UUID eventId;
     private UUID companyId;
@@ -46,13 +48,10 @@ public class EventManagementDomainServiceTest {
         historyRepository = mock(IHistoryRepository.class);
         companyRepository = mock(ICompanyRepository.class);
         userRepository = mock(IUserRepository.class);
+        lotteryRepository = mock(ILotteryRepository.class);
 
-        service = new EventManagementDomainService(
-                eventRepository,
-                historyRepository,
-                companyRepository,
-                userRepository
-        );
+        service = new EventManagementDomainService(eventRepository, historyRepository, companyRepository, userRepository, lotteryRepository);
+        
 
         eventId = UUID.randomUUID();
         companyId = UUID.randomUUID();
