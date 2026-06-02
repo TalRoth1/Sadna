@@ -14,6 +14,7 @@ import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
 import org.example.DomainLayer.EventAggregate.Event;
 import org.example.DomainLayer.EventAggregate.EventSearchCriteria;
 import org.example.DomainLayer.EventAggregate.EventStatus;
+import org.example.DomainLayer.LotteryAggregate.PuchaseLottery;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.example.DomainLayer.UserAggregate.ICompanyMember;
 import org.example.DomainLayer.UserAggregate.User;
@@ -24,16 +25,109 @@ public class EventManagementDomainService {
     private final IHistoryRepository historyRepository;
     private final ICompanyRepository companyRepository;
     private final IUserRepository userRepository;
-
+    private final ILotteryRepository lotteryRepository;
     public EventManagementDomainService(IEventRepository eventRepository,
             IHistoryRepository historyRepository,
             ICompanyRepository companyRepository,
-            IUserRepository userRepository) {
+            IUserRepository userRepository,
+            ILotteryRepository lotteryRepository) {
         this.eventRepository = eventRepository;
         this.historyRepository = historyRepository;
         this.companyRepository = companyRepository;
         this.userRepository = userRepository;
+        this.lotteryRepository = lotteryRepository;
     }
+
+    private Event requireEvent(UUID eventId) {
+        Event event = eventRepository.getById(eventId);
+
+        if (event == null) {
+            throw new DomainException("Event not found");
+        }
+
+        return event;
+    }
+
+    private void requireCompanyExists(UUID companyId) {
+        if (companyId == null) {
+            throw new IllegalArgumentException("Company ID is required");
+        }
+
+        Company company = companyRepository.findByID(companyId).orElse(null);
+
+        if (company == null) {
+            throw new IllegalArgumentException("Company not found");
+        }
+    }
+
+    private void requireInventoryPermission(String username, UUID companyId, UUID eventId) {
+        if (username == null || username.isBlank()) {
+            throw new IllegalArgumentException("username is required");
+        }
+
+        requireCompanyExists(companyId);
+
+        if (!userRepository.hasPermission(username, companyId, CompanyPermission.MANAGE_INVENTORY, eventId)
+                && !userRepository.hasPermission(username, companyId, CompanyPermission.CONFIGURE_LAYOUT, eventId)) {
+            throw new IllegalArgumentException("User has no permissions to change event inventory");
+        }
+    }
+
+    public void updateStandingArea(String username,
+                                    UUID companyId,
+                                    UUID eventId,
+                                    UUID areaId,
+                                    double price,
+                                    int count) {
+            Event event = requireEvent(eventId);
+
+            if (areaId == null) {
+                throw new IllegalArgumentException("areaId is required");
+            }
+
+            requireInventoryPermission(username, companyId, eventId);
+
+            event.updateStandingArea(areaId, price, count);
+
+            eventRepository.save(event);
+        }
+
+        public void updateSittingArea(String username,
+                                    UUID companyId,
+                                    UUID eventId,
+                                    UUID areaId,
+                                    double price,
+                                    int rows,
+                                    int seatsPerRow) {
+            Event event = requireEvent(eventId);
+
+            if (areaId == null) {
+                throw new IllegalArgumentException("areaId is required");
+            }
+
+            requireInventoryPermission(username, companyId, eventId);
+
+            event.updateSittingArea(areaId, price, rows, seatsPerRow);
+
+            eventRepository.save(event);
+        }
+
+        public void deleteArea(String username,
+                            UUID companyId,
+                            UUID eventId,
+                            UUID areaId) {
+            Event event = requireEvent(eventId);
+
+            if (areaId == null) {
+                throw new IllegalArgumentException("areaId is required");
+            }
+
+            requireInventoryPermission(username, companyId, eventId);
+
+            event.deleteArea(areaId);
+
+            eventRepository.save(event);
+        }
 
     public List<PurchaseHistory> getEventPurchaseHistory(String username, UUID eventId) {
         Event event = eventRepository.getById(eventId);
@@ -60,6 +154,47 @@ public class EventManagementDomainService {
         if (!userRepository.hasPermission(username, companyId, CompanyPermission.MANAGE_POLICIES, eventId))
             throw new IllegalArgumentException("User has no permissions to change event policies");
         event.addPurchasePolicy(age, minTicket, maxTicket, allowLoneSeat, andOr);
+    }
+
+    public boolean areLotteryWinnersDrawn(UUID eventId) {
+        if (eventId == null) {
+            return false;
+        }
+
+        PuchaseLottery lottery = lotteryRepository.findByEventID(eventId);
+
+        return lottery != null && lottery.areWinnersDrawn();
+    }
+
+    public void startRegularSale(UUID eventId) {
+        if (eventId == null) {
+            throw new DomainException("Event id is required");
+        }
+
+        Event event = eventRepository.getById(eventId);
+
+        if (event == null) {
+            throw new DomainException("Event not found");
+        }
+
+        if (event.getLotteryId() == null || event.getLotteryId().isBlank()) {
+            throw new DomainException("Event is not currently a lottery event");
+        }
+
+        PuchaseLottery lottery = lotteryRepository.findByEventID(eventId);
+
+        if (lottery == null) {
+            throw new DomainException("Lottery does not exist for this event");
+        }
+
+        if (!lottery.areWinnersDrawn()) {
+            throw new DomainException("Cannot start regular sale before drawing lottery winners");
+        }
+
+        event.setLotteryId(null);
+        event.setType("Regular Sale");
+
+        eventRepository.save(event);
     }
 
     public void deletePurchasePolicy(String username, UUID companyId, UUID eventId, UUID ruleId) {
@@ -385,6 +520,47 @@ public class EventManagementDomainService {
             }
         });
         return out;
+    }
+
+    public void createLotteryForEvent(UUID eventId,
+                                    LocalDateTime registrationOpen,
+                                    LocalDateTime registrationClose) {
+        if (eventId == null) {
+            throw new DomainException("Event id is required");
+        }
+
+        if (registrationOpen == null || registrationClose == null) {
+            throw new DomainException("Lottery registration dates are required");
+        }
+
+        if (!registrationClose.isAfter(registrationOpen)) {
+            throw new DomainException("Lottery registration close time must be after open time");
+        }
+
+        Event event = eventRepository.getById(eventId);
+
+        if (event == null) {
+            throw new DomainException("Event not found");
+        }
+
+        if (event.getLotteryId() != null && !event.getLotteryId().isBlank()) {
+            throw new DomainException("Event already has a lottery");
+        }
+
+        UUID lotteryId = UUID.randomUUID();
+
+        PuchaseLottery lottery = new PuchaseLottery(
+                lotteryId,
+                eventId,
+                registrationOpen,
+                registrationClose
+        );
+
+        lotteryRepository.save(lottery);
+
+        event.setLotteryId(lotteryId.toString());
+
+        eventRepository.save(event);
     }
 
 }

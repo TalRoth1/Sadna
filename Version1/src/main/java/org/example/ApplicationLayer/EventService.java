@@ -46,6 +46,8 @@ import org.example.DomainLayer.PolicyManagment.PurchaseComposite;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.springframework.stereotype.Service;
 
+import org.example.DomainLayer.PolicyManagment.DiscountPolicy;
+
 @Service
 public class EventService {
     private static final Logger logger = Logger.getLogger(EventService.class.getName());
@@ -73,6 +75,7 @@ public class EventService {
                 eventId, companyId, eventManagerEmail, name, date, location, artist, type, status, description);
 
         Event event = eventManagementDomainService.getEventForView(eventId);
+        boolean lotteryWinnersDrawn = eventManagementDomainService.areLotteryWinnersDrawn(event.getEventId());
         return toDetails(event);
     }
 
@@ -142,6 +145,87 @@ public class EventService {
         );
     }
 
+    public void editPolicy(String username,
+                        UUID companyId,
+                        UUID eventId,
+                        Float age,
+                        Integer minTicket,
+                        Integer maxTicket,
+                        Boolean allowLoneSeat) {
+        logger.info("[Event Log] Method: editPolicy called with parameters: username=" + username
+                + ", companyId=" + companyId
+                + ", eventId=" + eventId
+                + ", age=" + age
+                + ", minTicket=" + minTicket
+                + ", maxTicket=" + maxTicket
+                + ", allowLoneSeat=" + allowLoneSeat);
+
+        try {
+            if (username == null || username.isBlank()) {
+                throw new IllegalArgumentException("username is required");
+            }
+            if (companyId == null) {
+                throw new IllegalArgumentException("companyId is required");
+            }
+            if (eventId == null) {
+                throw new IllegalArgumentException("eventId is required");
+            }
+            if (age != null && age < 0) {
+                throw new IllegalArgumentException("Age must be a non negative number");
+            }
+            if (minTicket != null && minTicket < 0) {
+                throw new IllegalArgumentException("Minimum ticket amount must be a non negative integer");
+            }
+            if (maxTicket != null && maxTicket < 0) {
+                throw new IllegalArgumentException("Maximum ticket amount must be a non negative integer");
+            }
+            if (minTicket != null && maxTicket != null && minTicket > maxTicket) {
+                throw new IllegalArgumentException("Minimum ticket amount cannot be greater than maximum ticket amount");
+            }
+
+            Event event = eventManagementDomainService.getEventForView(eventId);
+
+            List<PurchaseRuleDto> existingRules = new ArrayList<>();
+            collectPurchaseLeaves(event.getPurchasePolicy().getRulesView(), existingRules);
+
+            for (PurchaseRuleDto rule : existingRules) {
+                if (rule.id() != null) {
+                    eventManagementDomainService.deletePurchasePolicy(
+                            username,
+                            companyId,
+                            eventId,
+                            rule.id()
+                    );
+                }
+            }
+
+            boolean hasNewPolicy =
+                    age != null ||
+                    minTicket != null ||
+                    maxTicket != null ||
+                    allowLoneSeat != null;
+
+            if (hasNewPolicy) {
+                addPolicyRule(
+                        username,
+                        companyId,
+                        eventId,
+                        Optional.ofNullable(age),
+                        Optional.ofNullable(minTicket),
+                        Optional.ofNullable(maxTicket),
+                        Optional.ofNullable(allowLoneSeat),
+                        true
+                );
+            }
+
+        } catch (IllegalArgumentException | DomainException e) {
+            logger.info("[Event Log] Business rejection in editPolicy: " + e.getMessage());
+            throw e;
+        } catch (RuntimeException e) {
+            logger.log(Level.SEVERE, "[Error Log] System error in editPolicy: " + e.getMessage(), e);
+            throw e;
+        }
+    }
     public boolean deleteEvent(UUID eventId, String userEmail, String eventManagerEmail) {
         logger.info("[Event Log] Method: deleteEvent called with parameters: eventId=" + eventId
                 + ", userEmail=" + userEmail + ", eventManagerEmail=" + eventManagerEmail);
@@ -205,6 +289,152 @@ public class EventService {
         }
     }
 
+    public void updateStandingArea(String username,
+                                UUID companyId,
+                                UUID eventId,
+                                UUID areaId,
+                                double price,
+                                int count) {
+        logger.info("[Event Log] Method: updateStandingArea called with parameters: username=" + username
+                + ", companyId=" + companyId
+                + ", eventId=" + eventId
+                + ", areaId=" + areaId
+                + ", price=" + price
+                + ", count=" + count);
+
+        try {
+            if (username == null || username.isBlank()) {
+                throw new IllegalArgumentException("username is required");
+            }
+            if (companyId == null) {
+                throw new IllegalArgumentException("companyId is required");
+            }
+            if (eventId == null) {
+                throw new IllegalArgumentException("eventId is required");
+            }
+            if (areaId == null) {
+                throw new IllegalArgumentException("areaId is required");
+            }
+            if (price < 0) {
+                throw new IllegalArgumentException("price must be non-negative");
+            }
+            if (count <= 0) {
+                throw new IllegalArgumentException("standing ticket count must be positive");
+            }
+
+            eventManagementDomainService.updateStandingArea(
+                    username,
+                    companyId,
+                    eventId,
+                    areaId,
+                    price,
+                    count
+            );
+
+        } catch (IllegalArgumentException | DomainException e) {
+            logger.info("[Event Log] Business rejection in updateStandingArea: " + e.getMessage());
+            throw e;
+        } catch (RuntimeException e) {
+            logger.log(Level.SEVERE, "[Error Log] System error in updateStandingArea: " + e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    public void updateSittingArea(String username,
+                                UUID companyId,
+                                UUID eventId,
+                                UUID areaId,
+                                double price,
+                                int rows,
+                                int seatsPerRow) {
+        logger.info("[Event Log] Method: updateSittingArea called with parameters: username=" + username
+                + ", companyId=" + companyId
+                + ", eventId=" + eventId
+                + ", areaId=" + areaId
+                + ", price=" + price
+                + ", rows=" + rows
+                + ", seatsPerRow=" + seatsPerRow);
+
+        try {
+            if (username == null || username.isBlank()) {
+                throw new IllegalArgumentException("username is required");
+            }
+            if (companyId == null) {
+                throw new IllegalArgumentException("companyId is required");
+            }
+            if (eventId == null) {
+                throw new IllegalArgumentException("eventId is required");
+            }
+            if (areaId == null) {
+                throw new IllegalArgumentException("areaId is required");
+            }
+            if (price < 0) {
+                throw new IllegalArgumentException("price must be non-negative");
+            }
+            if (rows <= 0) {
+                throw new IllegalArgumentException("rows must be positive");
+            }
+            if (seatsPerRow <= 0) {
+                throw new IllegalArgumentException("seatsPerRow must be positive");
+            }
+
+            eventManagementDomainService.updateSittingArea(
+                    username,
+                    companyId,
+                    eventId,
+                    areaId,
+                    price,
+                    rows,
+                    seatsPerRow
+            );
+
+        } catch (IllegalArgumentException | DomainException e) {
+            logger.info("[Event Log] Business rejection in updateSittingArea: " + e.getMessage());
+            throw e;
+        } catch (RuntimeException e) {
+            logger.log(Level.SEVERE, "[Error Log] System error in updateSittingArea: " + e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    public void deleteArea(String username,
+                        UUID companyId,
+                        UUID eventId,
+                        UUID areaId) {
+        logger.info("[Event Log] Method: deleteArea called with parameters: username=" + username
+                + ", companyId=" + companyId
+                + ", eventId=" + eventId
+                + ", areaId=" + areaId);
+
+        try {
+            if (username == null || username.isBlank()) {
+                throw new IllegalArgumentException("username is required");
+            }
+            if (companyId == null) {
+                throw new IllegalArgumentException("companyId is required");
+            }
+            if (eventId == null) {
+                throw new IllegalArgumentException("eventId is required");
+            }
+            if (areaId == null) {
+                throw new IllegalArgumentException("areaId is required");
+            }
+
+            eventManagementDomainService.deleteArea(
+                    username,
+                    companyId,
+                    eventId,
+                    areaId
+            );
+
+        } catch (IllegalArgumentException | DomainException e) {
+            logger.info("[Event Log] Business rejection in deleteArea: " + e.getMessage());
+            throw e;
+        } catch (RuntimeException e) {
+            logger.log(Level.SEVERE, "[Error Log] System error in deleteArea: " + e.getMessage(), e);
+            throw e;
+        }
+    }
     public List<PurchaseHistoryDTO> getEventPurchaseHistoryForOwner(String ownerUsername, UUID eventId) {
         if (ownerUsername == null || ownerUsername.isBlank()) {
             throw new IllegalArgumentException("Owner username is required");
@@ -573,7 +803,8 @@ public class EventService {
      * Map a domain Event to the extended details payload consumed by the
      * Event Details page. Compared to {@link #toSummary(Event)} this also
      * carries the venue layout, the per-ticket inventory snapshot, the
-     * structured purchase + discount policies, and the lottery id.
+     * structured purchase + discount policies, the effective discount policy,
+     * and the lottery id.
      */
     private EventDetailsDto toDetails(Event e) {
         Company company = eventManagementDomainService.findCompanyById(e.getCompanyId());
@@ -584,8 +815,11 @@ public class EventService {
         for (Area a : e.getLayout().getAreasView()) {
             String kind = (a instanceof StandingArea) ? "STANDING"
                     : (a instanceof SittingArea) ? "SITTING" : "UNKNOWN";
+
             areas.add(new AreaSummaryDto(
-                    a.getAreaId(), kind, a.getPrice(),
+                    a.getAreaId(),
+                    kind,
+                    a.getPrice(),
                     new ArrayList<>(a.getTicketIdsView())));
         }
 
@@ -593,16 +827,27 @@ public class EventService {
         for (Ticket t : e.getTicketsView().values()) {
             Integer row = null;
             Integer seat = null;
+
             if (t instanceof SittingTicket st) {
                 row = st.getSeatRow();
                 seat = st.getSeatNumber();
             }
+
             tickets.add(new TicketDetailsDto(
-                    t.getTicketId(), t.getAreaId(), t.getStatus(),
-                    t.getPrice(), row, seat));
+                    t.getTicketId(),
+                    t.getAreaId(),
+                    t.getStatus(),
+                    t.getPrice(),
+                    row,
+                    seat));
         }
 
         InventorySnapshot snap = snapshotOf(e);
+
+        boolean lotteryWinnersDrawn = eventManagementDomainService.areLotteryWinnersDrawn(e.getEventId());
+
+        DiscountPolicyDto eventDiscountPolicy = toDiscountPolicyDto(e);
+        DiscountPolicyDto effectiveDiscountPolicy = resolveEffectiveDiscountPolicyDto(e, company, eventDiscountPolicy);
 
         return new EventDetailsDto(
                 e.getEventId(),
@@ -619,6 +864,7 @@ public class EventService {
                 e.getStatus(),
                 e.getRating(),
                 e.getLotteryId(),
+                lotteryWinnersDrawn,
                 snap.priceMin(),
                 snap.priceMax(),
                 snap.availableTickets(),
@@ -626,7 +872,8 @@ public class EventService {
                 areas,
                 tickets,
                 toPurchasePolicyDto(e),
-                toDiscountPolicyDto(e));
+                eventDiscountPolicy,
+                effectiveDiscountPolicy);
     }
 
     /**
@@ -666,28 +913,76 @@ public class EventService {
     }
 
     private static DiscountPolicyDto toDiscountPolicyDto(Event e) {
+        if (e == null) {
+            return new DiscountPolicyDto(List.of());
+        }
+
+        return toDiscountPolicyDto(e.getDiscountPolicy());
+    }
+
+    private static DiscountPolicyDto toDiscountPolicyDto(DiscountPolicy policy) {
         List<DiscountRuleDto> out = new ArrayList<>();
-        for (IDiscountRule r : e.getDiscountPolicy().getDiscountRules()) {
+
+        if (policy == null || policy.getDiscountRules() == null) {
+            return new DiscountPolicyDto(out);
+        }
+
+        for (IDiscountRule r : policy.getDiscountRules()) {
             if (r instanceof OvertDiscount overt) {
                 out.add(new DiscountRuleDto(
-                        overt.getId(), "OVERT",
-                        overt.getFromDate(), overt.getToDate(),
-                        overt.getDiscountPercent(), null, null, null));
+                        overt.getId(),
+                        "OVERT",
+                        overt.getFromDate(),
+                        overt.getToDate(),
+                        overt.getDiscountPercent(),
+                        null,
+                        null,
+                        null));
             } else if (r instanceof ConditionalDiscount cond) {
                 out.add(new DiscountRuleDto(
-                        cond.getId(), "CONDITIONAL",
-                        cond.getFromDate(), cond.getToDate(),
+                        cond.getId(),
+                        "CONDITIONAL",
+                        cond.getFromDate(),
+                        cond.getToDate(),
                         cond.getDiscountPercent(),
-                        cond.getRequiredTickets(), cond.getAppliedTickets(), null));
+                        cond.getRequiredTickets(),
+                        cond.getAppliedTickets(),
+                        null));
             } else if (r instanceof CouponCode coupon) {
                 out.add(new DiscountRuleDto(
-                        coupon.getId(), "COUPON",
-                        coupon.getFromDate(), coupon.getToDate(),
-                        coupon.getDiscountPercent(), null, null,
+                        coupon.getId(),
+                        "COUPON",
+                        coupon.getFromDate(),
+                        coupon.getToDate(),
+                        coupon.getDiscountPercent(),
+                        null,
+                        null,
                         coupon.getCode()));
             }
         }
+
         return new DiscountPolicyDto(out);
+    }
+
+    private static boolean hasDiscountRules(DiscountPolicyDto policy) {
+        return policy != null
+                && policy.rules() != null
+                && !policy.rules().isEmpty();
+    }
+    private static DiscountPolicyDto resolveEffectiveDiscountPolicyDto(
+            Event event,
+            Company company,
+            DiscountPolicyDto eventDiscountPolicy) {
+
+        if (hasDiscountRules(eventDiscountPolicy)) {
+            return eventDiscountPolicy;
+        }
+
+        if (company == null) {
+            return new DiscountPolicyDto(List.of());
+        }
+
+        return toDiscountPolicyDto(company.getDiscountPolicy());
     }
 
     private PurchaseHistoryDTO toPurchaseHistoryDTO(PurchaseHistory history) {
@@ -795,6 +1090,66 @@ public class EventService {
             throw e;
         } catch (RuntimeException e) {
             logger.log(Level.SEVERE, "[Error Log] System error in addSittingArea: " + e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    public void createLotteryForEvent(UUID eventId,
+                                    LocalDateTime registrationOpen,
+                                    LocalDateTime registrationClose) {
+        logger.info("[Event Log] Method: createLotteryForEvent called with parameters: eventId="
+                + eventId + ", registrationOpen=" + registrationOpen
+                + ", registrationClose=" + registrationClose);
+
+        try {
+            if (eventId == null) {
+                throw new IllegalArgumentException("eventId is required");
+            }
+
+            if (registrationOpen == null) {
+                throw new IllegalArgumentException("registrationOpen is required");
+            }
+
+            if (registrationClose == null) {
+                throw new IllegalArgumentException("registrationClose is required");
+            }
+
+            if (!registrationClose.isAfter(registrationOpen)) {
+                throw new IllegalArgumentException("Lottery registration close time must be after open time");
+            }
+
+            eventManagementDomainService.createLotteryForEvent(
+                    eventId,
+                    registrationOpen,
+                    registrationClose
+            );
+
+        } catch (IllegalArgumentException | DomainException e) {
+            logger.info("[Event Log] Business rejection in createLotteryForEvent: " + e.getMessage());
+            throw e;
+        } catch (RuntimeException e) {
+            logger.log(Level.SEVERE,
+                    "[Error Log] System error in createLotteryForEvent: " + e.getMessage(),
+                    e);
+            throw e;
+        }
+    }
+
+    public void startRegularSale(UUID eventId) {
+        logger.info("[Event Log] Method: startRegularSale called with parameters: eventId=" + eventId);
+
+        try {
+            if (eventId == null) {
+                throw new IllegalArgumentException("eventId is required");
+            }
+
+            eventManagementDomainService.startRegularSale(eventId);
+
+        } catch (IllegalArgumentException | DomainException e) {
+            logger.info("[Event Log] Business rejection in startRegularSale: " + e.getMessage());
+            throw e;
+        } catch (RuntimeException e) {
+            logger.log(Level.SEVERE, "[Error Log] System error in startRegularSale: " + e.getMessage(), e);
             throw e;
         }
     }

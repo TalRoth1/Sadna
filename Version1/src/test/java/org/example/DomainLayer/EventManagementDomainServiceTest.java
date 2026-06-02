@@ -13,6 +13,7 @@ import org.example.DomainLayer.EventAggregate.EventStatus;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.example.DomainLayer.UserAggregate.CompanyFounder;
 import org.example.DomainLayer.UserAggregate.User;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
@@ -32,7 +33,9 @@ public class EventManagementDomainServiceTest {
     private IHistoryRepository historyRepository;
     private ICompanyRepository companyRepository;
     private IUserRepository userRepository;
+    private ILotteryRepository lotteryRepository;
     private EventManagementDomainService service;
+    
 
     private UUID eventId;
     private UUID companyId;
@@ -46,13 +49,10 @@ public class EventManagementDomainServiceTest {
         historyRepository = mock(IHistoryRepository.class);
         companyRepository = mock(ICompanyRepository.class);
         userRepository = mock(IUserRepository.class);
+        lotteryRepository = mock(ILotteryRepository.class);
 
-        service = new EventManagementDomainService(
-                eventRepository,
-                historyRepository,
-                companyRepository,
-                userRepository
-        );
+        service = new EventManagementDomainService(eventRepository, historyRepository, companyRepository, userRepository, lotteryRepository);
+        
 
         eventId = UUID.randomUUID();
         companyId = UUID.randomUUID();
@@ -109,7 +109,7 @@ public class EventManagementDomainServiceTest {
         verify(historyRepository, never()).getByEventId(any());
     }
 
-@Test
+    @Test
     public void addPurchasePolicy_whenUserHasPermission_addsPolicyToEvent() {
         when(eventRepository.getById(eventId)).thenReturn(event);
         when(companyRepository.findByID(companyId)).thenReturn(Optional.of(company));
@@ -203,6 +203,32 @@ public class EventManagementDomainServiceTest {
         verify(eventRepository, never()).save(any());
     }
 
+
+    @Test
+    public void addEvent_whenDescriptionProvided_savesEventWithTrimmedDescription() {
+        when(eventRepository.getById(eventId)).thenReturn(null);
+        when(userRepository.findByEmail(username)).thenReturn(Optional.of(managerUserWithEvent(eventId)));
+
+        service.addEvent(
+                eventId,
+                companyId,
+                username,
+                "My Event",
+                LocalDateTime.now().plusDays(7),
+                "Tel Aviv",
+                "Artist",
+                "Concert",
+                EventStatus.ACTIVE,
+                "  Full event description  "
+        );
+
+        org.mockito.ArgumentCaptor<Event> eventCaptor =
+                org.mockito.ArgumentCaptor.forClass(Event.class);
+        verify(eventRepository).save(eventCaptor.capture());
+
+        assertEquals("Full event description", eventCaptor.getValue().getDescription());
+    }
+
     @Test
     public void addEvent_whenEventDoesNotExist_createsAndSavesEvent() {
         when(eventRepository.getById(eventId)).thenReturn(null);
@@ -211,7 +237,7 @@ public class EventManagementDomainServiceTest {
         service.addEvent(
                 eventId,
                 companyId,
-            username,
+                username,
                 "My Event",
                 LocalDateTime.now().plusDays(7),
                 "Tel Aviv",
@@ -232,7 +258,7 @@ public class EventManagementDomainServiceTest {
                 service.addEvent(
                         eventId,
                         companyId,
-                username,
+                        username,
                         "My Event",
                         LocalDateTime.now(),
                         "Tel Aviv",
@@ -304,5 +330,133 @@ public class EventManagementDomainServiceTest {
 
         verify(event).addSittingTickets(areaId, 2, 4);
         verify(eventRepository).save(event);
+    }
+
+    @Test
+    public void updateStandingArea_whenUserHasManageInventoryPermission_updatesAreaAndSavesEvent() {
+        UUID areaId = UUID.randomUUID();
+
+        when(eventRepository.getById(eventId)).thenReturn(event);
+        when(companyRepository.findByID(companyId)).thenReturn(Optional.of(company));
+        when(userRepository.hasPermission(username, companyId, CompanyPermission.MANAGE_INVENTORY, eventId))
+                .thenReturn(true);
+
+        service.updateStandingArea(username, companyId, eventId, areaId, 120.0, 50);
+
+        verify(event).updateStandingArea(areaId, 120.0, 50);
+        verify(eventRepository).save(event);
+    }
+
+    @Test
+    public void updateStandingArea_whenUserHasConfigureLayoutPermission_updatesAreaAndSavesEvent() {
+        UUID areaId = UUID.randomUUID();
+
+        when(eventRepository.getById(eventId)).thenReturn(event);
+        when(companyRepository.findByID(companyId)).thenReturn(Optional.of(company));
+        when(userRepository.hasPermission(username, companyId, CompanyPermission.MANAGE_INVENTORY, eventId))
+                .thenReturn(false);
+        when(userRepository.hasPermission(username, companyId, CompanyPermission.CONFIGURE_LAYOUT, eventId))
+                .thenReturn(true);
+
+        service.updateStandingArea(username, companyId, eventId, areaId, 120.0, 50);
+
+        verify(event).updateStandingArea(areaId, 120.0, 50);
+        verify(eventRepository).save(event);
+    }
+
+    @Test
+    public void updateStandingArea_whenUserHasNoInventoryOrLayoutPermission_throwsAndDoesNotSave() {
+        UUID areaId = UUID.randomUUID();
+
+        when(eventRepository.getById(eventId)).thenReturn(event);
+        when(companyRepository.findByID(companyId)).thenReturn(Optional.of(company));
+        when(userRepository.hasPermission(username, companyId, CompanyPermission.MANAGE_INVENTORY, eventId))
+                .thenReturn(false);
+        when(userRepository.hasPermission(username, companyId, CompanyPermission.CONFIGURE_LAYOUT, eventId))
+                .thenReturn(false);
+
+        assertThrows(IllegalArgumentException.class, () ->
+                service.updateStandingArea(username, companyId, eventId, areaId, 120.0, 50)
+        );
+
+        verify(event, never()).updateStandingArea(any(), any(Double.class), any(Integer.class));
+        verify(eventRepository, never()).save(any());
+    }
+
+    @Test
+    public void updateSittingArea_whenUserHasManageInventoryPermission_updatesAreaAndSavesEvent() {
+        UUID areaId = UUID.randomUUID();
+
+        when(eventRepository.getById(eventId)).thenReturn(event);
+        when(companyRepository.findByID(companyId)).thenReturn(Optional.of(company));
+        when(userRepository.hasPermission(username, companyId, CompanyPermission.MANAGE_INVENTORY, eventId))
+                .thenReturn(true);
+
+        service.updateSittingArea(username, companyId, eventId, areaId, 180.0, 20, 10);
+
+        verify(event).updateSittingArea(areaId, 180.0, 20, 10);
+        verify(eventRepository).save(event);
+    }
+
+    @Test
+    public void deleteArea_whenUserHasManageInventoryPermission_deletesAreaAndSavesEvent() {
+        UUID areaId = UUID.randomUUID();
+
+        when(eventRepository.getById(eventId)).thenReturn(event);
+        when(companyRepository.findByID(companyId)).thenReturn(Optional.of(company));
+        when(userRepository.hasPermission(username, companyId, CompanyPermission.MANAGE_INVENTORY, eventId))
+                .thenReturn(true);
+
+        service.deleteArea(username, companyId, eventId, areaId);
+
+        verify(event).deleteArea(areaId);
+        verify(eventRepository).save(event);
+    }
+
+    @Test
+    public void deleteArea_whenUserHasNoInventoryOrLayoutPermission_throwsAndDoesNotSave() {
+        UUID areaId = UUID.randomUUID();
+
+        when(eventRepository.getById(eventId)).thenReturn(event);
+        when(companyRepository.findByID(companyId)).thenReturn(Optional.of(company));
+        when(userRepository.hasPermission(username, companyId, CompanyPermission.MANAGE_INVENTORY, eventId))
+                .thenReturn(false);
+        when(userRepository.hasPermission(username, companyId, CompanyPermission.CONFIGURE_LAYOUT, eventId))
+                .thenReturn(false);
+
+        assertThrows(IllegalArgumentException.class, () ->
+                service.deleteArea(username, companyId, eventId, areaId)
+        );
+
+        verify(event, never()).deleteArea(any());
+        verify(eventRepository, never()).save(any());
+    }
+
+    @Test
+    public void updateSittingArea_whenEventDoesNotExist_throwsAndDoesNotSave() {
+        UUID areaId = UUID.randomUUID();
+
+        when(eventRepository.getById(eventId)).thenReturn(null);
+
+        assertThrows(DomainException.class, () ->
+                service.updateSittingArea(username, companyId, eventId, areaId, 180.0, 20, 10)
+        );
+
+        verify(eventRepository, never()).save(any());
+    }
+
+    @Test
+    public void updateStandingArea_whenCompanyDoesNotExist_throwsAndDoesNotSave() {
+        UUID areaId = UUID.randomUUID();
+
+        when(eventRepository.getById(eventId)).thenReturn(event);
+        when(companyRepository.findByID(companyId)).thenReturn(Optional.empty());
+
+        assertThrows(IllegalArgumentException.class, () ->
+                service.updateStandingArea(username, companyId, eventId, areaId, 120.0, 50)
+        );
+
+        verify(event, never()).updateStandingArea(any(), any(Double.class), any(Integer.class));
+        verify(eventRepository, never()).save(any());
     }
 }

@@ -17,6 +17,7 @@ import java.util.logging.Logger;
 import org.example.DomainLayer.AdminAggregate.Admin;
 import org.example.DomainLayer.AdminAggregate.AdminComplaint;
 import org.example.DomainLayer.AdminAggregate.SystemAnalyticsSnapshot;
+import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
 import org.example.DomainLayer.EventAggregate.Event;
 import org.example.DomainLayer.EventAggregate.EventStatus;
@@ -145,6 +146,7 @@ public class DevDataSeeder implements CommandLineRunner {
                 seedAdmin();
                 seedCompanies();
                 seedCompanyRoles();
+                seedCompanyPolicies();
                 seedPendingInvitations();
                 seedEvents();
                 attachEventPolicies();
@@ -330,7 +332,42 @@ public class DevDataSeeder implements CommandLineRunner {
         }
 
         // =================================================================
-        // SECTION 5: Pending invitations
+        // SECTION 5: Company policies
+        //
+        // Mega Events Group gets a mix of purchase-policy and discount rules
+        // so the company policies panel can render real data on first load.
+        // =================================================================
+        private void seedCompanyPolicies() {
+                UUID megaId = companiesByName.get("Mega Events Group");
+                Company megaCompany = companyRepository.findByID(megaId)
+                                .orElseThrow(() -> new IllegalStateException("Mega Events Group company not found"));
+
+                // Purchase policy: age gate + minimum purchase size + lone-seat protection + max tickets.
+                megaCompany.addPurchasePolicy(
+                                Optional.of(18f),
+                                Optional.of(2),
+                                Optional.empty(),
+                                Optional.of(false),
+                                true);
+                megaCompany.addPurchasePolicy(
+                                Optional.empty(),
+                                Optional.empty(),
+                                Optional.of(8),
+                                Optional.empty(),
+                                true);
+
+                // Discount policy: active company-wide discount, conditional bulk discount,
+                // and a coupon code for the demo UI.
+                LocalDate today = LocalDate.now();
+                megaCompany.addOvertDiscount(today.minusDays(3), today.plusDays(21), 12f);
+                megaCompany.addConditionalDiscount(today.minusDays(1), today.plusDays(30), 18f, 4, 2);
+                megaCompany.addCouponCode(today.minusDays(2), today.plusDays(14), 25f, "MEGA25");
+
+                companyRepository.save(megaCompany);
+        }
+
+        // =================================================================
+        // SECTION 6: Pending invitations
         //
         // Two invitations that have NOT been accepted, so the "pending
         // invitations" UI has something to render and the accept/reject
@@ -362,7 +399,7 @@ public class DevDataSeeder implements CommandLineRunner {
         }
 
         // =================================================================
-        // SECTION 6: Events
+        // SECTION 7: Events
         //
         // 10 events covering every shape the catalog/search/details pages
         // need to render. Each event is created via EventManagementDomainService
@@ -374,7 +411,7 @@ public class DevDataSeeder implements CommandLineRunner {
                 UUID liveNationId = companiesByName.get("Live Nation Demo");
                 UUID indieId = companiesByName.get("Indie Productions");
                 UUID closedId = companiesByName.get("Closed Co.");
-
+                UUID megaId = companiesByName.get("Mega Events Group");
 
                 // 1. Coldplay — mixed standing + sitting, large concert.
                 UUID coldplay = createEvent("coldplay", liveNationId, "founder.live@demo.test",
@@ -453,18 +490,42 @@ public class DevDataSeeder implements CommandLineRunner {
                                 LocalDateTime.now().plusDays(90), EventStatus.ACTIVE);
                 addStandingArea(forgottenFest, 150.0, 80);
 
+                // 11. Mega Gala Night — founder-owned event with direct sales so
+                // the owner sales report has real revenue to show.
+                UUID megaGala = createEvent("mega-gala-night", megaId, "founder.mega@demo.test",
+                                "Mega Gala Night", "Various",
+                                "Gala", "Mega Hall, Tel Aviv",
+                                LocalDateTime.now().plusDays(18), EventStatus.ACTIVE);
+                addSittingArea(megaGala, 320.0, 6, 8);
+
+                // 12. Mega Launch Showcase — owned by owner.mega.alpha so the
+                // report can also show sales for a non-founder owner.
+                UUID megaLaunch = createEvent("mega-launch-showcase", megaId, "owner.mega.alpha@demo.test",
+                                "Mega Launch Showcase", "Mega Artists",
+                                "Showcase", "Mega Arena, Tel Aviv",
+                                LocalDateTime.now().plusDays(24), EventStatus.ACTIVE);
+                addStandingArea(megaLaunch, 180.0, 120);
+
     // 4b. One Ticket Test — single-ticket event for sold-out notification testing.
                 UUID oneTicketEvent = createEvent("one-ticket-test", indieId, "founder.indie@demo.test",
                         "One Ticket Test", "Test Artist",
                         "Test", "Tel Aviv",
                         LocalDateTime.now().plusDays(6), EventStatus.ACTIVE);
                 addStandingArea(oneTicketEvent, 10.0, 1);
-
+// 12. Indie Lottery Night — lottery event managed by founder.indie@demo.test.
+// This event is intentionally seeded with registered lottery participants,
+// but without pre-drawn winners, so the Company Page "Draw winners" button
+// can be tested manually.
+UUID indieLottery = createEvent("indie-lottery", indieId, "founder.indie@demo.test",
+                "Indie Secret Show – Lottery", "Surprise Indie Artist",
+                "Lottery", "Levontin 7, Tel Aviv",
+                LocalDateTime.now().plusDays(20), EventStatus.ACTIVE);
+addStandingArea(indieLottery, 160.0, 12);
 
         }
 
         // =================================================================
-        // SECTION 7: Event-level purchase + discount policies
+        // SECTION 8: Event-level purchase + discount policies
         //
         // We attach policies directly on the Event aggregate rather than
         // going through EventManagementDomainService.addPurchasePolicy(...)
@@ -505,7 +566,7 @@ public class DevDataSeeder implements CommandLineRunner {
                 // OvertDiscount so the UI can demonstrate "expired" badges /
                 // skip-logic.
                 jazz.addCouponCode(today.minusDays(2), today.plusDays(30), 20f, "JAZZ20");
-                jazz.addOvertDiscount(today.minusMonths(2), today.minusMonths(1), 30f);
+                jazz.addOvertDiscount(today.minusDays(2), today.plusDays(30), 30f);
 
                 // Adults Only: age rule. `minor@demo.test` (16) should fail,
                 // `dave@demo.test` (19) should pass.
@@ -555,7 +616,7 @@ public class DevDataSeeder implements CommandLineRunner {
         }
 
         // =================================================================
-        // SECTION 8: Lottery
+        // SECTION 9: Lottery
         //
         // Taylor Swift event is lottery-gated. We:
         // 1. Create the PuchaseLottery aggregate with a 14-day open
@@ -567,31 +628,67 @@ public class DevDataSeeder implements CommandLineRunner {
         // flag it as a lottery event.
         // =================================================================
         private void seedLottery() {
-                UUID taylorEventId = eventsByKey.get("taylor-swift");
-                UUID lotteryId = UUID.randomUUID();
+        seedTaylorSwiftLottery();
+        seedIndieLottery();
+}
 
-                PuchaseLottery lottery = new PuchaseLottery(
-                                lotteryId,
-                                taylorEventId,
-                                LocalDateTime.now().minusDays(1),
-                                LocalDateTime.now().plusDays(14));
+private void seedTaylorSwiftLottery() {
+        UUID taylorEventId = eventsByKey.get("taylor-swift");
+        UUID lotteryId = UUID.randomUUID();
 
-                User bob = usersByEmail.get("bob@demo.test");
-                lottery.registerMember(bob.getId().toString(), 2, LocalDateTime.now());
-                lottery.addWinner(bob.getId().toString());
-                lottery.generateWinnerAccessCode(
-                                bob.getId().toString(),
-                                LocalDateTime.now().plusDays(1));
+        PuchaseLottery lottery = new PuchaseLottery(
+                        lotteryId,
+                        taylorEventId,
+                        LocalDateTime.now().minusDays(1),
+                        LocalDateTime.now().plusDays(14));
 
-                lotteryRepository.save(lottery);
+        User bob = usersByEmail.get("bob@demo.test");
+        lottery.registerMember(bob.getId().toString(), 2, LocalDateTime.now());
+        lottery.addWinner(bob.getId().toString());
+        lottery.generateWinnerAccessCode(
+                        bob.getId().toString(),
+                        LocalDateTime.now().plusDays(1));
 
-                Event taylor = eventRepository.getById(taylorEventId);
-                taylor.setLotteryId(lotteryId.toString());
-                eventRepository.save(taylor);
-        }
+        lotteryRepository.save(lottery);
+
+        Event taylor = eventRepository.getById(taylorEventId);
+        taylor.setLotteryId(lotteryId.toString());
+        eventRepository.save(taylor);
+}
+
+private void seedIndieLottery() {
+        UUID indieLotteryEventId = eventsByKey.get("indie-lottery");
+        UUID lotteryId = UUID.randomUUID();
+
+        LocalDateTime registrationOpen = LocalDateTime.now().minusDays(10);
+        LocalDateTime registrationClose = LocalDateTime.now().minusDays(1);
+        LocalDateTime demoRegistrationTime = LocalDateTime.now().minusDays(2);
+
+        PuchaseLottery lottery = new PuchaseLottery(
+                        lotteryId,
+                        indieLotteryEventId,
+                        registrationOpen,
+                        registrationClose);
+
+        User alice = usersByEmail.get("alice@demo.test");
+        User bob = usersByEmail.get("bob@demo.test");
+        User carol = usersByEmail.get("carol@demo.test");
+        User dave = usersByEmail.get("dave@demo.test");
+
+        lottery.registerMember(alice.getId().toString(), 2, demoRegistrationTime);
+        lottery.registerMember(bob.getId().toString(), 1, demoRegistrationTime);
+        lottery.registerMember(carol.getId().toString(), 3, demoRegistrationTime);
+        lottery.registerMember(dave.getId().toString(), 2, demoRegistrationTime);
+
+        lotteryRepository.save(lottery);
+
+        Event indieLottery = eventRepository.getById(indieLotteryEventId);
+        indieLottery.setLotteryId(lotteryId.toString());
+        eventRepository.save(indieLottery);
+}
 
         // =================================================================
-        // SECTION 9: Close Closed Co.
+        // SECTION 10: Close Closed Co.
         //
         // We close the company AFTER seeding its events, otherwise the
         // events under it wouldn't exist when the close happens. Closing
@@ -604,7 +701,7 @@ public class DevDataSeeder implements CommandLineRunner {
         }
 
         // =================================================================
-        // SECTION 10: Purchase history
+        // SECTION 11: Purchase history
         //
         // Five historical purchase rows so the sales-report / personal
         // history UIs render without anyone running checkout. The Eurovision
@@ -618,10 +715,14 @@ public class DevDataSeeder implements CommandLineRunner {
                 addHistoryRow("bob@demo.test", "adir-miller", 1, "Adir Miller single seat");
                 addHistoryRow("dave@demo.test", "hapoel", 2, "Hapoel pair");
                 addHistoryRow("carol@demo.test", "jazz", 1, "Jazz GA");
+                addHistoryRow("alice@demo.test", "mega-gala-night", 4, "Mega Gala VIP bundle");
+                addHistoryRow("bob@demo.test", "mega-gala-night", 2, "Mega Gala duo");
+                addHistoryRow("carol@demo.test", "mega-launch-showcase", 3, "Mega Launch early access");
+                addHistoryRow("dave@demo.test", "mega-launch-showcase", 2, "Mega Launch pair");
         }
 
         // =================================================================
-        // SECTION 11: Complaints
+        // SECTION 12: Complaints
         //
         // One in each AdminComplaintStatus so the admin complaint queue
         // shows variety from the first page load.
@@ -658,7 +759,7 @@ public class DevDataSeeder implements CommandLineRunner {
         }
 
         // =================================================================
-        // SECTION 12: Notifications
+        // SECTION 13: Notifications
         //
         // Five demo notifications across different types so the bell icon
         // and notifications page have something interesting on the very
@@ -687,7 +788,7 @@ public class DevDataSeeder implements CommandLineRunner {
         }
 
         // =================================================================
-        // SECTION 13: Admin analytics snapshot
+        // SECTION 14: Admin analytics snapshot
         //
         // One historical snapshot from "1 hour ago" so the analytics page
         // can render a comparison alongside the live snapshot. Numbers are
@@ -772,14 +873,12 @@ public class DevDataSeeder implements CommandLineRunner {
          * areas they want via {@link #addStandingArea} / {@link #addSittingArea}.
          * Indexed under {@code key} so later sections can refer to it by name.
          */
-
-        private String description = "";
         private UUID createEvent(String key, UUID companyId, String eventManagerEmail, String name,
                         String artist, String type, String location,
                         LocalDateTime date, EventStatus status) {
                 UUID eventId = UUID.randomUUID();
                 eventManagement.addEvent(eventId, companyId, eventManagerEmail, name, date, location,
-                                artist, type, status, description);
+                                artist, type, status , "");
                 eventsByKey.put(key, eventId);
                 return eventId;
         }

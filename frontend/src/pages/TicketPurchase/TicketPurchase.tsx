@@ -21,6 +21,7 @@ import {
 import {
     isEventBookable,
     type Area,
+    type DiscountRule,
     type Event,
     type Ticket,
 } from "../../types/event";
@@ -37,6 +38,7 @@ type TicketPurchasePageProps = {
     selectionAccessExpiresAt?: string | null;
     onSelectionAccessExpired?: () => void;
     onBackToEvent: () => void;
+    lotteryAccessCode?: string | null;
 };
 
 // Shape proposed in Phase 1: sitting tickets are tracked by exact id (matches
@@ -108,20 +110,165 @@ function getTotalSelectedCount(selection: SeatSelection): number {
     return sittingCount + standingCount;
 }
 
-function getTotalPrice(selection: SeatSelection, event: Event): number {
+type AppliedDiscount = {
+    label: string;
+    amount: number;
+};
+
+type PriceQuote = {
+    subtotal: number;
+    total: number;
+    discountTotal: number;
+    appliedDiscounts: AppliedDiscount[];
+};
+
+function formatNis(value: number): string {
+    const rounded = Math.round(value * 100) / 100;
+    return `${Number.isInteger(rounded) ? rounded.toFixed(0) : rounded.toFixed(2)} NIS`;
+}
+
+function parseLocalDate(value: string): Date | null {
+    const [year, month, day] = value.slice(0, 10).split("-").map(Number);
+    if (!year || !month || !day) {
+        const parsed = new Date(value);
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+    return new Date(year, month - 1, day);
+}
+
+function isDiscountActive(rule: DiscountRule, now = new Date()): boolean {
+    const fromDate = parseLocalDate(rule.fromDate);
+    const toDate = parseLocalDate(rule.toDate);
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    if (fromDate && today < fromDate) {
+        return false;
+    }
+    if (toDate && today > toDate) {
+        return false;
+    }
+    return true;
+}
+
+function getSelectedTicketPrices(selection: SeatSelection, event: Event): number[] {
     const ticketsById = new Map(event.tickets.map((ticket) => [ticket.id, ticket]));
-    const sittingTotal = getSelectedTicketIds(selection).reduce(
-        (sum, ticketId) => sum + (ticketsById.get(ticketId)?.price ?? 0),
-        0,
+    const prices = getSelectedTicketIds(selection).map(
+        (ticketId) => ticketsById.get(ticketId)?.price ?? 0,
     );
 
     const areasById = new Map(event.layout.areas.map((area) => [area.id, area]));
-    const standingTotal = Object.entries(selection.standingCountByArea).reduce(
-        (sum, [areaId, count]) => sum + (areasById.get(areaId)?.price ?? 0) * count,
-        0,
-    );
+    for (const [areaId, count] of Object.entries(selection.standingCountByArea)) {
+        const price = areasById.get(areaId)?.price ?? 0;
+        for (let index = 0; index < count; index += 1) {
+            prices.push(price);
+        }
+    }
 
-    return sittingTotal + standingTotal;
+    return prices;
+}
+
+function applyPercentToAll(prices: number[], percent: number): number[] {
+    const factor = Math.max(0, 100 - percent) / 100;
+    return prices.map((price) => price * factor);
+}
+
+function applyConditionalDiscount(prices: number[], rule: DiscountRule): number[] {
+    const requiredTickets = rule.requiredTickets ?? 0;
+    const appliedTickets = rule.appliedTickets ?? 0;
+    const bundleSize = requiredTickets + appliedTickets;
+
+    // "Buy 3, get 1" means a full bundle has 4 tickets: 3 paid + 1 discounted.
+    if (
+        requiredTickets <= 0 ||
+        appliedTickets <= 0 ||
+        bundleSize <= 0 ||
+        prices.length < bundleSize
+    ) {
+        return prices;
+    }
+
+    const discountedTicketCount = Math.min(
+        prices.length,
+        Math.floor(prices.length / bundleSize) * appliedTickets,
+    );
+    if (discountedTicketCount <= 0) {
+        return prices;
+    }
+
+    const discountedIndexes = new Set(
+        prices
+            .map((price, index) => ({ price, index }))
+            .sort((left, right) => left.price - right.price)
+            .slice(0, discountedTicketCount)
+            .map((entry) => entry.index),
+    );
+    const factor = Math.max(0, 100 - rule.percent) / 100;
+
+    return prices.map((price, index) =>
+        discountedIndexes.has(index) ? price * factor : price,
+    );
+}
+
+function describeAppliedDiscount(rule: DiscountRule): string {
+    if (rule.kind === "OVERT") {
+        return `${rule.percent}% event discount`;
+    }
+    if (rule.kind === "CONDITIONAL") {
+        return `Buy ${rule.requiredTickets}, get ${rule.appliedTickets} at ${rule.percent}% off`;
+    }
+    return rule.code ? `Coupon ${rule.code}` : `${rule.percent}% coupon discount`;
+}
+
+function getPriceQuote(
+    selection: SeatSelection,
+    event: Event,
+    couponCode = "",
+): PriceQuote {
+    let currentPrices = getSelectedTicketPrices(selection, event);
+    const subtotal = currentPrices.reduce((sum, price) => sum + price, 0);
+    const appliedDiscounts: AppliedDiscount[] = [];
+    const normalizedCouponCode = couponCode.trim().toLowerCase();
+
+    for (const rule of event.discountPolicy.rules) {
+        if (!isDiscountActive(rule)) {
+            continue;
+        }
+
+        const before = currentPrices.reduce((sum, price) => sum + price, 0);
+
+        if (rule.kind === "OVERT") {
+            currentPrices = applyPercentToAll(currentPrices, rule.percent);
+        } else if (rule.kind === "CONDITIONAL") {
+            currentPrices = applyConditionalDiscount(currentPrices, rule);
+        } else {
+            const ruleCode = rule.code?.trim().toLowerCase();
+            if (!normalizedCouponCode || !ruleCode || ruleCode !== normalizedCouponCode) {
+                continue;
+            }
+            currentPrices = applyPercentToAll(currentPrices, rule.percent);
+        }
+
+        const after = currentPrices.reduce((sum, price) => sum + price, 0);
+        if (after < before) {
+            appliedDiscounts.push({
+                label: describeAppliedDiscount(rule),
+                amount: before - after,
+            });
+        }
+    }
+
+    const total = currentPrices.reduce((sum, price) => sum + price, 0);
+
+    return {
+        subtotal,
+        total,
+        discountTotal: subtotal - total,
+        appliedDiscounts,
+    };
+}
+
+function getTotalPrice(selection: SeatSelection, event: Event): number {
+    return getPriceQuote(selection, event).total;
 }
 
 function getTicketsByArea(event: Event, areaId: string): Ticket[] {
@@ -786,6 +933,7 @@ type PurchaseSummaryProps = {
     actionMessage: ActionResultMessage | null;
     isLotteryAvailable: boolean;
     canEnterLottery: boolean;
+    couponCode?: string;
 };
 
 function PurchaseSummary({
@@ -806,9 +954,14 @@ function PurchaseSummary({
     actionMessage,
     isLotteryAvailable,
     canEnterLottery,
+    couponCode = "",
 }: PurchaseSummaryProps) {
     const totalCount = getTotalSelectedCount(selection);
-    const totalPrice = getTotalPrice(selection, event);
+    const priceQuote = useMemo(
+        () => getPriceQuote(selection, event, couponCode),
+        [selection, event, couponCode],
+    );
+    const totalPrice = priceQuote.total;
     const [lotteryTicketAmount, setLotteryTicketAmount] = useState<number>(1);
 
     const sittingItems = useMemo<SittingSummaryItem[]>(() => {
@@ -941,12 +1094,31 @@ function PurchaseSummary({
             )}
 
             {totalCount > 0 && (
-                <div className="purchase-summary-total">
-                    <span>
-                        Total ({totalCount} ticket{totalCount === 1 ? "" : "s"})
-                    </span>
-                    <strong>{totalPrice} NIS</strong>
-                </div>
+                <>
+                    {priceQuote.discountTotal > 0 && (
+                        <>
+                            <div className="purchase-summary-total purchase-summary-subtotal">
+                                <span>Subtotal</span>
+                                <strong>{formatNis(priceQuote.subtotal)}</strong>
+                            </div>
+                            {priceQuote.appliedDiscounts.map((discount, index) => (
+                                <div
+                                    key={`${discount.label}-${index}`}
+                                    className="purchase-summary-discount"
+                                >
+                                    <span>{discount.label}</span>
+                                    <strong>-{formatNis(discount.amount)}</strong>
+                                </div>
+                            ))}
+                        </>
+                    )}
+                    <div className="purchase-summary-total">
+                        <span>
+                            Total ({totalCount} ticket{totalCount === 1 ? "" : "s"})
+                        </span>
+                        <strong>{formatNis(totalPrice)}</strong>
+                    </div>
+                </>
             )}
 
             {visibleWarnings.map((text) => (
@@ -1005,7 +1177,7 @@ function PurchaseSummary({
                         {isPerformingAction
                             ? "Reserving seats…"
                             : totalCount > 0
-                                ? `Continue to checkout · ${totalPrice} NIS`
+                                ? `Continue to checkout · ${formatNis(totalPrice)}`
                                 : "Continue to checkout"}
                     </button>
 
@@ -1067,7 +1239,7 @@ function PurchaseSummary({
                         >
                             {isPerformingAction
                                 ? "Processing payment…"
-                                : `Confirm payment · ${totalPrice} NIS`}
+                                : `Confirm payment · ${formatNis(totalPrice)}`}
                         </button>
                     )}
 
@@ -1188,6 +1360,7 @@ export default function TicketPurchasePage({
     selectionAccessExpiresAt = null,
     onSelectionAccessExpired,
     onBackToEvent,
+    lotteryAccessCode = null,
 }: TicketPurchasePageProps) {
     const [event, setEvent] = useState<Event | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -1385,6 +1558,7 @@ export default function TicketPurchasePage({
                   shape.ticketIds,
                   userId,
                   agreedToTerms,
+                  lotteryAccessCode,
               )
             : await selectStandingTickets(
                   event_.id,
@@ -1392,6 +1566,7 @@ export default function TicketPurchasePage({
                   shape.amount,
                   userId,
                   agreedToTerms,
+                  lotteryAccessCode,
               );
     }
 
@@ -1781,6 +1956,7 @@ export default function TicketPurchasePage({
                         actionMessage={actionMessage}
                         isLotteryAvailable={Boolean(event.lotteryId)}
                         canEnterLottery={isLoggedInMember()}
+                        couponCode={couponCode}
                     />
                 </div>
             )}

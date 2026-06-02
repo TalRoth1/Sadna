@@ -3,6 +3,7 @@ import { getCurrentUser, type CurrentUser } from "../../services/currentUserServ
 import { getMyCompanies, type CompanyMembership } from "../../services/companyService";
 import { createEvent, type CreateEventRequest } from "../../services/eventService";
 import "./CreateEventPage.css";
+import { createLotteryForEvent } from "../../services/lotteryService";
 
 type CreateEventPageProps = {
     initialCompanyId?: string | null;
@@ -30,6 +31,7 @@ type FormErrors = {
     location?: string;
     type?: string;
     ticketAreas?: string;
+    lottery?: string;
 };
 
 const statusOptions = [
@@ -111,6 +113,9 @@ export default function CreateEventPage({
     const [artist, setArtist] = useState("");
     const [type, setType] = useState("");
     const [status, setStatus] = useState("ACTIVE");
+    const [isLotteryEvent, setIsLotteryEvent] = useState(false);
+const [lotteryRegistrationOpen, setLotteryRegistrationOpen] = useState("");
+const [lotteryRegistrationClose, setLotteryRegistrationClose] = useState("");
     const [minAge, setMinAge] = useState("");
     const [minTickets, setMinTickets] = useState("");
     const [maxTickets, setMaxTickets] = useState("");
@@ -231,7 +236,23 @@ export default function CreateEventPage({
                 }
             }
         }
+        if (isLotteryEvent) {
+            if (!lotteryRegistrationOpen || !lotteryRegistrationClose) {
+                validation.lottery = "Lottery registration open and close dates are required.";
+            } else {
+                const openDate = new Date(lotteryRegistrationOpen);
+                const closeDate = new Date(lotteryRegistrationClose);
 
+                if (
+                    Number.isNaN(openDate.getTime()) ||
+                    Number.isNaN(closeDate.getTime())
+                ) {
+                    validation.lottery = "Lottery registration dates are invalid.";
+                } else if (closeDate <= openDate) {
+                    validation.lottery = "Lottery registration close time must be after open time.";
+                }
+            }
+        }
         return validation;
     }
 
@@ -243,6 +264,9 @@ export default function CreateEventPage({
         setArtist("");
         setType("");
         setStatus("ACTIVE");
+        setIsLotteryEvent(false);
+        setLotteryRegistrationOpen("");
+        setLotteryRegistrationClose("");
         setTicketAreas([
             {
                 id: createLocalId(),
@@ -445,7 +469,7 @@ export default function CreateEventPage({
                 date: `${date}:00`,
                 location: location.trim(),
                 artist: artist.trim(),
-                type: type.trim(),
+                type: isLotteryEvent ? "Lottery" : type.trim(),
                 status,
                 description: description.trim() || undefined,
             };
@@ -465,10 +489,21 @@ export default function CreateEventPage({
                 }
             }
 
+            if (isLotteryEvent) {
+                await createLotteryForEvent(createdEventId, {
+                    registrationOpen: `${lotteryRegistrationOpen}:00`,
+                    registrationClose: `${lotteryRegistrationClose}:00`,
+                });
+            }
+
             await addEventPolicyRule(createdEventId, companyId, currentUser.email);
             await addEventDiscount(createdEventId, companyId, currentUser.email);   
 
-            setSuccessMessage("Event, ticket areas, policies and discounts created successfully.");
+            setSuccessMessage(
+                isLotteryEvent
+                    ? "Lottery event, ticket areas, policies and discounts created successfully."
+                    : "Event, ticket areas, policies and discounts created successfully.",
+            );
             resetForm();
 
             if (onEventCreated) {
@@ -621,6 +656,53 @@ export default function CreateEventPage({
                                         ))}
                                     </select>
                                 </label>
+                                <div className="form-field">
+                                    <label className="create-event-checkbox-row">
+                                        <input
+                                            type="checkbox"
+                                            checked={isLotteryEvent}
+                                            onChange={(e) => {
+                                                const checked = e.target.checked;
+                                                setIsLotteryEvent(checked);
+
+                                                if (checked && !type.trim()) {
+                                                    setType("Lottery");
+                                                }
+                                            }}
+                                        />
+                                        <span>Make this event a lottery event</span>
+                                    </label>
+
+                                    <small>
+                                        Users will register first. Later, event managers can draw winners and winners receive access codes.
+                                    </small>
+                                </div>
+
+                                {isLotteryEvent && (
+                                    <>
+                                        <label className="form-field">
+                                            <span>Lottery registration opens</span>
+                                            <input
+                                                type="datetime-local"
+                                                value={lotteryRegistrationOpen}
+                                                onChange={(e) => setLotteryRegistrationOpen(e.target.value)}
+                                            />
+                                        </label>
+
+                                        <label className="form-field">
+                                            <span>Lottery registration closes</span>
+                                            <input
+                                                type="datetime-local"
+                                                value={lotteryRegistrationClose}
+                                                onChange={(e) => setLotteryRegistrationClose(e.target.value)}
+                                            />
+                                        </label>
+
+                                        {errors.lottery && (
+                                            <p className="create-event-error">{errors.lottery}</p>
+                                        )}
+                                    </>
+                                )}
 
                                 <label className="form-field">
                                     <span>Event description</span>

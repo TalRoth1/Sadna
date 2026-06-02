@@ -18,14 +18,14 @@ import UserProfilePage from "./pages/UserProfilePage";
 import LoginPage from "./pages/LoginPage";
 import RegistrationPage from "./pages/RegistrationPage";
 import LotteryRegistrationPage from "./pages/LotteryRegistrationPage";
-import MyActivePurchasesPage from "./pages/MyActivePurchasesPage";
 import MyCompaniesPage from "./pages/myCompanies/MyCompaniesPage";
 import QueueWaitingPage from "./pages/QueueWaitingPage";
 import CreateEventPage from "./pages/createEvent/CreateEventPage";
-
+import EditEventPage from "./pages/editEvent/EditEventPage";
 import type { CompanyResponse } from "./services/companyService";
 import type { AdminActionId } from "./types/admin";
 import "./App.css";
+import MyActivePurchasesPage from "./pages/MyActivePurchasesPage";
 
 type CompanyStatus = "Active" | "Suspended" | "Closed";
 
@@ -45,13 +45,7 @@ type SelectedCompany = {
     permissions: CompanyPermissionName[];
 };
 
-function PlaceholderPage({
-                             title,
-                             description,
-                         }: {
-    title: string;
-    description: string;
-}) {
+function PlaceholderPage({ title, description }: { title: string; description: string }) {
     return (
         <main className="app-page">
             <section className="page-header">
@@ -101,18 +95,33 @@ function App() {
     const [currentPage, setCurrentPage] = useState<AppPage>("event-search");
     const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
     const [selectionAccessExpiresAt, setSelectionAccessExpiresAt] = useState<string | null>(null);
+    const [lotteryAccessCode, setLotteryAccessCode] = useState<string | null>(null);
     const [selectedCompany, setSelectedCompany] = useState<SelectedCompany | null>(null);
     const [createEventCompanyId, setCreateEventCompanyId] = useState<string | null>(null);
 
     function navigate(page: AppPage) {
-        if (page !== "event-details" && page !== "event-queue" && page !== "event-purchase") {
+        if (
+            page !== "event-details" &&
+            page !== "event-queue" &&
+            page !== "event-purchase" &&
+            page !== "edit-event"
+        ) {
             setSelectedEventId(null);
             setSelectionAccessExpiresAt(null);
+            setLotteryAccessCode(null);
         }
+
         if (page !== "company-details") {
             setSelectedCompany(null);
         }
+
         setCurrentPage(page);
+    }
+
+    function handleOpenActivePurchase(eventId: string) {
+        setSelectedEventId(eventId);
+        setSelectionAccessExpiresAt(null);
+        setCurrentPage("event-purchase");
     }
 
     function handleCreateEventForCompany(companyId: string) {
@@ -146,12 +155,25 @@ function App() {
     function handleStartPurchase(eventId: string) {
         setSelectedEventId(eventId);
         setSelectionAccessExpiresAt(null);
+        setLotteryAccessCode(null);
+        setCurrentPage("event-queue");
+    }
+
+    function handleStartPurchaseWithCode(eventId: string, accessCode?: string | null) {
+        setSelectedEventId(eventId);
+        setSelectionAccessExpiresAt(null);
+        setLotteryAccessCode(accessCode ?? null);
         setCurrentPage("event-queue");
     }
 
     function handleStartLotteryRegistration(eventId: string) {
         setSelectedEventId(eventId);
         setCurrentPage("lottery-registration");
+    }
+
+    function handleEditEvent(eventId: string) {
+        setSelectedEventId(eventId);
+        setCurrentPage("edit-event");
     }
 
     function handleStartCompanyCreation() {
@@ -191,6 +213,8 @@ function App() {
             setCurrentPage("event-search");
             return;
         }
+
+
         setSelectionAccessExpiresAt(null);
         setCurrentPage("event-details");
     }
@@ -205,18 +229,20 @@ function App() {
         setCurrentPage("event-queue");
     }
 
-    function handleOpenActivePurchase(eventId: string) {
-        setSelectedEventId(eventId);
-        setSelectionAccessExpiresAt(null);
-        setCurrentPage("event-purchase");
-    }
-
     function handleEventCreated(eventId: string) {
         setSelectedEventId(eventId);
         setCurrentPage("event-details");
     }
 
     function renderPage() {
+        if (currentPage === "active-purchases") {
+            return (
+                <MyActivePurchasesPage
+                    onOpenPurchase={handleOpenActivePurchase}
+                />
+            );
+        }
+
         if (currentPage === "event-search") {
             return <EventSearchPage onSelectEvent={handleSelectEvent} />;
         }
@@ -225,16 +251,18 @@ function App() {
             if (!selectedEventId) {
                 return <EventSearchPage onSelectEvent={handleSelectEvent} />;
             }
+
+
             return (
-                    <EventDetailsPage
-                        eventId={selectedEventId}
-                        onBackToSearch={handleBackToSearch}
-                        onStartPurchase={handleStartPurchase}
-                        onStartLotteryRegistration={handleStartLotteryRegistration}
-                    />
+                <EventDetailsPage
+                    eventId={selectedEventId}
+                    onBackToSearch={handleBackToSearch}
+                    onStartPurchase={handleStartPurchaseWithCode}
+                    onStartLotteryRegistration={handleStartLotteryRegistration}
+                    onEditEvent={handleEditEvent}
+                />
             );
         }
-
 
         if (currentPage === "event-queue") {
             if (!selectedEventId) {
@@ -254,20 +282,16 @@ function App() {
             if (!selectedEventId) {
                 return <EventSearchPage onSelectEvent={handleSelectEvent} />;
             }
+
+
             return (
-                // `key` forces React to remount TicketPurchasePage when the
-                // user switches events. That way each event page gets its
-                // own state (selection, resumed reservation, timer) and
-                // they don't bleed into each other — which is critical for
-                // the "parallel independence" requirement, since the
-                // backend can now hold concurrent reservations across
-                // different events for the same user.
                 <TicketPurchasePage
                     key={selectedEventId}
                     eventId={selectedEventId}
                     selectionAccessExpiresAt={selectionAccessExpiresAt}
                     onSelectionAccessExpired={handleSelectionAccessExpired}
                     onBackToEvent={handleBackToEvent}
+                    lotteryAccessCode={lotteryAccessCode}
                 />
             );
         }
@@ -285,10 +309,21 @@ function App() {
             );
         }
 
-        if (currentPage === "user-tickets") {
+        if (currentPage === "edit-event") {
+            if (!selectedEventId) {
+                return <EventSearchPage onSelectEvent={handleSelectEvent} />;
+            }
+
             return (
-                <MyActivePurchasesPage
-                    onOpenPurchase={handleOpenActivePurchase}
+                <EditEventPage
+                    eventId={selectedEventId}
+                    onBackToEvent={handleBackToEvent}
+                    onLogin={() => setCurrentPage("login")}
+                    onRegister={() => setCurrentPage("registration")}
+                    onEventUpdated={(eventId) => {
+                        setSelectedEventId(eventId);
+                        setCurrentPage("event-details");
+                    }}
                 />
             );
         }
@@ -345,6 +380,8 @@ function App() {
                     company={selectedCompany}
                     onBackToCompanies={() => setCurrentPage("my-companies")}
                     onCreateEvent={handleCreateEventForCompany}
+                    onSelectEvent={handleSelectEvent}
+                    onEditEvent={handleEditEvent}
                 />
             );
         }

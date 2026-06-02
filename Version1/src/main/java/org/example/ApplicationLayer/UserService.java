@@ -269,6 +269,10 @@ public class UserService {
                     ? user.getPasswordHash()
                     : DUMMY_PASSWORD_HASH;
 
+            if (user != null && user.getStatus() == UserStatus.REMOVED) {
+                throw new IllegalArgumentException("This account was removed from the platform.");
+            }
+
             boolean isPasswordCorrect;
             try {
                 isPasswordCorrect = authGateway.verifyPassword(

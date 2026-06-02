@@ -2,6 +2,7 @@ package org.example.ApplicationLayer;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.example.ApplicationLayer.dto.NotificationDTOs.NotificationDTO;
@@ -33,69 +34,147 @@ public class NotificationService {
     }
 
     public boolean notifyUser(UUID userId, String message) {
-        if (userId == null) {
-            throw new IllegalArgumentException("User ID is required");
+        String action = "NOTIFY_USER_BY_UUID";
+        logInfo(userId == null ? null : userId.toString(), action, "Started.");
+
+        try {
+            if (userId == null) {
+                throw new IllegalArgumentException("User ID is required");
+            }
+
+            boolean deliveredNow = notifyUser(userId.toString(), message);
+
+            logInfo(userId.toString(), action, "Completed successfully. deliveredNow=" + deliveredNow);
+            return deliveredNow;
+        } catch (RuntimeException e) {
+            logError(userId == null ? null : userId.toString(), action, "Failed.", e);
+            throw e;
         }
-        return notifyUser(userId.toString(), message);
     }
 
     public boolean notifyUser(String userId, String message) {
-        validateUserAndMessage(userId, message);
+        String action = "NOTIFY_USER";
+        logInfo(userId, action, "Started.");
 
-        boolean deliveredNow = notifier.notifyUser(userId, message);
+        try {
+            validateUserAndMessage(userId, message);
 
-        if (!deliveredNow) {
-            logger.info("Notification saved as delayed notification for user ID: " + userId);
+            boolean deliveredNow = notifier.notifyUser(userId, message);
+
+            if (deliveredNow) {
+                logInfo(userId, action, "Completed successfully. deliveredNow=true");
+            } else {
+                logInfo(userId, action, "Notification saved as delayed notification. deliveredNow=false");
+            }
+
+            return deliveredNow;
+        } catch (RuntimeException e) {
+            logError(userId, action, "Failed.", e);
+            throw e;
         }
-
-        return deliveredNow;
     }
 
     public boolean notifyUser(String userId,
                               NotificationType type,
                               String message,
                               String targetUrl) {
-        validateUserAndMessage(userId, message);
+        String action = "NOTIFY_USER_WITH_TYPE";
+        logInfo(userId, action, "Started. type=" + type + ", targetUrl=" + targetUrl);
 
-        if (notifier instanceof Notifier concreteNotifier) {
-            return concreteNotifier.notifyUser(userId, type, message, targetUrl);
+        try {
+            validateUserAndMessage(userId, message);
+
+            boolean deliveredNow;
+
+            if (notifier instanceof Notifier concreteNotifier) {
+                deliveredNow = concreteNotifier.notifyUser(userId, type, message, targetUrl);
+            } else {
+                deliveredNow = notifier.notifyUser(userId, message);
+            }
+
+            logInfo(userId, action, "Completed successfully. deliveredNow=" + deliveredNow);
+            return deliveredNow;
+        } catch (RuntimeException e) {
+            logError(userId, action, "Failed. type=" + type + ", targetUrl=" + targetUrl, e);
+            throw e;
         }
-
-        return notifier.notifyUser(userId, message);
     }
 
-
     public List<NotificationDTO> getAllNotifications(String userId) {
-        validateUserId(userId);
+        String action = "GET_ALL_NOTIFICATIONS";
+        logInfo(userId, action, "Started.");
 
-        return notificationRepository.findAllByRecipient(userId)
-                .stream()
-                .map(NotificationDTO::new)
-                .toList();
+        try {
+            validateUserId(userId);
+
+            List<NotificationDTO> result = notificationRepository.findAllByRecipient(userId)
+                    .stream()
+                    .map(NotificationDTO::new)
+                    .toList();
+
+            logInfo(userId, action, "Completed successfully. resultSize=" + result.size());
+            return result;
+        } catch (RuntimeException e) {
+            logError(userId, action, "Failed.", e);
+            throw e;
+        }
     }
 
     public List<NotificationDTO> getUnreadNotifications(String userId) {
-        validateUserId(userId);
+        String action = "GET_UNREAD_NOTIFICATIONS";
+        logInfo(userId, action, "Started.");
 
-        return notificationRepository.findUnreadByRecipient(userId)
-                .stream()
-                .map(NotificationDTO::new)
-                .toList();
+        try {
+            validateUserId(userId);
+
+            List<NotificationDTO> result = notificationRepository.findUnreadByRecipient(userId)
+                    .stream()
+                    .map(NotificationDTO::new)
+                    .toList();
+
+            logInfo(userId, action, "Completed successfully. resultSize=" + result.size());
+            return result;
+        } catch (RuntimeException e) {
+            logError(userId, action, "Failed.", e);
+            throw e;
+        }
     }
 
     public void markAsRead(String userId, UUID notificationId) {
-        validateUserId(userId);
+        String action = "MARK_NOTIFICATION_AS_READ";
+        logInfo(userId, action, "Started. notificationId=" + notificationId);
 
-        if (notificationId == null) {
-            throw new IllegalArgumentException("Notification ID is required");
+        try {
+            validateUserId(userId);
+
+            if (notificationId == null) {
+                throw new IllegalArgumentException("Notification ID is required");
+            }
+
+            notificationRepository.markAsRead(userId, notificationId);
+
+            logInfo(userId, action, "Completed successfully. notificationId=" + notificationId);
+        } catch (RuntimeException e) {
+            logError(userId, action, "Failed. notificationId=" + notificationId, e);
+            throw e;
         }
-
-        notificationRepository.markAsRead(userId, notificationId);
     }
 
     public int markAllAsRead(String userId) {
-        validateUserId(userId);
-        return notificationRepository.markAllAsRead(userId);
+        String action = "MARK_ALL_NOTIFICATIONS_AS_READ";
+        logInfo(userId, action, "Started.");
+
+        try {
+            validateUserId(userId);
+
+            int updatedCount = notificationRepository.markAllAsRead(userId);
+
+            logInfo(userId, action, "Completed successfully. updatedCount=" + updatedCount);
+            return updatedCount;
+        } catch (RuntimeException e) {
+            logError(userId, action, "Failed.", e);
+            throw e;
+        }
     }
 
     private void validateUserAndMessage(String userId, String message) {
@@ -110,5 +189,22 @@ public class NotificationService {
         if (userId == null || userId.isBlank()) {
             throw new IllegalArgumentException("User ID is required");
         }
+    }
+
+    private void logInfo(String userId, String action, String message) {
+        logger.info("userId=" + userId
+                + ", action=" + action
+                + ", status=INFO, message=" + message);
+    }
+
+    private void logError(String userId, String action, String message, RuntimeException e) {
+        logger.log(
+                Level.SEVERE,
+                "userId=" + userId
+                        + ", action=" + action
+                        + ", status=ERROR, message=" + message
+                        + ", error=" + e.getMessage(),
+                e
+        );
     }
 }

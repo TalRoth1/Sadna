@@ -193,6 +193,7 @@ type EventDetailsResponse = {
     eventType: string;
     date: string;
     location: string;
+    description: string | null;
     tags: string[];
     status: EventStatus;
     rating: number;
@@ -205,6 +206,7 @@ type EventDetailsResponse = {
     tickets: TicketResponse[];
     purchasePolicy: { rules: PurchaseRuleResponse[] };
     discountPolicy: { rules: DiscountRuleResponse[] };
+    effectiveDiscountPolicy?: { rules: DiscountRuleResponse[] };
 };
 
 /**
@@ -307,12 +309,18 @@ function toEventDetails(response: EventDetailsResponse): Event {
         const counter = area.kind === "STANDING" ? standingCount : sittingCount;
         const name = synthesizeAreaName(area, counter.value);
         counter.value += 1;
+
         return toArea(area, name);
     });
 
     const tickets: Ticket[] = response.tickets.map((ticket) =>
         toTicket(ticket, response.eventId),
     );
+
+    const effectiveDiscountRules =
+        response.effectiveDiscountPolicy?.rules ??
+        response.discountPolicy.rules ??
+        [];
 
     const event: Event = {
         id: response.eventId,
@@ -321,7 +329,9 @@ function toEventDetails(response: EventDetailsResponse): Event {
         companyName: response.companyName,
         date: response.date,
         location: response.location,
+
         tags: [...response.tags],
+
         status: response.status,
         artist: response.artist,
         type: response.eventType,
@@ -330,16 +340,19 @@ function toEventDetails(response: EventDetailsResponse): Event {
         layout: { areas },
         purchasePolicy: toPurchasePolicy(response.purchasePolicy.rules),
         discountPolicy: {
-            rules: response.discountPolicy.rules.map(toDiscountRule),
+            rules: effectiveDiscountRules.map(toDiscountRule),
         },
         tickets,
     };
+
     if (response.lotteryId) {
         event.lotteryId = response.lotteryId;
     }
+
     if (response.description != null) {
         event.description = response.description;
     }
+
     return event;
 }
 

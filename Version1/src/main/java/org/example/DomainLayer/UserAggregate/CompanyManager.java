@@ -41,7 +41,7 @@ public class CompanyManager extends ICompanyMember {
     @Override
     public void buildMermaid(StringBuilder sb) {
         sb.append(mermaidId()).append("[");
-        sb.append('"').append(getUsername());
+        sb.append('"').append(getUsername()).append(" (Manager)");
         if (premissions != null && !premissions.isEmpty()) {
             sb.append("\\nPerms:").append(premissions.toString());
         }

@@ -6,10 +6,28 @@ import java.util.UUID;
 
 import org.example.ApplicationLayer.PurchaseService;
 import org.example.ApplicationLayer.dto.ApiResponse;
-import org.example.ApplicationLayer.dto.PurchaseDTOs.*;
+import org.example.ApplicationLayer.dto.PurchaseDTOs.ActivePurchaseDTO;
+import org.example.ApplicationLayer.dto.PurchaseDTOs.CompletePurchaseRequest;
+import org.example.ApplicationLayer.dto.PurchaseDTOs.LotteryDrawRequest;
+import org.example.ApplicationLayer.dto.PurchaseDTOs.LotteryRegisterRequest;
+import org.example.ApplicationLayer.dto.PurchaseDTOs.PurchaseHistoryDTO;
+import org.example.ApplicationLayer.dto.PurchaseDTOs.SelectSittingRequest;
+import org.example.ApplicationLayer.dto.PurchaseDTOs.SelectStandingRequest;
+import org.example.ApplicationLayer.dto.PurchaseDTOs.SelectionAccessDTO;
+import org.example.ApplicationLayer.dto.PurchaseDTOs.SelectionAccessRequest;
+import org.example.ApplicationLayer.dto.PurchaseDTOs.UpdateSittingRequest;
+import org.example.ApplicationLayer.dto.PurchaseDTOs.UpdateStandingRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 /**
  * PurchaseController
@@ -81,8 +99,16 @@ public class PurchaseController {
             @PathVariable("eventId") UUID eventId,
             @RequestBody SelectSittingRequest request) {
         try {
-            ActivePurchaseDTO activePurchase = purchaseService.selectSittingTickets(
-                    eventId, request.ticketIDs, request.userID, request.isConfirmedAge);
+            ActivePurchaseDTO activePurchase;
+            if (request.accessCode != null && !request.accessCode.isBlank()) {
+                activePurchase = purchaseService.selectSittingTicketsWithLotteryCode(
+                        eventId, request.ticketIDs, request.userID, request.isConfirmedAge, request.accessCode
+                );
+            } else {
+                activePurchase = purchaseService.selectSittingTickets(
+                        eventId, request.ticketIDs, request.userID, request.isConfirmedAge);
+            }
+
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(ApiResponse.success("Sitting tickets selected successfully", activePurchase));
         } catch (IllegalArgumentException | IllegalStateException e) {
@@ -117,8 +143,16 @@ public class PurchaseController {
             @PathVariable("eventId") UUID eventId,
             @RequestBody SelectStandingRequest request) {
         try {
-            ActivePurchaseDTO activePurchase = purchaseService.selectStandingTickets(
-                    eventId, request.amount, request.areaID, request.userID, request.isConfirmedAge);
+            ActivePurchaseDTO activePurchase;
+            if (request.accessCode != null && !request.accessCode.isBlank()) {
+                activePurchase = purchaseService.selectStandingTicketsWithLotteryCode(
+                        eventId, request.amount, request.areaID, request.userID, request.isConfirmedAge, request.accessCode
+                );
+            } else {
+                activePurchase = purchaseService.selectStandingTickets(
+                        eventId, request.amount, request.areaID, request.userID, request.isConfirmedAge);
+            }
+
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(ApiResponse.success("Standing tickets selected successfully", activePurchase));
         } catch (IllegalArgumentException | IllegalStateException e) {
@@ -258,17 +292,33 @@ public class PurchaseController {
 
     // TODO (V3): Extract caller identity from JWT and verify authorization
     @PostMapping("/events/{eventId}/lottery/draw")
-    public ResponseEntity<ApiResponse<Void>> drawLotteryForEvent(
+    public ResponseEntity<ApiResponse<java.util.Map<String, String>>> drawLotteryForEvent(
             @PathVariable("eventId") UUID eventId,
             @RequestBody LotteryDrawRequest request) {
         try {
-            purchaseService.drawLotteryForEvent(eventId, request.codeExpiry);
-            return ResponseEntity.ok(ApiResponse.success("Lottery drawn successfully"));
+            java.util.Map<String, String> winnerCodes = purchaseService.drawLotteryForEvent(eventId, request.codeExpiry);
+            return ResponseEntity.ok(ApiResponse.success("Lottery drawn successfully", winnerCodes));
         } catch (IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to draw lottery: system exception"));
+        }
+    }
+
+    @GetMapping("/events/{eventId}/lottery/status")
+    public ResponseEntity<ApiResponse<org.example.ApplicationLayer.dto.PurchaseDTOs.LotteryStatusDTO>> getLotteryStatus(
+            @PathVariable("eventId") UUID eventId,
+            @RequestParam("userId") UUID userId) {
+        try {
+            org.example.ApplicationLayer.dto.PurchaseDTOs.LotteryStatusDTO status =
+                    purchaseService.getLotteryStatus(eventId, userId);
+            return ResponseEntity.ok(ApiResponse.success("Lottery status fetched", status));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to fetch lottery status: system exception"));
         }
     }
 

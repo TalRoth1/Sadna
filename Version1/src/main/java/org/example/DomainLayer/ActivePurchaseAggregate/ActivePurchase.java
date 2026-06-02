@@ -116,5 +116,6 @@ public class ActivePurchase
     {
         this.ticketIDPrices.clear();
         this.ticketIDPrices.putAll(newTicketPrices);
+        this.price = newTicketPrices.values().stream().reduce(0.0f, Float::sum);
     }
 }

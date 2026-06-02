@@ -53,12 +53,17 @@ public class User {
     }
 
     public void login() {
+        if (this.status == UserStatus.REMOVED) {
+            throw new IllegalStateException("The user was removed from the platform.");
+        }
+
         if (this.status == UserStatus.LOGGED_IN) {
             throw new IllegalStateException("The user is already logged in.");
         }
-        this.status = UserStatus.LOGGED_IN;
-    }
 
+        this.status = UserStatus.LOGGED_IN;
+        this.role = UserRole.MEMBER;
+    }
     public void logout() {
         if (this.status == UserStatus.NOT_LOGGED_IN) {
             throw new IllegalStateException("The user is already logged out.");
@@ -130,6 +135,10 @@ public class User {
         CompanyInvitations.remove(invitationId);
     }
 
+    public List<Invitation> getCompanyInvitations() {
+        return List.copyOf(CompanyInvitations.values());
+    }
+
     private void becomeOwner(UUID companyId, User appointerUser) {
         if (!appointerUser.isCompanyMember(companyId)
                 || !appointerUser.isOwnerInCompany(companyId)) {
@@ -156,14 +165,14 @@ public class User {
             companyRoles.remove(companyId);
             // create the new owner role and add it to the company roles and to the
             // appointer's subordinates
-            CompanyOwner newOwnerRole = new CompanyOwner(username, appointerRole);
+            CompanyOwner newOwnerRole = new CompanyOwner(email, appointerRole);
             companyRoles.put(companyId, newOwnerRole);
             appointerRole.addSubordinate(newOwnerRole);
         }
         // case of a new owner with no previous role in the company being appointed as
         // an owner by an existing owner/founder
         else {
-            CompanyOwner newOwnerRole = new CompanyOwner(username, appointerRole);
+            CompanyOwner newOwnerRole = new CompanyOwner(email, appointerRole);
             companyRoles.put(companyId, newOwnerRole);
             appointerRole.addSubordinate(newOwnerRole);
         }
@@ -179,7 +188,7 @@ public class User {
             throw new IllegalStateException("Failed: The user is already a member of the company.");
         }
         CompanyOwner appointerRole = (CompanyOwner) appointerUser.getCompanyRole(companyId);
-        CompanyManager newManagerRole = new CompanyManager(username, appointerRole, permissions);
+        CompanyManager newManagerRole = new CompanyManager(email, appointerRole, permissions);
         companyRoles.put(companyId, newManagerRole);
         appointerRole.addSubordinate(newManagerRole);
     }
@@ -193,12 +202,12 @@ public class User {
         if (OwnerUser == null) {
             throw new IllegalArgumentException("Owner user is required");
         }
-        if (!this.isCompanyMember(companyId) || !(this.getCompanyRole(companyId) instanceof CompanyOwner)) {
+        if (!this.isCompanyMember(companyId) || !(OwnerUser.isOwnerInCompany(companyId))) {
             throw new IllegalArgumentException(
                     "The user changing the permissions is not a company owner and therefore cannot change manager permissions");
         }
         if (!OwnerUser.isCompanyMember(companyId)
-                || !(OwnerUser.getCompanyRole(companyId) instanceof CompanyOwner)) {
+                || !(OwnerUser.isOwnerInCompany(companyId))) {
             throw new IllegalArgumentException(
                     "The user whose permissions are being changed is not a company manager and therefore cannot have his/her permissions changed");
         }
@@ -285,7 +294,7 @@ public class User {
         if (!this.isCompanyMember(companyId)) {
             throw new IllegalArgumentException("User is not a company member");
         }
-        if (!OwnerUser.isCompanyMember(companyId) || !(OwnerUser.getCompanyRole(companyId) instanceof CompanyOwner)) {
+        if (!OwnerUser.isCompanyMember(companyId) || !(OwnerUser.isOwnerInCompany(companyId))) {
             throw new IllegalArgumentException(
                     "The user performing the removal is not a company owner and therefore cannot remove other members from the company");
         }

@@ -1,11 +1,17 @@
 package org.example.ApplicationLayer;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Logger;
 
+import org.example.ApplicationLayer.dto.PurchaseDTOs.ActivePurchaseDTO;
+import org.example.ApplicationLayer.dto.PurchaseDTOs.PurchaseHistoryDTO;
+import org.example.ApplicationLayer.dto.PurchaseDTOs.SelectionAccessDTO;
+import org.example.ApplicationLayer.dto.PurchaseDTOs.LotteryStatusDTO;
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 import org.example.DomainLayer.DomainException;
 import org.example.DomainLayer.EventAggregate.Event;
@@ -16,11 +22,6 @@ import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.PurchaseDomainService;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.springframework.stereotype.Service;
-
-import java.util.ArrayList;
-import org.example.ApplicationLayer.dto.PurchaseDTOs.ActivePurchaseDTO;
-import org.example.ApplicationLayer.dto.PurchaseDTOs.PurchaseHistoryDTO;
-import org.example.ApplicationLayer.dto.PurchaseDTOs.SelectionAccessDTO;
 
 @Service
 public class PurchaseService {
@@ -38,7 +39,7 @@ public class PurchaseService {
         this.notifier = notifier;
     }
 
-    private void validateAdmin(UUID adminId) {
+    public void validateAdmin(UUID adminId) {
         if (adminId == null) {
             throw new IllegalArgumentException("Admin ID is required");
         }
@@ -47,7 +48,7 @@ public class PurchaseService {
         }
     }
 
-    public void selectSittingTicketsWithLotteryCode(UUID eventID,List<UUID> ticketIDs,UUID userID,boolean isConfirmedAge,String accessCode)
+    public ActivePurchaseDTO selectSittingTicketsWithLotteryCode(UUID eventID,List<UUID> ticketIDs,UUID userID,boolean isConfirmedAge,String accessCode)
     {
         logger.info("caller=" + userID + ", action=selectSittingTicketsWithLotteryCode, target=PurchaseDomainService.selectSittingTicketsWithLotteryCode, params={eventID=" + eventID + ", ticketCount=" + (ticketIDs == null ? 0 : ticketIDs.size()) + ", isConfirmedAge=" + isConfirmedAge + ", accessCodeProvided=" + (accessCode != null && !accessCode.isBlank()) + "}");
 
@@ -75,13 +76,15 @@ public class PurchaseService {
 
             requireQueueAccess(userID, eventID);
 
-            purchaseDomainService.selectSittingTicketsWithLotteryCode(
+                ActivePurchase activePurchase = purchaseDomainService.selectSittingTicketsWithLotteryCode(
                     eventID, ticketIDs, userID, isConfirmedAge, accessCode
-            );
+                );
 
-            logger.info("action=selectSittingTicketsWithLotteryCode completed successfully, caller=" + userID + ", params={eventID=" + eventID + ", ticketCount=" + ticketIDs.size() + "}");
+                eventPublisher.publish(new TicketReservedEvent(userID, eventID));
 
+                logger.info("action=selectSittingTicketsWithLotteryCode completed successfully, caller=" + userID + ", params={eventID=" + eventID + ", ticketCount=" + ticketIDs.size() + "}");
 
+                return toActivePurchaseDTO(activePurchase);
         } catch (DomainException e) {
             logger.severe("action=selectSittingTicketsWithLotteryCode failed, caller=" + userID + ", params={eventID=" + eventID + ", ticketCount=" + (ticketIDs == null ? 0 : ticketIDs.size()) + "}, error=" + e.getMessage());
             throw new IllegalStateException("Couldn't select lottery sitting tickets: " + e.getMessage());
@@ -90,7 +93,7 @@ public class PurchaseService {
             queueManager.releaseBatch(eventID, 1);
         }
     }
-    public void selectStandingTicketsWithLotteryCode(UUID eventID,int amount,UUID areaID,UUID userID,boolean isConfirmedAge,String accessCode)
+    public ActivePurchaseDTO selectStandingTicketsWithLotteryCode(UUID eventID,int amount,UUID areaID,UUID userID,boolean isConfirmedAge,String accessCode)
     {
         logger.info("caller=" + userID + ", action=selectStandingTicketsWithLotteryCode, target=PurchaseDomainService.selectStandingTicketsWithLotteryCode, params={eventID=" + eventID + ", areaID=" + areaID + ", amount=" + amount + ", isConfirmedAge=" + isConfirmedAge + ", accessCodeProvided=" + (accessCode != null && !accessCode.isBlank()) + "}");
 
@@ -122,13 +125,15 @@ public class PurchaseService {
 
             requireQueueAccess(userID, eventID);
 
-            purchaseDomainService.selectStandingTicketsWithLotteryCode(
+                ActivePurchase activePurchase = purchaseDomainService.selectStandingTicketsWithLotteryCode(
                     eventID, amount, userID, areaID, isConfirmedAge, accessCode
-            );
+                );
 
-            logger.info("action=selectStandingTicketsWithLotteryCode completed successfully, caller=" + userID + ", params={eventID=" + eventID + ", areaID=" + areaID + ", amount=" + amount + "}");
+                eventPublisher.publish(new TicketReservedEvent(userID, eventID));
 
+                logger.info("action=selectStandingTicketsWithLotteryCode completed successfully, caller=" + userID + ", params={eventID=" + eventID + ", areaID=" + areaID + ", amount=" + amount + "}");
 
+                return toActivePurchaseDTO(activePurchase);
         } catch (DomainException e) {
             logger.severe("action=selectStandingTicketsWithLotteryCode failed, caller=" + userID + ", params={eventID=" + eventID + ", areaID=" + areaID + ", amount=" + amount + "}, error=" + e.getMessage());
             throw new IllegalStateException("Couldn't select lottery standing tickets: " + e.getMessage());
@@ -158,6 +163,21 @@ public class PurchaseService {
         for (UUID buyerId : buyerIds) {
             notifier.notifyUser(buyerId, message);
         }
+    }
+
+    public LotteryStatusDTO getLotteryStatus(UUID eventId, UUID userId) {
+        boolean exists = purchaseDomainService.isLotteryEvent(eventId);
+        boolean winnersDrawn = false;
+        boolean isWinner = false;
+        boolean isRegistered = false;
+
+        if (exists) {
+            winnersDrawn = purchaseDomainService.areLotteryWinnersDrawn(eventId);
+            isWinner = purchaseDomainService.isUserWinner(eventId, userId);
+            isRegistered = purchaseDomainService.isUserRegisteredToLottery(eventId, userId);
+        }
+
+        return new LotteryStatusDTO(exists, winnersDrawn, isWinner, isRegistered);
     }
 
     /**
@@ -245,9 +265,13 @@ public class PurchaseService {
 
     public void completePurchase(UUID activePurchaseID, PaymentDetails paymentDetails, String couponCode)
     {
-        logger.info("Starting completePurchase: activePurchaseID=" + activePurchaseID +
-                ", couponCode=" + (couponCode != null ? couponCode : "none"));
+        String normalizedCouponCode =
+                couponCode == null || couponCode.isBlank()
+                        ? null
+                        : couponCode.trim();
 
+        logger.info("Starting completePurchase: activePurchaseID=" + activePurchaseID +
+                ", couponCode=" + (normalizedCouponCode != null ? normalizedCouponCode : "none"));
         if (activePurchaseID == null) {
             logger.warning("Purchase completion failed: activePurchaseID is null");
             throw new IllegalArgumentException("Active Purchase ID is required");
@@ -260,7 +284,11 @@ public class PurchaseService {
         {
             ActivePurchase activePurchase = purchaseDomainService.viewActivePurchase(activePurchaseID);
             UUID userId = activePurchase.getUserID();
-            boolean isSoldOut = purchaseDomainService.completePurchase(activePurchaseID, paymentDetails, couponCode);
+            boolean isSoldOut = purchaseDomainService.completePurchase(
+                    activePurchaseID,
+                    paymentDetails,
+                    normalizedCouponCode
+            );
             logger.info("Purchase completed successfully for activePurchaseID: " + activePurchaseID);
             notifier.notifyUser(activePurchase.getUserID(), "Purchase Complete");
             if(isSoldOut)
@@ -511,7 +539,7 @@ public class PurchaseService {
         }
     }
 
-    public void drawLotteryForEvent(UUID eventId, LocalDateTime codeExpiry) {
+    public Map<String, String> drawLotteryForEvent(UUID eventId, LocalDateTime codeExpiry) {
         logger.info("caller=system/admin"
                 + ", action=drawLotteryForEvent"
                 + ", target=PurchaseDomainService.drawLotteryForEvent"
@@ -539,8 +567,32 @@ public class PurchaseService {
                 eventPublisher.publish(
                         new LotteryWonEvent(winnerId, eventId, accessCode, codeExpiry)
                 );
-            }
+                // Send a direct notification to the winner with their access code
+                try {
+                    String eventName = "your event";
+                    try {
+                        Event ev = purchaseDomainService.findEventById(eventId);
+                        if (ev != null && ev.getName() != null && !ev.getName().isBlank()) {
+                            eventName = ev.getName();
+                        }
+                    } catch (Exception ignore) {
+                    }
 
+                    String message = "You won the lottery for '" + eventName + "'. Your access code: " + accessCode + ". Use it on the event page to continue to ticket selection.";
+
+                    try {
+                        UUID uid = UUID.fromString(winnerId);
+                        notifier.notifyUser(uid, message);
+                    } catch (IllegalArgumentException ex) {
+                        // fallback to username-based notification if winnerId isn't a UUID string
+                        notifier.notifyUser(winnerId, message);
+                    }
+                } catch (Exception e) {
+                    logger.warning("Failed to send lottery notification to winner " + winnerId + ": " + e.getMessage());
+                }
+            }
+            
+            return winnerCodes;
         } catch (DomainException e) {
             logger.severe("action=drawLotteryForEvent failed"
                     + ", caller=system/admin"

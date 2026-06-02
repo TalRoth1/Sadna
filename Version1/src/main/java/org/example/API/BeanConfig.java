@@ -198,9 +198,10 @@ public class BeanConfig {
             IEventRepository eventRepository,
             IHistoryRepository historyRepository,
             ICompanyRepository companyRepository,
-            IUserRepository userRepository) {
+            IUserRepository userRepository,
+            ILotteryRepository lotteryRepository) {
         return new EventManagementDomainService(
-                eventRepository, historyRepository, companyRepository, userRepository);
+                eventRepository, historyRepository, companyRepository, userRepository, lotteryRepository);
     }
 
     @Bean

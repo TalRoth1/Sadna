@@ -14,7 +14,6 @@ export type AppPage =
     | "event-purchase"
     | "login"
     | "registration"
-    | "user-tickets"
     | "purchase-history"
     | "my-companies"
     | "company-creation"
@@ -28,7 +27,9 @@ export type AppPage =
     | "admin-analytics"
     | "admin-queues"
     | "lottery-registration"
-    | "create-event";
+    | "create-event"
+    | "edit-event"
+    | "active-purchases";
 
 type NavigationMenuProps = {
     currentPage: AppPage;
@@ -37,57 +38,81 @@ type NavigationMenuProps = {
 
 const mainLinks: { page: AppPage; label: string }[] = [
     { page: "event-search", label: "Event Search" },
-    { page: "user-tickets", label: "My Active Purchases" },
     { page: "purchase-history", label: "Purchase History" },
     { page: "my-companies", label: "My Companies" },
     { page: "profile", label: "Profile" },
+    {
+        page: "active-purchases",
+        label: "Active Purchases",
+    }
 ];
 
-export default function NavigationMenu({
-                                           currentPage,
-                                           onNavigate,
-                                       }: NavigationMenuProps) {
+export default function NavigationMenu({ currentPage, onNavigate }: NavigationMenuProps) {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
     const [isAdmin, setIsAdmin] = useState(false);
-    const isLoggedIn = currentUser !== null;
 
+    const isGuest =
+        currentUser?.role === "GUEST" ||
+        currentUser?.username?.startsWith("guest-");
 
+    const isLoggedIn =
+        currentUser !== null && !isGuest && currentUser.status === "LOGGED_IN";
 
     useEffect(() => {
+        let isMounted = true;
+
         async function loadUserPermissions() {
             try {
-                // Validate against the server, not just localStorage.
-                // This catches stale sessions after a server restart: the JWT
-                // is still cryptographically valid but the in-memory user data
-                // is gone, so /api/users/me returns 401 and we get null here.
                 const user = await validateCurrentUserWithServer();
 
-                console.log("[NavigationMenu] current user:", user);
+                if (!isMounted) return;
 
                 setCurrentUser(user);
 
                 if (!user) {
-                    console.log("[NavigationMenu] no user, hiding admin dashboard");
+                    setIsAdmin(false);
+                    return;
+                }
+
+                const isGuestUser = user.role === "GUEST" || user.username?.startsWith("guest-");
+
+                if (isGuestUser) {
+                    setIsAdmin(false);
+                    return;
+                }
+
+                if (!user.isAdmin) {
                     setIsAdmin(false);
                     return;
                 }
 
                 const hasAdminAccess = await verifyPlatformAdmin(user.id);
-
-                console.log("[NavigationMenu] verifyPlatformAdmin userId:", user.id);
-                console.log("[NavigationMenu] hasAdminAccess:", hasAdminAccess);
+                if (!isMounted) return;
 
                 setIsAdmin(hasAdminAccess);
             } catch (error) {
+                if (!isMounted) return;
                 console.error("[NavigationMenu] failed to load user permissions:", error);
-
                 setCurrentUser(null);
                 setIsAdmin(false);
             }
         }
 
-        loadUserPermissions();
+        void loadUserPermissions();
+
+        function handleInvalidSession() {
+            setCurrentUser(null);
+            setIsAdmin(false);
+            setIsMenuOpen(false);
+        }
+
+        window.addEventListener("auth-session-invalid", handleInvalidSession);
+
+        return () => {
+            isMounted = false;
+            window.removeEventListener("auth-session-invalid", handleInvalidSession);
+        };
     }, [currentPage]);
 
     function handleNavigate(page: AppPage) {
@@ -95,15 +120,11 @@ export default function NavigationMenu({
         setIsMenuOpen(false);
     }
 
-    const visibleMainLinks = isLoggedIn
-        ? mainLinks
-        : mainLinks.filter((link) => link.page !== "my-companies");
+    const visibleMainLinks = isLoggedIn ? mainLinks : mainLinks.filter((link) => link.page === "event-search");
 
     async function handleLogout() {
         try {
-            console.log("Initiating logout process..."); // for debugging
             await logoutUser();
-            console.log("Logout successful, clearing user state..."); // for debugging
         } finally {
             setCurrentUser(null);
             setIsAdmin(false);
@@ -135,7 +156,7 @@ export default function NavigationMenu({
                 </button>
 
                 <div className="top-navigation-actions">
-                    <NotificationsPopup currentUser={currentUser} />
+                    <NotificationsPopup currentUser={isLoggedIn ? currentUser : null} />
                 </div>
             </header>
 

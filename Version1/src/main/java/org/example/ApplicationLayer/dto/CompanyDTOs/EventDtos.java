@@ -8,8 +8,7 @@ import java.util.UUID;
 import org.example.DomainLayer.EventAggregate.EventStatus;
 import org.example.DomainLayer.EventAggregate.TicketStatus;
 
-
- // Read/write models for EventService.
+// Read/write models for EventService.
 public final class EventDtos {
     private EventDtos() {
     }
@@ -74,11 +73,6 @@ public final class EventDtos {
 
     /**
      * UC 2.1 (catalog child) and UC 2.3.1 / UC 2.3.2 (search result row).
-     *
-     * Carries everything the Event Search card needs to render without a
-     * follow-up call: company name + rating (for the "Production: X" line
-     * and the company-rating filter readout), the price range across the
-     * event's areas, and the ticket inventory counts.
      */
     public record EventSummaryDto(
             UUID eventId,
@@ -99,8 +93,6 @@ public final class EventDtos {
 
     /**
      * Area summary for the UC 2.1 extended view ("STANDING" or "SITTING").
-     * Includes the ticket-id list so the ticket purchase screen can map each
-     * ticket back to its zone without a follow-up call.
      */
     public record AreaSummaryDto(
             UUID areaId,
@@ -110,8 +102,7 @@ public final class EventDtos {
     }
 
     /**
-     * Ticket row for the event-details payload. Row/seat are only populated
-     * for sitting tickets; standing tickets leave them null.
+     * Ticket row for the event-details payload.
      */
     public record TicketDetailsDto(
             UUID ticketId,
@@ -123,13 +114,7 @@ public final class EventDtos {
     }
 
     // ---------------------------------------------------------------------
-    // Structured purchase / discount policies (gérsion 2 appendix).
-    //
-    // The domain layer stores rules as a class hierarchy (AgeRule, MinTicketRule,
-    // MaxTicketRule, LoneSeatRule joined by PurchaseComposite; OvertDiscount,
-    // ConditionalDiscount, CouponCode). These DTOs flatten the rule tree into
-    // a list keyed by `kind` so the frontend can render each rule without
-    // reflecting on Java types.
+    // Structured purchase / discount policies
     // ---------------------------------------------------------------------
 
     public record PurchaseRuleDto(
@@ -147,7 +132,7 @@ public final class EventDtos {
 
     public record DiscountRuleDto(
             UUID id,
-            String kind,            // "OVERT" | "CONDITIONAL" | "COUPON"
+            String kind,             // "OVERT" | "CONDITIONAL" | "COUPON"
             LocalDate fromDate,
             LocalDate toDate,
             Float percent,
@@ -161,12 +146,15 @@ public final class EventDtos {
     }
 
     /**
-     * UC 2.1 extended event view (selected event details).
+     * UC 2.1 extended event view.
      *
-     * Carries everything the Event Details page needs in one round-trip:
-     * the company line, the status banner, tags, the area/ticket layout
-     * for the purchase screen, the aggregated price/inventory counts, and
-     * the structured purchase + discount policies.
+     * discountPolicy:
+     * The event's own discount policy only.
+     *
+     * effectiveDiscountPolicy:
+     * The policy the buyer should actually see/pay with:
+     * - event discount policy, if the event has discount rules
+     * - otherwise company discount policy
      */
     public record EventDetailsDto(
             UUID eventId,
@@ -183,6 +171,7 @@ public final class EventDtos {
             EventStatus status,
             double rating,
             String lotteryId,
+            boolean lotteryWinnersDrawn,
             double priceMin,
             double priceMax,
             int availableTickets,
@@ -190,6 +179,7 @@ public final class EventDtos {
             List<AreaSummaryDto> areas,
             List<TicketDetailsDto> tickets,
             PurchasePolicyDto purchasePolicy,
-            DiscountPolicyDto discountPolicy) {
+            DiscountPolicyDto discountPolicy,
+            DiscountPolicyDto effectiveDiscountPolicy) {
     }
 }

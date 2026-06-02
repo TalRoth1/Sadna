@@ -46,11 +46,11 @@ public class PurchaseComposite implements IPurchaseRule {
 
     public IPurchaseRule removeRule(UUID ruleId)
     {
-        if (ruleId == id)
+        if (Objects.equals(ruleId, id))
             return null;
-        else if (leftRule.getId() == ruleId)
+        else if (Objects.equals(leftRule.getId(), ruleId))
             return rightRule;
-        else if (rightRule.getId() == ruleId)
+        else if (Objects.equals(rightRule.getId(), ruleId))
             return leftRule;
         else{
             if(leftRule instanceof PurchaseComposite)

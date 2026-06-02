@@ -49,6 +49,8 @@
 
 .company-summary-grid,
 .company-permissions-card,
+.company-policies-card,
+.company-invite-card,
 .company-events-card,
 .company-hierarchy-card {
     scroll-margin-top: 180px;
@@ -69,6 +71,8 @@
 
 .company-summary-card,
 .company-permissions-card,
+.company-policies-card,
+.company-invite-card,
 .company-hierarchy-card {
     padding: 22px 24px;
     background: #ffffff;
@@ -136,6 +140,256 @@
     margin: 0 auto;
 }
 
+.company-sales-report-card {
+    max-width: 960px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 22px 24px;
+    border: 1px solid #dbe1ea;
+    border-radius: 18px;
+    background:
+        radial-gradient(circle at top right, rgba(37, 99, 235, 0.12), transparent 28%),
+        linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    box-shadow: 0 16px 34px rgba(15, 23, 42, 0.08);
+}
+
+.company-sales-report-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 18px;
+}
+
+.company-sales-report-label {
+    display: inline-block;
+    margin-bottom: 8px;
+    color: #1d4ed8;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.company-sales-report-card h2 {
+    margin: 0 0 8px;
+    font-size: 24px;
+}
+
+.company-sales-report-card p {
+    margin: 0;
+    color: #5b6472;
+    line-height: 1.5;
+}
+
+.company-sales-report-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: rgba(37, 99, 235, 0.12);
+    color: #1d4ed8;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.company-sales-report-error,
+.company-sales-report-empty {
+    margin-top: 12px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    border: 1px solid #fca5a5;
+    background: #fef2f2;
+    color: #b91c1c;
+    font-weight: 600;
+}
+
+.company-sales-report-empty {
+    border-color: #cbd5e1;
+    background: #f8fafc;
+    color: #64748b;
+}
+
+.company-sales-report-metrics {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+    margin-bottom: 18px;
+}
+
+.company-sales-report-metric-card {
+    padding: 16px 18px;
+    border-radius: 16px;
+    border: 1px solid #e5e7eb;
+    background: rgba(255, 255, 255, 0.86);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+}
+
+.company-sales-report-metric-card span {
+    display: inline-block;
+    margin-bottom: 8px;
+    color: #6b7280;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.company-sales-report-metric-card strong {
+    display: block;
+    color: #111827;
+    font-size: 24px;
+}
+
+.company-sales-report-metric-card--emphasis {
+    border-color: rgba(37, 99, 235, 0.18);
+    background: linear-gradient(180deg, rgba(219, 234, 254, 0.92) 0%, rgba(239, 246, 255, 0.92) 100%);
+}
+
+.company-sales-report-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.company-sales-report-panel {
+    padding: 16px 18px;
+    border-radius: 16px;
+    border: 1px solid #e5e7eb;
+    background: rgba(255, 255, 255, 0.9);
+}
+
+.company-sales-report-panel--full-width {
+    grid-column: 1 / -1;
+}
+
+.company-sales-report-panel-label {
+    display: inline-block;
+    margin-bottom: 8px;
+    color: #6b7280;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.company-sales-report-panel p {
+    margin: 0 0 10px;
+    color: #111827;
+    font-weight: 700;
+    word-break: break-word;
+}
+
+.company-sales-report-chip-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.company-sales-report-chip-list--wrap {
+    gap: 10px;
+}
+
+.company-sales-report-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 7px 10px;
+    border-radius: 999px;
+    background: #eff6ff;
+    color: #1d4ed8;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+}
+
+.company-sales-report-chip--ticket {
+    background: #f8fafc;
+    color: #334155;
+}
+
+.company-sales-report-empty-inline {
+    color: #6b7280;
+    font-size: 14px;
+}
+
+/* Modern event list rows for sales report */
+.company-sales-report-events-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.company-sales-report-event-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: #ffffff;
+    border: 1px solid rgba(99, 102, 241, 0.06);
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.company-sales-report-event-row:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+    border-color: rgba(37, 99, 235, 0.14);
+}
+
+.company-sales-report-event-name {
+    color: #0f172a;
+    font-weight: 700;
+    font-size: 15px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: calc(100% - 120px);
+}
+
+.company-sales-report-event-count {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: rgba(219, 234, 254, 0.9);
+    color: #1d4ed8;
+    font-weight: 800;
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+    .company-sales-report-event-row {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 12px;
+    }
+
+    .company-sales-report-event-name {
+        max-width: 100%;
+        margin-bottom: 8px;
+        font-size: 14px;
+    }
+
+    .company-sales-report-event-count {
+        justify-content: flex-start;
+    }
+}
+
+.company-invite-card {
+    max-width: 960px;
+    width: 100%;
+    margin: 0 auto;
+}
+
 .company-hierarchy-card {
     max-width: 960px;
     width: 100%;
@@ -145,6 +399,17 @@
 .company-permissions-card h2 {
     margin: 0 0 10px;
     font-size: 24px;
+}
+
+/* Center header for subordinate-managed events section only */
+#company-subordinate-events .company-events-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 8px;
+    margin-bottom: 12px;
 }
 
 .company-hierarchy-card h2 {
@@ -162,6 +427,197 @@
     margin: 0;
     color: #6b7280;
     line-height: 1.5;
+}
+
+.company-invite-card h2 {
+    margin: 0 0 10px;
+    font-size: 24px;
+}
+
+.company-permissions-card p,
+.company-hierarchy-card p,
+.company-invite-card p {
+    margin: 0;
+    color: #6b7280;
+    line-height: 1.5;
+}
+
+.company-invite-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+}
+
+.company-invite-owner-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(17, 24, 39, 0.08);
+    color: #111827;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.company-invite-form {
+    margin-top: 18px;
+    display: grid;
+    gap: 16px;
+}
+
+.company-invite-field {
+    display: grid;
+    gap: 8px;
+}
+
+.company-invite-field > span,
+.company-invite-role-fieldset legend {
+    color: #111827;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.company-invite-input {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 12px;
+    background: #ffffff;
+    color: #111827;
+    font: inherit;
+    font-size: 15px;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.company-invite-input::placeholder {
+    color: #9ca3af;
+}
+
+.company-invite-input:focus {
+    outline: none;
+    border-color: #111827;
+    box-shadow: 0 0 0 4px rgba(17, 24, 39, 0.08);
+}
+
+.company-invite-role-fieldset {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    display: grid;
+    gap: 10px;
+}
+
+.company-invite-toggle {
+    display: inline-flex;
+    align-self: flex-start;
+    padding: 4px;
+    border-radius: 999px;
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    gap: 4px;
+}
+
+.company-invite-toggle-option {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 110px;
+    padding: 10px 16px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: #4b5563;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, transform 0.05s ease;
+}
+
+.company-invite-toggle-option:hover {
+    color: #111827;
+}
+
+.company-invite-toggle-option--active {
+    background: #111827;
+    color: #ffffff;
+    box-shadow: 0 6px 14px rgba(17, 24, 39, 0.15);
+}
+
+.company-invite-toggle-option--active:hover {
+    color: #ffffff;
+}
+
+.company-invite-toggle-option:active {
+    transform: translateY(1px);
+}
+
+.company-invite-form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 14px;
+}
+
+.company-invite-send-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 18px;
+    border-radius: 10px;
+    border: 1px solid #111827;
+    background: #111827;
+    color: #ffffff;
+    font: inherit;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.05s ease, border-color 0.15s ease;
+}
+
+.company-invite-send-button:hover {
+    background: #374151;
+    border-color: #374151;
+}
+
+.company-invite-send-button:active {
+    transform: translateY(1px);
+}
+
+.company-invite-send-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.72;
+    transform: none;
+}
+
+.company-invite-note {
+    color: #6b7280;
+    font-size: 14px;
+}
+
+.company-invite-success {
+    margin: 0;
+    padding: 10px 12px;
+    border: 1px solid #86efac;
+    border-radius: 10px;
+    background: #f0fdf4;
+    color: #166534;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.company-invite-error {
+    margin: 0;
+    padding: 10px 12px;
+    border: 1px solid #fca5a5;
+    border-radius: 10px;
+    background: #fef2f2;
+    color: #b91c1c;
+    font-size: 14px;
+    font-weight: 600;
 }
 
 .company-events-header {
@@ -450,6 +906,44 @@
     font-weight: 600;
 }
 
+.company-hierarchy-remove-button {
+    margin-left: 12px;
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid #ef4444;
+    background: #ef4444;
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.company-hierarchy-remove-button:hover {
+    background: #dc2626;
+    border-color: #dc2626;
+}
+
+.company-hierarchy-permissions-button {
+    margin-left: 10px;
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid #2563eb;
+    background: #eff6ff;
+    color: #1d4ed8;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.company-hierarchy-permissions-button:hover {
+    background: #dbeafe;
+    border-color: #1d4ed8;
+}
+
 .company-hierarchy-children {
     margin-top: 8px;
     margin-left: 8px;
@@ -487,8 +981,173 @@
     overflow-x: auto;
 }
 
+.company-permissions-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(15, 23, 42, 0.55);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+}
+
+.company-permissions-modal {
+    width: min(720px, 100%);
+    max-height: min(88vh, 820px);
+    overflow: auto;
+    padding: 22px 24px 20px;
+    border-radius: 18px;
+    border: 1px solid #e5e7eb;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    box-shadow: 0 28px 60px rgba(15, 23, 42, 0.28);
+}
+
+.company-permissions-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 18px;
+}
+
+.company-permissions-modal-header h3 {
+    margin: 0 0 8px;
+    font-size: 24px;
+    color: #111827;
+}
+
+.company-permissions-modal-header p {
+    margin: 0;
+    color: #6b7280;
+    line-height: 1.5;
+}
+
+.company-permissions-modal-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 999px;
+    border: 1px solid #d1d5db;
+    background: #ffffff;
+    color: #111827;
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.company-permissions-modal-close:hover {
+    background: #f3f4f6;
+}
+
+.company-permissions-modal-current {
+    margin-top: 22px;
+}
+
+.company-permissions-modal-current-label {
+    display: inline-block;
+    margin-bottom: 12px;
+    color: #111827;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.company-permissions-modal-chip-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.company-permissions-modal-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    border: 1px solid #d1d5db;
+    background: #ffffff;
+    color: #334155;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease,
+        transform 0.05s ease;
+}
+
+.company-permissions-modal-chip:hover {
+    border-color: #94a3b8;
+    color: #111827;
+}
+
+.company-permissions-modal-chip--active {
+    border-color: #2563eb;
+    background: #eff6ff;
+    color: #1d4ed8;
+}
+
+.company-permissions-modal-chip:active {
+    transform: translateY(1px);
+}
+
+.company-permissions-modal-footer {
+    margin-top: 24px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.company-permissions-modal-secondary,
+.company-permissions-modal-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 112px;
+    padding: 11px 16px;
+    border-radius: 10px;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.05s ease, border-color 0.15s ease;
+}
+
+.company-permissions-modal-secondary {
+    border: 1px solid #d1d5db;
+    background: #ffffff;
+    color: #111827;
+}
+
+.company-permissions-modal-secondary:hover {
+    background: #f3f4f6;
+}
+
+.company-permissions-modal-primary {
+    border: 1px solid #111827;
+    background: #111827;
+    color: #ffffff;
+}
+
+.company-permissions-modal-primary:hover {
+    background: #374151;
+    border-color: #374151;
+}
+
+.company-permissions-modal-secondary:active,
+.company-permissions-modal-primary:active {
+    transform: translateY(1px);
+}
+
 @media (max-width: 720px) {
     .company-summary-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .company-sales-report-metrics,
+    .company-sales-report-grid {
         grid-template-columns: 1fr;
     }
 
@@ -500,6 +1159,36 @@
     .company-event-card {
         flex-direction: column;
         align-items: stretch;
+    }
+
+    .company-invite-card-header {
+        flex-direction: column;
+    }
+
+    .company-invite-toggle {
+        width: 100%;
+    }
+
+    .company-invite-toggle-option {
+        flex: 1 1 0;
+        min-width: 0;
+    }
+
+    .company-sales-report-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .company-sales-report-panel--full-width {
+        grid-column: auto;
+    }
+
+    .company-invite-form-actions {
+        align-items: stretch;
+    }
+
+    .company-invite-send-button {
+        width: 100%;
     }
 
     .company-event-card-side {
@@ -514,7 +1203,86 @@
         width: 100%;
     }
 
+    .company-hierarchy-node {
+        flex-wrap: wrap;
+    }
+
+    .company-hierarchy-permissions-button,
+    .company-hierarchy-remove-button {
+        margin-left: 0;
+        margin-top: 8px;
+    }
+
+    .company-permissions-modal {
+        padding: 18px 16px 16px;
+    }
+
+    .company-permissions-modal-header {
+        flex-direction: column;
+    }
+
+    .company-permissions-modal-footer {
+        flex-direction: column;
+    }
+
+    .company-permissions-modal-secondary,
+    .company-permissions-modal-primary {
+        width: 100%;
+    }
+
+    .company-sales-report-card {
+        padding: 18px;
+    }
+
     .company-page-actions {
         justify-content: center;
     }
+}
+.company-event-title-button {
+    border: none;
+    background: transparent;
+    padding: 0;
+    color: inherit;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+    text-align: left;
+}
+
+.company-event-title-button:hover {
+    text-decoration: underline;
+}
+
+.company-event-edit-button {
+    border: 1px solid #111827;
+    background: #111827;
+    color: #ffffff;
+    border-radius: 999px;
+    padding: 0.55rem 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.company-event-edit-button:hover {
+    transform: translateY(-1px);
+}
+
+.company-event-start-sale-button {
+    border: 1px solid #047857;
+    background: #047857;
+    color: #ffffff;
+    border-radius: 999px;
+    padding: 0.55rem 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.company-event-start-sale-button:hover:not(:disabled) {
+    transform: translateY(-1px);
+    background: #065f46;
+}
+
+.company-event-start-sale-button:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
 }

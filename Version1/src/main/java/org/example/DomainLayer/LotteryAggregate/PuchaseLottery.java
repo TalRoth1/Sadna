@@ -98,6 +98,9 @@ public class PuchaseLottery {
         if (ticketAmount <= 0) {
             throw new DomainException("Ticket amount must be greater than zero");
         }
+        if (areWinnersDrawn()) {
+            throw new DomainException("Lottery winners have already been drawn. Registration is closed.");
+        }
 
         if (!isRegistrationOpen(now)) {
             throw new DomainException("Lottery registration is closed");
@@ -150,6 +153,10 @@ public class PuchaseLottery {
 
     public Set<String> getWinnerUsers() {
         return Collections.unmodifiableSet(winnerUsers);
+    }
+
+    public boolean areWinnersDrawn() {
+        return !winnerUsers.isEmpty();
     }
 
     // Add methods for managing winner access codes if needed--------------------

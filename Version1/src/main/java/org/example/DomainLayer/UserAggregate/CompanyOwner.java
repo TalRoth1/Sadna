@@ -58,6 +58,9 @@ public class CompanyOwner extends ICompanyMember {
     @Override
     public void buildMermaid(StringBuilder sb) {
         appendMermaidNode(sb);
+        if (getAppointer() != null) {
+            sb.append(getAppointer().mermaidId()).append(" --> ").append(mermaidId()).append("\n");
+        }
         for (ICompanyMember subordinate : subordinates) {
             subordinate.buildMermaid(sb);
         }

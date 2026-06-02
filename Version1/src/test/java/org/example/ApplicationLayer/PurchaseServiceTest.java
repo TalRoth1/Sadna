@@ -12,11 +12,10 @@ import org.example.DomainLayer.UserAggregate.CompanyFounder;
 import org.example.DomainLayer.UserAggregate.User;
 import org.example.InfrastructureLayer.Broadcaster;
 import org.example.InfrastructureLayer.NotificationRepository;
-import org.example.InfrastructureLayer.Notifier;
 import org.example.InfrastructureLayer.WebSocketNotificationSender;
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.InOrder;
+import org.junit.jupiter.api.Disabled;
 import org.mockito.Mock;
 
 import java.time.LocalDateTime;
@@ -33,6 +32,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import org.example.ApplicationLayer.dto.PurchaseDTOs.PurchaseHistoryDTO;
+import org.example.ApplicationLayer.dto.NotificationDTOs.NotificationDTO;
 
 public class PurchaseServiceTest {
 
@@ -144,6 +144,7 @@ public class PurchaseServiceTest {
                 LocalDateTime.now().plusDays(1)
         );
         setup.inMemoryLotteryRepository.save(lottery);
+        setup.innMemoryUserRepository.add(new User(userId, "lottery-user", "lottery-user@mail.com", "pass", 25));
 
         assertThrows(IllegalStateException.class, () ->
                 setup.purchaseService.selectSittingTicketsWithLotteryCode(
@@ -190,6 +191,7 @@ public class PurchaseServiceTest {
         assertNull(lottery.getWinnerAccessCode(userId.toString()));
 
         setup.inMemoryLotteryRepository.save(lottery);
+        setup.innMemoryUserRepository.add(new User(userId, "lottery-user-2", "lottery-user-2@mail.com", "pass", 25));
 
         assertThrows(IllegalStateException.class, () ->
                 setup.purchaseService.selectSittingTicketsWithLotteryCode(
@@ -205,6 +207,7 @@ public class PurchaseServiceTest {
         assertEquals(TicketStatus.AVAILABLE, event.getTicket(ticketId).getStatus());
         assertFalse(setup.queueManager.hasSelectAccess(userId, eventId));
     }
+
     @Test
     public void selectSittingTicketsWithLotteryCode_whenWinnerHasValidCode_createsActivePurchaseAndReservesTicket() {
         TestSetup setup = createSetup();
@@ -237,6 +240,7 @@ public class PurchaseServiceTest {
 
         setup.inMemoryLotteryRepository.save(lottery);
         setup.innMemoryUserRepository.add(new User(userId, "winner", "winner", "pass", 25));
+        setup.queueManager.requestSelectionAccess(userId, eventId);
 
         setup.purchaseService.selectSittingTicketsWithLotteryCode(
                 eventId,
@@ -286,7 +290,7 @@ public class PurchaseServiceTest {
 
      */
 
-/*
+    /*
      * Admin purchase history filter tests
      */
     /*
@@ -708,7 +712,6 @@ public class PurchaseServiceTest {
         InMemoryHistoryRepository inMemoryHistoryRepository;
         InMemoryPurchaseRepository inMemoryPurchaseRepository;
         InMemoryLotteryRepository inMemoryLotteryRepository;
-        Notifier notifer;
         NotificationRepository notificationRepository;
 
         QueueManager queueManager;
@@ -728,7 +731,6 @@ public class PurchaseServiceTest {
         setup.inMemoryLotteryRepository = new InMemoryLotteryRepository();
         setup.notificationRepository = new NotificationRepository();
         setup.broadcaster = new Broadcaster();
-        setup.notifer = new Notifier(setup.broadcaster, setup.notificationRepository);
 
 
         setup.queueManager = new QueueManager();
@@ -909,7 +911,7 @@ public class PurchaseServiceTest {
     }
 
     @Test
-    public void selectSittingTickets_failure_doesNotConsumeQueueAccess() {
+    public void selectSittingTickets_failure_consumesQueueAccess() {
         TestSetup setup = createSetup();
 
         UUID eventId = UUID.randomUUID();
@@ -937,8 +939,8 @@ public class PurchaseServiceTest {
                 setup.purchaseService.selectSittingTickets(eventId, List.of(ticketId), userId, false)
         );
 
-        //אבל עדיין יש לו הרשאה
-        assertTrue(setup.queueManager.hasSelectAccess(userId, eventId));
+        // בלוגיקה החדשה כל ניסיון בחירה מסיים את חלון הבחירה, גם אם הדומיין דחה את הבחירה.
+        assertFalse(setup.queueManager.hasSelectAccess(userId, eventId));
     }
 
     @Test
@@ -965,10 +967,14 @@ public class PurchaseServiceTest {
         setup.innMemoryUserRepository.add(new User(user1, "u1", "u1", "u1", 20));
         setup.innMemoryUserRepository.add(new User(user2, "u2", "u2", "u2", 20));
 
-        //המשתמש הראשון נכנס ישר
+        // המשתמש הראשון מקבל חלון בחירה מיידי.
         setup.queueManager.requestSelectionAccess(user1, eventId);
 
-        //המשתמש השני נכנס לתור ולא מצליח עדיין להיכנס, אז תיזרק שגיאה של המתנה עם מיקום בתור
+        // בלוגיקה החדשה קריאת select לא מכניסה לתור. הכניסה לתור נעשית מפורשות דרך requestSelectionAccess.
+        QueueAccessResult waiting = setup.queueManager.requestSelectionAccess(user2, eventId);
+        assertFalse(waiting.isAllowed());
+        assertEquals(1, waiting.getUserPositionInQueue());
+
         assertThrows(IllegalStateException.class, () ->
                 setup.purchaseService.selectSittingTickets(eventId, List.of(ticketId), user2, false)
         );
@@ -984,6 +990,7 @@ public class PurchaseServiceTest {
 
 
     //בדיקות רגילות
+
     @Test
     public void selectStandingTickets_whenTicketsAreAvailable_createsActivePurchaseAndReservesTickets()
     {
@@ -1005,6 +1012,7 @@ public class PurchaseServiceTest {
 
         User user = new User(userId, "hello", "hello", "hello", 20);
         setup.innMemoryUserRepository.add(user);
+        setup.queueManager.requestSelectionAccess(userId, eventId);
 
         setup.purchaseService.selectStandingTickets(eventId, 1, areaID, userId, false);
 
@@ -1031,19 +1039,20 @@ public class PurchaseServiceTest {
 
         setup.inMemoryEventRepository.save(event);
 
-    User founder = new User(UUID.randomUUID(), "founderUser", "founderUser", "pass", 35);
-    founder.getCompanyRoles().put(companyId, new CompanyFounder("founderUser"));
+        User founder = new User(UUID.randomUUID(), "founderUser", "founderUser", "pass", 35);
+        founder.getCompanyRoles().put(companyId, new CompanyFounder("founderUser"));
 
         User user = new User(userId, "hello", "hello", "hello", 20);
-    setup.innMemoryUserRepository.add(founder);
+        setup.innMemoryUserRepository.add(founder);
         setup.innMemoryUserRepository.add(user);
+        setup.queueManager.requestSelectionAccess(userId, eventId);
 
         //יש רק ticket אחד ב-event ואנחנו מנסים לקנות 2
         assertThrows(IllegalStateException.class, () -> setup.purchaseService.selectStandingTickets(eventId, 2, areaID, userId, false));
         ActivePurchase activePurchase = setup.inMemoryPurchaseRepository.findByUserID(userId);
         assertNull(activePurchase);
     }
-    
+
     @Test
     public void completePurchase_whenPaymentSucceeds_processesSuccessfullyAndDispatchesNotification() {
         // Arrange
@@ -1054,7 +1063,7 @@ public class PurchaseServiceTest {
 
         ActivePurchase activePurchaseMock = mock(ActivePurchase.class);
         when(activePurchaseMock.getUserID()).thenReturn(userId);
-        
+
         when(activePurchaseMock.getEventID()).thenReturn(eventId);
         when(purchaseDomainServiceMock.viewActivePurchase(activePurchaseId))
                 .thenReturn(activePurchaseMock);
@@ -1068,7 +1077,7 @@ public class PurchaseServiceTest {
 
         verify(purchaseDomainServiceMock, times(1)).viewActivePurchase(activePurchaseId);
         verify(purchaseDomainServiceMock, times(1)).completePurchase(eq(activePurchaseId), eq(paymentDetails), any());
-        
+
         verifyNoInteractions(queueManagerMock);
     }
 
@@ -1107,6 +1116,7 @@ public class PurchaseServiceTest {
 
         User user = new User(userId, "hello", "hello", "hello", 20);
         setup.innMemoryUserRepository.add(user);
+        setup.queueManager.requestSelectionAccess(userId, eventId);
 
         setup.purchaseService.selectStandingTickets(eventId, 1, areaID, userId, false);
         ActivePurchase activePurchase = setup.inMemoryPurchaseRepository.findByUserID(userId);
@@ -1374,6 +1384,16 @@ public class PurchaseServiceTest {
         }
 
         @Override
+        public ActivePurchase findByUserAndEvent(UUID userID, UUID eventID) {
+            for (ActivePurchase purchase : purchasesByID.values()) {
+                if (purchase.getUserID().equals(userID) && purchase.getEventID().equals(eventID)) {
+                    return purchase;
+                }
+            }
+            return null;
+        }
+
+        @Override
         public ActivePurchase findByID(UUID purchaseID) {
             return purchasesByID.get(purchaseID);
         }
@@ -1428,7 +1448,7 @@ public class PurchaseServiceTest {
 
         @Override
         public Optional<User> getUser(UUID UID) {
-            return Optional.of(usersByID.get(UID));
+            return Optional.ofNullable(usersByID.get(UID));
         }
 
         @Override
@@ -1483,20 +1503,19 @@ public class PurchaseServiceTest {
 
         @Override
         public Map<UUID, User> getAllUsers() {
-            return Map.of();
+            return Collections.unmodifiableMap(usersByID);
         }
     }
     private static class InMemoryCompanyRepository implements ICompanyRepository
     {
         private final Map<UUID, Company> companiesByID = new LinkedHashMap<>();
 
-        public void save(UUID companyId, Company company) {
-            companiesByID.put(companyId, company);
-        }
 
         @Override
         public UUID createCompany(String founderUsername, String companyName) {
-            return null;
+            Company company = new Company(founderUsername, companyName);
+            save(company);
+            return company.getId();
         }
 
         @Override
@@ -1508,28 +1527,57 @@ public class PurchaseServiceTest {
         public void save(Company company) {
             companiesByID.put(company.getId(), company);
         }
+
+        @Override
+        public List<Company> getAllActive() {
+            List<Company> active = new ArrayList<>();
+            for (Company company : companiesByID.values()) {
+                if (company.isActive()) {
+                    active.add(company);
+                }
+            }
+            return active;
+        }
+
+        @Override
+        public List<Company> getAll() {
+            return new ArrayList<>(companiesByID.values());
+        }
     }
     public static class InMemoryHistoryRepository implements IHistoryRepository
     {
+        private final List<PurchaseHistory> history = new ArrayList<>();
 
         @Override
         public void add(PurchaseHistory purchaseHistory) {
-
+            history.add(purchaseHistory);
         }
 
         @Override
         public List<PurchaseHistory> getAll() {
-            return List.of();
+            return new ArrayList<>(history);
         }
 
         @Override
         public List<PurchaseHistory> getByUserId(UUID userId) {
-            return List.of();
+            List<PurchaseHistory> result = new ArrayList<>();
+            for (PurchaseHistory purchaseHistory : history) {
+                if (purchaseHistory.getUserId().equals(userId)) {
+                    result.add(purchaseHistory);
+                }
+            }
+            return result;
         }
 
         @Override
         public List<PurchaseHistory> getByEventId(UUID eventId) {
-            return List.of();
+            List<PurchaseHistory> result = new ArrayList<>();
+            for (PurchaseHistory purchaseHistory : history) {
+                if (purchaseHistory.getEventId().equals(eventId)) {
+                    result.add(purchaseHistory);
+                }
+            }
+            return result;
         }
     }
     private static class InMemoryLotteryRepository implements ILotteryRepository {
@@ -1571,12 +1619,10 @@ public class PurchaseServiceTest {
                 .thenReturn(false);
 
         // 4. Track received messages safely using a thread-safe list
-        final List<String> receivedMessages = new java.util.concurrent.CopyOnWriteArrayList<>();
-        
-        // Register the callback listener matching the target customer channel
-        broadcaster.register(userId.toString(), message -> {
-            receivedMessages.add(message);
-        });
+        final List<NotificationDTO> receivedMessages =
+                new java.util.concurrent.CopyOnWriteArrayList<>();
+
+        broadcaster.register(userId.toString(), receivedMessages::add);
 
         // Act
         purchaseService.completePurchase(activePurchaseId, paymentDetails, null);
@@ -1591,9 +1637,12 @@ public class PurchaseServiceTest {
         // Assert
         // Check that our targeted core transaction notice is present anywhere in the received messages pile
         boolean foundTargetMessage = receivedMessages.stream()
-                .anyMatch(msg -> msg.contains("Purchase Complete") || msg.contains("successfully"));
-        
-        assertTrue("Expected the user's broadcast listener to capture a successful purchase completion message payload", 
+                .anyMatch(notification ->
+                        notification.message.contains("Purchase Complete")
+                                || notification.message.contains("successfully")
+                );
+
+        assertTrue("Expected the user's broadcast listener to capture a successful purchase completion message payload",
                 foundTargetMessage);
     }
 }

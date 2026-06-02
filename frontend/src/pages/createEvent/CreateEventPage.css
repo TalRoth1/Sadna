@@ -272,3 +272,17 @@
         flex-direction: column;
     }
 }
+
+.create-event-checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    font-weight: 700;
+    color: #111827;
+}
+
+.create-event-checkbox-row input {
+    width: 1rem;
+    height: 1rem;
+    accent-color: #7c3aed;
+}

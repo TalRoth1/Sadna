@@ -12,15 +12,22 @@ import org.example.ApplicationLayer.dto.EventDTOs.AddEventConditionalDiscountReq
 import org.example.ApplicationLayer.dto.EventDTOs.AddEventCouponRequest;
 import org.example.ApplicationLayer.dto.EventDTOs.AddEventOvertDiscountRequest;
 import org.example.ApplicationLayer.dto.EventDTOs.AddEventPolicyRuleRequest;
+import org.example.ApplicationLayer.dto.EventDTOs.AddSittingAreaRequest;
 import org.example.ApplicationLayer.dto.EventDTOs.AddSittingTicketsRequest;
+import org.example.ApplicationLayer.dto.EventDTOs.AddStandingAreaRequest;
 import org.example.ApplicationLayer.dto.EventDTOs.AddStandingTicketsRequest;
 import org.example.ApplicationLayer.dto.EventDTOs.CreateEventRequest;
+import org.example.ApplicationLayer.dto.EventDTOs.CreateLotteryRequest;
+import org.example.ApplicationLayer.dto.EventDTOs.DeleteAreaRequest;
 import org.example.ApplicationLayer.dto.EventDTOs.DeleteEventPolicyRuleRequest;
 import org.example.ApplicationLayer.dto.EventDTOs.DeleteEventRequest;
+import org.example.ApplicationLayer.dto.EventDTOs.EditEventPolicyRequest;
 import org.example.ApplicationLayer.dto.EventDTOs.EditEventRequest;
 import org.example.ApplicationLayer.dto.EventDTOs.EventSearchCriteriaRequest;
 import org.example.ApplicationLayer.dto.EventDTOs.RateEventRequest;
 import org.example.ApplicationLayer.dto.EventDTOs.RemoveEventDiscountRequest;
+import org.example.ApplicationLayer.dto.EventDTOs.UpdateSittingAreaRequest;
+import org.example.ApplicationLayer.dto.EventDTOs.UpdateStandingAreaRequest;
 import org.example.ApplicationLayer.dto.PurchaseDTOs.PurchaseHistoryDTO;
 import org.example.DomainLayer.EventAggregate.EventSearchCriteria;
 import org.springframework.http.HttpStatus;
@@ -36,6 +43,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.example.ApplicationLayer.dto.EventDTOs.AddSittingAreaRequest;
 import org.example.ApplicationLayer.dto.EventDTOs.AddStandingAreaRequest;
+import org.example.ApplicationLayer.dto.EventDTOs.EditEventPolicyRequest;
+import org.example.ApplicationLayer.dto.EventDTOs.DeleteAreaRequest;
+import org.example.ApplicationLayer.dto.EventDTOs.UpdateSittingAreaRequest;
+import org.example.ApplicationLayer.dto.EventDTOs.UpdateStandingAreaRequest;
 /**
  * EventController
  *
@@ -61,29 +72,31 @@ public class EventController {
     //  1. Event lifecycle
     // ================================================================
 
-   @PostMapping
-public ResponseEntity<ApiResponse<EventDetailsDto>> createEvent(@RequestBody CreateEventRequest request) {
-    try {
-        EventDetailsDto event = eventService.addEvent(
-                UUID.randomUUID(),
-                request.companyId,
-                request.eventManagerEmail,
-                request.name,
-                request.date,
-                request.location,
-                request.artist,
-                request.type,
-                request.status,
-                request.description);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success("Event created successfully", event));
-    } catch (Exception e) { // תפיסת כל השגיאות זמנית לצורך הדיבאג
-        e.printStackTrace(); // זה ידפיס לכם את השורה המדויקת שקרסה בטרמינל של ה-Java
-        
-        // נחזיר את הודעת השגיאה האמיתית לפרונטאנד במקום 500 גנרי
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error(e.getMessage())); 
+    @PostMapping
+    public ResponseEntity<ApiResponse<EventDetailsDto>> createEvent(@RequestBody CreateEventRequest request) {
+        try {
+            EventDetailsDto event = eventService.addEvent(
+                    UUID.randomUUID(),
+                    request.companyId,
+                    request.eventManagerEmail,
+                    request.name,
+                    request.date,
+                    request.location,
+                    request.artist,
+                    request.type,
+                    request.status,
+                    request.description);
+
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.success("Event created successfully", event));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to create event: system exception"));
+        }
     }
-}
+
 
     @PutMapping("/{eventId}")
     public ResponseEntity<ApiResponse<EventSummaryDto>> editEvent(
@@ -188,6 +201,77 @@ public ResponseEntity<ApiResponse<EventDetailsDto>> createEvent(@RequestBody Cre
                     .body(ApiResponse.error("Failed to create standing area: system exception"));
         }
     }
+    
+    @PutMapping("/{eventId}/areas/{areaId}/standing")
+    public ResponseEntity<ApiResponse<Void>> updateStandingArea(
+            @PathVariable("eventId") UUID eventId,
+            @PathVariable("areaId") UUID areaId,
+            @RequestBody UpdateStandingAreaRequest request) {
+        try {
+            eventService.updateStandingArea(
+                    request.username,
+                    request.companyId,
+                    eventId,
+                    areaId,
+                    request.price,
+                    request.count
+            );
+
+            return ResponseEntity.ok(ApiResponse.success("Standing area updated successfully"));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to update standing area: system exception"));
+        }
+    }
+
+    @PutMapping("/{eventId}/areas/{areaId}/sitting")
+    public ResponseEntity<ApiResponse<Void>> updateSittingArea(
+            @PathVariable("eventId") UUID eventId,
+            @PathVariable("areaId") UUID areaId,
+            @RequestBody UpdateSittingAreaRequest request) {
+        try {
+            eventService.updateSittingArea(
+                    request.username,
+                    request.companyId,
+                    eventId,
+                    areaId,
+                    request.price,
+                    request.rows,
+                    request.seatsPerRow
+            );
+
+            return ResponseEntity.ok(ApiResponse.success("Sitting area updated successfully"));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to update sitting area: system exception"));
+        }
+    }
+
+    @DeleteMapping("/{eventId}/areas/{areaId}")
+    public ResponseEntity<ApiResponse<Void>> deleteArea(
+            @PathVariable("eventId") UUID eventId,
+            @PathVariable("areaId") UUID areaId,
+            @RequestBody DeleteAreaRequest request) {
+        try {
+            eventService.deleteArea(
+                    request.username,
+                    request.companyId,
+                    eventId,
+                    areaId
+            );
+
+            return ResponseEntity.ok(ApiResponse.success("Ticket area deleted successfully"));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to delete ticket area: system exception"));
+        }
+    }
 
     // ================================================================
     //  3. Purchase policy (per-event rules)
@@ -211,6 +295,29 @@ public ResponseEntity<ApiResponse<EventDetailsDto>> createEvent(@RequestBody Cre
         }
     }
 
+    @PutMapping("/{eventId}/policy")
+    public ResponseEntity<ApiResponse<Void>> editPolicy(
+            @PathVariable("eventId") UUID eventId,
+            @RequestBody EditEventPolicyRequest request) {
+        try {
+            eventService.editPolicy(
+                    request.username,
+                    request.companyId,
+                    eventId,
+                    request.age,
+                    request.minTicket,
+                    request.maxTicket,
+                    request.allowLoneSeat
+            );
+
+            return ResponseEntity.ok(ApiResponse.success("Policy updated successfully"));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to update policy: system exception"));
+        }
+    }
     @DeleteMapping("/{eventId}/policy/{ruleId}")
     public ResponseEntity<ApiResponse<Void>> deletePolicyRule(
             @PathVariable("eventId") UUID eventId,
@@ -422,6 +529,48 @@ public ResponseEntity<ApiResponse<EventDetailsDto>> createEvent(@RequestBody Cre
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to fetch event history: system exception"));
+        }
+    }
+
+    // ================================================================
+    //  8. (Future) Lottery management endpoints would go here
+    // ================================================================
+
+    @PostMapping("/{eventId}/lottery")
+    public ResponseEntity<ApiResponse<Void>> createLotteryForEvent(
+            @PathVariable("eventId") UUID eventId,
+            @RequestBody CreateLotteryRequest request) {
+        try {
+            eventService.createLotteryForEvent(
+                    eventId,
+                    request.registrationOpen,
+                    request.registrationClose
+            );
+
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.success("Lottery created successfully"));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to create lottery: system exception"));
+        }
+    }
+
+    @PostMapping("/{eventId}/lottery/start-regular-sale")
+    public ResponseEntity<ApiResponse<Void>> startRegularSale(
+            @PathVariable("eventId") UUID eventId) {
+        try {
+            eventService.startRegularSale(eventId);
+
+            return ResponseEntity.ok(
+                    ApiResponse.success("Regular sale started successfully")
+            );
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to start regular sale: system exception"));
         }
     }
 

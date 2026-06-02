@@ -7,5 +7,6 @@ public class SelectSittingRequest {
     public List<UUID> ticketIDs;
     public UUID userID;
     public boolean isConfirmedAge;
+    public String accessCode;
     public SelectSittingRequest() {}
 }
