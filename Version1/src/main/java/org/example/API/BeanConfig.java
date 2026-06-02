@@ -1,11 +1,11 @@
 package org.example.API;
 
-import org.example.ApplicationLayer.ActivePurchaseCleaner;
-import org.example.ApplicationLayer.EventPublisher;
-import org.example.ApplicationLayer.IAuthenticationGateway;
 import java.time.Duration;
 
+import org.example.ApplicationLayer.ActivePurchaseCleaner;
+import org.example.ApplicationLayer.EventPublisher;
 import org.example.ApplicationLayer.IActiveSessionRegistry;
+import org.example.ApplicationLayer.IAuthenticationGateway;
 import org.example.ApplicationLayer.IKeyedLock;
 import org.example.ApplicationLayer.ILoginRateLimiter;
 import org.example.ApplicationLayer.IPaymentGateway;
@@ -13,18 +13,18 @@ import org.example.ApplicationLayer.ISystemMetricsTracker;
 import org.example.ApplicationLayer.ITicketingGateway;
 import org.example.ApplicationLayer.ITokenBlacklist;
 import org.example.ApplicationLayer.JwtService;
+import org.example.ApplicationLayer.LotteryScheduler;
 import org.example.ApplicationLayer.PurchaseService;
 import org.example.ApplicationLayer.QueueManager;
 import org.example.ApplicationLayer.SystemMetricsCollector;
-import org.example.InfrastructureLayer.InMemorySystemMetricsTracker;
 import org.example.DomainLayer.EventManagementDomainService;
 import org.example.DomainLayer.ICompanyRepository;
 import org.example.DomainLayer.IEventRepository;
 import org.example.DomainLayer.IHistoryRepository;
 import org.example.DomainLayer.ILotteryRepository;
+import org.example.DomainLayer.INotificationRepository;
 import org.example.DomainLayer.IPurchaseRepository;
 import org.example.DomainLayer.IUserRepository;
-import org.example.DomainLayer.INotificationRepository;
 import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.PurchaseDomainService;
 import org.example.DomainLayer.RolesDomainService;
@@ -36,6 +36,7 @@ import org.example.InfrastructureLayer.InMemoryKeyedLock;
 import org.example.InfrastructureLayer.InMemoryLoginRateLimiter;
 import org.example.InfrastructureLayer.InMemoryPurchaseRepository;
 import org.example.InfrastructureLayer.InMemorySessionRegistry;
+import org.example.InfrastructureLayer.InMemorySystemMetricsTracker;
 import org.example.InfrastructureLayer.InMemoryTokenBlacklist;
 import org.example.InfrastructureLayer.LotteryRepository;
 import org.example.InfrastructureLayer.NotificationRepository;
@@ -280,6 +281,15 @@ public class BeanConfig {
             IPurchaseRepository purchaseRepository,
             INotifier notifier) {
         return new ActivePurchaseCleaner(purchaseService, purchaseRepository, notifier);
+    }
+
+    @Bean(initMethod = "start", destroyMethod = "interrupt")
+    public LotteryScheduler lotteryScheduler(
+            PurchaseDomainService purchaseDomainService,
+            ILotteryRepository lotteryRepository,
+            INotifier notifier,
+            IEventRepository eventRepository) {
+        return new LotteryScheduler(purchaseDomainService, lotteryRepository, notifier, eventRepository);
     }
 
     // ---------------------------------------------------------------------
