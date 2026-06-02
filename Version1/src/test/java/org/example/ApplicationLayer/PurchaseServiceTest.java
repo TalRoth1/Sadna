@@ -1595,6 +1595,11 @@ public class PurchaseServiceTest {
         public PuchaseLottery findByEventID(UUID eventId) {
             return lotteriesByEvent.get(eventId);
         }
+
+        @Override
+        public List<PuchaseLottery> findAll() {
+            return new ArrayList<>(lotteriesByEvent.values());
+        }
     }
 
     @Test

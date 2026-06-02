@@ -37,15 +37,13 @@ import org.example.DomainLayer.EventAggregate.TicketStatus;
 import org.example.DomainLayer.LotteryAggregate.PuchaseLottery;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.example.DomainLayer.UserAggregate.User;
-import org.junit.Before;
-import org.junit.Test;
-
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
+import org.junit.Before;
+import org.junit.Test;
 
 /**
  * Concurrency and checkout invariant tests for PurchaseDomainService.
@@ -747,6 +745,11 @@ public class PurchaseDomainConcurrencyAndCheckoutTest {
         @Override
         public PuchaseLottery findByEventID(UUID eventId) {
             return lotteriesByEventId.get(eventId);
+        }
+
+        @Override
+        public List<PuchaseLottery> findAll() {
+            return new ArrayList<>(lotteriesById.values());
         }
     }
 }
