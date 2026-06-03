@@ -1,0 +1,14 @@
+{
+  "api": {
+    "baseUrl": "http://localhost:8080/api",
+    "timeoutMs": 10000
+  },
+  "vite": {
+    "proxy": {
+      "/api": {
+        "target": "http://localhost:8080",
+        "changeOrigin": true
+      }
+    }
+  }
+}

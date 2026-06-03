@@ -1,7 +1,5 @@
 package org.example.API;
 
-import java.time.Duration;
-
 import org.example.ApplicationLayer.ActivePurchaseCleaner;
 import org.example.ApplicationLayer.EventPublisher;
 import org.example.ApplicationLayer.IActiveSessionRegistry;
@@ -59,6 +57,12 @@ import org.springframework.context.annotation.Configuration;
  */
 @Configuration
 public class BeanConfig {
+
+    private final BackendConfigProperties backendConfigProperties;
+
+    public BeanConfig(BackendConfigProperties backendConfigProperties) {
+        this.backendConfigProperties = backendConfigProperties;
+    }
 
     // ---------------------------------------------------------------------
     // Repositories (in-memory implementations for the dev profile).
@@ -157,7 +161,8 @@ public class BeanConfig {
      */
     @Bean
     public ILoginRateLimiter loginRateLimiter() {
-        return new InMemoryLoginRateLimiter(5, Duration.ofMinutes(15));
+        BackendConfigProperties.LoginRateLimiter config = backendConfigProperties.getLoginRateLimiter();
+        return new InMemoryLoginRateLimiter(config.getMaxFailedAttempts(), config.getWindow());
     }
 
     /**
@@ -223,7 +228,7 @@ public class BeanConfig {
         return new PurchaseDomainService(
                 historyRepository, eventRepository, purchaseRepository,
                 companyRepository, userRepository, lotteryRepository,
-                paymentGateway, ticketingGateway);
+                paymentGateway, ticketingGateway, backendConfigProperties);
     }
 
     // ---------------------------------------------------------------------
@@ -256,7 +261,8 @@ public class BeanConfig {
 
     @Bean
     public ISystemMetricsTracker systemMetricsTracker() {
-        return new InMemorySystemMetricsTracker();
+        BackendConfigProperties.SystemMetrics config = backendConfigProperties.getSystemMetrics();
+        return new InMemorySystemMetricsTracker(config.getWindow());
     }
 
     @Bean
@@ -280,7 +286,13 @@ public class BeanConfig {
             PurchaseService purchaseService,
             IPurchaseRepository purchaseRepository,
             INotifier notifier) {
-        return new ActivePurchaseCleaner(purchaseService, purchaseRepository, notifier);
+        BackendConfigProperties.ActivePurchaseCleaner config = backendConfigProperties.getActivePurchaseCleaner();
+        return new ActivePurchaseCleaner(
+            purchaseService,
+            purchaseRepository,
+            notifier,
+            config.getSweepInterval(),
+            config.getWarningBeforeExpirySeconds());
     }
 
     // ---------------------------------------------------------------------
@@ -304,6 +316,6 @@ public class BeanConfig {
 
     @Bean
     public JwtAuthFilter jwtAuthFilter(JwtService jwtService) {
-        return new JwtAuthFilter(jwtService);
+        return new JwtAuthFilter(jwtService, backendConfigProperties);
     }
 }

@@ -1,0 +1,58 @@
+{
+  "jwt": {
+    "secret": "change-me-please-this-is-a-development-only-default-secret-key-1234567890",
+    "expirationMs": 3600000
+  },
+  "profiles": {
+    "active": "dev"
+  },
+  "loginRateLimiter": {
+    "maxFailedAttempts": 5,
+    "windowMinutes": 15
+  },
+  "notifications": {
+    "sseTimeoutMs": 1800000
+  },
+  "activePurchaseCleaner": {
+    "sweepIntervalMs": 1000,
+    "warningBeforeExpirySeconds": 60
+  },
+  "systemMetrics": {
+    "windowSeconds": 60
+  },
+  "devSeed": {
+    "defaultPassword": "demo1234"
+  },
+  "jwtAuth": {
+    "bearerPrefix": "Bearer ",
+    "publicPaths": [
+      "/api/users/guest",
+      "/api/users/login",
+      "/api/users/register",
+      "/api/users/logout",
+      "/api/events/search",
+      "/api/events/{eventId}"
+    ]
+  },
+  "cors": {
+    "allowedOriginPatterns": [
+      "http://localhost:*",
+      "http://127.0.0.1:*"
+    ],
+    "allowedMethods": [
+      "GET",
+      "POST",
+      "PUT",
+      "PATCH",
+      "DELETE",
+      "OPTIONS"
+    ],
+    "allowedHeaders": ["*"],
+    "allowCredentials": true,
+    "maxAgeSeconds": 3600
+  },
+  "activePurchase": {
+    "timeoutMinutes": 10,
+    "defaultMaxWaitTime": 10.0
+  }
+}

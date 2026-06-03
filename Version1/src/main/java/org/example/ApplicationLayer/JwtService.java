@@ -1,18 +1,20 @@
 package org.example.ApplicationLayer;
 
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.Date;
+import java.util.UUID;
+
+import javax.crypto.SecretKey;
+
+import org.example.API.BackendConfigProperties;
+import org.springframework.stereotype.Service;
+
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-
-import javax.crypto.SecretKey;
-import java.nio.charset.StandardCharsets;
-import java.time.Instant;
-import java.util.Date;
-import java.util.UUID;
 
 /**
  * JwtService — issues, parses, and validates JSON Web Tokens.
@@ -62,14 +64,11 @@ public class JwtService {
     private final ITokenBlacklist blacklist;
 
     public JwtService(
-            @Value("${jwt.secret:change-me-please-this-is-a-development-only-default-secret-key-1234567890}")
-            String secret,
-            @Value("${jwt.expiration-ms:3600000}")
-            long expirationMs,
+            BackendConfigProperties backendConfigProperties,
             ITokenBlacklist blacklist) {
-        byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
+        byte[] keyBytes = backendConfigProperties.getJwt().getSecret().getBytes(StandardCharsets.UTF_8);
         this.signingKey   = Keys.hmacShaKeyFor(keyBytes);
-        this.expirationMs = expirationMs;
+        this.expirationMs = backendConfigProperties.getJwt().getExpirationMs();
         this.blacklist    = blacklist;
     }
 

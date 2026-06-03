@@ -1,11 +1,11 @@
 package org.example.InfrastructureLayer;
 
-import org.example.ApplicationLayer.ISystemMetricsTracker;
-
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.ConcurrentLinkedDeque;
+
+import org.example.ApplicationLayer.ISystemMetricsTracker;
 
 /**
  * Adapter — in-process, thread-safe implementation of {@link ISystemMetricsTracker}.
@@ -39,10 +39,8 @@ import java.util.concurrent.ConcurrentLinkedDeque;
  */
 public class InMemorySystemMetricsTracker implements ISystemMetricsTracker {
 
-    static final int WINDOW_SECONDS = 60;
-    private static final Duration WINDOW = Duration.ofSeconds(WINDOW_SECONDS);
-
     private final Clock clock;
+    private final Duration window;
 
     private final ConcurrentLinkedDeque<Instant> subscriptions = new ConcurrentLinkedDeque<>();
     private final ConcurrentLinkedDeque<Instant> reservations  = new ConcurrentLinkedDeque<>();
@@ -54,7 +52,7 @@ public class InMemorySystemMetricsTracker implements ISystemMetricsTracker {
      * Production constructor — uses the system UTC clock.
      */
     public InMemorySystemMetricsTracker() {
-        this(Clock.systemUTC());
+        this(Clock.systemUTC(), Duration.ofSeconds(60));
     }
 
     /**
@@ -65,10 +63,22 @@ public class InMemorySystemMetricsTracker implements ISystemMetricsTracker {
      *              the sliding window boundary; must not be {@code null}
      */
     public InMemorySystemMetricsTracker(Clock clock) {
+        this(clock, Duration.ofSeconds(60));
+    }
+
+    public InMemorySystemMetricsTracker(Duration window) {
+        this(Clock.systemUTC(), window);
+    }
+
+    public InMemorySystemMetricsTracker(Clock clock, Duration window) {
         if (clock == null) {
             throw new IllegalArgumentException("Clock must not be null");
         }
+        if (window == null) {
+            throw new IllegalArgumentException("Window must not be null");
+        }
         this.clock = clock;
+        this.window = window;
     }
 
     // ── write side ───────────────────────────────────────────────────────
@@ -123,7 +133,7 @@ public class InMemorySystemMetricsTracker implements ISystemMetricsTracker {
      *         direct use in the DTO's rate fields
      */
     private double countWithinWindow(ConcurrentLinkedDeque<Instant> deque) {
-        Instant threshold = clock.instant().minus(WINDOW);
+        Instant threshold = clock.instant().minus(window);
         deque.removeIf(t -> !t.isAfter(threshold));
         return (double) deque.size();
     }

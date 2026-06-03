@@ -86,9 +86,6 @@ public class DevDataSeeder implements CommandLineRunner {
 
         private static final Logger logger = Logger.getLogger(DevDataSeeder.class.getName());
 
-        /** Shared password for every demo member — easy to type at login. */
-        private static final String DEFAULT_PASSWORD = "demo1234";
-
         // -----------------------------------------------------------------
         // Repositories + services — constructor-injected. UserRepository is
         // injected as the concrete type (not IUserRepository) because the
@@ -103,6 +100,7 @@ public class DevDataSeeder implements CommandLineRunner {
         private final NotificationRepository notificationRepository;
         private final EventManagementDomainService eventManagement;
         private final RolesDomainService rolesDomainService;
+        private final BackendConfigProperties backendConfigProperties;
 
         // -----------------------------------------------------------------
         // Cast registry — built as we seed, so later sections can refer to
@@ -120,7 +118,8 @@ public class DevDataSeeder implements CommandLineRunner {
                         IAdminRepository adminRepository,
                         NotificationRepository notificationRepository,
                         EventManagementDomainService eventManagement,
-                        RolesDomainService rolesDomainService) {
+                        RolesDomainService rolesDomainService,
+                        BackendConfigProperties backendConfigProperties) {
                 this.eventRepository = eventRepository;
                 this.companyRepository = companyRepository;
                 this.lotteryRepository = lotteryRepository;
@@ -133,6 +132,7 @@ public class DevDataSeeder implements CommandLineRunner {
                 this.notificationRepository = notificationRepository;
                 this.eventManagement = eventManagement;
                 this.rolesDomainService = rolesDomainService;
+                this.backendConfigProperties = backendConfigProperties;
         }
 
         @Override
@@ -815,7 +815,7 @@ private void seedIndieLottery() {
         /** Register a member user via direct repository insertion. */
         private User registerMember(String email, String username, float age) {
                 UUID id = UUID.randomUUID();
-                User user = new User(id, username, email, DEFAULT_PASSWORD, age);
+                User user = new User(id, username, email, backendConfigProperties.getDevSeed().getDefaultPassword(), age);
                 userRepository.add(user);
                 usersByEmail.put(email, user);
                 return user;
