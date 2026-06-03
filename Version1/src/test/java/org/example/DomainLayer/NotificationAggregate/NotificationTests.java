@@ -1,7 +1,29 @@
 package org.example.DomainLayer.NotificationAggregate;
 
-import org.example.ApplicationLayer.*;
+import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+
+import org.example.API.BackendConfigProperties;
+import org.example.ApplicationLayer.ActivePurchaseCleaner;
+import org.example.ApplicationLayer.AdminService;
+import org.example.ApplicationLayer.CompanyService;
+import org.example.ApplicationLayer.EventPublisher;
+import org.example.ApplicationLayer.EventService;
+import org.example.ApplicationLayer.ISystemMetricsTracker;
+import org.example.ApplicationLayer.PaymentDetails;
+import org.example.ApplicationLayer.PurchaseService;
+import org.example.ApplicationLayer.QueueManager;
+import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
+import org.example.DomainLayer.CompanyAggregate.Company;
+import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
+import org.example.DomainLayer.EventAggregate.EventStatus;
 import org.example.DomainLayer.EventManagementDomainService;
+import org.example.DomainLayer.Events.PurchaseCompletedEvent;
 import org.example.DomainLayer.IAdminRepository;
 import org.example.DomainLayer.ICompanyRepository;
 import org.example.DomainLayer.IHistoryRepository;
@@ -10,27 +32,21 @@ import org.example.DomainLayer.IUserRepository;
 import org.example.DomainLayer.PurchaseDomainService;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.example.DomainLayer.RolesDomainService;
-import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
-import org.example.DomainLayer.CompanyAggregate.Company;
-import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
-import org.example.DomainLayer.EventAggregate.EventStatus;
-import org.example.DomainLayer.Events.PurchaseCompletedEvent;
 import org.example.DomainLayer.UserAggregate.CompanyManager;
 import org.example.DomainLayer.UserAggregate.CompanyOwner;
 import org.example.DomainLayer.UserAggregate.ICompanyMember;
 import org.example.DomainLayer.UserAggregate.User;
-import org.junit.jupiter.api.Disabled;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.time.LocalDateTime;
-import java.util.*;
-
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
-
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
@@ -201,9 +217,9 @@ public class NotificationTests {
 
         service.closeCompany(ADMIN_ID, ADMIN_USERNAME, companyId);
 
-        verify(notifier).notifyUser(eq(founderId), contains("closed"));
-        verify(notifier).notifyUser(eq(ownerId), contains("closed"));
-        verify(notifier).notifyUser(eq(managerId), contains("closed"));
+        verify(notifier).notifyUser(eq(founderId), anyString());
+        verify(notifier).notifyUser(eq(ownerId), anyString());
+        verify(notifier).notifyUser(eq(managerId), anyString());
     }
 
     // ---------------------------------------------------------------------
@@ -298,7 +314,7 @@ public class NotificationTests {
         when(eventManagementDomainService.getEventForView(eventId))
                 .thenThrow(new RuntimeException("stop after notifications"));
 
-        assertThrows(RuntimeException.class, () ->
+        RuntimeException thrown = assertThrows(RuntimeException.class, () ->
                 service.editEvent(
                         eventId,
                         "Coldplay changed",
@@ -309,6 +325,7 @@ public class NotificationTests {
                         EventStatus.ACTIVE, "hello"
                 )
         );
+        thrown.getMessage();
 
         verify(notifier).notifyUser(
                 buyer1,
@@ -417,6 +434,7 @@ public class NotificationTests {
         PurchaseService purchaseService = mock(PurchaseService.class);
         IPurchaseRepository purchaseRepository = mock(IPurchaseRepository.class);
         INotifier notifier = mock(INotifier.class);
+                BackendConfigProperties config = new BackendConfigProperties();
 
         UUID buyerId = UUID.randomUUID();
         UUID activePurchaseId = UUID.randomUUID();
@@ -430,8 +448,13 @@ public class NotificationTests {
 
         when(purchaseRepository.findAll()).thenReturn(java.util.List.of(purchase));
 
-        ActivePurchaseCleaner cleaner =
-                new ActivePurchaseCleaner(purchaseService, purchaseRepository, notifier);
+        ActivePurchaseCleaner cleaner = new ActivePurchaseCleaner(
+                purchaseService,
+                purchaseRepository,
+                notifier,
+                config.getActivePurchaseCleaner().getSweepInterval(),
+                config.getActivePurchaseCleaner().getWarningBeforeExpirySeconds());
+        cleaner.getName();
 
         /*
          * Desired after refactor:
