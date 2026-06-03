@@ -31,6 +31,13 @@
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
+
+        <dependency>
+            <groupId>org.junit.vintage</groupId>
+            <artifactId>junit-vintage-engine</artifactId>
+            <scope>test</scope>
+        </dependency>
+
         <!-- Tests -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -90,8 +97,22 @@
                 <artifactId>jacoco-maven-plugin</artifactId>
                 <version>0.8.13</version>
 
-                <executions>
+                <configuration>
+                    <excludes>
+                        <!-- DTOs / request-response objects -->
+                        <exclude>**/dto/**</exclude>
 
+                        <!-- optional: generated / bootstrapping classes -->
+                        <exclude>**/*Application.*</exclude>
+                        <exclude>**/*Config.*</exclude>
+                        <exclude>**/*Configuration.*</exclude>
+
+                        <!-- optional: exception/data-only classes -->
+                        <exclude>**/*Exception.*</exclude>
+                    </excludes>
+                </configuration>
+
+                <executions>
                     <execution>
                         <goals>
                             <goal>prepare-agent</goal>
@@ -101,12 +122,10 @@
                     <execution>
                         <id>report</id>
                         <phase>test</phase>
-
                         <goals>
                             <goal>report</goal>
                         </goals>
                     </execution>
-
                 </executions>
             </plugin>
 
