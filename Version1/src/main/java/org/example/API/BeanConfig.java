@@ -13,6 +13,7 @@ import org.example.ApplicationLayer.ISystemMetricsTracker;
 import org.example.ApplicationLayer.ITicketingGateway;
 import org.example.ApplicationLayer.ITokenBlacklist;
 import org.example.ApplicationLayer.JwtService;
+import org.example.ApplicationLayer.LotteryScheduler;
 import org.example.ApplicationLayer.PurchaseService;
 import org.example.ApplicationLayer.QueueManager;
 import org.example.ApplicationLayer.SystemMetricsCollector;
@@ -281,6 +282,15 @@ public class BeanConfig {
             IPurchaseRepository purchaseRepository,
             INotifier notifier) {
         return new ActivePurchaseCleaner(purchaseService, purchaseRepository, notifier);
+    }
+
+    @Bean(initMethod = "start", destroyMethod = "interrupt")
+    public LotteryScheduler lotteryScheduler(
+            PurchaseDomainService purchaseDomainService,
+            ILotteryRepository lotteryRepository,
+            INotifier notifier,
+            IEventRepository eventRepository) {
+        return new LotteryScheduler(purchaseDomainService, lotteryRepository, notifier, eventRepository);
     }
 
     // ---------------------------------------------------------------------

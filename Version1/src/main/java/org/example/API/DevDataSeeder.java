@@ -636,14 +636,16 @@ private void seedTaylorSwiftLottery() {
         UUID taylorEventId = eventsByKey.get("taylor-swift");
         UUID lotteryId = UUID.randomUUID();
 
-        PuchaseLottery lottery = new PuchaseLottery(
-                        lotteryId,
-                        taylorEventId,
-                        LocalDateTime.now().minusDays(1),
-                        LocalDateTime.now().plusDays(14));
+                PuchaseLottery lottery = new PuchaseLottery(
+                                lotteryId,
+                                taylorEventId,
+                                LocalDateTime.now().minusDays(1),
+                                // Close immediately so scheduler will draw during dev runs
+                                LocalDateTime.now().minusMinutes(1));
 
         User bob = usersByEmail.get("bob@demo.test");
-        lottery.registerMember(bob.getId().toString(), 2, LocalDateTime.now());
+        // Register Bob at a time before the registration close so seeding succeeds
+        lottery.registerMember(bob.getId().toString(), 2, LocalDateTime.now().minusHours(1));
         lottery.addWinner(bob.getId().toString());
         lottery.generateWinnerAccessCode(
                         bob.getId().toString(),

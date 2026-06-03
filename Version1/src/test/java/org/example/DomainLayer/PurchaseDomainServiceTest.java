@@ -1590,5 +1590,10 @@ public class PurchaseDomainServiceTest {
         public PuchaseLottery findByEventID(UUID eventId) {
             return lotteriesByEventId.get(eventId);
         }
+
+        @Override
+        public List<PuchaseLottery> findAll() {
+            return new ArrayList<>(lotteriesById.values());
+        }
     }
 }

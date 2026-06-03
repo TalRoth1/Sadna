@@ -1,6 +1,8 @@
 package org.example.InfrastructureLayer;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -25,5 +27,10 @@ public class LotteryRepository implements ILotteryRepository {
     @Override
     public PuchaseLottery findByEventID(UUID eventId) {
         return lotteriesByEventId.get(eventId);
+    }
+
+    @Override
+    public List<PuchaseLottery> findAll() {
+        return new ArrayList<>(lotteriesById.values());
     }
 }
