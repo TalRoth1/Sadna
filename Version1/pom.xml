@@ -102,6 +102,13 @@
                         <!-- DTOs / request-response objects -->
                         <exclude>**/dto/**</exclude>
 
+                        <!-- remove only classes directly under org.example -->
+                        <exclude>org/example/*.class</exclude>
+
+                        <!-- remove org.example.API package -->
+                        <exclude>org/example/API/*.class</exclude>
+                        <exclude>org/example/API/**/*.class</exclude>
+
                         <!-- optional: generated / bootstrapping classes -->
                         <exclude>**/*Application.*</exclude>
                         <exclude>**/*Config.*</exclude>
