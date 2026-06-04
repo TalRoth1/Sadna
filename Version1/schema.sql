@@ -1,18 +1,18 @@
 CREATE TABLE users (
-	id UUID PRIMARY KEY,
-	username VARCHAR(100) NOT NULL UNIQUE,
-	password_hash VARCHAR(255) NOT NULL,
-	status VARCHAR(20) NOT NULL CHECK (status IN ('LOGGED_IN', 'NOT_LOGGED_IN', 'REMOVED')),
-	created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-	updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    id UUID PRIMARY KEY,
+    username VARCHAR(100) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    status VARCHAR(20) NOT NULL CHECK (status IN ('LOGGED_IN', 'NOT_LOGGED_IN', 'REMOVED')),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE purchase_policies (
-    id UUID PRIMARY KEY,
+    id UUID PRIMARY KEY
 );
 
 CREATE TABLE discount_policies (
-    id UUID PRIMARY KEY,
+    id UUID PRIMARY KEY
 );
 
 CREATE TABLE rules (
@@ -49,7 +49,7 @@ CREATE TABLE company_members (
     company_id UUID NOT NULL,
     username VARCHAR(100) NOT NULL,
     role VARCHAR(20) NOT NULL CHECK (role IN ('OWNER', 'MANAGER', 'FOUNDER')),
-    appointer VARCHAR(100),
+    appointer_username VARCHAR(100), -- Fixed typo from 'appointer' to match the FK below
     permissions JSONB NOT NULL,
     PRIMARY KEY (company_id, username),
     FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
@@ -72,7 +72,7 @@ CREATE TABLE invitations (
 CREATE TABLE lotteries (
     id UUID PRIMARY KEY,
     registration_open TIMESTAMP NOT NULL,
-    registration_close TIMESTAMP NOT NULL,
+    registration_close TIMESTAMP NOT NULL
 );
 
 CREATE TABLE lottery_entries (
@@ -109,58 +109,10 @@ CREATE TABLE event_areas (
 CREATE TABLE seats (
     id UUID PRIMARY KEY,
     row INT NOT NULL,
-    number INT NOT NULL,
+    number INT NOT NULL
 );
 
-CREATE TABLE active_purchases (
-    id UUID PRIMARY KEY,
-    user_id UUID NOT NULL,
-    event_id UUID NOT NULL,
-    end_time TIMESTAMP NOT NULL,
-    is_guest_confirmed_age BOOLEAN NOT NULL DEFAULT FALSE,
-    copon VARCHAR(255),
-    price FLOAT NOT NULL,
-    max_wait_time FLOAT NOT NULL,
-    last_updated TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE,
-);
-
-CREATE TABLE purchase_history (
-    id UUID PRIMARY KEY,
-    user_id UUID NOT NULL,
-    event_id UUID NOT NULL,
-    purchase_info JSONB NOT NULL,
-    purchase_total FLOAT NOT NULL,
-    purchase_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE,
-);
-
-CREATE TABLE tickets (
-    id UUID PRIMARY KEY,
-    event_id UUID NOT NULL,
-    area_id UUID NOT NULL,
-    seat_id UUID,
-    status VARCHAR(20) NOT NULL CHECK (status IN ('AVAILABLE', 'RESERVED', 'SOLD')),
-    price FLOAT NOT NULL,
-    active_purchase_id UUID,
-    purchase_history_id UUID,
-    FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE,
-    FOREIGN KEY (area_id) REFERENCES event_areas(id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (seat_id) REFERENCES seats(id) ON DELETE SET NULL,
-);
-
--- consistency check to ensure that a ticket is either associated with an active purchase or a purchase history, but not both
-ALTER TABLE tickets 
-ADD CONSTRAINT chk_ticket_purchase_exclusivity
-CHECK (
-    (active_purchase_id IS NOT NULL AND purchase_history_id IS NULL) OR
-    (active_purchase_id IS NULL AND purchase_history_id IS NOT NULL) OR
-    (active_purchase_id IS NULL AND purchase_history_id IS NULL)
-);
-
+-- Moved EVENTS up here because other tables depend on it!
 CREATE TABLE events (
     id UUID PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
@@ -186,6 +138,55 @@ CREATE TABLE events (
     FOREIGN KEY (lottery_id) REFERENCES lotteries(id) ON DELETE SET NULL,
     FOREIGN KEY (discount_policy_id) REFERENCES discount_policies(id) ON DELETE SET NULL,
     FOREIGN KEY (purchase_policy_id) REFERENCES purchase_policies(id) ON DELETE SET NULL
+);
+
+CREATE TABLE active_purchases (
+    id UUID PRIMARY KEY,
+    user_id UUID NOT NULL,
+    event_id UUID NOT NULL,
+    end_time TIMESTAMP NOT NULL,
+    is_guest_confirmed_age BOOLEAN NOT NULL DEFAULT FALSE,
+    copon VARCHAR(255),
+    price FLOAT NOT NULL,
+    max_wait_time FLOAT NOT NULL,
+    last_updated TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
+);
+
+CREATE TABLE purchase_history (
+    id UUID PRIMARY KEY,
+    user_id UUID NOT NULL,
+    event_id UUID NOT NULL,
+    purchase_info JSONB NOT NULL,
+    purchase_total FLOAT NOT NULL,
+    purchase_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
+);
+
+CREATE TABLE tickets (
+    id UUID PRIMARY KEY,
+    event_id UUID NOT NULL,
+    area_id UUID NOT NULL,
+    user_id UUID, -- Added missing column definition
+    seat_id UUID,
+    status VARCHAR(20) NOT NULL CHECK (status IN ('AVAILABLE', 'RESERVED', 'SOLD')),
+    price FLOAT NOT NULL,
+    active_purchase_id UUID,
+    purchase_history_id UUID,
+    FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE,
+    FOREIGN KEY (area_id) REFERENCES event_areas(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (seat_id) REFERENCES seats(id) ON DELETE SET NULL
+);
+
+ALTER TABLE tickets 
+ADD CONSTRAINT chk_ticket_purchase_exclusivity
+CHECK (
+    (active_purchase_id IS NOT NULL AND purchase_history_id IS NULL) OR
+    (active_purchase_id IS NULL AND purchase_history_id IS NOT NULL) OR
+    (active_purchase_id IS NULL AND purchase_history_id IS NULL)
 );
 
 CREATE TABLE admins (
@@ -231,10 +232,9 @@ CREATE TABLE ratings (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE,
-    FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
+    FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
 );
 
--- checks to ensure that each rating is associated with either an event or a company, but not both
 ALTER TABLE ratings
 ADD CONSTRAINT chk_rating_association_exclusivity
 CHECK (
@@ -242,19 +242,17 @@ CHECK (
     (event_id IS NULL AND company_id IS NOT NULL)
 );
 
--- unique index to ensure that a user can only rate a specific event once
 CREATE UNIQUE INDEX idx_unique_user_event_rating 
 ON ratings (user_id, event_id) 
 WHERE event_id IS NOT NULL;
 
--- unique index to ensure that a user can only rate a specific company once
 CREATE UNIQUE INDEX idx_unique_user_company_rating
 ON ratings (user_id, company_id) 
 WHERE company_id IS NOT NULL;
 
 CREATE TABLE notifications (
     id UUID PRIMARY KEY,
-    recipient_id UUID NOT NULL, -- idk why is it UUID and not username, the domain layer calls this recipient_id but the type is string (???)
+    recipient_id UUID NOT NULL, 
     notification_type VARCHAR(50) NOT NULL CHECK (notification_type IN ('PURCHASE_COMPLETE', 'EVENT_CHANGED', 'EVENT_CANCLED', 'SOLD_OUT', 'COMPANY_CLOSED', 'ROLE_CHANGED', 'ACTIVE_PURCHASE_EXPIRING', 'ADMIN_MESSAGE', 'LOTTARY_WON', 'QUEUE_ACCESS_GRANTED', 'GENERAL')),
     message TEXT NOT NULL,
     target_url TEXT,
