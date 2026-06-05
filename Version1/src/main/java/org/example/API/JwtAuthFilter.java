@@ -1,8 +1,9 @@
 package org.example.API;
 
 import java.io.IOException;
-import java.util.Set;
+import java.util.List;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 import org.example.ApplicationLayer.JwtService;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -31,52 +32,19 @@ import jakarta.servlet.http.HttpServletResponse;
  */
 public class JwtAuthFilter extends OncePerRequestFilter {
 
-    private static final String BEARER_PREFIX = "Bearer ";
-
-    /**
-     * Endpoints that must be reachable without a (valid) token.
-     *
-     * - guest / login / register: nothing to authenticate yet, that's where
-     *   tokens are obtained.
-     * - logout: must always succeed in ending the server-side session even
-     *   when the client's token is missing, expired, or revoked. The
-     *   {@code UserController.logout} method does its own lenient parsing
-     *   via {@code JwtService.parseAllowingExpired}, so we don't want the
-     *   filter to reject the request before the controller gets a chance.
-     */
-    private static final Set<String> PUBLIC_PATHS = Set.of(
-            "/api/users/guest",
-            "/api/users/login",
-            "/api/users/register",
-            "/api/users/logout"
-    );
-
     private final JwtService jwtService;
+    private final BackendConfigProperties backendConfigProperties;
 
-    public JwtAuthFilter(JwtService jwtService) {
+    public JwtAuthFilter(JwtService jwtService, BackendConfigProperties backendConfigProperties) {
         this.jwtService = jwtService;
+        this.backendConfigProperties = backendConfigProperties;
     }
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getServletPath();
-
-        if (path.equals("/api/users/guest")
-                || path.equals("/api/users/login")
-                || path.equals("/api/users/register")
-                || path.equals("/api/users/logout")) {
-            return true;
-        }
-
-        if (path.equals("/api/events/search")) {
-            return true;
-        }
-
-        if (path.matches("^/api/events/[0-9a-fA-F-]{8}-[0-9a-fA-F-]{4}-[0-9a-fA-F-]{4}-[0-9a-fA-F-]{4}-[0-9a-fA-F-]{12}$")) {
-            return true;
-        }
-
-        return false;
+        List<String> publicPaths = backendConfigProperties.getJwtAuth().getPublicPaths();
+        return publicPaths.stream().anyMatch(publicPath -> matchesPublicPath(publicPath, path));
     }
 
     @Override
@@ -84,14 +52,15 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain chain) throws ServletException, IOException {
         String authHeader = request.getHeader("Authorization");
-        if (authHeader == null || !authHeader.startsWith(BEARER_PREFIX)) {
+        String bearerPrefix = backendConfigProperties.getJwtAuth().getBearerPrefix();
+        if (authHeader == null || !authHeader.startsWith(bearerPrefix)) {
             // No token — pass through with no identity. Downstream controllers
             // that require identity should check for the "userId" attribute.
             chain.doFilter(request, response);
             return;
         }
 
-        String token = authHeader.substring(BEARER_PREFIX.length()).trim();
+        String token = authHeader.substring(bearerPrefix.length()).trim();
 
         try {
             logger.info("Received token: " + previewToken(token) + " (length=" + token.length() + ")"); // for debugging
@@ -132,5 +101,13 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         int previewLength = Math.min(16, token.length());
         String preview = token.substring(0, previewLength);
         return token.length() > previewLength ? preview + "..." : preview;
+    }
+
+    private boolean matchesPublicPath(String publicPath, String requestPath) {
+        if (publicPath.contains("{eventId}")) {
+            String pattern = publicPath.replace("{eventId}", "[0-9a-fA-F-]{36}");
+            return Pattern.matches(pattern, requestPath);
+        }
+        return publicPath.equals(requestPath);
     }
 }

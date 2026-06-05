@@ -1,5 +1,7 @@
 package org.example.ApplicationLayer;
 
+import java.time.Duration;
+
 import org.example.DomainLayer.*;
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 import org.example.DomainLayer.CompanyAggregate.Company;
@@ -15,7 +17,6 @@ import org.example.InfrastructureLayer.NotificationRepository;
 import org.example.InfrastructureLayer.WebSocketNotificationSender;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.jupiter.api.Disabled;
 import org.mockito.Mock;
 
 import java.time.LocalDateTime;
@@ -33,6 +34,7 @@ import static org.mockito.Mockito.*;
 
 import org.example.ApplicationLayer.dto.PurchaseDTOs.PurchaseHistoryDTO;
 import org.example.ApplicationLayer.dto.NotificationDTOs.NotificationDTO;
+import java.time.Duration;
 
 public class PurchaseServiceTest {
 
@@ -49,12 +51,11 @@ public class PurchaseServiceTest {
 
     @Before
     public void setUp() {
-        notifier = mock(INotifier.class);
         queueManagerMock = mock(QueueManager.class);
         purchaseDomainServiceMock = mock(PurchaseDomainService.class);
         broadcaster = new Broadcaster();
         notificationRepository = new NotificationRepository();
-        INotifier notifier =new WebSocketNotificationSender(broadcaster);
+        notifier = new WebSocketNotificationSender(broadcaster);
         NotificationService notificationService =new NotificationService(notifier, notificationRepository);
         EventListener eventListener =new EventListener(notificationService);
         EventPublisher eventPublisher =new EventPublisher();
@@ -736,8 +737,8 @@ public class PurchaseServiceTest {
         setup.queueManager = new QueueManager();
         setup.purchaseDomainService = new PurchaseDomainService(setup.inMemoryHistoryRepository, setup.inMemoryEventRepository, setup.inMemoryPurchaseRepository, setup.inMemoryCompanyRepository, setup.innMemoryUserRepository, setup.inMemoryLotteryRepository);
         setup.broadcaster = new Broadcaster();
-        INotifier notifier =new WebSocketNotificationSender(setup.broadcaster);
-        NotificationService notificationService =new NotificationService(notifier, setup.notificationRepository);
+        INotifier broadcastNotifier = new WebSocketNotificationSender(setup.broadcaster);
+        NotificationService notificationService =new NotificationService(broadcastNotifier, setup.notificationRepository);
         EventListener eventListener =new EventListener(notificationService);
         EventPublisher eventPublisher =new EventPublisher();
         eventPublisher.subscribe(eventListener::handle);
@@ -746,7 +747,7 @@ public class PurchaseServiceTest {
                 new PurchaseService(
                         setup.purchaseDomainService,
                         eventPublisher,
-                        setup.queueManager, notifier
+                setup.queueManager, broadcastNotifier
                 );
         return setup;
     }
@@ -1351,8 +1352,11 @@ public class PurchaseServiceTest {
         ));
 
         ActivePurchaseCleaner cleaner = new ActivePurchaseCleaner(
-                setup.purchaseService,
-                setup.inMemoryPurchaseRepository, notifier
+            setup.purchaseService,
+            setup.inMemoryPurchaseRepository,
+            notifier,
+            Duration.ofMillis(1),
+            60L
         );
 
         cleaner.start();
