@@ -293,8 +293,10 @@ public class UserService {
             // Idempotent: re-issuing a token for an already-logged-in user is
             // intentional — it supports "login from a second device" without
             // kicking the first session (that is Phase 2's job via SessionService).
-            if (user.getStatus() != UserStatus.LOGGED_IN) {
+            if (user.getStatus() != UserStatus.LOGGED_IN)
+            {
                 user.login();
+                userRepository.add(user);
             } else {
                 logger.info("Login re-issued for already-logged-in user id="
                         + user.getId());
@@ -343,6 +345,7 @@ public class UserService {
             }
 
             user.logout();
+            userRepository.add(user);
             logger.info("Logged out user id=" + memberId);
             return toResponse(user);
         });

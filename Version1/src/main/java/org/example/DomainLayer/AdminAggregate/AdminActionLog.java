@@ -32,6 +32,20 @@ public class AdminActionLog {
         this.createdAt = LocalDateTime.now();
     }
 
+    public AdminActionLog(UUID id,
+                          UUID adminId,
+                          String adminUsername,
+                          String action,
+                          String target,
+                          LocalDateTime createdAt) {
+        this.id = id;
+        this.adminId = adminId;
+        this.adminUsername = adminUsername;
+        this.action = action;
+        this.target = target;
+        this.createdAt = createdAt;
+    }
+
     public UUID getId() {
         return id;
     }

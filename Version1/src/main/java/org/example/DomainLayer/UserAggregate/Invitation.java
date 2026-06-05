@@ -29,4 +29,11 @@ public abstract class Invitation {
     public UUID getCompanyId() {
         return companyId;
     }
+
+    protected Invitation(UUID id, User appointerUser, User appointeeUser, UUID companyId) {
+        this.id = id;
+        this.appointerUser = appointerUser;
+        this.appointeeUser = appointeeUser;
+        this.companyId = companyId;
+    }
 }
