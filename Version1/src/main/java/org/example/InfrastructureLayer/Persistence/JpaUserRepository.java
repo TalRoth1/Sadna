@@ -4,6 +4,7 @@ import org.example.DomainLayer.AdminAggregate.Admin;
 import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
 import org.example.DomainLayer.IUserRepository;
 import org.example.DomainLayer.UserAggregate.*;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -11,6 +12,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Repository
+@Profile("localdb")
 @Transactional
 public class JpaUserRepository implements IUserRepository {
 

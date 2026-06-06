@@ -5,6 +5,7 @@ import org.example.DomainLayer.AdminAggregate.AdminActionLog;
 import org.example.DomainLayer.AdminAggregate.AdminComplaint;
 import org.example.DomainLayer.AdminAggregate.AdminComplaintStatus;
 import org.example.DomainLayer.AdminAggregate.SystemAnalyticsSnapshot;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,6 +14,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
+@Profile("localdb")
 @Transactional
 public class JpaAdminRepository implements IAdminRepository {
 
