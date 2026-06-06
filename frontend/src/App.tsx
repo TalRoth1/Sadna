@@ -91,8 +91,31 @@ function normalizeStatus(status: string): CompanyStatus {
     return "Active";
 }
 
+function readIsAdminFromLocalStorage(): boolean {
+    const userRole = localStorage.getItem("userRole");
+
+    if (userRole === "ADMIN") {
+        return true;
+    }
+
+    const rawCurrentUser = localStorage.getItem("currentUser");
+
+    if (!rawCurrentUser) {
+        return false;
+    }
+
+    try {
+        const currentUser = JSON.parse(rawCurrentUser);
+
+        return currentUser?.role === "ADMIN" || currentUser?.isAdmin === true;
+    } catch {
+        return false;
+    }
+}
+
 function App() {
     const [currentPage, setCurrentPage] = useState<AppPage>("event-search");
+    const [isAdmin, setIsAdmin] = useState<boolean>(() => readIsAdminFromLocalStorage());
     const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
     const [selectionAccessExpiresAt, setSelectionAccessExpiresAt] = useState<string | null>(null);
     const [lotteryAccessCode, setLotteryAccessCode] = useState<string | null>(null);
@@ -331,7 +354,15 @@ function App() {
         if (currentPage === "login") {
             return (
                 <LoginPage
-                    onLoginSuccess={() => setCurrentPage("event-search")}
+                    onLoginSuccess={() => {
+                        setIsAdmin(readIsAdminFromLocalStorage());
+
+                        if (readIsAdminFromLocalStorage()) {
+                            setCurrentPage("admin-dashboard");
+                        } else {
+                            setCurrentPage("event-search");
+                        }
+                    }}
                     onNavigateToRegistration={() => setCurrentPage("registration")}
                 />
             );
@@ -440,7 +471,11 @@ function App() {
 
     return (
         <>
-            <NavigationMenu currentPage={currentPage} onNavigate={navigate} />
+            <NavigationMenu
+                currentPage={currentPage}
+                onNavigate={navigate}
+                isAdmin={isAdmin}
+            />
             {renderPage()}
         </>
     );

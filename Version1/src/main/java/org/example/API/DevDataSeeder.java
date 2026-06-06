@@ -95,7 +95,7 @@ public class DevDataSeeder implements CommandLineRunner {
         private final ICompanyRepository companyRepository;
         private final ILotteryRepository lotteryRepository;
         private final IHistoryRepository historyRepository;
-        private final UserRepository userRepository;
+        private final IUserRepository userRepository;
         private final IAdminRepository adminRepository;
         private final NotificationRepository notificationRepository;
         private final EventManagementDomainService eventManagement;
@@ -127,7 +127,7 @@ public class DevDataSeeder implements CommandLineRunner {
                 // The cast is safe here: BeanConfig wires UserRepository as the
                 // IUserRepository bean, and addAdmin(...) lives on the concrete
                 // class. Documented so a future reader doesn't try to "fix" it.
-                this.userRepository = (UserRepository) userRepository;
+                this.userRepository = userRepository;
                 this.adminRepository = adminRepository;
                 this.notificationRepository = notificationRepository;
                 this.eventManagement = eventManagement;
@@ -274,11 +274,15 @@ public class DevDataSeeder implements CommandLineRunner {
                 UUID closedId = companiesByName.get("Closed Co.");
                 UUID megaId = companiesByName.get("Mega Events Group");
 
+                /*
+
+
                 assignFounder("founder.live@demo.test", liveNationId);
                 assignFounder("founder.indie@demo.test", indieId);
                 assignFounder("founder.closed@demo.test", closedId);
                 assignFounder("founder.mega@demo.test", megaId);
 
+*/
                 // Live Nation gets a richer hierarchy:
                 // founder -> owner.live (full owner rights)
                 // founder -> manager.live.inv (MANAGE_INVENTORY only)
@@ -828,8 +832,8 @@ private void seedIndieLottery() {
          * {@code companyName} so later sections can refer to it by name.
          */
         private void createCompany(String founderEmail, String companyName) {
-                UUID companyId = companyRepository.createCompany(founderEmail, companyName);
-                companiesByName.put(companyName, companyId);
+            UUID companyId = rolesDomainService.createCompany(founderEmail, companyName);
+            companiesByName.put(companyName, companyId);
         }
 
         /**

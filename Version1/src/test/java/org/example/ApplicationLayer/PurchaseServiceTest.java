@@ -4,6 +4,7 @@ import java.time.Duration;
 
 import org.example.DomainLayer.*;
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
+import org.example.DomainLayer.AdminAggregate.Admin;
 import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
 import org.example.DomainLayer.EventAggregate.*;
@@ -17,6 +18,7 @@ import org.example.InfrastructureLayer.NotificationRepository;
 import org.example.InfrastructureLayer.WebSocketNotificationSender;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.jupiter.api.Disabled;
 import org.mockito.Mock;
 
 import java.time.LocalDateTime;
@@ -35,6 +37,7 @@ import static org.mockito.Mockito.*;
 import org.example.ApplicationLayer.dto.PurchaseDTOs.PurchaseHistoryDTO;
 import org.example.ApplicationLayer.dto.NotificationDTOs.NotificationDTO;
 import java.time.Duration;
+
 
 public class PurchaseServiceTest {
 
@@ -1442,9 +1445,11 @@ public class PurchaseServiceTest {
             eventsByID.remove(eventId);
         }
     }
-    private static class InMemoryUserRepository implements IUserRepository
-    {
+    private static class InMemoryUserRepository implements IUserRepository {
         private final Map<UUID, User> usersByID = new LinkedHashMap<>();
+        private final Map<UUID, Admin> adminsByID = new LinkedHashMap<>();
+        private final Map<String, UUID> adminIdsByUsername = new LinkedHashMap<>();
+
         @Override
         public void add(User user) {
             usersByID.put(user.getId(), user);
@@ -1461,18 +1466,43 @@ public class PurchaseServiceTest {
         }
 
         @Override
+        public void addAdmin(Admin admin) {
+            if (admin == null || admin.getId() == null || admin.getUsername() == null) {
+                return;
+            }
+
+            String username = admin.getUsername().trim().toLowerCase();
+            adminsByID.put(admin.getId(), admin);
+            adminIdsByUsername.put(username, admin.getId());
+        }
+
+        @Override
         public boolean isSystemAdmin(String username) {
-            return false;
+            if (username == null) {
+                return false;
+            }
+
+            return adminIdsByUsername.containsKey(username.trim().toLowerCase());
+        }
+
+        @Override
+        public boolean existsAdmin(UUID adminId) {
+            return adminId != null && adminsByID.containsKey(adminId);
         }
 
         @Override
         public boolean existsByEmail(String email) {
-            return false;
+            return findByEmail(email).isPresent();
         }
 
         @Override
         public boolean existsByUsername(String username) {
-            return false;
+            if (username == null) {
+                return false;
+            }
+
+            return usersByID.values().stream()
+                    .anyMatch(user -> username.equals(user.getUsername()));
         }
 
         @Override
@@ -1483,11 +1513,6 @@ public class PurchaseServiceTest {
                 }
             }
             return Optional.empty();
-        }
-
-        @Override
-        public boolean existsAdmin(UUID adminId) {
-            return false;
         }
 
         @Override
@@ -1623,7 +1648,7 @@ public class PurchaseServiceTest {
         when(purchaseDomainServiceMock.viewActivePurchase(any()))
                 .thenReturn(activePurchaseMock);
 
-        // 3. Relax matchers to completely guarantee this returns false 
+        // 3. Relax matchers to completely guarantee this returns false
         when(purchaseDomainServiceMock.completePurchase(any(), any(), any()))
                 .thenReturn(false);
 

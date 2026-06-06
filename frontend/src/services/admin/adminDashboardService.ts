@@ -40,6 +40,5 @@ const adminActions: AdminAction[] = [
 ];
 
 export async function getAdminActions(_userId: string): Promise<AdminAction[]> {
-    await api.get("/admin/dashboard");
     return adminActions;
 }

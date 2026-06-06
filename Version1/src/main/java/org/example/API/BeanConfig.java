@@ -15,36 +15,12 @@ import org.example.ApplicationLayer.LotteryScheduler;
 import org.example.ApplicationLayer.PurchaseService;
 import org.example.ApplicationLayer.QueueManager;
 import org.example.ApplicationLayer.SystemMetricsCollector;
-import org.example.DomainLayer.EventManagementDomainService;
-import org.example.DomainLayer.ICompanyRepository;
-import org.example.DomainLayer.IEventRepository;
-import org.example.DomainLayer.IHistoryRepository;
-import org.example.DomainLayer.ILotteryRepository;
-import org.example.DomainLayer.INotificationRepository;
-import org.example.DomainLayer.IPurchaseRepository;
-import org.example.DomainLayer.IUserRepository;
+import org.example.DomainLayer.*;
 import org.example.DomainLayer.NotificationAggregate.INotifier;
-import org.example.DomainLayer.PurchaseDomainService;
-import org.example.DomainLayer.RolesDomainService;
-import org.example.InfrastructureLayer.Broadcaster;
-import org.example.InfrastructureLayer.CompanyRepository;
-import org.example.InfrastructureLayer.HistoryRepository;
-import org.example.InfrastructureLayer.InMemoryEventRepository;
-import org.example.InfrastructureLayer.InMemoryKeyedLock;
-import org.example.InfrastructureLayer.InMemoryLoginRateLimiter;
-import org.example.InfrastructureLayer.InMemoryPurchaseRepository;
-import org.example.InfrastructureLayer.InMemorySessionRegistry;
-import org.example.InfrastructureLayer.InMemorySystemMetricsTracker;
-import org.example.InfrastructureLayer.InMemoryTokenBlacklist;
-import org.example.InfrastructureLayer.LotteryRepository;
-import org.example.InfrastructureLayer.NotificationRepository;
-import org.example.InfrastructureLayer.Notifier;
-import org.example.InfrastructureLayer.PlainTextAuthenticationGateway;
-import org.example.InfrastructureLayer.SimulatedPaymentGateway;
-import org.example.InfrastructureLayer.SimulatedTicketingGateway;
-import org.example.InfrastructureLayer.UserRepository;
+import org.example.InfrastructureLayer.*;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 
 /**
  * Spring wiring for the domain + infrastructure layers.
@@ -79,10 +55,6 @@ public class BeanConfig {
         return new CompanyRepository();
     }
 
-    @Bean
-    public IUserRepository userRepository() {
-        return new UserRepository();
-    }
 
     @Bean
     public IHistoryRepository historyRepository() {
@@ -97,6 +69,18 @@ public class BeanConfig {
     @Bean
     public IPurchaseRepository purchaseRepository() {
         return new InMemoryPurchaseRepository();
+    }
+
+    @Bean
+    @Profile("!localdb")
+    public IUserRepository userRepository() {
+        return new UserRepository();
+    }
+
+    @Bean
+    @Profile("!localdb")
+    public IAdminRepository adminRepository() {
+        return new AdminRepository();
     }
 
     // ---------------------------------------------------------------------

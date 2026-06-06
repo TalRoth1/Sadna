@@ -53,6 +53,30 @@ public class SystemAnalyticsSnapshot {
         this.createdAt = LocalDateTime.now();
     }
 
+    public SystemAnalyticsSnapshot(UUID id,
+                                   int registeredUsersCount,
+                                   int loggedInUsersCount,
+                                   int activeCompaniesCount,
+                                   int activeQueuesCount,
+                                   int activePurchasesCount,
+                                   int totalPurchasesCount,
+                                   double newSubscriberRatePerMin,
+                                   double ticketReservationRatePerMin,
+                                   double ticketPurchaseRatePerMin,
+                                   LocalDateTime createdAt) {
+        this.id = id;
+        this.registeredUsersCount = registeredUsersCount;
+        this.loggedInUsersCount = loggedInUsersCount;
+        this.activeCompaniesCount = activeCompaniesCount;
+        this.activeQueuesCount = activeQueuesCount;
+        this.activePurchasesCount = activePurchasesCount;
+        this.totalPurchasesCount = totalPurchasesCount;
+        this.newSubscriberRatePerMin = newSubscriberRatePerMin;
+        this.ticketReservationRatePerMin = ticketReservationRatePerMin;
+        this.ticketPurchaseRatePerMin = ticketPurchaseRatePerMin;
+        this.createdAt = createdAt;
+    }
+
     // ── getters ──────────────────────────────────────────────────────────
 
     public UUID getId()                    { return id; }

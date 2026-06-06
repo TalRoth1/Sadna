@@ -54,6 +54,7 @@ public class RolesDomainService {
 
         synchronized (founder) {
             founder.getCompanyRoles().put(companyId, new CompanyFounder(founderEmail));
+            userRepository.add(founder);
         }
 
         return companyId;
@@ -138,11 +139,14 @@ public class RolesDomainService {
             for (UUID companyId : companies) {
                 Company company = companyRepository.findByID(companyId)
                         .orElseThrow(() -> new IllegalArgumentException("Company not found"));
+
                 synchronized (company) {
                     user.removeFromCompanyAsAdmin(companyId);
                 }
             }
-            // TODO: add notification to company members
+
+            userRepository.add(user);
+// TODO: add notification to company members
 
         } finally {
             lock.unlock();
@@ -168,6 +172,8 @@ public class RolesDomainService {
 
         synchronized (company) {
             userToRemove.removeFromCompanyAsOwner(companyId, ownerUser);
+            userRepository.add(userToRemove);
+            userRepository.add(ownerUser);
         }
     }
 
@@ -198,7 +204,9 @@ public class RolesDomainService {
                 .orElseThrow(() -> new IllegalArgumentException("User to invite not found"));
 
         synchronized (company) {
-            return userToInvite.inviteUserToBecomeManager(companyId, ownerUser, premissions);
+            UUID invitationId = userToInvite.inviteUserToBecomeManager(companyId, ownerUser, premissions);
+            userRepository.add(userToInvite);
+            return invitationId;
         }
     }
 
@@ -226,20 +234,35 @@ public class RolesDomainService {
                 .orElseThrow(() -> new IllegalArgumentException("User to invite not found"));
 
         synchronized (company) {
-            return userToInvite.inviteUserToBecomeOwner(companyId, ownerUser);
+            UUID invitationId = userToInvite.inviteUserToBecomeOwner(companyId, ownerUser);
+            userRepository.add(userToInvite);
+            return invitationId;
         }
     }
 
     public void acceptCompanyInvitation(UUID invetationID, String username, UUID companyId) {
-        Company company = companyRepository.findByID(companyId).get();
-
-        if (company == null)
-            throw new IllegalArgumentException("Company not found");
+        Company company = companyRepository.findByID(companyId)
+                .orElseThrow(() -> new IllegalArgumentException("Company not found"));
 
         User user = userRepository.findByEmail(username)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
         synchronized (company) {
+            Invitation invitation = user.getCompanyInvitations()
+                    .stream()
+                    .filter(inv -> inv.getId().equals(invetationID))
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalStateException("Invalid invitation ID."));
+
+            User appointerUser = invitation.getAppointerUser();
+
             user.acceptCompanyInvitation(invetationID);
+
+            userRepository.add(user);
+
+            if (appointerUser != null) {
+                userRepository.add(appointerUser);
+            }
         }
     }
 
@@ -253,6 +276,7 @@ public class RolesDomainService {
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
         synchronized (company) {
             user.rejectCompanyInvitation(invitationID);
+            userRepository.add(user);
         }
     }
 
@@ -412,6 +436,7 @@ public class RolesDomainService {
                 .orElseThrow(() -> new IllegalArgumentException("Owner user not found"));
         synchronized (company) {
             managerUser.changeManagerPermissionsAsOwner(companyId, ownerUser, newPremissions);
+            userRepository.add(managerUser);
         }
     }
 

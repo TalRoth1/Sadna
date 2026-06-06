@@ -13,7 +13,6 @@ import org.example.DomainLayer.AdminAggregate.AdminComplaintStatus;
 import org.example.DomainLayer.AdminAggregate.SystemAnalyticsSnapshot;
 import org.springframework.stereotype.Repository;
 
-@Repository
 public class AdminRepository implements IAdminRepository {
     private final ConcurrentHashMap<UUID, AdminComplaint> complaints = new ConcurrentHashMap<>();
     private final List<AdminActionLog> actionLogs = new ArrayList<>();

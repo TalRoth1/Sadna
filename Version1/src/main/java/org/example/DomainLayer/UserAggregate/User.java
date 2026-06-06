@@ -52,6 +52,24 @@ public class User {
         this.CompanyInvitations = new HashMap<>();
     }
 
+    public User(UUID id,
+                String username,
+                String email,
+                String passwordHash,
+                UserRole role,
+                UserStatus status,
+                float age) {
+        this.id = id;
+        this.username = username;
+        this.email = email;
+        this.passwordHash = passwordHash;
+        this.role = role;
+        this.status = status;
+        this.age = age;
+        this.companyRoles = new HashMap<>();
+        this.CompanyInvitations = new HashMap<>();
+    }
+
     public void login() {
         if (this.status == UserStatus.REMOVED) {
             throw new IllegalStateException("The user was removed from the platform.");
@@ -128,11 +146,21 @@ public class User {
         CompanyInvitations.remove(invitationId);
     }
 
+
+
     public void rejectCompanyInvitation(UUID invitationId) {
         if (!CompanyInvitations.containsKey(invitationId)) {
             throw new IllegalStateException("Invalid invitation ID.");
         }
         CompanyInvitations.remove(invitationId);
+    }
+
+    public void restoreCompanyInvitation(Invitation invitation) {
+        if (invitation == null) {
+            return;
+        }
+
+        this.CompanyInvitations.put(invitation.getId(), invitation);
     }
 
     public List<Invitation> getCompanyInvitations() {

@@ -42,6 +42,28 @@ public class AdminComplaint {
         this.status = AdminComplaintStatus.OPEN;
     }
 
+    public AdminComplaint(UUID id,
+                          UUID reporterUserId,
+                          String reporterUsername,
+                          String title,
+                          String description,
+                          LocalDateTime createdAt,
+                          AdminComplaintStatus status,
+                          String adminResponse,
+                          String responderAdminUsername,
+                          LocalDateTime respondedAt) {
+        this.id = id;
+        this.reporterUserId = reporterUserId;
+        this.reporterUsername = reporterUsername;
+        this.title = title;
+        this.description = description;
+        this.createdAt = createdAt;
+        this.status = status;
+        this.adminResponse = adminResponse;
+        this.responderAdminUsername = responderAdminUsername;
+        this.respondedAt = respondedAt;
+    }
+
     public void respond(String adminUsername, String response) {
         if (adminUsername == null || adminUsername.isBlank()) {
             throw new IllegalArgumentException("Admin username is required");
