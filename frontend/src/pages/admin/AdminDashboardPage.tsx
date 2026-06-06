@@ -20,8 +20,13 @@ export default function AdminDashboardPage({ onNavigate }: AdminDashboardPagePro
 
                 const currentUser = await getCurrentUser();
 
-                if (!currentUser) {
-                    setErrorMessage("You must be logged in to access the admin dashboard.");
+                const isAdmin =
+                    localStorage.getItem("userRole") === "ADMIN" ||
+                    currentUser?.role === "ADMIN" ||
+                    currentUser?.isAdmin === true;
+
+                if (!currentUser || !isAdmin) {
+                    setErrorMessage("You must be logged in as admin to access the admin dashboard.");
                     return;
                 }
 

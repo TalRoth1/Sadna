@@ -411,14 +411,21 @@ public class UserService {
      * member from a system administrator.
      */
     private UserResponse toResponse(User user) {
-        boolean isAdmin = userRepository.existsAdmin(user.getId());
+        boolean isAdmin =
+                userRepository.existsAdmin(user.getId())
+                        || (user.getEmail() != null && userRepository.isSystemAdmin(user.getEmail()))
+                        || (user.getUsername() != null && userRepository.isSystemAdmin(user.getUsername()));
+
+        String role = isAdmin ? "ADMIN" : user.getRole().toString();
+
         return new UserResponse(
                 user.getId(),
                 user.getUsername(),
                 user.getEmail(),
                 user.getStatus().toString(),
-                user.getRole().toString(),
+                role,
                 user.getAge(),
-                isAdmin);
+                isAdmin
+        );
     }
 }
