@@ -2,57 +2,29 @@ package org.example.InfrastructureLayer.Persistence;
 
 import jakarta.persistence.*;
 import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
-import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
 @Entity
-@Table(
-        name = "company_members",
-        uniqueConstraints = {
-                @UniqueConstraint(
-                        name = "uk_company_members_company_username",
-                        columnNames = {"companyId", "username"}
-                )
-        }
-)
+@Table(name = "company_members")
 public class CompanyMemberEntity {
 
-    @Id
-    private UUID id;
+    @EmbeddedId
+    private CompanyMemberId id;
 
-    @Column(nullable = false)
-    private UUID companyId;
-
-    @Column(nullable = false)
-    private String username;
-
-    @Column(nullable = false)
+    @Column(name = "role", nullable = false)
     private String role;
 
+    @Column(name = "appointer_username")
     private String appointerUsername;
 
-    @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(
-            name = "company_member_permissions",
-            joinColumns = @JoinColumn(name = "company_member_id")
-    )
-    @Enumerated(EnumType.STRING)
-    @Column(name = "permission")
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "permissions", nullable = false, columnDefinition = "jsonb")
     private Set<CompanyPermission> permissions = new HashSet<>();
-
-    @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(
-            name = "company_member_events",
-            joinColumns = @JoinColumn(name = "company_member_id")
-    )
-    @Column(name = "event_id")
-    private Set<UUID> eventIds = new HashSet<>();
-
-    @Column(nullable = false)
-    private LocalDateTime createdAt;
 
     protected CompanyMemberEntity() {
     }
@@ -61,32 +33,22 @@ public class CompanyMemberEntity {
                                String username,
                                String role,
                                String appointerUsername,
-                               Set<CompanyPermission> permissions,
-                               Set<UUID> eventIds) {
-        this.id = UUID.randomUUID();
-        this.companyId = companyId;
-        this.username = username;
+                               Set<CompanyPermission> permissions) {
+        this.id = new CompanyMemberId(companyId, username);
         this.role = role;
         this.appointerUsername = appointerUsername;
+
         if (permissions != null) {
             this.permissions = new HashSet<>(permissions);
         }
-        if (eventIds != null) {
-            this.eventIds = new HashSet<>(eventIds);
-        }
-        this.createdAt = LocalDateTime.now();
-    }
-
-    public UUID getId() {
-        return id;
     }
 
     public UUID getCompanyId() {
-        return companyId;
+        return id.getCompanyId();
     }
 
     public String getUsername() {
-        return username;
+        return id.getUsername();
     }
 
     public String getRole() {
@@ -99,13 +61,5 @@ public class CompanyMemberEntity {
 
     public Set<CompanyPermission> getPermissions() {
         return permissions;
-    }
-
-    public Set<UUID> getEventIds() {
-        return eventIds;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
     }
 }

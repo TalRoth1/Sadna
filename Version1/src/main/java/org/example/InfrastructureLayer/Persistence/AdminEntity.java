@@ -1,25 +1,21 @@
 package org.example.InfrastructureLayer.Persistence;
 
 import jakarta.persistence.*;
+
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(
-        name = "admins",
-        uniqueConstraints = {
-                @UniqueConstraint(name = "uk_admins_username", columnNames = "username")
-        }
-)
+@Table(name = "admins")
 public class AdminEntity {
 
     @Id
     private UUID id;
 
-    @Column(nullable = false, unique = true)
+    @Column(name = "username", nullable = false, unique = true)
     private String username;
 
-    @Column(nullable = false)
+    @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
     protected AdminEntity() {
@@ -28,7 +24,13 @@ public class AdminEntity {
     public AdminEntity(UUID id, String username) {
         this.id = id;
         this.username = username;
-        this.createdAt = LocalDateTime.now();
+    }
+
+    @PrePersist
+    private void onCreate() {
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
     }
 
     public UUID getId() {

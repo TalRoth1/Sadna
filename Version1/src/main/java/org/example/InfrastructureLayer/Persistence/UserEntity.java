@@ -1,47 +1,32 @@
 package org.example.InfrastructureLayer.Persistence;
 
 import jakarta.persistence.*;
-import org.example.DomainLayer.UserAggregate.UserRole;
 import org.example.DomainLayer.UserAggregate.UserStatus;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(
-        name = "users",
-        uniqueConstraints = {
-                @UniqueConstraint(name = "uk_users_username", columnNames = "username"),
-                @UniqueConstraint(name = "uk_users_email", columnNames = "email")
-        }
-)
+@Table(name = "users")
 public class UserEntity {
 
     @Id
     private UUID id;
 
-    @Column(nullable = false, unique = true)
+    @Column(name = "username", nullable = false, unique = true)
     private String username;
 
-    @Column(unique = true)
-    private String email;
-
+    @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private UserRole role;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(name = "status", nullable = false)
     private UserStatus status;
 
-    private float age;
-
-    @Column(nullable = false)
+    @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
-    @Column(nullable = false)
+    @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
     protected UserEntity() {
@@ -49,30 +34,54 @@ public class UserEntity {
 
     public UserEntity(UUID id,
                       String username,
-                      String email,
                       String passwordHash,
-                      UserRole role,
-                      UserStatus status,
-                      float age) {
+                      UserStatus status) {
+        LocalDateTime now = LocalDateTime.now();
+
         this.id = id;
         this.username = username;
-        this.email = email;
-        this.passwordHash = passwordHash;
-        this.role = role;
+        this.passwordHash = passwordHash == null ? "" : passwordHash;
         this.status = status;
-        this.age = age;
+        this.createdAt = now;
+        this.updatedAt = now;
+    }
+
+    public UserEntity(UUID id,
+                      String username,
+                      String passwordHash,
+                      UserStatus status,
+                      LocalDateTime createdAt,
+                      LocalDateTime updatedAt) {
+        LocalDateTime now = LocalDateTime.now();
+
+        this.id = id;
+        this.username = username;
+        this.passwordHash = passwordHash == null ? "" : passwordHash;
+        this.status = status;
+        this.createdAt = createdAt == null ? now : createdAt;
+        this.updatedAt = updatedAt == null ? now : updatedAt;
     }
 
     @PrePersist
     private void onCreate() {
         LocalDateTime now = LocalDateTime.now();
-        this.createdAt = now;
-        this.updatedAt = now;
+
+        if (createdAt == null) {
+            createdAt = now;
+        }
+
+        if (updatedAt == null) {
+            updatedAt = now;
+        }
     }
 
     @PreUpdate
     private void onUpdate() {
-        this.updatedAt = LocalDateTime.now();
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
+
+        updatedAt = LocalDateTime.now();
     }
 
     public UUID getId() {
@@ -83,24 +92,12 @@ public class UserEntity {
         return username;
     }
 
-    public String getEmail() {
-        return email;
-    }
-
     public String getPasswordHash() {
         return passwordHash;
     }
 
-    public UserRole getRole() {
-        return role;
-    }
-
     public UserStatus getStatus() {
         return status;
-    }
-
-    public float getAge() {
-        return age;
     }
 
     public LocalDateTime getCreatedAt() {

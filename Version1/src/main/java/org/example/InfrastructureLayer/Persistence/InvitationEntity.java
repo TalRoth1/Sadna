@@ -2,8 +2,9 @@ package org.example.InfrastructureLayer.Persistence;
 
 import jakarta.persistence.*;
 import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
-import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
@@ -15,29 +16,21 @@ public class InvitationEntity {
     @Id
     private UUID id;
 
-    @Column(nullable = false)
+    @Column(name = "company_id", nullable = false)
     private UUID companyId;
 
-    @Column(nullable = false)
+    @Column(name = "appointer_username", nullable = false)
     private String appointerUsername;
 
-    @Column(nullable = false)
-    private String appointeeUsername;
+    @Column(name = "apointee_username", nullable = false)
+    private String apointeeUsername;
 
-    @Column(nullable = false)
-    private String type;
+    @Column(name = "role", nullable = false, length = 20)
+    private String role;
 
-    @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(
-            name = "invitation_permissions",
-            joinColumns = @JoinColumn(name = "invitation_id")
-    )
-    @Enumerated(EnumType.STRING)
-    @Column(name = "permission")
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "permissions", nullable = false, columnDefinition = "jsonb")
     private Set<CompanyPermission> permissions = new HashSet<>();
-
-    @Column(nullable = false)
-    private LocalDateTime createdAt;
 
     protected InvitationEntity() {
     }
@@ -45,18 +38,18 @@ public class InvitationEntity {
     public InvitationEntity(UUID id,
                             UUID companyId,
                             String appointerUsername,
-                            String appointeeUsername,
-                            String type,
+                            String apointeeUsername,
+                            String role,
                             Set<CompanyPermission> permissions) {
         this.id = id;
         this.companyId = companyId;
         this.appointerUsername = appointerUsername;
-        this.appointeeUsername = appointeeUsername;
-        this.type = type;
+        this.apointeeUsername = apointeeUsername;
+        this.role = role;
+
         if (permissions != null) {
             this.permissions = new HashSet<>(permissions);
         }
-        this.createdAt = LocalDateTime.now();
     }
 
     public UUID getId() {
@@ -71,19 +64,15 @@ public class InvitationEntity {
         return appointerUsername;
     }
 
-    public String getAppointeeUsername() {
-        return appointeeUsername;
+    public String getApointeeUsername() {
+        return apointeeUsername;
     }
 
-    public String getType() {
-        return type;
+    public String getRole() {
+        return role;
     }
 
     public Set<CompanyPermission> getPermissions() {
         return permissions;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
     }
 }

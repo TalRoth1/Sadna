@@ -25,4 +25,5 @@ public class ManagerInvitation extends Invitation {
         super(id, appointerUser, appointeeUser, companyId);
         this.premissions = premissions;
     }
+
 }

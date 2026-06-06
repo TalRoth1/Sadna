@@ -159,6 +159,7 @@ public class User {
         if (invitation == null) {
             return;
         }
+
         this.CompanyInvitations.put(invitation.getId(), invitation);
     }
 

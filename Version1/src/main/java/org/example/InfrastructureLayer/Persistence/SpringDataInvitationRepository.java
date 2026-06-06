@@ -8,9 +8,9 @@ import java.util.UUID;
 
 public interface SpringDataInvitationRepository extends JpaRepository<InvitationEntity, UUID> {
 
-    List<InvitationEntity> findByAppointeeUsername(String appointeeUsername);
+    List<InvitationEntity> findByApointeeUsername(String apointeeUsername);
 
-    List<InvitationEntity> findByAppointeeUsernameIn(Collection<String> appointeeUsernames);
+    List<InvitationEntity> findByApointeeUsernameIn(Collection<String> apointeeUsernames);
 
-    void deleteByAppointeeUsernameIn(Collection<String> appointeeUsernames);
+    void deleteByApointeeUsernameIn(Collection<String> apointeeUsernames);
 }

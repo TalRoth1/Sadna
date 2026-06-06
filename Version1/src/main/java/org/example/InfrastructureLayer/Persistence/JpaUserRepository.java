@@ -1,7 +1,8 @@
 package org.example.InfrastructureLayer.Persistence;
 
-import org.example.DomainLayer.IUserRepository;
+import org.example.DomainLayer.AdminAggregate.Admin;
 import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
+import org.example.DomainLayer.IUserRepository;
 import org.example.DomainLayer.UserAggregate.*;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,12 +35,40 @@ public class JpaUserRepository implements IUserRepository {
             throw new IllegalArgumentException("User is required");
         }
 
-        userJpa.save(toEntity(user));
+        String identifier = extractUserIdentifier(user);
+        if (identifier == null) {
+            identifier = user.getId().toString();
+        }
+
+        Optional<UserEntity> existing = userJpa.findByUsername(identifier);
+
+        UserEntity entityToSave;
+
+        if (existing.isPresent()) {
+            UserEntity existingEntity = existing.get();
+
+            entityToSave = new UserEntity(
+                    existingEntity.getId(),
+                    identifier,
+                    user.getPasswordHash(),
+                    user.getStatus(),
+                    existingEntity.getCreatedAt(),
+                    existingEntity.getUpdatedAt()
+            );
+        } else {
+            entityToSave = toEntity(user);
+        }
+
+        userJpa.save(entityToSave);
 
         List<String> identifiers = identifiersForUser(user);
+        if (!identifiers.contains(identifier)) {
+            identifiers = new ArrayList<>(identifiers);
+            identifiers.add(identifier);
+        }
 
-        companyMemberJpa.deleteByUsernameIn(identifiers);
-        invitationJpa.deleteByAppointeeUsernameIn(identifiers);
+        companyMemberJpa.deleteByIdUsernameIn(identifiers);
+        invitationJpa.deleteByApointeeUsernameIn(identifiers);
 
         saveCompanyRoles(user);
         saveInvitations(user);
@@ -52,7 +81,8 @@ public class JpaUserRepository implements IUserRepository {
             return Optional.empty();
         }
 
-        return userJpa.findById(UID).map(entity -> toDomain(entity, true));
+        return userJpa.findById(UID)
+                .map(entity -> toDomain(entity, true));
     }
 
     @Override
@@ -61,40 +91,52 @@ public class JpaUserRepository implements IUserRepository {
         return userId != null && userJpa.existsById(userId);
     }
 
-    @Override
-    @Transactional(readOnly = true)
-    public boolean isSystemAdmin(String username) {
-        String normalized = normalizeIdentifier(username);
-        if (normalized == null) {
-            return false;
-        }
-
-        return adminJpa.existsByUsername(normalized);
-    }
-
+    /*
+     * ERD has no email column.
+     * In the DB schema, users.username is the persistent login identifier.
+     * Therefore, email lookups are mapped to username.
+     */
     @Override
     @Transactional(readOnly = true)
     public boolean existsByEmail(String email) {
-        String normalized = normalizeEmail(email);
-        return normalized != null && userJpa.existsByEmail(normalized);
+        String identifier = normalizeIdentifier(email);
+        return identifier != null && userJpa.existsByUsername(identifier);
     }
 
     @Override
     @Transactional(readOnly = true)
     public boolean existsByUsername(String username) {
-        String normalized = normalizeIdentifier(username);
-        return normalized != null && userJpa.existsByUsername(normalized);
+        String identifier = normalizeIdentifier(username);
+        return identifier != null && userJpa.existsByUsername(identifier);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Optional<User> findByEmail(String email) {
-        String normalized = normalizeEmail(email);
-        if (normalized == null) {
+        String identifier = normalizeIdentifier(email);
+
+        if (identifier == null) {
             return Optional.empty();
         }
 
-        return userJpa.findByEmail(normalized).map(entity -> toDomain(entity, true));
+        return userJpa.findByUsername(identifier)
+                .map(entity -> toDomain(entity, true));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<UUID, User> getAllUsers() {
+        return userJpa.findAll()
+                .stream()
+                .map(entity -> toDomain(entity, true))
+                .collect(Collectors.toMap(User::getId, user -> user));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean isSystemAdmin(String username) {
+        String identifier = normalizeIdentifier(username);
+        return identifier != null && adminJpa.existsByUsername(identifier);
     }
 
     @Override
@@ -104,11 +146,45 @@ public class JpaUserRepository implements IUserRepository {
     }
 
     @Override
+    public void addAdmin(Admin admin) {
+        if (admin == null) {
+            throw new IllegalArgumentException("Admin is required");
+        }
+
+        String username = normalizeIdentifier(admin.getUsername());
+
+        if (username == null) {
+            throw new IllegalArgumentException("Admin username is required");
+        }
+
+        if (admin.getId() == null) {
+            throw new IllegalArgumentException("Admin ID is required");
+        }
+
+        if (adminJpa.existsByUsername(username)) {
+            return;
+        }
+
+        /*
+         * According to the original ERD/schema, admins.username refers to an
+         * existing users.username. So the admin user must be seeded as a User
+         * before we insert into admins.
+         */
+        if (!userJpa.existsByUsername(username)) {
+            throw new IllegalStateException(
+                    "Cannot create admin because no user exists with username: " + username
+            );
+        }
+
+        adminJpa.save(new AdminEntity(admin.getId(), username));
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public List<UUID> getCompaniesIdsByMember(String username) {
         List<String> identifiers = identifiersForIdentifier(username);
 
-        return companyMemberJpa.findByUsernameIn(identifiers)
+        return companyMemberJpa.findByIdUsernameIn(identifiers)
                 .stream()
                 .map(CompanyMemberEntity::getCompanyId)
                 .distinct()
@@ -123,8 +199,13 @@ public class JpaUserRepository implements IUserRepository {
         }
 
         return companyMemberJpa
-                .findFirstByUsernameInAndCompanyId(identifiersForIdentifier(username), companyId)
-                .map(member -> member.getRole().equals("FOUNDER") || member.getRole().equals("OWNER"))
+                .findFirstByIdUsernameInAndIdCompanyId(
+                        identifiersForIdentifier(username),
+                        companyId
+                )
+                .map(member ->
+                        "FOUNDER".equalsIgnoreCase(member.getRole())
+                                || "OWNER".equalsIgnoreCase(member.getRole()))
                 .orElse(false);
     }
 
@@ -139,7 +220,7 @@ public class JpaUserRepository implements IUserRepository {
         }
 
         Optional<CompanyMemberEntity> memberOpt =
-                companyMemberJpa.findFirstByUsernameInAndCompanyId(
+                companyMemberJpa.findFirstByIdUsernameInAndIdCompanyId(
                         identifiersForIdentifier(username),
                         companyId
                 );
@@ -150,57 +231,46 @@ public class JpaUserRepository implements IUserRepository {
 
         CompanyMemberEntity member = memberOpt.get();
 
-        if (member.getRole().equals("FOUNDER") || member.getRole().equals("OWNER")) {
+        if ("FOUNDER".equalsIgnoreCase(member.getRole())
+                || "OWNER".equalsIgnoreCase(member.getRole())) {
             return true;
         }
 
-        if (!member.getRole().equals("MANAGER")) {
+        if (!"MANAGER".equalsIgnoreCase(member.getRole())) {
             return false;
         }
 
-        boolean hasPermission = member.getPermissions().contains(permission);
-
-        if (!hasPermission) {
-            return false;
-        }
-
-        if (eventId == null) {
-            return true;
-        }
-
-        return member.getEventIds().isEmpty() || member.getEventIds().contains(eventId);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public Map<UUID, User> getAllUsers() {
-        return userJpa.findAll()
-                .stream()
-                .map(entity -> toDomain(entity, true))
-                .collect(Collectors.toMap(User::getId, user -> user));
+        return member.getPermissions().contains(permission);
     }
 
     private UserEntity toEntity(User user) {
+        String identifier = extractUserIdentifier(user);
+
+        if (identifier == null) {
+            identifier = user.getId().toString();
+        }
+
         return new UserEntity(
                 user.getId(),
-                normalizeIdentifier(user.getUsername()),
-                normalizeEmail(user.getEmail()),
+                identifier,
                 user.getPasswordHash(),
-                user.getRole(),
-                user.getStatus(),
-                user.getAge()
+                user.getStatus()
         );
+    }
+
+    private User toDomain(UserEntity entity) {
+        return toDomain(entity, true);
     }
 
     private User toDomain(UserEntity entity, boolean includeInvitations) {
         User user = new User(
                 entity.getId(),
                 entity.getUsername(),
-                entity.getEmail(),
+                entity.getUsername(),
                 entity.getPasswordHash(),
-                entity.getRole(),
+                UserRole.MEMBER,
                 entity.getStatus(),
-                entity.getAge()
+                0
         );
 
         restoreCompanyRoles(user);
@@ -213,28 +283,37 @@ public class JpaUserRepository implements IUserRepository {
     }
 
     private void restoreCompanyRoles(User user) {
-        for (CompanyMemberEntity member : companyMemberJpa.findByUsernameIn(identifiersForUser(user))) {
+        for (CompanyMemberEntity member : companyMemberJpa.findByIdUsernameIn(identifiersForUser(user))) {
             ICompanyMember role = toCompanyMemberDomain(member);
+
             if (role != null) {
-                role.getEventsIds().addAll(member.getEventIds());
                 user.getCompanyRoles().put(member.getCompanyId(), role);
             }
         }
     }
 
     private ICompanyMember toCompanyMemberDomain(CompanyMemberEntity entity) {
-        return switch (entity.getRole()) {
-            case "FOUNDER" -> new CompanyFounder(entity.getUsername());
-            case "OWNER" -> new CompanyOwner(entity.getUsername(), null);
-            case "MANAGER" -> new CompanyManager(entity.getUsername(), null, entity.getPermissions());
-            default -> null;
-        };
+        String role = entity.getRole();
+
+        if ("FOUNDER".equalsIgnoreCase(role)) {
+            return new CompanyFounder(entity.getUsername());
+        }
+
+        if ("OWNER".equalsIgnoreCase(role)) {
+            return new CompanyOwner(entity.getUsername(), null);
+        }
+
+        if ("MANAGER".equalsIgnoreCase(role)) {
+            return new CompanyManager(entity.getUsername(), null, entity.getPermissions());
+        }
+
+        return null;
     }
 
     private void restoreInvitations(User appointee) {
         List<String> appointeeIdentifiers = identifiersForUser(appointee);
 
-        for (InvitationEntity entity : invitationJpa.findByAppointeeUsernameIn(appointeeIdentifiers)) {
+        for (InvitationEntity entity : invitationJpa.findByApointeeUsernameIn(appointeeIdentifiers)) {
             Optional<User> appointerOpt = findUserWithoutInvitations(entity.getAppointerUsername());
 
             if (appointerOpt.isEmpty()) {
@@ -245,7 +324,7 @@ public class JpaUserRepository implements IUserRepository {
 
             Invitation invitation;
 
-            if ("MANAGER".equals(entity.getType())) {
+            if ("MANAGER".equalsIgnoreCase(entity.getRole())) {
                 invitation = new ManagerInvitation(
                         entity.getId(),
                         appointer,
@@ -253,7 +332,7 @@ public class JpaUserRepository implements IUserRepository {
                         entity.getCompanyId(),
                         entity.getPermissions()
                 );
-            } else if ("OWNER".equals(entity.getType())) {
+            } else if ("OWNER".equalsIgnoreCase(entity.getRole())) {
                 invitation = new OwnerInvitation(
                         entity.getId(),
                         appointer,
@@ -269,26 +348,14 @@ public class JpaUserRepository implements IUserRepository {
     }
 
     private Optional<User> findUserWithoutInvitations(String identifier) {
-        Optional<UserEntity> entityOpt = findEntityByIdentifier(identifier);
+        String normalized = normalizeIdentifier(identifier);
 
-        return entityOpt.map(entity -> toDomain(entity, false));
-    }
-
-    private Optional<UserEntity> findEntityByIdentifier(String identifier) {
-        String email = normalizeEmail(identifier);
-        if (email != null) {
-            Optional<UserEntity> byEmail = userJpa.findByEmail(email);
-            if (byEmail.isPresent()) {
-                return byEmail;
-            }
+        if (normalized == null) {
+            return Optional.empty();
         }
 
-        String username = normalizeIdentifier(identifier);
-        if (username != null) {
-            return userJpa.findByUsername(username);
-        }
-
-        return Optional.empty();
+        return userJpa.findByUsername(normalized)
+                .map(entity -> toDomain(entity, false));
     }
 
     private void saveCompanyRoles(User user) {
@@ -300,11 +367,16 @@ public class JpaUserRepository implements IUserRepository {
                 continue;
             }
 
-            String roleName = role.getRoleName().toUpperCase();
+            String roleUsername = normalizeIdentifier(role.getUsername());
+            if (roleUsername == null) {
+                continue;
+            }
+
+            String roleName = normalizeRole(role.getRoleName());
 
             String appointerUsername = null;
             if (role.getAppointer() != null) {
-                appointerUsername = role.getAppointer().getUsername();
+                appointerUsername = normalizeIdentifier(role.getAppointer().getUsername());
             }
 
             Set<CompanyPermission> permissions = new HashSet<>();
@@ -313,15 +385,12 @@ public class JpaUserRepository implements IUserRepository {
                 permissions.addAll(manager.getPremissions());
             }
 
-            Set<UUID> eventIds = new HashSet<>(role.getEventsIds());
-
             CompanyMemberEntity entity = new CompanyMemberEntity(
                     companyId,
-                    role.getUsername(),
+                    roleUsername,
                     roleName,
                     appointerUsername,
-                    permissions,
-                    eventIds
+                    permissions
             );
 
             companyMemberJpa.save(entity);
@@ -330,27 +399,31 @@ public class JpaUserRepository implements IUserRepository {
 
     private void saveInvitations(User user) {
         for (Invitation invitation : user.getCompanyInvitations()) {
-            String type;
+            String role;
             Set<CompanyPermission> permissions = new HashSet<>();
 
             if (invitation instanceof ManagerInvitation managerInvitation) {
-                type = "MANAGER";
+                role = "MANAGER";
                 permissions.addAll(managerInvitation.getPremissions());
             } else if (invitation instanceof OwnerInvitation) {
-                type = "OWNER";
+                role = "OWNER";
             } else {
                 continue;
             }
 
             String appointerUsername = extractUserIdentifier(invitation.getAppointerUser());
-            String appointeeUsername = extractUserIdentifier(invitation.getAppointeeUser());
+            String apointeeUsername = extractUserIdentifier(invitation.getAppointeeUser());
+
+            if (appointerUsername == null || apointeeUsername == null) {
+                continue;
+            }
 
             InvitationEntity entity = new InvitationEntity(
                     invitation.getId(),
                     invitation.getCompanyId(),
                     appointerUsername,
-                    appointeeUsername,
-                    type,
+                    apointeeUsername,
+                    role,
                     permissions
             );
 
@@ -364,10 +437,14 @@ public class JpaUserRepository implements IUserRepository {
         }
 
         if (user.getEmail() != null && !user.getEmail().isBlank()) {
-            return normalizeEmail(user.getEmail());
+            return normalizeIdentifier(user.getEmail());
         }
 
-        return normalizeIdentifier(user.getUsername());
+        if (user.getUsername() != null && !user.getUsername().isBlank()) {
+            return normalizeIdentifier(user.getUsername());
+        }
+
+        return null;
     }
 
     private List<String> identifiersForUser(User user) {
@@ -377,7 +454,7 @@ public class JpaUserRepository implements IUserRepository {
 
         Set<String> identifiers = new LinkedHashSet<>();
 
-        String email = normalizeEmail(user.getEmail());
+        String email = normalizeIdentifier(user.getEmail());
         if (email != null) {
             identifiers.add(email);
         }
@@ -387,31 +464,21 @@ public class JpaUserRepository implements IUserRepository {
             identifiers.add(username);
         }
 
+        if (identifiers.isEmpty() && user.getId() != null) {
+            identifiers.add(user.getId().toString());
+        }
+
         return new ArrayList<>(identifiers);
     }
 
     private List<String> identifiersForIdentifier(String identifier) {
-        Set<String> identifiers = new LinkedHashSet<>();
+        String normalized = normalizeIdentifier(identifier);
 
-        String email = normalizeEmail(identifier);
-        if (email != null) {
-            identifiers.add(email);
+        if (normalized == null) {
+            return List.of();
         }
 
-        String username = normalizeIdentifier(identifier);
-        if (username != null) {
-            identifiers.add(username);
-        }
-
-        return new ArrayList<>(identifiers);
-    }
-
-    private String normalizeEmail(String email) {
-        if (email == null || email.isBlank()) {
-            return null;
-        }
-
-        return email.trim().toLowerCase();
+        return List.of(normalized);
     }
 
     private String normalizeIdentifier(String value) {
@@ -419,6 +486,22 @@ public class JpaUserRepository implements IUserRepository {
             return null;
         }
 
-        return value.trim();
+        return value.trim().toLowerCase();
+    }
+
+    private String normalizeRole(String roleName) {
+        if (roleName == null || roleName.isBlank()) {
+            return "";
+        }
+
+        String normalized = roleName.trim().toUpperCase();
+
+        if ("FOUNDER".equals(normalized)
+                || "OWNER".equals(normalized)
+                || "MANAGER".equals(normalized)) {
+            return normalized;
+        }
+
+        return normalized;
     }
 }

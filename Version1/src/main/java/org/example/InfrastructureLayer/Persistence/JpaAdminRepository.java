@@ -30,6 +30,10 @@ public class JpaAdminRepository implements IAdminRepository {
 
     @Override
     public void saveComplaint(AdminComplaint complaint) {
+        if (complaint == null) {
+            throw new IllegalArgumentException("Complaint is required");
+        }
+
         complaintJpa.save(toEntity(complaint));
     }
 
@@ -40,7 +44,8 @@ public class JpaAdminRepository implements IAdminRepository {
             return Optional.empty();
         }
 
-        return complaintJpa.findById(complaintId).map(this::toDomain);
+        return complaintJpa.findById(complaintId)
+                .map(this::toDomain);
     }
 
     @Override
@@ -63,6 +68,10 @@ public class JpaAdminRepository implements IAdminRepository {
 
     @Override
     public void saveActionLog(AdminActionLog actionLog) {
+        if (actionLog == null) {
+            throw new IllegalArgumentException("Action log is required");
+        }
+
         actionLogJpa.save(toEntity(actionLog));
     }
 
@@ -77,6 +86,10 @@ public class JpaAdminRepository implements IAdminRepository {
 
     @Override
     public void saveAnalyticsSnapshot(SystemAnalyticsSnapshot snapshot) {
+        if (snapshot == null) {
+            throw new IllegalArgumentException("Analytics snapshot is required");
+        }
+
         analyticsJpa.save(toEntity(snapshot));
     }
 

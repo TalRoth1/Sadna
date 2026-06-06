@@ -9,4 +9,5 @@ public class OwnerInvitation extends Invitation {
     public OwnerInvitation(UUID id, User appointerUser, User appointeeUser, UUID companyId) {
         super(id, appointerUser, appointeeUser, companyId);
     }
+
 }

@@ -79,10 +79,6 @@ public class BeanConfig {
         return new CompanyRepository();
     }
 
-    @Bean
-    public IUserRepository userRepository() {
-        return new UserRepository();
-    }
 
     @Bean
     public IHistoryRepository historyRepository() {

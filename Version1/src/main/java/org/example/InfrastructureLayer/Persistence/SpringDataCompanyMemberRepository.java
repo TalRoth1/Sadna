@@ -7,15 +7,19 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-public interface SpringDataCompanyMemberRepository extends JpaRepository<CompanyMemberEntity, UUID> {
+public interface SpringDataCompanyMemberRepository
+        extends JpaRepository<CompanyMemberEntity, CompanyMemberId> {
 
-    List<CompanyMemberEntity> findByUsername(String username);
+    List<CompanyMemberEntity> findByIdUsername(String username);
 
-    List<CompanyMemberEntity> findByUsernameIn(Collection<String> usernames);
+    List<CompanyMemberEntity> findByIdUsernameIn(Collection<String> usernames);
 
-    List<CompanyMemberEntity> findByCompanyId(UUID companyId);
+    List<CompanyMemberEntity> findByIdCompanyId(UUID companyId);
 
-    Optional<CompanyMemberEntity> findFirstByUsernameInAndCompanyId(Collection<String> usernames, UUID companyId);
+    Optional<CompanyMemberEntity> findFirstByIdUsernameInAndIdCompanyId(
+            Collection<String> usernames,
+            UUID companyId
+    );
 
-    void deleteByUsernameIn(Collection<String> usernames);
+    void deleteByIdUsernameIn(Collection<String> usernames);
 }

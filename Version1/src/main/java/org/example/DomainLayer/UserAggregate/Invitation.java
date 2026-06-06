@@ -36,4 +36,6 @@ public abstract class Invitation {
         this.appointeeUser = appointeeUser;
         this.companyId = companyId;
     }
+
+
 }
