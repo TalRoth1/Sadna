@@ -135,6 +135,7 @@
 
                         <!-- optional: exception/data-only classes -->
                         <exclude>**/*Exception.*</exclude>
+                        <exclude>org/example/InfrastructureLayer/Persistence/**</exclude>
                     </excludes>
                 </configuration>
 
