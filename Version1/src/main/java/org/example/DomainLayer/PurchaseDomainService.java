@@ -13,6 +13,7 @@ import org.example.API.BackendConfigProperties;
 import org.example.ApplicationLayer.IPaymentGateway;
 import org.example.ApplicationLayer.ITicketingGateway;
 import org.example.ApplicationLayer.PaymentDetails;
+import org.example.ApplicationLayer.PaymentResult;
 import org.example.ApplicationLayer.dto.SalesReport;
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 import org.example.DomainLayer.CompanyAggregate.Company;
@@ -295,10 +296,10 @@ public class PurchaseDomainService {
             // reservation in place and let the user retry with a
             // different card. ActivePurchaseCleaner will eventually
             // sweep it if they give up.
-            boolean paymentSucceeded = paymentGateway.pay(activePurchase.getUserID(), finalPrice, paymentDetails);
-            if (!paymentSucceeded) {
-                throw new DomainException(
-                        "Payment was declined. Please try a different payment method.");
+            PaymentResult paymentResult = paymentGateway.pay(activePurchase.getUserID(), finalPrice, paymentDetails);
+
+            if (!paymentResult.isSuccessful()) {
+                throw new DomainException("Payment was declined. Please try a different payment method.");
             }
 
             // Step 2: ask the ticketing system to issue the tickets. If
@@ -306,13 +307,21 @@ public class PurchaseDomainService {
             // them a refund — this is the cancellation + refund path the
             // assignment asks us to exercise.
             try {
-                ticketingGateway.issueTickets(
+                String issuedTicketReference = ticketingGateway.issueTickets(
                         activePurchase.getUserID(),
                         activePurchase.getEventID(),
                         activePurchase.getTicketIDs().keySet());
+
+                if (issuedTicketReference == null || issuedTicketReference.isBlank()) {
+                    throw new DomainException("Ticketing system did not return a valid ticket identifier");
+                }
             } catch (RuntimeException ticketingFailure) {
-                compensateFailedTicketing(activePurchase, finalPrice, paymentDetails, ticketingFailure);
-                // unreachable — compensateFailedTicketing always throws. We
+                compensateFailedTicketing(
+                        activePurchase,
+                        finalPrice,
+                        paymentResult.getTransactionId(),
+                        ticketingFailure
+                );                // unreachable — compensateFailedTicketing always throws. We
                 // throw here too so the compiler is satisfied without anyone
                 // mistakenly reading this as a "silent failure" return.
                 throw new IllegalStateException(
@@ -383,14 +392,14 @@ public class PurchaseDomainService {
      * message — at that point operator intervention is required, so we
      * don't want to swallow it under "tickets could not be issued".
      */
-    private void compensateFailedTicketing(ActivePurchase activePurchase,
-                                           float chargedAmount,
-                                           PaymentDetails paymentDetails,
-                                           RuntimeException originalFailure) {
+    private void compensateFailedTicketing(
+            ActivePurchase activePurchase,
+            float chargedAmount,
+            int transactionId,
+            RuntimeException originalFailure) {
         boolean refunded;
         try {
-            refunded = paymentGateway.refund(
-                    activePurchase.getUserID(), chargedAmount, paymentDetails);
+             refunded = paymentGateway.refund(transactionId);
         } catch (RuntimeException refundError) {
             refunded = false;
         }

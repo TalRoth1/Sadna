@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.example.ApplicationLayer.IPaymentGateway;
 import org.example.ApplicationLayer.ITicketingGateway;
 import org.example.ApplicationLayer.PaymentDetails;
+import org.example.ApplicationLayer.PaymentResult;
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
@@ -503,18 +504,22 @@ public class PurchaseDomainConcurrencyAndCheckoutTest {
         }
 
         @Override
-        public boolean pay(UUID userID, float amount, PaymentDetails paymentDetails) {
+        public PaymentResult pay(UUID userID, float amount, PaymentDetails paymentDetails) {
             payCalls.incrementAndGet();
-            return approvePayments;
+
+            if (!approvePayments) {
+                return PaymentResult.failure();
+            }
+
+            return PaymentResult.success(10000);
         }
 
         @Override
-        public boolean refund(UUID userID, float amount, PaymentDetails paymentDetails) {
+        public boolean refund(int transactionId) {
             refundCalls.incrementAndGet();
             return true;
         }
     }
-
     private static class RecordingTicketingGateway implements ITicketingGateway {
         private final boolean failIssue;
         private final AtomicInteger issueCalls = new AtomicInteger();
@@ -525,15 +530,17 @@ public class PurchaseDomainConcurrencyAndCheckoutTest {
         }
 
         @Override
-        public void issueTickets(UUID userId, UUID eventId, Set<UUID> ticketIds) {
+        public String issueTickets(UUID userId, UUID eventId, Set<UUID> ticketIds) {
             issueCalls.incrementAndGet();
             lastIssuedTicketIds = new LinkedHashSet<>(ticketIds);
+
             if (failIssue) {
                 throw new RuntimeException("ticketing gateway failed");
             }
+
+            return "SIM-TICKET";
         }
     }
-
     private static class ThreadSafeHistoryRepository implements IHistoryRepository {
         private final List<PurchaseHistory> history = new CopyOnWriteArrayList<>();
 

@@ -6,6 +6,7 @@ import java.util.logging.Logger;
 
 import org.example.ApplicationLayer.IPaymentGateway;
 import org.example.ApplicationLayer.PaymentDetails;
+import org.example.ApplicationLayer.PaymentResult;
 
 /**
  * Development stub for the external payment-clearing system, as required
@@ -43,18 +44,26 @@ public class SimulatedPaymentGateway implements IPaymentGateway {
             new AtomicReference<>(RefundOutcome.SUCCEED);
 
     @Override
-    public boolean pay(UUID userID, float amount, PaymentDetails paymentDetails) {
+    public PaymentResult pay(UUID userID, float amount, PaymentDetails paymentDetails) {
         PayOutcome outcome = nextPayOutcome.getAndSet(PayOutcome.APPROVE);
+
         logger.info("[SimulatedPaymentGateway] pay user=" + userID
                 + " amount=" + amount + " -> " + outcome);
-        return outcome == PayOutcome.APPROVE;
+
+        if (outcome == PayOutcome.DECLINE) {
+            return PaymentResult.failure();
+        }
+
+        return PaymentResult.success(10000);
     }
 
     @Override
-    public boolean refund(UUID userID, float amount, PaymentDetails paymentDetails) {
+    public boolean refund(int transactionId) {
         RefundOutcome outcome = nextRefundOutcome.getAndSet(RefundOutcome.SUCCEED);
-        logger.info("[SimulatedPaymentGateway] refund user=" + userID
-                + " amount=" + amount + " -> " + outcome);
+
+        logger.info("[SimulatedPaymentGateway] refund transactionId=" + transactionId
+                + " -> " + outcome);
+
         return outcome == RefundOutcome.SUCCEED;
     }
 

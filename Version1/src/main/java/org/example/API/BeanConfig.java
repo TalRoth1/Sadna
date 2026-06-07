@@ -20,6 +20,7 @@ import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.InfrastructureLayer.*;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Profile;
 
 /**
@@ -104,6 +105,16 @@ public class BeanConfig {
      * which would break {@link #purchaseDomainService}'s autowiring.
      */
     @Bean
+    public IPaymentGateway paymentGateway() {
+        return new ExternalPaymentGateway();
+    }
+
+    @Bean
+    public ITicketingGateway ticketingGateway() {
+        return new ExternalTicketingGateway();
+    }
+
+    @Bean
     public SimulatedPaymentGateway simulatedPaymentGateway() {
         return new SimulatedPaymentGateway();
     }
@@ -112,7 +123,6 @@ public class BeanConfig {
     public SimulatedTicketingGateway simulatedTicketingGateway() {
         return new SimulatedTicketingGateway();
     }
-
 
     @Bean
     public IAuthenticationGateway authenticationGateway() {

@@ -41,14 +41,18 @@ public class SimulatedTicketingGateway implements ITicketingGateway {
             new AtomicReference<>(Outcome.SUCCEED);
 
     @Override
-    public void issueTickets(UUID userId, UUID eventId, Set<UUID> ticketIds) {
+    public String issueTickets(UUID userId, UUID eventId, Set<UUID> ticketIds) {
         Outcome outcome = nextOutcome.getAndSet(Outcome.SUCCEED);
+
         logger.info("[SimulatedTicketingGateway] issueTickets user=" + userId
                 + " event=" + eventId + " tickets=" + ticketIds + " -> " + outcome);
+
         if (outcome == Outcome.FAIL) {
             throw new TicketingFailedException(
                     "Simulated ticketing failure for event " + eventId);
         }
+
+        return "SIM-TICKET-" + eventId + "-" + userId;
     }
 
     // ---------- one-shot toggle ----------

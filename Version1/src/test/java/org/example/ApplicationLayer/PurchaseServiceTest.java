@@ -1102,14 +1102,20 @@ public class PurchaseServiceTest {
 
         IPaymentGateway paymentGateway = new IPaymentGateway() {
             @Override
-            public boolean pay(UUID userID, float amount, PaymentDetails paymentDetails) {
-                return false;
+            public PaymentResult pay(UUID userID, float amount, PaymentDetails paymentDetails) {
+                return PaymentResult.failure();
+            }
+
+            @Override
+            public boolean refund(int transactionId) {
+                return true;
             }
         };
+
         ITicketingGateway ticketingGateway = new ITicketingGateway() {
             @Override
-            public void issueTickets(UUID userId, UUID eventId, Set<UUID> ticketIds) {
-
+            public String issueTickets(UUID userId, UUID eventId, Set<UUID> ticketIds) {
+                return "SIM-TICKET";
             }
         };
 
@@ -1125,8 +1131,16 @@ public class PurchaseServiceTest {
         setup.purchaseService.selectStandingTickets(eventId, 1, areaID, userId, false);
         ActivePurchase activePurchase = setup.inMemoryPurchaseRepository.findByUserID(userId);
 
-        assertThrows(IllegalStateException.class, () -> setup.purchaseService.completePurchase(activePurchase.getActivePurchaseId(), new PaymentDetails(), null));
+        assertThrows(
+                IllegalStateException.class,
+                () -> setup.purchaseService.completePurchase(
+                        activePurchase.getActivePurchaseId(),
+                        new PaymentDetails(),
+                        null
+                )
+        );
     }
+
     @Test
     public void cancelActivePurchase_whenPurchaseExists_releasesTicketsAndDeletesPurchase()
     {

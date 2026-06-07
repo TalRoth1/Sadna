@@ -5,5 +5,5 @@ import java.util.UUID;
 
 public interface ITicketingGateway
 {
-    void issueTickets(UUID userId, UUID eventId, Set<UUID> ticketIds);
+    String issueTickets(UUID userId, UUID eventId, Set<UUID> ticketIds);
 }
