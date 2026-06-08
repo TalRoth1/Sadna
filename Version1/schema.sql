@@ -18,7 +18,7 @@ CREATE TABLE discount_policies (
 CREATE TABLE rules (
     id UUID PRIMARY KEY,
     policy_id UUID NOT NULL,
-    rule_type VARCHAR(50) NOT NULL CHECK (rule_type IN ('AGE_RULE', 'LONE_SEAT_RULE', 'MAX_TICKET_RULE', 'MIN_TICKET_RULE')),
+    rule_type VARCHAR(50) NOT NULL CHECK (rule_type IN ('AGE_RULE', 'LONE_SEAT_RULE', 'MAX_TICKET_RULE', 'MIN_TICKET_RULE', 'COMPOSITE')),
     parameters JSONB NOT NULL,
     FOREIGN KEY (policy_id) REFERENCES purchase_policies(id) ON DELETE CASCADE
 );
@@ -38,6 +38,7 @@ CREATE TABLE companies (
     name VARCHAR(255) NOT NULL UNIQUE,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     founder_username VARCHAR(100) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'SUSPENDED', 'CLOSED')),
     discount_policy_id UUID,
     purchase_policy_id UUID,
     FOREIGN KEY (founder_username) REFERENCES users(username),
