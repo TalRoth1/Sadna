@@ -51,6 +51,7 @@ public class BeanConfig {
     }
 
     @Bean
+    @Profile("!localdb")
     public ICompanyRepository companyRepository() {
         return new CompanyRepository();
     }

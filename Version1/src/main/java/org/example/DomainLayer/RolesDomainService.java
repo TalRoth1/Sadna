@@ -24,9 +24,13 @@ import org.example.DomainLayer.UserAggregate.OwnerInvitation;
 import org.example.DomainLayer.UserAggregate.User;
 import org.springframework.stereotype.Service;
 
+import java.util.logging.Logger;
+
 
 @Service
 public class RolesDomainService {
+
+    private static final Logger log = Logger.getLogger(RolesDomainService.class.getName());
 
     private final ICompanyRepository companyRepository;
     private final IUserRepository userRepository;
@@ -37,6 +41,8 @@ public class RolesDomainService {
     public RolesDomainService(ICompanyRepository companyRepository, IUserRepository userRepository) {
         this.companyRepository = companyRepository;
         this.userRepository = userRepository;
+        log.warning("[DIAG] companyRepository impl = " + companyRepository.getClass().getName());
+        log.warning("[DIAG] userRepository impl    = " + userRepository.getClass().getName());
     }
 
     public UUID createCompany(String founderEmail, String companyName) {
