@@ -13,6 +13,7 @@ import org.example.ApplicationLayer.EventService;
 import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
 import org.example.DomainLayer.PolicyManagment.AgeRule;
+import org.example.DomainLayer.PolicyManagment.DiscountType;
 import org.example.DomainLayer.PolicyManagment.IPurchaseRule;
 import org.example.DomainLayer.PolicyManagment.LoneSeatRule;
 import org.example.DomainLayer.PolicyManagment.MinTicketRule;
@@ -129,7 +130,7 @@ public class CompanyServiceTest {
 
         assertThrows(
                 IllegalArgumentException.class,
-                () -> serviceWithMock.createCompany(null, "Some Company")
+                () -> serviceWithMock.createCompany(null, "Some Company", DiscountType.ALL)
         );
     }
 
@@ -140,7 +141,7 @@ public class CompanyServiceTest {
 
         assertThrows(
                 IllegalArgumentException.class,
-                () -> serviceWithMock.createCompany("   ", "Some Company")
+                () -> serviceWithMock.createCompany("   ", "Some Company", DiscountType.ALL)
         );
     }
 
@@ -151,7 +152,7 @@ public class CompanyServiceTest {
 
         assertThrows(
                 IllegalArgumentException.class,
-                () -> serviceWithMock.createCompany("founder", " ")
+                () -> serviceWithMock.createCompany("founder", " ", DiscountType.ALL)
         );
     }
 
@@ -531,7 +532,7 @@ public class CompanyServiceTest {
     @Test
     public void testAddPolicyRule_ActuallyPersistsInCompany() {
         UUID cid = UUID.randomUUID();
-        Company realCompany = new Company("founderUser", "TestCorp");
+        Company realCompany = new Company("founderUser", "TestCorp", DiscountType.ALL);
 
         User ownerUser = new User(UUID.randomUUID(), "founderUser", "founderUser", "hash", 30);
         ownerUser.getCompanyRoles().put(cid, new CompanyFounder("founderUser"));
@@ -558,7 +559,7 @@ public class CompanyServiceTest {
     @Test
     public void testAddMultiplePolicyRules_CreatesCompositeTree() {
         UUID cid = UUID.randomUUID();
-        Company realCompany = new Company("founderUser", "TestCorp");
+        Company realCompany = new Company("founderUser", "TestCorp", DiscountType.ALL);
 
         User ownerUser = new User(UUID.randomUUID(), "founderUser", "founderUser", "hash", 30);
         ownerUser.getCompanyRoles().put(cid, new CompanyFounder("founderUser"));
@@ -599,7 +600,7 @@ public class CompanyServiceTest {
     @Test
     public void testAddPolicyRule_HandlesEmptyOptionalsGracefully() {
         UUID cid = UUID.randomUUID();
-        Company realCompany = new Company("founderUser", "SafetyCorp");
+        Company realCompany = new Company("founderUser", "SafetyCorp", DiscountType.ALL);
 
         User ownerUser = new User(UUID.randomUUID(), "founderUser", "founderUser", "hash", 40);
         ownerUser.getCompanyRoles().put(cid, new CompanyFounder("founderUser"));
@@ -625,7 +626,7 @@ public class CompanyServiceTest {
     @Test
     public void testDeleteSpecificPolicyRule_RemovesRuleFromCompanyState() {
         UUID cid = UUID.randomUUID();
-        Company realCompany = new Company("founderUser", "DeletionCorp");
+        Company realCompany = new Company("founderUser", "DeletionCorp", DiscountType.ALL);
 
         realCompany.addPurchasePolicy(
                 Optional.of(18.0f),
@@ -669,7 +670,7 @@ public class CompanyServiceTest {
     @Test
     public void testAddOvertDiscount_VerifyStatePersistence() {
         UUID cid = UUID.randomUUID();
-        Company realCompany = new Company("founderUser", "DiscountCorp");
+        Company realCompany = new Company("founderUser", "DiscountCorp", DiscountType.ALL);
 
         User ownerUser = new User(UUID.randomUUID(), "founderUser", "founderUser", "hash", 40);
         ownerUser.getCompanyRoles().put(cid, new CompanyFounder("founderUser"));
@@ -694,7 +695,7 @@ public class CompanyServiceTest {
     @Test
     public void testDeleteDiscountRule_ActuallyRemovesFromCompanyState() {
         UUID cid = UUID.randomUUID();
-        Company realCompany = new Company("founderUser", "DiscountDeleteCorp");
+        Company realCompany = new Company("founderUser", "DiscountDeleteCorp", DiscountType.ALL);
 
         User ownerUser = new User(UUID.randomUUID(), "founderUser", "founderUser", "hash", 40);
         ownerUser.getCompanyRoles().put(cid, new CompanyFounder("founderUser"));
@@ -739,7 +740,7 @@ public class CompanyServiceTest {
     @Test
     public void testInviteCompanyManager_Valid_ReturnsInvitationResponseAndAddsManagerAfterAccept() {
         UUID cid = UUID.randomUUID();
-        Company realCompany = new Company("ownerUser", "TestCorp");
+        Company realCompany = new Company("ownerUser", "TestCorp", DiscountType.ALL);
 
         String owner = "ownerUser";
         String invitee = "managerUser";
@@ -778,7 +779,7 @@ public class CompanyServiceTest {
     @Test
     public void testInviteCompanyOwner_Valid_ReturnsInvitationResponseAndAddsOwnerAfterAccept() {
         UUID cid = UUID.randomUUID();
-        Company realCompany = new Company("ownerUser", "OwnerCorp");
+        Company realCompany = new Company("ownerUser", "OwnerCorp", DiscountType.ALL);
 
         String owner = "ownerUser";
         String invitee = "newOwner";
@@ -811,7 +812,7 @@ public class CompanyServiceTest {
     @Test
     public void testAcceptCompanyInvitation_Valid_AddsMemberThroughService() {
         UUID cid = UUID.randomUUID();
-        Company realCompany = new Company("ownerUser", "InviteCorp");
+        Company realCompany = new Company("ownerUser", "InviteCorp", DiscountType.ALL);
 
         String owner = "ownerUser";
         String invitee = "inviteeUser";
@@ -863,7 +864,7 @@ public class CompanyServiceTest {
     @Test
     public void testAppointeeAlreadyHasRole_Blocked() {
         UUID cid = UUID.randomUUID();
-        Company realCompany = new Company("ownerUser", "DupCorp");
+        Company realCompany = new Company("ownerUser", "DupCorp", DiscountType.ALL);
 
         String owner = "ownerUser";
         String appointee = "mgrAlready";
@@ -898,7 +899,7 @@ public class CompanyServiceTest {
     @Test
     public void testUnauthorizedManagerAppointment_Rejected() {
         UUID cid = UUID.randomUUID();
-        Company realCompany = new Company("ownerUser", "UnAuthCorp");
+        Company realCompany = new Company("ownerUser", "UnAuthCorp", DiscountType.ALL);
 
         String owner = "ownerUser";
         String existingManager = "mgrUser";
@@ -1043,7 +1044,7 @@ public class CompanyServiceTest {
     @Test
     public void testRemoveCompanyMemberAsOwner_Valid_RemovesMember() {
         UUID cid = UUID.randomUUID();
-        Company realCompany = new Company("ownerUser", "RemovalCorp");
+        Company realCompany = new Company("ownerUser", "RemovalCorp", DiscountType.ALL);
 
         String owner = "ownerUser";
         String removeUser = "memberUser";

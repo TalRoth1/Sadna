@@ -6,6 +6,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.example.DomainLayer.DomainException;
+import org.example.DomainLayer.PolicyManagment.DiscountType;
 import org.example.DomainLayer.PolicyManagment.IDiscountRule;
 import org.example.DomainLayer.PolicyManagment.OvertDiscount;
 import static org.junit.Assert.assertEquals;
@@ -46,7 +47,8 @@ public class EventTest {
                 "Be'er Sheva",
                 "Nadav and the Coders",
                 "Concert",
-                EventStatus.ACTIVE
+                EventStatus.ACTIVE,
+                DiscountType.ALL
         );
     }
 
@@ -56,13 +58,13 @@ public class EventTest {
 
     private Event activeEvent() {
         return new Event(eventId, companyId, futureDate, "Tel Aviv",
-                "Some Artist", "concert", EventStatus.ACTIVE);
+                "Some Artist", "concert", EventStatus.ACTIVE, DiscountType.ALL);
     }
 
     private Event eventOf(UUID compId, String name, String artist, String type,
                           String location, LocalDateTime date,
                           EventStatus status, String... tags) {
-        Event e = new Event(UUID.randomUUID(), compId, date, location, artist, type, status);
+        Event e = new Event(UUID.randomUUID(), compId, date, location, artist, type, status, DiscountType.ALL);
         e.setName(name);
         for (String t : tags) {
             e.addTag(t);
@@ -587,7 +589,7 @@ public class EventTest {
     public void testConstructor_ThrowsExceptionOnNullStatus() {
         // Testing the validation logic in your constructor
         assertThrows(IllegalArgumentException.class, () -> {
-            new Event(eventId, companyId, LocalDateTime.now(), "Tel Aviv", "Artist", "Type", null);
+            new Event(eventId, companyId, LocalDateTime.now(), "Tel Aviv", "Artist", "Type", null, DiscountType.ALL);
         });
     }
 

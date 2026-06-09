@@ -15,6 +15,7 @@ import org.example.DomainLayer.PolicyManagment.AgeRule;
 import org.example.DomainLayer.PolicyManagment.ConditionalDiscount;
 import org.example.DomainLayer.PolicyManagment.CouponCode;
 import org.example.DomainLayer.PolicyManagment.DiscountPolicy;
+import org.example.DomainLayer.PolicyManagment.DiscountType;
 import org.example.DomainLayer.PolicyManagment.LoneSeatRule;
 import org.example.DomainLayer.PolicyManagment.MaxTicketRule;
 import org.example.DomainLayer.PolicyManagment.MinTicketRule;
@@ -43,7 +44,7 @@ public class Event {
     private Map<UUID, Rating> ratingsByUsers = new LinkedHashMap<>();
 
     public Event(UUID eventId, UUID companyId, LocalDateTime date, String location,
-                   String artist, String type, EventStatus status) {
+                   String artist, String type, EventStatus status, DiscountType discountType) {
         this.eventId = eventId;
         this.companyId = companyId;
         setDate(date);
@@ -57,7 +58,7 @@ public class Event {
         this.rating = 0;
         this.layout = new Layout();
         this.purchasePolicy = new PurchasePolicy();
-        this.discountPolicy = new DiscountPolicy();
+        this.discountPolicy = new DiscountPolicy(discountType);
     }
 
     public UUID getEventId() {
