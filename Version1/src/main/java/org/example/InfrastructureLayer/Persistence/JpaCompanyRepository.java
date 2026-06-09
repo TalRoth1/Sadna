@@ -6,6 +6,7 @@ import org.example.DomainLayer.PolicyManagment.*;
 import org.example.DomainLayer.Rating;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
@@ -41,17 +42,18 @@ public class JpaCompanyRepository implements ICompanyRepository {
     }
 
     @Override
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public UUID createCompany(String founderEmail, String companyName) {
         UUID purchasePolicyId = UUID.randomUUID();
         UUID discountPolicyId = UUID.randomUUID();
 
-        purchasePolicyJpa.save(new PurchasePolicyEntity(purchasePolicyId));
-        discountPolicyJpa.save(new DiscountPolicyEntity(discountPolicyId));
+        purchasePolicyJpa.saveAndFlush(new PurchasePolicyEntity(purchasePolicyId));
+        discountPolicyJpa.saveAndFlush(new DiscountPolicyEntity(discountPolicyId));
 
         UUID companyId = UUID.randomUUID();
         String founderUsername = normalizeIdentifier(founderEmail);
 
-        companyJpa.save(new CompanyEntity(
+        companyJpa.saveAndFlush(new CompanyEntity(
                 companyId,
                 companyName,
                 founderUsername,
