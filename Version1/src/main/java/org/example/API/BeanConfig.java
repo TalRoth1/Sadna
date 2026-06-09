@@ -116,7 +116,7 @@ public class BeanConfig {
 
     @Bean
     public IAuthenticationGateway authenticationGateway() {
-        return new PlainTextAuthenticationGateway();
+        return new BCryptAuthenticationGateway();
     }
 
     @Bean
