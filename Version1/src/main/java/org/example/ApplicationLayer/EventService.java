@@ -1049,7 +1049,13 @@ public class EventService {
             }
 
             Event event = eventManagementDomainService.getEventForView(eventId);
-            UUID areaId = eventManagementDomainService.addStandingArea(eventId, price, count);
+            UUID areaId = UUID.randomUUID();
+
+            // Add the area to the in-memory event so callers (and tests) see it immediately,
+            // then persist the event layout before delegating ticket creation to domain service.
+            event.getLayout().addArea(new StandingArea(areaId, price));
+            eventManagementDomainService.saveEvent(event);
+            eventManagementDomainService.addStandingTickets(eventId, areaId, count);
 
         } catch (IllegalArgumentException | DomainException e) {
             logger.info("[Event Log] Business rejection in addStandingArea: " + e.getMessage());

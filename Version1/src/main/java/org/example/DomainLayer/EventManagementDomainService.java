@@ -492,6 +492,14 @@ public class EventManagementDomainService {
         return eventRepository.getById(eventId);
     }
 
+    /** Persist the given event via repository (useful for ensuring layout changes are saved). */
+    public void saveEvent(org.example.DomainLayer.EventAggregate.Event event) {
+        if (event == null) {
+            throw new IllegalArgumentException("event is required");
+        }
+        eventRepository.save(event);
+    }
+
     /**
      * Null-safe lookup used by DTO mappers to denormalize company fields
      * (name/rating) onto event summaries. Returns null when the id is
