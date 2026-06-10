@@ -305,6 +305,8 @@ public class EventManagementDomainService {
         if (description != null) {
             event.setDescription(description);
         }
+        // Persist the manager username (identifier) so DB FK to users.manager_username is satisfied
+        event.setManagerUsername(eventManager.getUsername());
         eventRepository.save(event);
 
         managerRole.getEventsIds().add(eventId);
@@ -414,6 +416,29 @@ public class EventManagementDomainService {
         }
         event.addStandingTickets(areaId, count);
         eventRepository.save(event);
+    }
+
+    public UUID addStandingArea(UUID eventId, double price, int count) {
+        if (eventId == null) {
+            throw new IllegalArgumentException("Event ID is required");
+        }
+        if (price < 0) {
+            throw new IllegalArgumentException("price must be non-negative");
+        }
+        if (count <= 0) {
+            throw new IllegalArgumentException("count must be positive");
+        }
+
+        Event event = eventRepository.getById(eventId);
+        if (event == null) {
+            throw new DomainException("Event not found");
+        }
+
+        UUID areaId = UUID.randomUUID();
+        event.getLayout().addArea(new org.example.DomainLayer.EventAggregate.StandingArea(areaId, price));
+        event.addStandingTickets(areaId, count);
+        eventRepository.save(event);
+        return areaId;
     }
 
     public void addSittingTickets(UUID eventId, UUID areaId, int rows, int seatsPerRow) {

@@ -36,6 +36,7 @@ import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.PolicyManagment.AgeRule;
 import org.example.DomainLayer.PolicyManagment.ConditionalDiscount;
 import org.example.DomainLayer.PolicyManagment.CouponCode;
+import org.example.DomainLayer.PolicyManagment.DiscountPolicy;
 import org.example.DomainLayer.PolicyManagment.IDiscountRule;
 import org.example.DomainLayer.PolicyManagment.IPurchaseRule;
 import org.example.DomainLayer.PolicyManagment.LoneSeatRule;
@@ -45,8 +46,6 @@ import org.example.DomainLayer.PolicyManagment.OvertDiscount;
 import org.example.DomainLayer.PolicyManagment.PurchaseComposite;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.springframework.stereotype.Service;
-
-import org.example.DomainLayer.PolicyManagment.DiscountPolicy;
 
 @Service
 public class EventService {
@@ -1050,10 +1049,7 @@ public class EventService {
             }
 
             Event event = eventManagementDomainService.getEventForView(eventId);
-            UUID areaId = UUID.randomUUID();
-
-            event.getLayout().addArea(new StandingArea(areaId, price));
-            eventManagementDomainService.addStandingTickets(eventId, areaId, count);
+            UUID areaId = eventManagementDomainService.addStandingArea(eventId, price, count);
 
         } catch (IllegalArgumentException | DomainException e) {
             logger.info("[Event Log] Business rejection in addStandingArea: " + e.getMessage());
