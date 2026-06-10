@@ -30,6 +30,7 @@ import org.example.ApplicationLayer.dto.EventDTOs.UpdateSittingAreaRequest;
 import org.example.ApplicationLayer.dto.EventDTOs.UpdateStandingAreaRequest;
 import org.example.ApplicationLayer.dto.PurchaseDTOs.PurchaseHistoryDTO;
 import org.example.DomainLayer.EventAggregate.EventSearchCriteria;
+import org.example.DomainLayer.PolicyManagment.DiscountType;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -75,6 +76,7 @@ public class EventController {
     @PostMapping
     public ResponseEntity<ApiResponse<EventDetailsDto>> createEvent(@RequestBody CreateEventRequest request) {
         try {
+            DiscountType discountType = request.discountType;
             EventDetailsDto event = eventService.addEvent(
                     UUID.randomUUID(),
                     request.companyId,
@@ -85,7 +87,8 @@ public class EventController {
                     request.artist,
                     request.type,
                     request.status,
-                    request.description);
+                    request.description,
+                    discountType);
 
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(ApiResponse.success("Event created successfully", event));

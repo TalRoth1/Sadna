@@ -17,6 +17,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.AreaSummaryDto;
 import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.CompanyCatalogDto;
+import org.example.ApplicationLayer.dto.EventDTOs.CreateEventRequest;
 import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.EventDetailsDto;
 import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.EventSummaryDto;
 import org.example.ApplicationLayer.dto.PurchaseDTOs.PurchaseHistoryDTO;
@@ -108,6 +109,22 @@ public class EventServiceTest {
 
     private Company newActiveCompany(String name) {
         return new Company("founder-" + name, name, DiscountType.ALL);
+    }
+
+    @Test
+    public void testCreateEventRequest_CarriesDiscountType() {
+        CreateEventRequest request = new CreateEventRequest();
+        request.companyId = UUID.randomUUID();
+        request.eventManagerEmail = "manager@example.com";
+        request.name = "Example Event";
+        request.date = LocalDateTime.now();
+        request.location = "Tel Aviv";
+        request.artist = "Artist";
+        request.type = "concert";
+        request.status = EventStatus.ACTIVE;
+        request.discountType = DiscountType.MAX;
+
+        assertEquals(DiscountType.MAX, request.discountType);
     }
 
     private void stubInventoryAuthorizedRepositories(Event event) {

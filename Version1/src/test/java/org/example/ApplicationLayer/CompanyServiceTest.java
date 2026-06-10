@@ -1,5 +1,6 @@
 package org.example.ApplicationLayer;
 
+import org.example.ApplicationLayer.dto.CompanyDTOs.CreateCompanyRequest;
 import org.example.ApplicationLayer.dto.CompanyDTOs.HierarchyResponse;
 import org.example.ApplicationLayer.dto.CompanyDTOs.InvitationResponse;
 import org.example.ApplicationLayer.dto.CompanyDTOs.SalesReportResponse;
@@ -154,6 +155,18 @@ public class CompanyServiceTest {
                 IllegalArgumentException.class,
                 () -> serviceWithMock.createCompany("founder", " ", DiscountType.ALL)
         );
+    }
+
+    @Test
+    public void testCreateCompanyRequest_CarriesDiscountType() {
+        CreateCompanyRequest request = new CreateCompanyRequest();
+        request.founderEmail = "founder@example.com";
+        request.companyName = "Example Co";
+        request.discountType = DiscountType.MAX;
+
+        assertEquals("founder@example.com", request.founderEmail);
+        assertEquals("Example Co", request.companyName);
+        assertEquals(DiscountType.MAX, request.discountType);
     }
 
     // ================================================================
