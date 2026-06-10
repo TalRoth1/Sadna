@@ -1,5 +1,9 @@
 package org.example.InfrastructureLayer.Persistence;
 
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
 import org.example.DomainLayer.EventAggregate.Area;
 import org.example.DomainLayer.EventAggregate.Event;
 import org.example.DomainLayer.EventAggregate.EventStatus;
@@ -12,11 +16,6 @@ import org.example.DomainLayer.IEventRepository;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Repository
 @Profile("localdb")
@@ -67,11 +66,16 @@ public class JpaEventRepository implements IEventRepository {
         UUID layoutId = UUID.randomUUID();
         saveLayout(event, layoutId);
 
+        UUID lotteryUuid = null;
+        if (event.getLotteryId() != null && !event.getLotteryId().isBlank()) {
+            lotteryUuid = UUID.fromString(event.getLotteryId());
+        }
+
         EventEntity entity = new EventEntity(
                 event.getEventId(),
                 event.getName() == null ? "" : event.getName(),
                 event.getCompanyId(),
-                "",
+            event.getManagerUsername() == null ? "" : event.getManagerUsername(),
                 event.getLocation() == null ? "" : event.getLocation(),
                 event.getDescription(),
                 event.getTagsView(),
@@ -81,7 +85,7 @@ public class JpaEventRepository implements IEventRepository {
                 event.getRating(),
                 event.getStatus(),
                 layoutId,
-                event.getLotteryId(),
+            lotteryUuid,
                 null,
                 null
         );
@@ -112,6 +116,9 @@ public class JpaEventRepository implements IEventRepository {
         if (entity.getName() != null) {
             event.setName(entity.getName());
         }
+        if (entity.getManagerUsername() != null) {
+            event.setManagerUsername(entity.getManagerUsername());
+        }
         if (entity.getDescription() != null) {
             event.setDescription(entity.getDescription());
         }
@@ -122,7 +129,7 @@ public class JpaEventRepository implements IEventRepository {
             event.setRating(entity.getRating());
         }
         if (entity.getLotteryId() != null) {
-            event.setLotteryId(entity.getLotteryId());
+            event.setLotteryId(entity.getLotteryId().toString());
         }
 
         restoreLayout(event, entity.getLayoutId());

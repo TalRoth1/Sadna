@@ -1,13 +1,21 @@
 package org.example.InfrastructureLayer.Persistence;
 
-import jakarta.persistence.*;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
+
 import org.example.DomainLayer.EventAggregate.EventStatus;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.UUID;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "events")
@@ -55,7 +63,7 @@ public class EventEntity {
     private UUID layoutId;
 
     @Column(name = "lottery_id")
-    private String lotteryId;
+    private UUID lotteryId;
 
     @Column(name = "discount_policy_id")
     private UUID discountPolicyId;
@@ -85,7 +93,7 @@ public class EventEntity {
                        Double rating,
                        EventStatus status,
                        UUID layoutId,
-                       String lotteryId,
+                       UUID lotteryId,
                        UUID discountPolicyId,
                        UUID purchasePolicyId) {
         this.id = id;
@@ -104,6 +112,10 @@ public class EventEntity {
         this.lotteryId = lotteryId;
         this.discountPolicyId = discountPolicyId;
         this.purchasePolicyId = purchasePolicyId;
+        // Ensure non-null audit timestamps in case JPA lifecycle callbacks are not invoked
+        LocalDateTime now = LocalDateTime.now();
+        this.createdAt = now;
+        this.updatedAt = now;
     }
 
     @PrePersist
@@ -174,7 +186,7 @@ public class EventEntity {
         return layoutId;
     }
 
-    public String getLotteryId() {
+    public UUID getLotteryId() {
         return lotteryId;
     }
 
