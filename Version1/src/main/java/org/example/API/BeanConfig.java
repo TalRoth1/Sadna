@@ -169,6 +169,7 @@ public class BeanConfig {
     }
 
     @Bean
+    @Profile("!localdb")
     public INotificationRepository notificationRepository() {
         return new NotificationRepository();
     }

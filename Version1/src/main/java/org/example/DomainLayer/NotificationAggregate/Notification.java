@@ -68,6 +68,26 @@ public class Notification {
         return readAt;
     }
 
+
+    /** Restore constructor for rebuilding a Notification from a persisted record. */
+    public Notification(UUID id,
+                        String recipientId,
+                        NotificationType type,
+                        String message,
+                        String targetUrl,
+                        LocalDateTime createdAt,
+                        boolean read,
+                        LocalDateTime readAt) {
+        this.id = id;
+        this.recipientId = recipientId;
+        this.type = type == null ? NotificationType.GENERAL : type;
+        this.message = message;
+        this.targetUrl = targetUrl;
+        this.createdAt = createdAt;
+        this.read = read;
+        this.readAt = readAt;
+    }
+
     public void markAsRead() {
         if (!read) {
             this.read = true;
