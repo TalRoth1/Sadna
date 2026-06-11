@@ -69,6 +69,7 @@ public class BeanConfig {
     }
 
     @Bean
+    @Profile("!localdb")
     public IPurchaseRepository purchaseRepository() {
         return new InMemoryPurchaseRepository();
     }
