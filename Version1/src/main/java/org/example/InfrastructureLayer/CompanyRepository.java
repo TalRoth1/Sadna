@@ -10,7 +10,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.DomainLayer.PolicyManagment.DiscountType;
 import org.example.DomainLayer.ICompanyRepository;
+import org.springframework.context.annotation.Profile;
+import org.springframework.stereotype.Repository;
 
+@Repository
+@Profile("!localdb")
 public class CompanyRepository implements ICompanyRepository {
 
     private final Map<UUID, Company> companies = new ConcurrentHashMap<>();

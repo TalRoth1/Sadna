@@ -2,6 +2,7 @@ package org.example.DomainLayer.CompanyAggregate;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -50,6 +51,23 @@ public Company(String founderEmail, String name, DiscountType discountType) {
     this.purchasePolicy = new PurchasePolicy();
     this.status = CompanyStatus.ACTIVE;
     this.ratingsByUsers = new HashMap<>();
+}
+
+public Company(UUID id, String founderEmail, String founderName, String name,
+               CompanyStatus status, double rating, int amountRated,
+               Map<UUID, Rating> ratingsByUsers, List<UUID> eventIds,
+               DiscountPolicy discountPolicy, PurchasePolicy purchasePolicy) {
+    this.id = id;
+    this.founderEmail = founderEmail;
+    this.founderName = founderName;
+    this.name = name;
+    this.status = status;
+    this.rating = rating;
+    this.amountRated = amountRated;
+    this.ratingsByUsers = ratingsByUsers != null ? new HashMap<>(ratingsByUsers) : new HashMap<>();
+    this.eventIds = eventIds != null ? new ArrayList<>(eventIds) : new ArrayList<>();
+    this.discountPolicy = discountPolicy != null ? discountPolicy : new DiscountPolicy(DiscountType.ALL);
+    this.purchasePolicy = purchasePolicy != null ? purchasePolicy : new PurchasePolicy();
 }
 
     public UUID getId()
@@ -108,6 +126,10 @@ public Company(String founderEmail, String name, DiscountType discountType) {
     {
         this.rating = ((this.rating * this.amountRated) + rating)/ (amountRated + 1);
         this.amountRated ++; 
+    }
+
+    public Map<UUID, Rating> getRatingsByUsers() {
+        return Collections.unmodifiableMap(ratingsByUsers);
     }
 
     public boolean isActive() {

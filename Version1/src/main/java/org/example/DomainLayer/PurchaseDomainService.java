@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import org.example.API.BackendConfigProperties;
 import org.example.ApplicationLayer.IPaymentGateway;
 import org.example.ApplicationLayer.ITicketingGateway;
 import org.example.ApplicationLayer.PaymentDetails;
@@ -20,6 +21,10 @@ import org.example.DomainLayer.EventAggregate.Ticket;
 import org.example.DomainLayer.EventAggregate.TicketStatus;
 import org.example.DomainLayer.LotteryAggregate.PuchaseLottery;
 import org.example.DomainLayer.PolicyManagment.DiscountPolicy;
+import org.example.DomainLayer.PolicyManagment.IPurchaseRule;
+import org.example.DomainLayer.PolicyManagment.MaxTicketRule;
+import org.example.DomainLayer.PolicyManagment.MinTicketRule;
+import org.example.DomainLayer.PolicyManagment.PurchaseComposite;
 import org.example.DomainLayer.PurchaseHistoryAggregate.Payment;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.example.DomainLayer.UserAggregate.ICompanyMember;
@@ -27,10 +32,6 @@ import org.example.DomainLayer.UserAggregate.User;
 import org.example.DomainLayer.UserAggregate.UserRole;
 import org.example.DomainLayer.UserAggregate.UserStatus;
 import org.springframework.stereotype.Service;
-import org.example.DomainLayer.PolicyManagment.IPurchaseRule;
-import org.example.DomainLayer.PolicyManagment.MaxTicketRule;
-import org.example.DomainLayer.PolicyManagment.MinTicketRule;
-import org.example.DomainLayer.PolicyManagment.PurchaseComposite;
 
 @Service
 public class PurchaseDomainService {
@@ -40,6 +41,8 @@ public class PurchaseDomainService {
     private final ICompanyRepository companyRepository;
     private final IUserRepository userRepository;
     private final ILotteryRepository lotteryRepository;
+    private final long activePurchaseTimeoutMinutes;
+    private final float defaultMaxWaitTime;
 
     IPaymentGateway paymentGateway;
     ITicketingGateway ticketingGateway;
@@ -52,7 +55,7 @@ public class PurchaseDomainService {
                                  ILotteryRepository lotteryRepository) {
         this(historyRepository, eventRepository, purchaseRepository,
                 companyRepository, userRepository, lotteryRepository,
-                null, null);
+            null, null, new BackendConfigProperties());
     }
 
     /**
@@ -69,6 +72,20 @@ public class PurchaseDomainService {
                                  ILotteryRepository lotteryRepository,
                                  IPaymentGateway paymentGateway,
                                  ITicketingGateway ticketingGateway) {
+        this(historyRepository, eventRepository, purchaseRepository,
+                companyRepository, userRepository, lotteryRepository,
+                paymentGateway, ticketingGateway, new BackendConfigProperties());
+    }
+
+    public PurchaseDomainService(IHistoryRepository historyRepository,
+                                 IEventRepository eventRepository,
+                                 IPurchaseRepository purchaseRepository,
+                                 ICompanyRepository companyRepository,
+                                 IUserRepository userRepository,
+                                 ILotteryRepository lotteryRepository,
+                                 IPaymentGateway paymentGateway,
+                                 ITicketingGateway ticketingGateway,
+                                 BackendConfigProperties backendConfigProperties) {
         this.historyRepository = historyRepository;
         this.eventRepository = eventRepository;
         this.purchaseRepository = purchaseRepository;
@@ -77,6 +94,8 @@ public class PurchaseDomainService {
         this.lotteryRepository = lotteryRepository;
         this.paymentGateway = paymentGateway;
         this.ticketingGateway = ticketingGateway;
+        this.activePurchaseTimeoutMinutes = backendConfigProperties.getActivePurchase().getTimeoutMinutes();
+        this.defaultMaxWaitTime = backendConfigProperties.getActivePurchase().getDefaultMaxWaitTime();
     }
 
     public void addPurchaseToHistory(UUID userId, List<UUID> ticketIds, UUID eventId, Payment payment) {
@@ -159,7 +178,8 @@ public class PurchaseDomainService {
             }
 
             ActivePurchase activePurchase = new ActivePurchase(userID, eventID, ticketBasePrices,
-                    LocalDateTime.now().plusMinutes(10));
+                    LocalDateTime.now().plusMinutes(activePurchaseTimeoutMinutes),
+                    defaultMaxWaitTime);
 
             activePurchase.SetGuestAgeConfirmed(guestAgeConfirmed);
 
@@ -199,7 +219,8 @@ public class PurchaseDomainService {
             }
 
             ActivePurchase activePurchase = new ActivePurchase(userID, eventID, ticketBasePrices,
-                    LocalDateTime.now().plusMinutes(10));
+                    LocalDateTime.now().plusMinutes(activePurchaseTimeoutMinutes),
+                    defaultMaxWaitTime);
 
             activePurchase.SetGuestAgeConfirmed(guestAgeConfirmed);
 
@@ -660,10 +681,7 @@ public class PurchaseDomainService {
     }
 
     public boolean validateAdmin(UUID adminId) {
-        if (!userRepository.existsAdmin(adminId)) {
-            return false;
-        }
-        return true;
+        return userRepository.existsAdmin(adminId);
     }
 
     public boolean isMemberLoggedIn(UUID memberId) {

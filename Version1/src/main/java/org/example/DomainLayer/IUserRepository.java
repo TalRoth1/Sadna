@@ -1,5 +1,6 @@
 package org.example.DomainLayer;
 
+import org.example.DomainLayer.AdminAggregate.Admin;
 import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
 import org.example.DomainLayer.UserAggregate.User;
 
@@ -33,4 +34,5 @@ public interface IUserRepository {
 
     public Map<UUID, User> getAllUsers();
 
+    void addAdmin(Admin adminImpl);
 }

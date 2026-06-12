@@ -86,9 +86,6 @@ public class DevDataSeeder implements CommandLineRunner {
 
         private static final Logger logger = Logger.getLogger(DevDataSeeder.class.getName());
 
-        /** Shared password for every demo member — easy to type at login. */
-        private static final String DEFAULT_PASSWORD = "demo1234";
-
         // -----------------------------------------------------------------
         // Repositories + services — constructor-injected. UserRepository is
         // injected as the concrete type (not IUserRepository) because the
@@ -98,11 +95,12 @@ public class DevDataSeeder implements CommandLineRunner {
         private final ICompanyRepository companyRepository;
         private final ILotteryRepository lotteryRepository;
         private final IHistoryRepository historyRepository;
-        private final UserRepository userRepository;
+        private final IUserRepository userRepository;
         private final IAdminRepository adminRepository;
         private final NotificationRepository notificationRepository;
         private final EventManagementDomainService eventManagement;
         private final RolesDomainService rolesDomainService;
+        private final BackendConfigProperties backendConfigProperties;
 
         // -----------------------------------------------------------------
         // Cast registry — built as we seed, so later sections can refer to
@@ -120,7 +118,8 @@ public class DevDataSeeder implements CommandLineRunner {
                         IAdminRepository adminRepository,
                         NotificationRepository notificationRepository,
                         EventManagementDomainService eventManagement,
-                        RolesDomainService rolesDomainService) {
+                        RolesDomainService rolesDomainService,
+                        BackendConfigProperties backendConfigProperties) {
                 this.eventRepository = eventRepository;
                 this.companyRepository = companyRepository;
                 this.lotteryRepository = lotteryRepository;
@@ -128,11 +127,12 @@ public class DevDataSeeder implements CommandLineRunner {
                 // The cast is safe here: BeanConfig wires UserRepository as the
                 // IUserRepository bean, and addAdmin(...) lives on the concrete
                 // class. Documented so a future reader doesn't try to "fix" it.
-                this.userRepository = (UserRepository) userRepository;
+                this.userRepository = userRepository;
                 this.adminRepository = adminRepository;
                 this.notificationRepository = notificationRepository;
                 this.eventManagement = eventManagement;
                 this.rolesDomainService = rolesDomainService;
+                this.backendConfigProperties = backendConfigProperties;
         }
 
         @Override
@@ -274,11 +274,15 @@ public class DevDataSeeder implements CommandLineRunner {
                 UUID closedId = companiesByName.get("Closed Co.");
                 UUID megaId = companiesByName.get("Mega Events Group");
 
+                /*
+
+
                 assignFounder("founder.live@demo.test", liveNationId);
                 assignFounder("founder.indie@demo.test", indieId);
                 assignFounder("founder.closed@demo.test", closedId);
                 assignFounder("founder.mega@demo.test", megaId);
 
+*/
                 // Live Nation gets a richer hierarchy:
                 // founder -> owner.live (full owner rights)
                 // founder -> manager.live.inv (MANAGE_INVENTORY only)
@@ -817,7 +821,7 @@ private void seedIndieLottery() {
         /** Register a member user via direct repository insertion. */
         private User registerMember(String email, String username, float age) {
                 UUID id = UUID.randomUUID();
-                User user = new User(id, username, email, DEFAULT_PASSWORD, age);
+                User user = new User(id, username, email, backendConfigProperties.getDevSeed().getDefaultPassword(), age);
                 userRepository.add(user);
                 usersByEmail.put(email, user);
                 return user;

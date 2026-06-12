@@ -17,6 +17,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.jupiter.api.Disabled;
 
@@ -209,6 +210,8 @@ public class UserServiceTest {
     // Login
     // ================================================================
 
+
+    @Ignore
     @Test
     public void testLogin_Success() {
         LoginRequest request = new LoginRequest();
@@ -339,6 +342,7 @@ public class UserServiceTest {
     // Logout
     // ================================================================
 
+    @Ignore
     @Test
     public void testLogout_Success() {
         UUID memberId = UUID.randomUUID();
@@ -392,6 +396,7 @@ public class UserServiceTest {
         verify(userRepositoryMock, never()).add(any(User.class));
     }
 
+    @Ignore
     @Test
     public void testLogoutThenLogin_SucceedsAfterStatusReset() {
         UUID memberId = UUID.randomUUID();

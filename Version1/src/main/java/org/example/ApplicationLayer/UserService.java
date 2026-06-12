@@ -293,8 +293,10 @@ public class UserService {
             // Idempotent: re-issuing a token for an already-logged-in user is
             // intentional — it supports "login from a second device" without
             // kicking the first session (that is Phase 2's job via SessionService).
-            if (user.getStatus() != UserStatus.LOGGED_IN) {
+            if (user.getStatus() != UserStatus.LOGGED_IN)
+            {
                 user.login();
+                userRepository.add(user);
             } else {
                 logger.info("Login re-issued for already-logged-in user id="
                         + user.getId());
@@ -343,6 +345,7 @@ public class UserService {
             }
 
             user.logout();
+            userRepository.add(user);
             logger.info("Logged out user id=" + memberId);
             return toResponse(user);
         });
@@ -408,14 +411,21 @@ public class UserService {
      * member from a system administrator.
      */
     private UserResponse toResponse(User user) {
-        boolean isAdmin = userRepository.existsAdmin(user.getId());
+        boolean isAdmin =
+                userRepository.existsAdmin(user.getId())
+                        || (user.getEmail() != null && userRepository.isSystemAdmin(user.getEmail()))
+                        || (user.getUsername() != null && userRepository.isSystemAdmin(user.getUsername()));
+
+        String role = isAdmin ? "ADMIN" : user.getRole().toString();
+
         return new UserResponse(
                 user.getId(),
                 user.getUsername(),
                 user.getEmail(),
                 user.getStatus().toString(),
-                user.getRole().toString(),
+                role,
                 user.getAge(),
-                isAdmin);
+                isAdmin
+        );
     }
 }

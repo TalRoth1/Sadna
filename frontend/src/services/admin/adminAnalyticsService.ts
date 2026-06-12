@@ -20,22 +20,26 @@ export async function getSystemAnalytics(
     _userId: string,
 ): Promise<SystemAnalytics> {
     const response = await api.get("/admin/analytics");
+
+    console.log("[adminAnalyticsService] full response:", response.data);
+
     const data = response.data.data as AdminAnalyticsDto;
 
+    console.log("[adminAnalyticsService] mapped data:", data);
+
     return {
-        // raw counts
-        registeredUsersCount: data.registeredUsersCount,
-        loggedInUsersCount:   data.loggedInUsersCount,
-        activeCompaniesCount: data.activeCompaniesCount,
-        activeQueuesCount:    data.activeQueuesCount,
-        activePurchasesCount: data.activePurchasesCount,
-        totalPurchasesCount:  data.totalPurchasesCount,
-        createdAt:            data.createdAt,
-        // dashboard display fields
-        activeVisitors:        data.loggedInUsersCount,
-        newSubscribersRate:    data.newSubscriberRatePerMin,
-        ticketReservationRate: data.ticketReservationRatePerMin,
-        ticketPurchaseRate:    data.ticketPurchaseRatePerMin,
-        activeQueues:          data.activeQueuesCount,
+        registeredUsersCount: data.registeredUsersCount ?? 0,
+        loggedInUsersCount: data.loggedInUsersCount ?? 0,
+        activeCompaniesCount: data.activeCompaniesCount ?? 0,
+        activeQueuesCount: data.activeQueuesCount ?? 0,
+        activePurchasesCount: data.activePurchasesCount ?? 0,
+        totalPurchasesCount: data.totalPurchasesCount ?? 0,
+        createdAt: data.createdAt ?? "",
+
+        activeVisitors: data.loggedInUsersCount ?? 0,
+        newSubscribersRate: data.newSubscriberRatePerMin ?? 0,
+        ticketReservationRate: data.ticketReservationRatePerMin ?? 0,
+        ticketPurchaseRate: data.ticketPurchaseRatePerMin ?? 0,
+        activeQueues: data.activeQueuesCount ?? 0,
     };
 }

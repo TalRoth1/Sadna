@@ -13,22 +13,29 @@ import org.example.InfrastructureLayer.Broadcaster;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @RestController
 @RequestMapping("/api/notifications")
 public class NotificationController {
 
-    private static final long SSE_TIMEOUT = 30L * 60L * 1000L; // 30 minutes
-
     private final NotificationService notificationService;
     private final Broadcaster broadcaster;
+    private final BackendConfigProperties backendConfigProperties;
 
     public NotificationController(NotificationService notificationService,
-                                  Broadcaster broadcaster) {
+                                  Broadcaster broadcaster,
+                                  BackendConfigProperties backendConfigProperties) {
         this.notificationService = notificationService;
         this.broadcaster = broadcaster;
+        this.backendConfigProperties = backendConfigProperties;
     }
 
     // ================================================================
@@ -53,7 +60,7 @@ public class NotificationController {
             throw new IllegalArgumentException("User ID is required");
         }
 
-        SseEmitter emitter = new SseEmitter(SSE_TIMEOUT);
+        SseEmitter emitter = new SseEmitter(backendConfigProperties.getNotifications().getSseTimeout().toMillis());
 
         AtomicReference<Consumer<NotificationDTO>> listenerRef = new AtomicReference<>();
 

@@ -31,6 +31,13 @@
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
+
+        <dependency>
+            <groupId>org.junit.vintage</groupId>
+            <artifactId>junit-vintage-engine</artifactId>
+            <scope>test</scope>
+        </dependency>
+
         <!-- Tests -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -73,6 +80,31 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- Spring Data JPA / Hibernate ORM -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+
+        <!-- PostgreSQL driver: works for local PostgreSQL and Google Cloud SQL PostgreSQL -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- For tests / local development without touching Google Cloud -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-crypto</artifactId>
+        </dependency>
+
     </dependencies>
 
     <build>
@@ -90,8 +122,30 @@
                 <artifactId>jacoco-maven-plugin</artifactId>
                 <version>0.8.13</version>
 
-                <executions>
+                <configuration>
+                    <excludes>
+                        <!-- DTOs / request-response objects -->
+                        <exclude>**/dto/**</exclude>
 
+                        <!-- remove only classes directly under org.example -->
+                        <exclude>org/example/*.class</exclude>
+
+                        <!-- remove org.example.API package -->
+                        <exclude>org/example/API/*.class</exclude>
+                        <exclude>org/example/API/**/*.class</exclude>
+
+                        <!-- optional: generated / bootstrapping classes -->
+                        <exclude>**/*Application.*</exclude>
+                        <exclude>**/*Config.*</exclude>
+                        <exclude>**/*Configuration.*</exclude>
+
+                        <!-- optional: exception/data-only classes -->
+                        <exclude>**/*Exception.*</exclude>
+                        <exclude>org/example/InfrastructureLayer/Persistence/**</exclude>
+                    </excludes>
+                </configuration>
+
+                <executions>
                     <execution>
                         <goals>
                             <goal>prepare-agent</goal>
@@ -101,12 +155,10 @@
                     <execution>
                         <id>report</id>
                         <phase>test</phase>
-
                         <goals>
                             <goal>report</goal>
                         </goals>
                     </execution>
-
                 </executions>
             </plugin>
 

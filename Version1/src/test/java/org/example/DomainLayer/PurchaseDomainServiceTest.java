@@ -11,6 +11,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
+import org.example.DomainLayer.AdminAggregate.Admin;
 import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
 import org.example.DomainLayer.EventAggregate.Event;
@@ -1474,6 +1475,8 @@ public class PurchaseDomainServiceTest {
     private static class FakeUserRepository implements IUserRepository {
 
         private final LinkedHashMap<UUID, User> usersById = new LinkedHashMap<>();
+        private final LinkedHashMap<UUID, Admin> adminsById = new LinkedHashMap<>();
+        private final LinkedHashMap<String, UUID> adminIdsByUsername = new LinkedHashMap<>();
 
         @Override
         public void add(User user) {
@@ -1496,11 +1499,6 @@ public class PurchaseDomainServiceTest {
         }
 
         @Override
-        public boolean isSystemAdmin(String username) {
-            return false;
-        }
-
-        @Override
         public boolean existsByEmail(String email) {
             return false;
         }
@@ -1510,10 +1508,6 @@ public class PurchaseDomainServiceTest {
             return usersById.values().stream().filter(u -> u.getEmail().equals(email)).findFirst();
         }
 
-        @Override
-        public boolean existsAdmin(UUID adminId) {
-            return false;
-        }
 
         @Override
         public List<UUID> getCompaniesIdsByMember(String username) {
@@ -1535,6 +1529,31 @@ public class PurchaseDomainServiceTest {
         @Override
         public Map<UUID, User> getAllUsers() {
             return Map.of();
+        }
+
+        @Override
+        public void addAdmin(Admin admin) {
+            if (admin == null || admin.getId() == null || admin.getUsername() == null) {
+                return;
+            }
+
+            String username = admin.getUsername().trim().toLowerCase();
+            adminsById.put(admin.getId(), admin);
+            adminIdsByUsername.put(username, admin.getId());
+        }
+
+        @Override
+        public boolean isSystemAdmin(String username) {
+            if (username == null) {
+                return false;
+            }
+
+            return adminIdsByUsername.containsKey(username.trim().toLowerCase());
+        }
+
+        @Override
+        public boolean existsAdmin(UUID adminId) {
+            return adminId != null && adminsById.containsKey(adminId);
         }
     }
 

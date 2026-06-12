@@ -45,6 +45,7 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import org.junit.Before;
 import org.junit.Test;
+import org.example.DomainLayer.AdminAggregate.Admin;
 
 /**
  * Concurrency and checkout invariant tests for PurchaseDomainService.
@@ -663,6 +664,8 @@ public class PurchaseDomainConcurrencyAndCheckoutTest {
 
     private static class ThreadSafeUserRepository implements IUserRepository {
         private final Map<UUID, User> usersById = new ConcurrentHashMap<>();
+        private final Map<UUID, Admin> adminsById = new ConcurrentHashMap<>();
+        private final Map<String, UUID> adminIdsByUsername = new ConcurrentHashMap<>();
 
         @Override
         public void add(User user) {
@@ -685,10 +688,6 @@ public class PurchaseDomainConcurrencyAndCheckoutTest {
                     .anyMatch(user -> username.equals(user.getUsername()));
         }
 
-        @Override
-        public boolean isSystemAdmin(String username) {
-            return false;
-        }
 
         @Override
         public boolean existsByEmail(String email) {
@@ -701,11 +700,6 @@ public class PurchaseDomainConcurrencyAndCheckoutTest {
             return usersById.values().stream()
                     .filter(user -> email.equals(user.getEmail()) || email.equals(user.getUsername()))
                     .findFirst();
-        }
-
-        @Override
-        public boolean existsAdmin(UUID adminId) {
-            return false;
         }
 
         @Override
@@ -726,6 +720,31 @@ public class PurchaseDomainConcurrencyAndCheckoutTest {
         @Override
         public Map<UUID, User> getAllUsers() {
             return Collections.unmodifiableMap(usersById);
+        }
+
+        @Override
+        public void addAdmin(Admin admin) {
+            if (admin == null || admin.getId() == null || admin.getUsername() == null) {
+                return;
+            }
+
+            String username = admin.getUsername().trim().toLowerCase();
+            adminsById.put(admin.getId(), admin);
+            adminIdsByUsername.put(username, admin.getId());
+        }
+
+        @Override
+        public boolean isSystemAdmin(String username) {
+            if (username == null) {
+                return false;
+            }
+
+            return adminIdsByUsername.containsKey(username.trim().toLowerCase());
+        }
+
+        @Override
+        public boolean existsAdmin(UUID adminId) {
+            return adminId != null && adminsById.containsKey(adminId);
         }
     }
 
@@ -753,5 +772,7 @@ public class PurchaseDomainConcurrencyAndCheckoutTest {
         public List<PuchaseLottery> findAll() {
             return new ArrayList<>(lotteriesById.values());
         }
+
+
     }
 }

@@ -34,6 +34,7 @@ export type AppPage =
 type NavigationMenuProps = {
     currentPage: AppPage;
     onNavigate: (page: AppPage) => void;
+    isAdmin?: boolean;
 };
 
 const mainLinks: { page: AppPage; label: string }[] = [
@@ -47,10 +48,14 @@ const mainLinks: { page: AppPage; label: string }[] = [
     }
 ];
 
-export default function NavigationMenu({ currentPage, onNavigate }: NavigationMenuProps) {
+export default function NavigationMenu({
+    currentPage,
+    onNavigate,
+    isAdmin: initialIsAdmin = false,
+}: NavigationMenuProps) {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
-    const [isAdmin, setIsAdmin] = useState(false);
+    const [isAdmin, setIsAdmin] = useState(initialIsAdmin);
 
     const isGuest =
         currentUser?.role === "GUEST" ||
@@ -82,13 +87,9 @@ export default function NavigationMenu({ currentPage, onNavigate }: NavigationMe
                     return;
                 }
 
-                if (!user.isAdmin) {
-                    setIsAdmin(false);
-                    return;
-                }
-
-                const hasAdminAccess = await verifyPlatformAdmin(user.id);
-                if (!isMounted) return;
+                const hasAdminAccess =
+                    user.isAdmin === true ||
+                    user.role === "ADMIN";
 
                 setIsAdmin(hasAdminAccess);
             } catch (error) {
