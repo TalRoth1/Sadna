@@ -2,6 +2,7 @@ package org.example.InfrastructureLayer.Persistence;
 
 import org.example.DomainLayer.EventAggregate.Event;
 import org.example.DomainLayer.EventAggregate.EventStatus;
+import org.example.DomainLayer.PolicyManagment.DiscountType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -47,7 +48,7 @@ class JpaEventRepositoryTest {
     void savePersistsEventFields() {
         UUID eventId = UUID.randomUUID();
         UUID companyId = UUID.randomUUID();
-        Event event = new Event(eventId, companyId, LocalDateTime.now(), "Tel Aviv", "Artist", "Concert", EventStatus.ACTIVE);
+        Event event = new Event(eventId, companyId, LocalDateTime.now(), "Tel Aviv", "Artist", "Concert", EventStatus.ACTIVE, DiscountType.ALL);
         event.setName("Test Event");
         event.setDescription("A description");
         event.setTags(List.of("music", "live"));

@@ -13,6 +13,7 @@ import org.example.DomainLayer.EventAggregate.StandingArea;
 import org.example.DomainLayer.EventAggregate.Ticket;
 import org.example.DomainLayer.EventAggregate.TicketStatus;
 import org.example.DomainLayer.IEventRepository;
+import org.example.DomainLayer.PolicyManagment.DiscountType;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -110,7 +111,8 @@ public class JpaEventRepository implements IEventRepository {
                 entity.getLocation(),
                 entity.getArtist(),
                 entity.getType(),
-                entity.getStatus() == null ? EventStatus.ACTIVE : entity.getStatus()
+                entity.getStatus() == null ? EventStatus.ACTIVE : entity.getStatus(),
+                DiscountType.ALL
         );
 
         if (entity.getName() != null) {
