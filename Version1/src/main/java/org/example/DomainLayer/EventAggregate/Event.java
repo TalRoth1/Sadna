@@ -42,6 +42,7 @@ public class Event {
     private String lotteryId;
     private final Map<UUID, Ticket> ticketsById = new LinkedHashMap<>();
     private Map<UUID, Rating> ratingsByUsers = new LinkedHashMap<>();
+    private String managerUsername;
 
     public Event(UUID eventId, UUID companyId, LocalDateTime date, String location,
                    String artist, String type, EventStatus status, DiscountType discountType) {
@@ -195,6 +196,18 @@ public class Event {
     public String getLotteryId()
     {
         return lotteryId;
+    }
+
+    public String getManagerUsername() {
+        return managerUsername;
+    }
+
+    public void setManagerUsername(String managerUsername) {
+        if (managerUsername == null || managerUsername.isBlank()) {
+            this.managerUsername = null;
+            return;
+        }
+        this.managerUsername = managerUsername.trim().toLowerCase();
     }
 
     public void setLotteryId(String lotteryId) {

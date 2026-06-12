@@ -46,6 +46,7 @@ public class BeanConfig {
     // ---------------------------------------------------------------------
 
     @Bean
+    @Profile("!localdb")
     public IEventRepository eventRepository() {
         return new InMemoryEventRepository();
     }
