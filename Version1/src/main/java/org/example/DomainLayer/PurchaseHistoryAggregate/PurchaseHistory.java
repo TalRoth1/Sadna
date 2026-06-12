@@ -13,11 +13,15 @@ public class PurchaseHistory {
     private final LocalDateTime purchaseDate;
 
     public PurchaseHistory(UUID userId, List<UUID> ticketIds, UUID eventId, Payment payment) {
+        this(userId, ticketIds, eventId, payment, LocalDateTime.now());
+    }
+
+    public PurchaseHistory(UUID userId, List<UUID> ticketIds, UUID eventId, Payment payment, LocalDateTime purchaseDate) {
         this.userId = userId;
         this.ticketIds = new ArrayList<>(ticketIds);
         this.eventId = eventId;
         this.payment = payment;
-        this.purchaseDate = LocalDateTime.now();
+        this.purchaseDate = purchaseDate;
     }
 
     public UUID getUserId() {
@@ -25,7 +29,7 @@ public class PurchaseHistory {
     }
 
     public List<UUID> getTicketIds() {
-        return ticketIds;
+        return new ArrayList<>(ticketIds);
     }
 
     public UUID getEventId() {
