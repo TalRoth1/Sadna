@@ -29,7 +29,9 @@ import org.example.ApplicationLayer.dto.EventDTOs.RemoveEventDiscountRequest;
 import org.example.ApplicationLayer.dto.EventDTOs.UpdateSittingAreaRequest;
 import org.example.ApplicationLayer.dto.EventDTOs.UpdateStandingAreaRequest;
 import org.example.ApplicationLayer.dto.PurchaseDTOs.PurchaseHistoryDTO;
+import org.example.DomainLayer.DomainException;
 import org.example.DomainLayer.EventAggregate.EventSearchCriteria;
+import org.example.DomainLayer.PolicyManagment.DiscountType;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -41,12 +43,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.example.ApplicationLayer.dto.EventDTOs.AddSittingAreaRequest;
-import org.example.ApplicationLayer.dto.EventDTOs.AddStandingAreaRequest;
-import org.example.ApplicationLayer.dto.EventDTOs.EditEventPolicyRequest;
-import org.example.ApplicationLayer.dto.EventDTOs.DeleteAreaRequest;
-import org.example.ApplicationLayer.dto.EventDTOs.UpdateSittingAreaRequest;
-import org.example.ApplicationLayer.dto.EventDTOs.UpdateStandingAreaRequest;
 /**
  * EventController
  *
@@ -75,6 +71,7 @@ public class EventController {
     @PostMapping
     public ResponseEntity<ApiResponse<EventDetailsDto>> createEvent(@RequestBody CreateEventRequest request) {
         try {
+            DiscountType discountType = request.discountType;
             EventDetailsDto event = eventService.addEvent(
                     UUID.randomUUID(),
                     request.companyId,
@@ -85,11 +82,12 @@ public class EventController {
                     request.artist,
                     request.type,
                     request.status,
-                    request.description);
+                    request.description,
+                    discountType);
 
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(ApiResponse.success("Event created successfully", event));
-        } catch (IllegalArgumentException | IllegalStateException e) {
+        } catch (IllegalArgumentException | IllegalStateException | DomainException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -107,7 +105,7 @@ public class EventController {
                     eventId, request.name, request.date, request.location,
                     request.artist, request.type, request.status, request.description);
             return ResponseEntity.ok(ApiResponse.success("Event updated successfully", event));
-        } catch (IllegalArgumentException | IllegalStateException e) {
+        } catch (IllegalArgumentException | IllegalStateException | DomainException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -122,7 +120,7 @@ public class EventController {
         try {
             eventService.deleteEvent(eventId, request.userEmail, request.eventManagerEmail);
             return ResponseEntity.ok(ApiResponse.success("Event deleted successfully"));
-        } catch (IllegalArgumentException | IllegalStateException e) {
+        } catch (IllegalArgumentException | IllegalStateException | DomainException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -197,8 +195,9 @@ public class EventController {
         } catch (IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            String msg = e.getMessage() == null ? "(no message)" : e.getMessage();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("Failed to create standing area: system exception"));
+                    .body(ApiResponse.error("Failed to create standing area: system exception - " + msg));
         }
     }
     

@@ -84,6 +84,10 @@ public class UserEntity {
         updatedAt = LocalDateTime.now();
     }
 
+    public void setPasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash == null ? "" : passwordHash;
+    }
+
     public UUID getId() {
         return id;
     }

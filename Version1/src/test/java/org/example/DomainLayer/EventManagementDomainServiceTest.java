@@ -10,6 +10,7 @@ import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
 import org.example.DomainLayer.EventAggregate.Event;
 import org.example.DomainLayer.EventAggregate.EventStatus;
+import org.example.DomainLayer.PolicyManagment.DiscountType;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.example.DomainLayer.UserAggregate.CompanyFounder;
 import org.example.DomainLayer.UserAggregate.User;
@@ -219,7 +220,8 @@ public class EventManagementDomainServiceTest {
                 "Artist",
                 "Concert",
                 EventStatus.ACTIVE,
-                "  Full event description  "
+                "  Full event description  ",
+                DiscountType.ALL
         );
 
         org.mockito.ArgumentCaptor<Event> eventCaptor =
@@ -244,7 +246,8 @@ public class EventManagementDomainServiceTest {
                 "Artist",
                 "Concert",
                 EventStatus.ACTIVE,
-                "description"
+                "description",
+                DiscountType.ALL
         );
 
         verify(eventRepository).save(any(Event.class));
@@ -265,7 +268,8 @@ public class EventManagementDomainServiceTest {
                         "Artist",
                         "Concert",
                         EventStatus.ACTIVE,
-                        "description"
+                        "description",
+                        DiscountType.ALL
                 )
         );
 

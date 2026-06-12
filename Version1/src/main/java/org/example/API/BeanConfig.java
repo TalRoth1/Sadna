@@ -47,11 +47,13 @@ public class BeanConfig {
     // ---------------------------------------------------------------------
 
     @Bean
+    @Profile("!localdb")
     public IEventRepository eventRepository() {
         return new InMemoryEventRepository();
     }
 
     @Bean
+    @Profile("!localdb")
     public ICompanyRepository companyRepository() {
         return new CompanyRepository();
     }
@@ -68,6 +70,7 @@ public class BeanConfig {
     }
 
     @Bean
+    @Profile("!localdb")
     public IPurchaseRepository purchaseRepository() {
         return new InMemoryPurchaseRepository();
     }
@@ -126,7 +129,7 @@ public class BeanConfig {
 
     @Bean
     public IAuthenticationGateway authenticationGateway() {
-        return new PlainTextAuthenticationGateway();
+        return new BCryptAuthenticationGateway();
     }
 
     @Bean

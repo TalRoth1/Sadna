@@ -17,6 +17,7 @@ import org.example.DomainLayer.ILotteryRepository;
 import org.example.DomainLayer.INotificationRepository;
 import org.example.DomainLayer.IPurchaseRepository;
 import org.example.DomainLayer.NotificationAggregate.INotifier;
+import org.example.DomainLayer.PolicyManagment.DiscountType;
 import org.example.DomainLayer.PurchaseDomainService;
 import org.example.DomainLayer.RolesDomainService;
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
@@ -800,7 +801,7 @@ public class ApplicationLayerAdditionalTests {
     @Test
     public void companyService_getCompanyPoliciesConvertsPurchaseRules() {
         UUID companyId = UUID.randomUUID();
-        Company company = new Company("founder", "Acme");
+        Company company = new Company("founder", "Acme", DiscountType.ALL);
 
         company.addPurchasePolicy(
                 Optional.of(18f),
@@ -928,7 +929,8 @@ public class ApplicationLayerAdditionalTests {
                 "Tel Aviv",
                 "Artist",
                 "concert",
-                EventStatus.ACTIVE
+                EventStatus.ACTIVE,
+                DiscountType.ALL
         );
 
         when(eventDomainService.getEventForView(eventId)).thenReturn(event);
@@ -1020,7 +1022,7 @@ public class ApplicationLayerAdditionalTests {
                 "Haifa",
                 "Artist",
                 "festival",
-                EventStatus.ACTIVE
+                EventStatus.ACTIVE, DiscountType.ALL
         );
         event.setName("Festival");
         event.addTag("rock");
@@ -1045,7 +1047,7 @@ public class ApplicationLayerAdditionalTests {
                 10f
         );
 
-        Company company = new Company("founder", "Company");
+        Company company = new Company("founder", "Company", DiscountType.ALL);
         company.addOvertDiscount(
                 LocalDate.now(),
                 LocalDate.now().plusDays(5),
@@ -1182,7 +1184,8 @@ public class ApplicationLayerAdditionalTests {
                 "Tel Aviv",
                 "Artist",
                 "concert",
-                EventStatus.ACTIVE
+                EventStatus.ACTIVE,
+                DiscountType.ALL
         );
         event.setName("Concert Name");
 
@@ -1265,7 +1268,8 @@ public class ApplicationLayerAdditionalTests {
                 "Jerusalem",
                 "Artist",
                 "concert",
-                EventStatus.ACTIVE
+                EventStatus.ACTIVE,
+                DiscountType.ALL
         );
         event.setName("Event Name");
 

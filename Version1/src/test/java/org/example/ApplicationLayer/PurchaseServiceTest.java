@@ -10,6 +10,7 @@ import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
 import org.example.DomainLayer.EventAggregate.*;
 import org.example.DomainLayer.LotteryAggregate.PuchaseLottery;
 import org.example.DomainLayer.NotificationAggregate.INotifier;
+import org.example.DomainLayer.PolicyManagment.DiscountType;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.example.DomainLayer.UserAggregate.CompanyFounder;
 import org.example.DomainLayer.UserAggregate.User;
@@ -18,7 +19,6 @@ import org.example.InfrastructureLayer.NotificationRepository;
 import org.example.InfrastructureLayer.WebSocketNotificationSender;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.jupiter.api.Disabled;
 import org.mockito.Mock;
 
 import java.time.LocalDateTime;
@@ -136,7 +136,7 @@ public class PurchaseServiceTest {
         UUID areaId = UUID.randomUUID();
         UUID ticketId = UUID.randomUUID();
 
-        Event event = new Event(eventId, companyId, LocalDateTime.now(), "loc", "artist", "type", EventStatus.ACTIVE);
+        Event event = new Event(eventId, companyId, LocalDateTime.now(), "loc", "artist", "type", EventStatus.ACTIVE, DiscountType.ALL);
         event.getLayout().addArea(new SittingArea(areaId, 100f));
         event.addTicket(new SittingTicket(ticketId, eventId, areaId, 100f, 1, 1));
         setup.inMemoryEventRepository.save(event);
@@ -174,7 +174,7 @@ public class PurchaseServiceTest {
         UUID areaId = UUID.randomUUID();
         UUID ticketId = UUID.randomUUID();
 
-        Event event = new Event(eventId, companyId, LocalDateTime.now(), "loc", "artist", "type", EventStatus.ACTIVE);
+        Event event = new Event(eventId, companyId, LocalDateTime.now(), "loc", "artist", "type", EventStatus.ACTIVE, DiscountType.ALL);
         event.getLayout().addArea(new SittingArea(areaId, 100f));
         event.addTicket(new SittingTicket(ticketId, eventId, areaId, 100f, 1, 1));
         setup.inMemoryEventRepository.save(event);
@@ -222,7 +222,7 @@ public class PurchaseServiceTest {
         UUID areaId = UUID.randomUUID();
         UUID ticketId = UUID.randomUUID();
 
-        Event event = new Event(eventId, companyId, LocalDateTime.now(), "loc", "artist", "type", EventStatus.ACTIVE);
+        Event event = new Event(eventId, companyId, LocalDateTime.now(), "loc", "artist", "type", EventStatus.ACTIVE, DiscountType.ALL);
         event.getLayout().addArea(new SittingArea(areaId, 100f));
         event.addTicket(new SittingTicket(ticketId, eventId, areaId, 100f, 1, 1));
         setup.inMemoryEventRepository.save(event);
@@ -774,7 +774,7 @@ public class PurchaseServiceTest {
         List<UUID> ticketIDs = new ArrayList<>();
         ticketIDs.add(ticketId);
 
-        Event event = new Event(eventId, companyId, LocalDateTime.now(), "dssdsd", "sdsdsd", "sdsd", EventStatus.ACTIVE);
+        Event event = new Event(eventId, companyId, LocalDateTime.now(), "dssdsd", "sdsdsd", "sdsd", EventStatus.ACTIVE, DiscountType.ALL);
         event.getLayout().addArea(sittingArea);
 
         SittingTicket ticket = new SittingTicket(ticketId, eventId, areaID, 100f, 1, 1);
@@ -810,7 +810,7 @@ public class PurchaseServiceTest {
         UUID user1Id = UUID.randomUUID();
         UUID user2Id = UUID.randomUUID();
 
-        Event event = new Event(eventId, companyId, LocalDateTime.now(), "loc", "artist", "type", EventStatus.ACTIVE);
+        Event event = new Event(eventId, companyId, LocalDateTime.now(), "loc", "artist", "type", EventStatus.ACTIVE, DiscountType.ALL);
 
         SittingArea area = new SittingArea(areaId, 100f);
         event.getLayout().addArea(area);
@@ -894,7 +894,7 @@ public class PurchaseServiceTest {
         UUID ticketId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
 
-        Event event = new Event(eventId, companyId, LocalDateTime.now(), "loc", "artist", "type", EventStatus.ACTIVE);
+        Event event = new Event(eventId, companyId, LocalDateTime.now(), "loc", "artist", "type", EventStatus.ACTIVE, DiscountType.ALL);
         SittingArea area = new SittingArea(areaId, 100f);
         event.getLayout().addArea(area);
         event.addTicket(new SittingTicket(ticketId, eventId, areaId, 100f, 1, 1));
@@ -924,7 +924,7 @@ public class PurchaseServiceTest {
         UUID ticketId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
 
-        Event event = new Event(eventId, companyId, LocalDateTime.now(), "loc", "artist", "type", EventStatus.ACTIVE);
+        Event event = new Event(eventId, companyId, LocalDateTime.now(), "loc", "artist", "type", EventStatus.ACTIVE, DiscountType.ALL);
         SittingArea area = new SittingArea(areaId, 100f);
         event.getLayout().addArea(area);
         event.addTicket(new SittingTicket(ticketId, eventId, areaId, 100f, 1, 1));
@@ -962,7 +962,7 @@ public class PurchaseServiceTest {
         UUID user1 = UUID.randomUUID();
         UUID user2 = UUID.randomUUID();
 
-        Event event = new Event(eventId, companyId, LocalDateTime.now(), "loc", "artist", "type", EventStatus.ACTIVE);
+        Event event = new Event(eventId, companyId, LocalDateTime.now(), "loc", "artist", "type", EventStatus.ACTIVE, DiscountType.ALL);
         event.getLayout().addArea(new SittingArea(areaId, 100f));
         event.addTicket(new SittingTicket(ticketId, eventId, areaId, 100f, 1, 1));
 
@@ -1007,7 +1007,7 @@ public class PurchaseServiceTest {
         UUID secondTicketId = UUID.randomUUID();
         UUID areaID = UUID.randomUUID();
 
-        Event event = new Event(eventId, companyId, LocalDateTime.now(), "dssdsd", "sdsdsd", "sdsd", EventStatus.ACTIVE);
+        Event event = new Event(eventId, companyId, LocalDateTime.now(), "dssdsd", "sdsdsd", "sdsd", EventStatus.ACTIVE, DiscountType.ALL);
         event.getLayout().addArea(new StandingArea(areaID, 100f));
         event.addTicket(new StandingTicket(ticketId, eventId, areaID, 100f));
         event.addTicket(new StandingTicket(secondTicketId, eventId, areaID, 100f));
@@ -1037,7 +1037,7 @@ public class PurchaseServiceTest {
         UUID ticketId = UUID.randomUUID();
         UUID areaID = UUID.randomUUID();
 
-        Event event = new Event(eventId, companyId, LocalDateTime.now(), "dssdsd", "sdsdsd", "sdsd", EventStatus.ACTIVE);
+        Event event = new Event(eventId, companyId, LocalDateTime.now(), "dssdsd", "sdsdsd", "sdsd", EventStatus.ACTIVE, DiscountType.ALL);
         event.getLayout().addArea(new StandingArea(areaID, 100f));
         event.addTicket(new StandingTicket(ticketId, eventId, areaID, 100f));
 
@@ -1096,7 +1096,7 @@ public class PurchaseServiceTest {
         UUID ticketId = UUID.randomUUID();
         UUID areaID = UUID.randomUUID();
 
-        Event event = new Event(eventId, companyId, LocalDateTime.now(), "dssdsd", "sdsdsd", "sdsd", EventStatus.ACTIVE);
+        Event event = new Event(eventId, companyId, LocalDateTime.now(), "dssdsd", "sdsdsd", "sdsd", EventStatus.ACTIVE, DiscountType.ALL);
         event.getLayout().addArea(new StandingArea(areaID, 100f));
         event.addTicket(new StandingTicket(ticketId, eventId, areaID, 100f));
 
@@ -1152,7 +1152,7 @@ public class PurchaseServiceTest {
         UUID ticketId = UUID.randomUUID();
         UUID areaID = UUID.randomUUID();
 
-        Event event = new Event(eventId, companyId, LocalDateTime.now(), "loc", "artist", "type", EventStatus.ACTIVE);
+        Event event = new Event(eventId, companyId, LocalDateTime.now(), "loc", "artist", "type", EventStatus.ACTIVE, DiscountType.ALL);
         event.getLayout().addArea(new SittingArea(areaID, 100f));
         event.addTicket(new SittingTicket(ticketId, eventId, areaID, 100f, 1, 1));
 
@@ -1198,7 +1198,7 @@ public class PurchaseServiceTest {
         UUID oldTicketId = UUID.randomUUID();
         UUID newTicketId = UUID.randomUUID();
 
-        Event event = new Event(eventId, companyId, LocalDateTime.now(), "loc", "artist", "type", EventStatus.ACTIVE);
+        Event event = new Event(eventId, companyId, LocalDateTime.now(), "loc", "artist", "type", EventStatus.ACTIVE, DiscountType.ALL);
         event.getLayout().addArea(new SittingArea(areaID, 100f));
         event.addTicket(new SittingTicket(oldTicketId, eventId, areaID, 100f, 1, 1));
         event.addTicket(new SittingTicket(newTicketId, eventId, areaID, 100f, 2, 1));
@@ -1237,7 +1237,7 @@ public class PurchaseServiceTest {
         UUID oldTicketId = UUID.randomUUID();
         UUID newTicketId = UUID.randomUUID();
 
-        Event event = new Event(eventId, companyId, LocalDateTime.now(), "loc", "artist", "type", EventStatus.ACTIVE);
+        Event event = new Event(eventId, companyId, LocalDateTime.now(), "loc", "artist", "type", EventStatus.ACTIVE, DiscountType.ALL);
         event.getLayout().addArea(new SittingArea(areaID, 100f));
         event.addTicket(new SittingTicket(oldTicketId, eventId, areaID, 100f, 1, 1));
         event.addTicket(new SittingTicket(newTicketId, eventId, areaID, 100f, 2, 1));
@@ -1328,7 +1328,8 @@ public class PurchaseServiceTest {
                 "loc",
                 "artist",
                 "type",
-                EventStatus.ACTIVE
+                EventStatus.ACTIVE,
+                DiscountType.ALL
         );
 
         event.getLayout().addArea(new SittingArea(areaId, 100f));
@@ -1555,8 +1556,8 @@ public class PurchaseServiceTest {
 
 
         @Override
-        public UUID createCompany(String founderUsername, String companyName) {
-            Company company = new Company(founderUsername, companyName);
+        public UUID createCompany(String founderUsername, String companyName, DiscountType discountType) {
+            Company company = new Company(founderUsername, companyName, discountType);
             save(company);
             return company.getId();
         }

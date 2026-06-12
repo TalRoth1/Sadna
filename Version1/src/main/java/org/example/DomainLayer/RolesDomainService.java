@@ -14,6 +14,7 @@ import org.example.ApplicationLayer.dto.CompanyDTOs.CompanyMembershipResponse;
 import org.example.ApplicationLayer.dto.CompanyDTOs.InvitationResponse;
 import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
+import org.example.DomainLayer.PolicyManagment.DiscountType;
 import org.example.DomainLayer.UserAggregate.CompanyFounder;
 import org.example.DomainLayer.UserAggregate.CompanyManager;
 import org.example.DomainLayer.UserAggregate.CompanyOwner;
@@ -24,9 +25,13 @@ import org.example.DomainLayer.UserAggregate.OwnerInvitation;
 import org.example.DomainLayer.UserAggregate.User;
 import org.springframework.stereotype.Service;
 
+import java.util.logging.Logger;
+
 
 @Service
 public class RolesDomainService {
+
+    private static final Logger log = Logger.getLogger(RolesDomainService.class.getName());
 
     private final ICompanyRepository companyRepository;
     private final IUserRepository userRepository;
@@ -37,20 +42,25 @@ public class RolesDomainService {
     public RolesDomainService(ICompanyRepository companyRepository, IUserRepository userRepository) {
         this.companyRepository = companyRepository;
         this.userRepository = userRepository;
+        log.warning("[DIAG] companyRepository impl = " + companyRepository.getClass().getName());
+        log.warning("[DIAG] userRepository impl    = " + userRepository.getClass().getName());
     }
 
-    public UUID createCompany(String founderEmail, String companyName) {
+    public UUID createCompany(String founderEmail, String companyName, DiscountType discountType) {
         if (founderEmail == null || founderEmail.isBlank()) {
             throw new IllegalArgumentException("Founder email is required");
         }
         if (companyName == null || companyName.isBlank()) {
             throw new IllegalArgumentException("Company name is required");
         }
+        if (discountType == null) {
+            throw new IllegalArgumentException("Discount type is required");
+        }
 
         User founder = userRepository.findByEmail(founderEmail)
                 .orElseThrow(() -> new IllegalArgumentException("Founder user not found"));
 
-        UUID companyId = companyRepository.createCompany(founderEmail, companyName);
+        UUID companyId = companyRepository.createCompany(founderEmail, companyName, discountType);
 
         synchronized (founder) {
             founder.getCompanyRoles().put(companyId, new CompanyFounder(founderEmail));

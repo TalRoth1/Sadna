@@ -23,6 +23,7 @@ import org.example.DomainLayer.EventAggregate.SittingArea;
 import org.example.DomainLayer.EventAggregate.SittingTicket;
 import org.example.DomainLayer.EventAggregate.TicketStatus;
 import org.example.DomainLayer.LotteryAggregate.PuchaseLottery;
+import org.example.DomainLayer.PolicyManagment.DiscountType;
 import org.example.DomainLayer.PurchaseHistoryAggregate.Payment;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.example.DomainLayer.UserAggregate.User;
@@ -710,7 +711,8 @@ public class PurchaseDomainServiceTest {
                 "Tel Aviv",
                 "Artist",
                 "Concert",
-                EventStatus.ACTIVE
+                EventStatus.ACTIVE,
+                DiscountType.ALL
         );
     }
 
@@ -1475,7 +1477,7 @@ public class PurchaseDomainServiceTest {
         }
 
         @Override
-        public UUID createCompany(String founderUsername, String companyName) {
+        public UUID createCompany(String founderUsername, String companyName, DiscountType discountType) {
             return null;
         }
 
