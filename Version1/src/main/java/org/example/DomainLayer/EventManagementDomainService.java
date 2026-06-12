@@ -15,6 +15,7 @@ import org.example.DomainLayer.EventAggregate.Event;
 import org.example.DomainLayer.EventAggregate.EventSearchCriteria;
 import org.example.DomainLayer.EventAggregate.EventStatus;
 import org.example.DomainLayer.LotteryAggregate.PuchaseLottery;
+import org.example.DomainLayer.PolicyManagment.DiscountType;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.example.DomainLayer.UserAggregate.ICompanyMember;
 import org.example.DomainLayer.UserAggregate.User;
@@ -277,7 +278,7 @@ public class EventManagementDomainService {
     }
 
     public void addEvent(UUID eventId, UUID companyId, String eventManagerEmail, String name,
-            LocalDateTime date, String location, String artist, String type, EventStatus status, String description) {
+            LocalDateTime date, String location, String artist, String type, EventStatus status, String description, DiscountType discountType) {
         if (eventRepository.getById(eventId) != null) {
             throw new DomainException("Event already exists: " + eventId);
         }
@@ -298,7 +299,7 @@ public class EventManagementDomainService {
             throw new DomainException("Event manager is not a member of the company");
         }
 
-        Event event = new Event(eventId, companyId, date, location, artist, type, status);
+        Event event = new Event(eventId, companyId, date, location, artist, type, status, discountType);
         if (name != null) {
             event.setName(name);
         }

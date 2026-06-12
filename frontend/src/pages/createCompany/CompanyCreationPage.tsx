@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { getCurrentUser, type CurrentUser } from "../../services/currentUserService";
-import { createCompany, type CompanyResponse } from "../../services/companyService";
+import { createCompany, type CompanyDiscountType, type CompanyResponse } from "../../services/companyService";
 import "./CompanyCreationPage.css";
 
 type CompanyCreationFormErrors = {
@@ -63,6 +63,7 @@ export default function CompanyCreationPage({
 }: CompanyCreationPageProps) {
     const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
     const [companyName, setCompanyName] = useState("");
+    const [discountType, setDiscountType] = useState<CompanyDiscountType>("MAX");
     const [errors, setErrors] = useState<CompanyCreationFormErrors>({});
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -84,7 +85,7 @@ export default function CompanyCreationPage({
 
     const isGuest = currentUser === null || currentUser.role === "GUEST";
 
-    async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    async function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
 
         setErrorMessage("");
@@ -107,6 +108,7 @@ export default function CompanyCreationPage({
             const response = await createCompany({
                 founderEmail: currentUser.email,
                 companyName: companyName.trim(),
+                discountType,
             });
 
             onCreationSuccess(response);
@@ -183,6 +185,18 @@ export default function CompanyCreationPage({
                                 maxLength={80}
                             />
                             {errors.companyName && <small>{errors.companyName}</small>}
+                        </label>
+
+                        <label className="form-field">
+                            <span>Discount type</span>
+                            <select
+                                value={discountType}
+                                onChange={(event) => setDiscountType(event.target.value as CompanyDiscountType)}
+                            >
+                                <option value="MAX">MAX</option>
+                                <option value="ALL">ALL</option>
+                            </select>
+                            <small>Choose how discounts should be combined for this company.</small>
                         </label>
 
                         {errorMessage && <p className="form-error-message">{errorMessage}</p>}

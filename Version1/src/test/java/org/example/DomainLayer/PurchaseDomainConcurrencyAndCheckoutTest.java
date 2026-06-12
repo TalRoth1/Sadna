@@ -35,6 +35,7 @@ import org.example.DomainLayer.EventAggregate.StandingArea;
 import org.example.DomainLayer.EventAggregate.Ticket;
 import org.example.DomainLayer.EventAggregate.TicketStatus;
 import org.example.DomainLayer.LotteryAggregate.PuchaseLottery;
+import org.example.DomainLayer.PolicyManagment.DiscountType;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.example.DomainLayer.UserAggregate.User;
 import static org.junit.Assert.assertEquals;
@@ -410,7 +411,8 @@ public class PurchaseDomainConcurrencyAndCheckoutTest {
                 "Tel Aviv",
                 "Artist",
                 "Concert",
-                EventStatus.ACTIVE
+                EventStatus.ACTIVE,
+                DiscountType.ALL
         );
     }
 
@@ -631,8 +633,8 @@ public class PurchaseDomainConcurrencyAndCheckoutTest {
         private final Map<UUID, Company> companiesById = new ConcurrentHashMap<>();
 
         @Override
-        public UUID createCompany(String founderUsername, String companyName) {
-            Company company = new Company(founderUsername, companyName);
+        public UUID createCompany(String founderUsername, String companyName, DiscountType discountType) {
+            Company company = new Company(founderUsername, companyName, discountType);
             save(company);
             return company.getId();
         }

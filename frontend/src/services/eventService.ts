@@ -1,3 +1,5 @@
+import type { EventDiscountType } from "./companyService";
+
 type ApiResponse<T> = {
     success: boolean;
     message: string;
@@ -14,6 +16,7 @@ export type CreateEventRequest = {
     type: string;
     status: string;
     description?: string;
+    discountType: EventDiscountType;
 };
 
 export type EditEventRequest = {

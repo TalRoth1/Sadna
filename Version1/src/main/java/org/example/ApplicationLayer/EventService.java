@@ -47,6 +47,9 @@ import org.example.DomainLayer.PolicyManagment.PurchaseComposite;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.springframework.stereotype.Service;
 
+import org.example.DomainLayer.PolicyManagment.DiscountPolicy;
+import org.example.DomainLayer.PolicyManagment.DiscountType;
+
 @Service
 public class EventService {
     private static final Logger logger = Logger.getLogger(EventService.class.getName());
@@ -60,7 +63,7 @@ public class EventService {
 
     public EventDetailsDto addEvent(UUID eventId, UUID companyId, String eventManagerEmail, String name,
                                     LocalDateTime date, String location, String artist, String type,
-                                    EventStatus status, String description) {
+                                    EventStatus status, String description, DiscountType discountType) {
         logger.info("[Event Log] Method: addEvent called");
 
         if (eventId == null) {
@@ -71,7 +74,7 @@ public class EventService {
         }
 
         eventManagementDomainService.addEvent(
-                eventId, companyId, eventManagerEmail, name, date, location, artist, type, status, description);
+                eventId, companyId, eventManagerEmail, name, date, location, artist, type, status, description, discountType);
 
         Event event = eventManagementDomainService.getEventForView(eventId);
         boolean lotteryWinnersDrawn = eventManagementDomainService.areLotteryWinnersDrawn(event.getEventId());

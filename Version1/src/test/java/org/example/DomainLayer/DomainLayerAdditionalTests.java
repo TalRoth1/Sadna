@@ -45,6 +45,7 @@ import java.util.UUID;
 
 import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.Mockito.*;
 
 public class DomainLayerAdditionalTests {
@@ -70,7 +71,8 @@ public class DomainLayerAdditionalTests {
                 "Tel Aviv",
                 "Artist",
                 "concert",
-                EventStatus.ACTIVE
+                EventStatus.ACTIVE,
+                DiscountType.ALL
         );
 
         event.getLayout().addArea(new SittingArea(areaId, 100f));
@@ -98,10 +100,10 @@ public class DomainLayerAdditionalTests {
 
         when(userRepository.findByEmail("founder@example.com"))
                 .thenReturn(Optional.of(founder));
-        when(companyRepository.createCompany("founder@example.com", "Acme"))
+        when(companyRepository.createCompany("founder@example.com", "Acme", DiscountType.ALL))
                 .thenReturn(companyId);
 
-        UUID result = service.createCompany("founder@example.com", "Acme");
+        UUID result = service.createCompany("founder@example.com", "Acme", DiscountType.ALL);
 
         assertEquals(companyId, result);
         assertTrue(founder.isCompanyMember(companyId));
@@ -115,19 +117,19 @@ public class DomainLayerAdditionalTests {
         RolesDomainService service = new RolesDomainService(companyRepository, userRepository);
 
         assertThrows(IllegalArgumentException.class,
-                () -> service.createCompany(null, "Acme"));
+                () -> service.createCompany(null, "Acme", DiscountType.ALL));
 
         assertThrows(IllegalArgumentException.class,
-                () -> service.createCompany("   ", "Acme"));
+                () -> service.createCompany("   ", "Acme", DiscountType.ALL     ));
 
         assertThrows(IllegalArgumentException.class,
-                () -> service.createCompany("founder@example.com", " "));
+                () -> service.createCompany("founder@example.com", " ", DiscountType.ALL));
 
         when(userRepository.findByEmail("missing@example.com"))
                 .thenReturn(Optional.empty());
 
         assertThrows(IllegalArgumentException.class,
-                () -> service.createCompany("missing@example.com", "Acme"));
+                () -> service.createCompany("missing@example.com", "Acme", DiscountType.ALL));
     }
 
     @Test
@@ -137,7 +139,7 @@ public class DomainLayerAdditionalTests {
         RolesDomainService service = new RolesDomainService(companyRepository, userRepository);
 
         UUID companyId = UUID.randomUUID();
-        Company company = new Company("founder@example.com", "Acme");
+        Company company = new Company("founder@example.com", "Acme", DiscountType.ALL);
 
         when(userRepository.isSystemAdmin("admin")).thenReturn(true);
         when(companyRepository.findByID(companyId)).thenReturn(Optional.of(company));
@@ -169,7 +171,7 @@ public class DomainLayerAdditionalTests {
         RolesDomainService service = new RolesDomainService(companyRepository, userRepository);
 
         UUID companyId = UUID.randomUUID();
-        Company company = new Company("founder@example.com", "Acme");
+        Company company = new Company("founder@example.com", "Acme", DiscountType.ALL);
 
         User founder = new User(UUID.randomUUID(), "founder", "founder@example.com", "hash", 40);
         CompanyFounder founderRole = new CompanyFounder("founder@example.com");
@@ -454,11 +456,11 @@ public class DomainLayerAdditionalTests {
         UUID userId = UUID.randomUUID();
         UUID eventId = UUID.randomUUID();
 
+        // 1. Happy Path: 3 tickets (100, 50, 30) with a valid coupon code string applied
         ActivePurchase purchase = activePurchase(userId, eventId, 100f, 50f, 30f);
+        purchase.setCoupon("SAVE10");
 
-        DiscountPolicy policy = new DiscountPolicy();
-
-        assertFalse(policy.hasRules());
+        DiscountPolicy policy = new DiscountPolicy(DiscountType.ALL);
 
         ConditionalDiscount conditional = new ConditionalDiscount(
                 LocalDate.now().minusDays(1),
@@ -481,22 +483,46 @@ public class DomainLayerAdditionalTests {
         assertTrue(policy.hasRules());
         assertEquals(2, policy.getDiscountRules().size());
 
-        float discounted = policy.applyDiscount(purchase, " SAVE10 ");
+        float discounted = policy.applyDiscount(purchase);
 
         assertTrue(discounted > 0);
 
+        // 2. Clear Path: 2 tickets (100, 50) without any coupon code string applied
         ActivePurchase noCouponPurchase = activePurchase(userId, eventId, 100f, 50f);
-        DiscountPolicy couponOnly = new DiscountPolicy();
+        DiscountPolicy couponOnly = new DiscountPolicy(DiscountType.ALL);
         couponOnly.addRule(coupon);
 
         assertEquals(150f, couponOnly.applyDiscount(noCouponPurchase), 0.001);
 
-        assertThrows(DomainException.class,
-                () -> couponOnly.applyDiscount(activePurchase(userId, eventId, 100f), "WRONG"));
+        // 3. Error Path: Provide an explicitly EXPIRED coupon to trigger DomainException
+        CouponCode expiredCoupon = new CouponCode(
+                LocalDate.now().minusDays(10),
+                LocalDate.now().minusDays(2),
+                10f,
+                "EXPIRED10"
+        );
+        DiscountPolicy expiredCouponPolicy = new DiscountPolicy(DiscountType.ALL);
+        expiredCouponPolicy.addRule(expiredCoupon);
 
-        assertThrows(IllegalArgumentException.class,
-                () -> policy.applyDiscount(null));
+        ActivePurchase expiredCouponPurchase = activePurchase(userId, eventId, 100f);
+        expiredCouponPurchase.setCoupon("EXPIRED10"); // String matches, but date is expired
 
+        try {
+            expiredCouponPolicy.applyDiscount(expiredCouponPurchase);
+            fail("Expected DomainException to be thrown due to expired coupon code");
+        } catch (DomainException e) {
+            // Success
+        }
+
+        // 4. Infrastructure Error Path: Null safety evaluation
+        try {
+            policy.applyDiscount(null);
+            fail("Expected IllegalArgumentException to be thrown for null purchase");
+        } catch (IllegalArgumentException e) {
+            // Success
+        }
+
+        // 5. Rule Cleanup Lifecycle check
         UUID couponId = coupon.getId();
         policy.removeRule(couponId);
 
@@ -666,19 +692,19 @@ public class DomainLayerAdditionalTests {
         UUID companyId = UUID.randomUUID();
 
         assertThrows(IllegalArgumentException.class,
-                () -> new Event(eventId, companyId, null, "Tel Aviv", "Artist", "concert", EventStatus.ACTIVE));
+                () -> new Event(eventId, companyId, null, "Tel Aviv", "Artist", "concert", EventStatus.ACTIVE, DiscountType.ALL));
 
         assertThrows(IllegalArgumentException.class,
-                () -> new Event(eventId, companyId, LocalDateTime.now(), " ", "Artist", "concert", EventStatus.ACTIVE));
+                () -> new Event(eventId, companyId, LocalDateTime.now(), " ", "Artist", "concert", EventStatus.ACTIVE, DiscountType.ALL));
 
         assertThrows(IllegalArgumentException.class,
-                () -> new Event(eventId, companyId, LocalDateTime.now(), "Tel Aviv", " ", "concert", EventStatus.ACTIVE));
+                () -> new Event(eventId, companyId, LocalDateTime.now(), "Tel Aviv", " ", "concert", EventStatus.ACTIVE, DiscountType.ALL));
 
         assertThrows(IllegalArgumentException.class,
-                () -> new Event(eventId, companyId, LocalDateTime.now(), "Tel Aviv", "Artist", " ", EventStatus.ACTIVE));
+                () -> new Event(eventId, companyId, LocalDateTime.now(), "Tel Aviv", "Artist", " ", EventStatus.ACTIVE, DiscountType.ALL));
 
         assertThrows(IllegalArgumentException.class,
-                () -> new Event(eventId, companyId, LocalDateTime.now(), "Tel Aviv", "Artist", "concert", null));
+                () -> new Event(eventId, companyId, LocalDateTime.now(), "Tel Aviv", "Artist", "concert", null, DiscountType.ALL));
 
         Event event = new Event(
                 eventId,
@@ -687,7 +713,8 @@ public class DomainLayerAdditionalTests {
                 "  Tel Aviv  ",
                 "  Artist  ",
                 "  concert  ",
-                EventStatus.ACTIVE
+                EventStatus.ACTIVE,
+                DiscountType.ALL
         );
 
         event.setDescription("  description  ");
@@ -726,7 +753,7 @@ public class DomainLayerAdditionalTests {
                 "Haifa",
                 "Artist",
                 "concert",
-                EventStatus.ACTIVE
+                EventStatus.ACTIVE, DiscountType.ALL
         );
 
         event.getLayout().addArea(new StandingArea(standingAreaId, 50));
@@ -799,7 +826,7 @@ public class DomainLayerAdditionalTests {
                 "Haifa",
                 "Artist",
                 "concert",
-                EventStatus.ACTIVE
+                EventStatus.ACTIVE, DiscountType.ALL
         );
 
         event.getLayout().addArea(new StandingArea(standingAreaId, 50));
@@ -868,7 +895,7 @@ public class DomainLayerAdditionalTests {
                 "Tel Aviv",
                 "Artist",
                 "Lottery",
-                EventStatus.ACTIVE
+                EventStatus.ACTIVE, DiscountType.ALL
         );
 
         when(eventRepository.getById(eventId)).thenReturn(event);
@@ -932,14 +959,14 @@ public class DomainLayerAdditionalTests {
                 "Tel Aviv",
                 "Artist",
                 "concert",
-                EventStatus.ACTIVE
+                EventStatus.ACTIVE, DiscountType.ALL
         );
 
         event.getLayout().addArea(new StandingArea(areaId, 50));
         event.addStandingTickets(areaId, 2);
 
         when(eventRepository.getById(eventId)).thenReturn(event);
-        when(companyRepository.findByID(companyId)).thenReturn(Optional.of(new Company("founder", "Acme")));
+        when(companyRepository.findByID(companyId)).thenReturn(Optional.of(new Company("founder", "Acme", DiscountType.ALL)));
 
         when(userRepository.hasPermission("manager", companyId, CompanyPermission.MANAGE_INVENTORY, eventId))
                 .thenReturn(true);
@@ -1068,7 +1095,7 @@ public class DomainLayerAdditionalTests {
         when(userRepository.getAllUsers()).thenReturn(Map.of(manager.getId(), manager));
 
         when(companyRepository.findByID(event.getCompanyId()))
-                .thenReturn(Optional.of(new Company("manager@example.com", "Acme")));
+                .thenReturn(Optional.of(new Company("manager@example.com", "Acme", DiscountType.ALL)));
 
     }
 
@@ -1185,8 +1212,8 @@ public class DomainLayerAdditionalTests {
         UUID companyId1 = UUID.randomUUID();
         UUID companyId2 = UUID.randomUUID();
 
-        Company company1 = new Company("founder@example.com", "A");
-        Company company2 = new Company("founder@example.com", "B");
+        Company company1 = new Company("founder@example.com", "A", DiscountType.ALL);
+        Company company2 = new Company("founder@example.com", "B", DiscountType.ALL);
 
         when(companyRepository.findByID(companyId1)).thenReturn(Optional.of(company1));
         when(companyRepository.findByID(companyId2)).thenReturn(Optional.of(company2));
@@ -1214,7 +1241,7 @@ public class DomainLayerAdditionalTests {
         RolesDomainService service = new RolesDomainService(companyRepository, userRepository);
 
         UUID companyId = UUID.randomUUID();
-        Company company = new Company("founder@example.com", "Acme");
+        Company company = new Company("founder@example.com", "Acme", DiscountType.ALL);
 
         User founder = new User(UUID.randomUUID(), "founder", "founder@example.com", "hash", 50);
         founder.getCompanyRoles().put(companyId, new CompanyFounder("founder@example.com"));
@@ -1269,7 +1296,7 @@ public class DomainLayerAdditionalTests {
         RolesDomainService service = new RolesDomainService(companyRepository, userRepository);
 
         UUID companyId = UUID.randomUUID();
-        Company company = new Company("founder@example.com", "Acme");
+        Company company = new Company("founder@example.com", "Acme", DiscountType.ALL);
 
         User founder = new User(UUID.randomUUID(), "founder", "founder@example.com", "hash", 50);
         founder.getCompanyRoles().put(companyId, new CompanyFounder("founder@example.com"));
@@ -1338,7 +1365,7 @@ public class DomainLayerAdditionalTests {
         RolesDomainService service = new RolesDomainService(companyRepository, userRepository);
 
         UUID companyId = UUID.randomUUID();
-        Company company = new Company("founder@example.com", "Acme");
+        Company company = new Company("founder@example.com", "Acme", DiscountType.ALL );
         User randomUser = new User(UUID.randomUUID(), "random", "random@example.com", "hash", 20);
 
         when(companyRepository.findByID(companyId)).thenReturn(Optional.of(company));
@@ -1559,7 +1586,7 @@ public class DomainLayerAdditionalTests {
                 "Tel Aviv",
                 "Artist",
                 "Lottery",
-                EventStatus.ACTIVE
+                EventStatus.ACTIVE, DiscountType.ALL
         );
 
         event.setLotteryId("lottery-id");
@@ -1632,7 +1659,7 @@ public class DomainLayerAdditionalTests {
                 "Tel Aviv",
                 "Artist",
                 "Lottery",
-                EventStatus.ACTIVE
+                EventStatus.ACTIVE, DiscountType.ALL
         );
 
         UUID areaId = UUID.randomUUID();
@@ -1801,7 +1828,7 @@ public class DomainLayerAdditionalTests {
                 "Tel Aviv",
                 "Artist",
                 "concert",
-                EventStatus.ACTIVE
+                EventStatus.ACTIVE, DiscountType.ALL
         );
 
         event.getLayout().addArea(new SittingArea(sittingAreaId, 100));
@@ -1879,7 +1906,7 @@ public class DomainLayerAdditionalTests {
 
     @Test
     public void companyAggregate_moreSimpleCoverage() {
-        Company company = new Company("founder@example.com", "Old Name");
+        Company company = new Company("founder@example.com", "Old Name", DiscountType.ALL);
 
         UUID event1 = UUID.randomUUID();
         UUID event2 = UUID.randomUUID();
@@ -1994,7 +2021,7 @@ public class DomainLayerAdditionalTests {
         RolesDomainService service = new RolesDomainService(companyRepository, userRepository);
 
         UUID companyId = UUID.randomUUID();
-        Company company = new Company("founder@example.com", "Acme");
+        Company company = new Company("founder@example.com", "Acme", DiscountType.ALL);
 
         User founder = new User(UUID.randomUUID(), "founder", "founder@example.com", "hash", 50);
         CompanyFounder founderRole = new CompanyFounder("founder@example.com");
@@ -2079,7 +2106,7 @@ public class DomainLayerAdditionalTests {
                 "Artist",
                 "Concert",
                 EventStatus.ACTIVE,
-                "Description"
+                "Description", DiscountType.ALL
         );
 
         assertTrue(role.getEventsIds().contains(eventId));
@@ -2092,7 +2119,7 @@ public class DomainLayerAdditionalTests {
                 "Old",
                 "Old Artist",
                 "Old Type",
-                EventStatus.ACTIVE
+                EventStatus.ACTIVE, DiscountType.ALL
         );
 
         when(eventRepository.getById(eventId)).thenReturn(event);
@@ -2127,7 +2154,7 @@ public class DomainLayerAdditionalTests {
         assertSame(event, service.findEventById(eventId));
         assertNull(service.findEventById(null));
 
-        when(companyRepository.findByID(companyId)).thenReturn(Optional.of(new Company("founder", "Company")));
+        when(companyRepository.findByID(companyId)).thenReturn(Optional.of(new Company("founder", "Company", DiscountType.ALL)));
         assertNotNull(service.findCompanyById(companyId));
         assertNull(service.findCompanyById(null));
 
@@ -2141,7 +2168,7 @@ public class DomainLayerAdditionalTests {
 
         assertThrows(DomainException.class,
                 () -> service.addEvent(eventId, companyId, "manager@example.com", "x",
-                        LocalDateTime.now(), "a", "b", "c", EventStatus.ACTIVE, null));
+                        LocalDateTime.now(), "a", "b", "c", EventStatus.ACTIVE, null, DiscountType.ALL));
     }
 
     @Test
@@ -2182,8 +2209,8 @@ public class DomainLayerAdditionalTests {
         assertEquals(List.of(visible), service.getVisibleEventsForCompany(companyId));
         assertThrows(DomainException.class, () -> service.getVisibleEventsForCompany(null));
 
-        Company activeCompany = new Company("founder", "Active");
-        Company inactiveCompany = new Company("founder", "Inactive");
+        Company activeCompany = new Company("founder", "Active", DiscountType.ALL);
+        Company inactiveCompany = new Company("founder", "Inactive", DiscountType.ALL);
         inactiveCompany.AdminClose();
 
         when(companyRepository.findByID(companyId)).thenReturn(Optional.of(activeCompany));
@@ -2205,7 +2232,7 @@ public class DomainLayerAdditionalTests {
                 "Tel Aviv",
                 "Artist",
                 "Concert",
-                EventStatus.ACTIVE
+                EventStatus.ACTIVE, DiscountType.ALL
         );
 
         when(userRepository.findByEmail("u@example.com")).thenReturn(Optional.of(user));
@@ -2338,7 +2365,7 @@ public class DomainLayerAdditionalTests {
         when(eventRepository.getById(eventId)).thenReturn(event);
         when(userRepository.getUser(userId)).thenReturn(Optional.of(user));
         when(event.getPurchasePolicy()).thenReturn(new org.example.DomainLayer.PolicyManagment.PurchasePolicy());
-        when(event.getDiscountPolicy()).thenReturn(new org.example.DomainLayer.PolicyManagment.DiscountPolicy());
+        when(event.getDiscountPolicy()).thenReturn(new org.example.DomainLayer.PolicyManagment.DiscountPolicy(DiscountType.ALL));
         when(event.getCompanyId()).thenReturn(null);
 
 
@@ -2375,7 +2402,7 @@ public class DomainLayerAdditionalTests {
         when(companyRepository.findByID(companyId)).thenReturn(Optional.empty());
         assertFalse(service.isCompanyOwnerOfEvent("owner@example.com", eventId));
 
-        Company company = new Company("owner@example.com", "Acme");
+        Company company = new Company("owner@example.com", "Acme", DiscountType.ALL);
         when(companyRepository.findByID(companyId)).thenReturn(Optional.of(company));
 
         User owner = new User(UUID.randomUUID(), "owner", "owner@example.com", "hash", 40);

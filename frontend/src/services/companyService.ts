@@ -1,9 +1,13 @@
 import api from "./api";
 import type { EventSummary } from "../types/event";
 
+export type CompanyDiscountType = "MAX" | "ALL";
+export type EventDiscountType = CompanyDiscountType;
+
 export type CreateCompanyRequest = {
 	founderEmail: string;
 	companyName: string;
+	discountType: CompanyDiscountType;
 };
 
 export type CompanyMembership = {
