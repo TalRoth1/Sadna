@@ -320,14 +320,16 @@ public class PurchaseDomainService {
             }
 
             event.sellTickets(activePurchase.getTicketIDs().keySet());
-            purchaseRepository.deleteByID(activePurchaseID);
 
             Payment payment = new Payment(finalPrice, "Valid payment");
             addPurchaseToHistory(
                     activePurchase.getUserID(),
                     new ArrayList<>(activePurchase.getTicketIDs().keySet()),
                     activePurchase.getEventID(),
-                    payment);
+                    payment
+            );
+
+            purchaseRepository.deleteByID(activePurchaseID);
 
             for (Map.Entry<UUID, Ticket> ticket : event.getTicketsView().entrySet()) {
                 if (ticket.getValue().getStatus() != TicketStatus.SOLD)

@@ -180,11 +180,34 @@ public class JpaEventRepository implements IEventRepository {
 
     private void restoreTickets(Event event) {
         List<TicketEntity> tickets = ticketJpa.findByEventId(event.getEventId());
+
         for (TicketEntity ticketEntity : tickets) {
-            Ticket ticket = ticketEntity.getStatus() == TicketStatus.SOLD
-                    ? new org.example.DomainLayer.EventAggregate.StandingTicket(ticketEntity.getId(), event.getEventId(), ticketEntity.getAreaId(), (float) ticketEntity.getPrice())
-                    : new org.example.DomainLayer.EventAggregate.StandingTicket(ticketEntity.getId(), event.getEventId(), ticketEntity.getAreaId(), (float) ticketEntity.getPrice());
+            Ticket ticket = new org.example.DomainLayer.EventAggregate.StandingTicket(
+                    ticketEntity.getId(),
+                    event.getEventId(),
+                    ticketEntity.getAreaId(),
+                    (float) ticketEntity.getPrice()
+            );
+
+            restoreTicketStatus(ticket, ticketEntity.getStatus());
+
             event.addTicket(ticket);
+        }
+    }
+
+    private void restoreTicketStatus(Ticket ticket, TicketStatus status) {
+        if (status == null || status == TicketStatus.AVAILABLE) {
+            return;
+        }
+
+        if (status == TicketStatus.RESERVED) {
+            ticket.reserve();
+            return;
+        }
+
+        if (status == TicketStatus.SOLD) {
+            ticket.reserve();
+            ticket.markSold();
         }
     }
 }
