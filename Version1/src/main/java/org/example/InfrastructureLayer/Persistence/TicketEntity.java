@@ -92,4 +92,20 @@ public class TicketEntity {
     public double getPrice() {
         return price;
     }
+
+    public UUID getActivePurchaseId() {
+        return activePurchaseId;
+    }
+
+    public UUID getPurchaseHistoryId() {
+        return purchaseHistoryId;
+    }
+
+    public void setPurchaseHistoryId(UUID purchaseHistoryId) {
+        this.purchaseHistoryId = purchaseHistoryId;
+    }
+
+    public void setActivePurchaseId(UUID activePurchaseId) {
+        this.activePurchaseId = activePurchaseId;
+    }
 }
