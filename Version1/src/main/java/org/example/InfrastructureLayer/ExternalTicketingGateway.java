@@ -23,12 +23,19 @@ public class ExternalTicketingGateway implements TicketingProvider {
     /** Provider id used to select this adapter from configuration. */
     public static final String PROVIDER_ID = "EXTERNAL";
 
-    private static final URI TICKETING_SERVICE_URI =
-            URI.create("https://damp-lynna-wsep-1984852e.koyeb.app/");
+    private static final String DEFAULT_SERVICE_URL =
+            "https://damp-lynna-wsep-1984852e.koyeb.app/";
 
+    private final URI ticketingServiceUri;
     private final HttpClient httpClient;
 
     public ExternalTicketingGateway() {
+        this(DEFAULT_SERVICE_URL);
+    }
+
+    public ExternalTicketingGateway(String serviceUrl) {
+        this.ticketingServiceUri = URI.create(
+                serviceUrl == null || serviceUrl.isBlank() ? DEFAULT_SERVICE_URL : serviceUrl);
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
@@ -131,7 +138,7 @@ public class ExternalTicketingGateway implements TicketingProvider {
         String body = encodeForm(params);
 
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(TICKETING_SERVICE_URI)
+                .uri(ticketingServiceUri)
                 .timeout(Duration.ofSeconds(15))
                 .header("Content-Type", "application/x-www-form-urlencoded")
                 .POST(HttpRequest.BodyPublishers.ofString(body))

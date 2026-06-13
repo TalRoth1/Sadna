@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.example.ApplicationLayer.ITicketingGateway;
@@ -65,12 +66,33 @@ public class DelegatingTicketingGateway implements ITicketingGateway {
     }
 
     /**
-     * Cancel an issued ticket via the active provider (system-initiated
-     * rollback). Exposed for the compensation path to call once issued
-     * references are persisted.
+     * Cancel already-issued ticket codes via the active provider
+     * (system-initiated rollback). Best-effort: each cancellation failure is
+     * logged and swallowed so it can never mask the original purchase failure
+     * that triggered the rollback.
      */
-    public boolean cancelTicket(String ticketId) {
-        return resolveProvider().cancelTicket(ticketId);
+    @Override
+    public void cancelTickets(List<String> ticketReferences) {
+        if (ticketReferences == null || ticketReferences.isEmpty()) {
+            return;
+        }
+
+        TicketingProvider provider = resolveProvider();
+        for (String reference : ticketReferences) {
+            if (reference == null || reference.isBlank()) {
+                continue;
+            }
+            try {
+                boolean cancelled = provider.cancelTicket(reference);
+                logger.info("[DelegatingTicketingGateway] cancelTicket ref=" + reference
+                        + " provider=" + provider.providerId() + " cancelled=" + cancelled);
+            } catch (RuntimeException cancelError) {
+                logger.log(Level.WARNING,
+                        "[DelegatingTicketingGateway] cancelTicket failed for ref=" + reference
+                                + " provider=" + provider.providerId(),
+                        cancelError);
+            }
+        }
     }
 
     /**

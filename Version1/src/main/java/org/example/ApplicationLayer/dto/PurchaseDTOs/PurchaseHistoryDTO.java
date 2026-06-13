@@ -19,6 +19,9 @@ public class PurchaseHistoryDTO {
     public double totalPrice;
     public String paymentInfo;     // Added to display the payment method (e.g. "Visa ****1234")
 
+    // Secure confirmation/barcode returned by the external ticketing system.
+    public String issuedTicketRef;
+
     public LocalDateTime purchaseDate;
 
     public PurchaseHistoryDTO() {}

@@ -6,11 +6,13 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
+import org.example.ApplicationLayer.IPaymentGateway;
 import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
 import org.example.DomainLayer.EventAggregate.Event;
 import org.example.DomainLayer.EventAggregate.EventStatus;
 import org.example.DomainLayer.PolicyManagment.DiscountType;
+import org.example.DomainLayer.PurchaseHistoryAggregate.Payment;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.example.DomainLayer.UserAggregate.CompanyFounder;
 import org.example.DomainLayer.UserAggregate.User;
@@ -22,6 +24,7 @@ import org.junit.Before;
 import org.junit.Test;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -309,6 +312,137 @@ public class EventManagementDomainServiceTest {
         boolean result = service.deleteEvent(eventId, username, username);
 
         assertTrue(result);
+        verify(eventRepository).delete(eventId);
+    }
+
+    private EventManagementDomainService serviceWithPaymentGateway(IPaymentGateway paymentGateway) {
+        return new EventManagementDomainService(
+                eventRepository, historyRepository, companyRepository,
+                userRepository, lotteryRepository, paymentGateway);
+    }
+
+    private PurchaseHistory purchaseWithTransaction(int transactionId) {
+        PurchaseHistory purchase = mock(PurchaseHistory.class);
+        when(purchase.getPayment()).thenReturn(new Payment(50.0, "Valid payment", transactionId));
+        when(purchase.getUserId()).thenReturn(UUID.randomUUID());
+        return purchase;
+    }
+
+    @Test
+    public void deleteEvent_refundsEveryBuyerBeforeDeletion() {
+        IPaymentGateway paymentGateway = mock(IPaymentGateway.class);
+        EventManagementDomainService service = serviceWithPaymentGateway(paymentGateway);
+        List<PurchaseHistory> purchases =
+                List.of(purchaseWithTransaction(12345), purchaseWithTransaction(67890));
+
+        when(eventRepository.getById(eventId)).thenReturn(event);
+        when(userRepository.findByEmail(username)).thenReturn(Optional.of(managerUserWithEvent(eventId)));
+        when(historyRepository.getByEventId(eventId)).thenReturn(purchases);
+        when(paymentGateway.refund(anyInt())).thenReturn(true);
+
+        boolean result = service.deleteEvent(eventId, username, username);
+
+        assertTrue(result);
+        verify(paymentGateway).refund(12345);
+        verify(paymentGateway).refund(67890);
+        verify(eventRepository).delete(eventId);
+    }
+
+    @Test
+    public void deleteEvent_skipsRefundForLegacyRecordsWithoutTransactionId() {
+        IPaymentGateway paymentGateway = mock(IPaymentGateway.class);
+        EventManagementDomainService service = serviceWithPaymentGateway(paymentGateway);
+        List<PurchaseHistory> purchases = List.of(purchaseWithTransaction(-1));
+
+        when(eventRepository.getById(eventId)).thenReturn(event);
+        when(userRepository.findByEmail(username)).thenReturn(Optional.of(managerUserWithEvent(eventId)));
+        when(historyRepository.getByEventId(eventId)).thenReturn(purchases);
+
+        boolean result = service.deleteEvent(eventId, username, username);
+
+        assertTrue(result);
+        verify(paymentGateway, never()).refund(anyInt());
+        verify(eventRepository).delete(eventId);
+    }
+
+    @Test
+    public void deleteEvent_refundFailureIsBestEffortAndDoesNotBlockDeletion() {
+        IPaymentGateway paymentGateway = mock(IPaymentGateway.class);
+        EventManagementDomainService service = serviceWithPaymentGateway(paymentGateway);
+        List<PurchaseHistory> purchases = List.of(purchaseWithTransaction(12345));
+
+        when(eventRepository.getById(eventId)).thenReturn(event);
+        when(userRepository.findByEmail(username)).thenReturn(Optional.of(managerUserWithEvent(eventId)));
+        when(historyRepository.getByEventId(eventId)).thenReturn(purchases);
+        when(paymentGateway.refund(anyInt())).thenThrow(new RuntimeException("clearing system down"));
+
+        boolean result = service.deleteEvent(eventId, username, username);
+
+        assertTrue(result);
+        verify(eventRepository).delete(eventId);
+    }
+
+    @Test
+    public void editEvent_onTransitionToCanceled_refundsEveryBuyer() {
+        IPaymentGateway paymentGateway = mock(IPaymentGateway.class);
+        EventManagementDomainService service = serviceWithPaymentGateway(paymentGateway);
+        List<PurchaseHistory> purchases =
+                List.of(purchaseWithTransaction(12345), purchaseWithTransaction(67890));
+
+        when(eventRepository.getById(eventId)).thenReturn(event);
+        when(event.getStatus()).thenReturn(EventStatus.ACTIVE);
+        when(historyRepository.getByEventId(eventId)).thenReturn(purchases);
+        when(paymentGateway.refund(anyInt())).thenReturn(true);
+
+        service.editEvent(eventId, null, null, null, null, null, EventStatus.CANCELED, null);
+
+        verify(event).setStatus(EventStatus.CANCELED);
+        verify(paymentGateway).refund(12345);
+        verify(paymentGateway).refund(67890);
+        verify(eventRepository).save(event);
+    }
+
+    @Test
+    public void editEvent_whenAlreadyCanceled_doesNotRefundAgain() {
+        IPaymentGateway paymentGateway = mock(IPaymentGateway.class);
+        EventManagementDomainService service = serviceWithPaymentGateway(paymentGateway);
+
+        when(eventRepository.getById(eventId)).thenReturn(event);
+        when(event.getStatus()).thenReturn(EventStatus.CANCELED);
+
+        service.editEvent(eventId, "New name", null, null, null, null, EventStatus.CANCELED, null);
+
+        verify(paymentGateway, never()).refund(anyInt());
+        verify(eventRepository).save(event);
+    }
+
+    @Test
+    public void editEvent_nonCancelStatusChange_doesNotRefund() {
+        IPaymentGateway paymentGateway = mock(IPaymentGateway.class);
+        EventManagementDomainService service = serviceWithPaymentGateway(paymentGateway);
+
+        when(eventRepository.getById(eventId)).thenReturn(event);
+        when(event.getStatus()).thenReturn(EventStatus.ACTIVE);
+
+        service.editEvent(eventId, null, null, "Haifa", null, null, EventStatus.ACTIVE, null);
+
+        verify(paymentGateway, never()).refund(anyInt());
+        verify(eventRepository).save(event);
+    }
+
+    @Test
+    public void deleteEvent_whenEventAlreadyCanceled_skipsRefundToAvoidDoubleRefund() {
+        IPaymentGateway paymentGateway = mock(IPaymentGateway.class);
+        EventManagementDomainService service = serviceWithPaymentGateway(paymentGateway);
+
+        when(eventRepository.getById(eventId)).thenReturn(event);
+        when(event.getStatus()).thenReturn(EventStatus.CANCELED);
+        when(userRepository.findByEmail(username)).thenReturn(Optional.of(managerUserWithEvent(eventId)));
+
+        boolean result = service.deleteEvent(eventId, username, username);
+
+        assertTrue(result);
+        verify(paymentGateway, never()).refund(anyInt());
         verify(eventRepository).delete(eventId);
     }
 

@@ -993,6 +993,7 @@ public class EventService {
         dto.eventId = history.getEventId();
         dto.ticketIds = history.getTicketIds();
         dto.purchaseDate = history.getPurchaseDate();
+        dto.issuedTicketRef = history.getIssuedTicketReference();
         dto.ticketsAmount = (dto.ticketIds == null) ? 0 : dto.ticketIds.size();
 
         if (history.getPayment() != null) {
@@ -1087,7 +1088,11 @@ public class EventService {
             Event event = eventManagementDomainService.getEventForView(eventId);
             UUID areaId = UUID.randomUUID();
 
+            // Persist the new area before delegating ticket creation: addSittingTickets
+            // re-fetches a fresh event from the repository, so the area must already be
+            // saved or requireArea() fails with "unknown area" (mirrors addStandingArea).
             event.getLayout().addArea(new SittingArea(areaId, price));
+            eventManagementDomainService.saveEvent(event);
             eventManagementDomainService.addSittingTickets(eventId, areaId, rows, seatsPerRow);
 
         } catch (IllegalArgumentException | DomainException e) {

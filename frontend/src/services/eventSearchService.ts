@@ -198,6 +198,7 @@ type EventDetailsResponse = {
     status: EventStatus;
     rating: number;
     lotteryId: string | null;
+    lotteryWinnersDrawn: boolean;
     priceMin: number;
     priceMax: number;
     availableTickets: number;
@@ -337,6 +338,7 @@ function toEventDetails(response: EventDetailsResponse): Event {
         type: response.eventType,
         rating: response.rating,
         companyRating: response.companyRating,
+        lotteryWinnersDrawn: response.lotteryWinnersDrawn ?? false,
         layout: { areas },
         purchasePolicy: toPurchasePolicy(response.purchasePolicy.rules),
         discountPolicy: {

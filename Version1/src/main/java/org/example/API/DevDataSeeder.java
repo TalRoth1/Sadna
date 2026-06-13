@@ -274,15 +274,11 @@ public class DevDataSeeder implements CommandLineRunner {
                 UUID closedId = companiesByName.get("Closed Co.");
                 UUID megaId = companiesByName.get("Mega Events Group");
 
-                /*
-
-
                 assignFounder("founder.live@demo.test", liveNationId);
                 assignFounder("founder.indie@demo.test", indieId);
                 assignFounder("founder.closed@demo.test", closedId);
                 assignFounder("founder.mega@demo.test", megaId);
 
-*/
                 // Live Nation gets a richer hierarchy:
                 // founder -> owner.live (full owner rights)
                 // founder -> manager.live.inv (MANAGE_INVENTORY only)

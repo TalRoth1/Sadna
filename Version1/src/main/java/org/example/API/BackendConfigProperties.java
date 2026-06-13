@@ -19,6 +19,7 @@ public class BackendConfigProperties {
     private final Cors cors = new Cors();
     private final ActivePurchase activePurchase = new ActivePurchase();
     private final Ticketing ticketing = new Ticketing();
+    private final Payment payment = new Payment();
 
     public Jwt getJwt() {
         return jwt;
@@ -62,6 +63,10 @@ public class BackendConfigProperties {
 
     public Ticketing getTicketing() {
         return ticketing;
+    }
+
+    public Payment getPayment() {
+        return payment;
     }
 
     public static class Jwt {
@@ -280,6 +285,7 @@ public class BackendConfigProperties {
      */
     public static class Ticketing {
         private String defaultProvider = "EXTERNAL";
+        private String serviceUrl = "https://damp-lynna-wsep-1984852e.koyeb.app/";
 
         public String getDefaultProvider() {
             return defaultProvider;
@@ -287,6 +293,44 @@ public class BackendConfigProperties {
 
         public void setDefaultProvider(String defaultProvider) {
             this.defaultProvider = defaultProvider;
+        }
+
+        public String getServiceUrl() {
+            return serviceUrl;
+        }
+
+        public void setServiceUrl(String serviceUrl) {
+            this.serviceUrl = serviceUrl;
+        }
+    }
+
+    /**
+     * Payment-clearing integration settings (general requirement I.3).
+     * {@code defaultProvider} selects which registered
+     * {@link org.example.ApplicationLayer.PaymentProvider} the
+     * {@code DelegatingPaymentGateway} routes to ({@code EXTERNAL} for the
+     * real clearing system, {@code SIMULATED} for dev / tests).
+     * {@code serviceUrl} is the external clearing system base URL, kept in
+     * configuration (Version 3) rather than hard-coded in the adapter.
+     */
+    public static class Payment {
+        private String defaultProvider = "EXTERNAL";
+        private String serviceUrl = "https://damp-lynna-wsep-1984852e.koyeb.app/";
+
+        public String getDefaultProvider() {
+            return defaultProvider;
+        }
+
+        public void setDefaultProvider(String defaultProvider) {
+            this.defaultProvider = defaultProvider;
+        }
+
+        public String getServiceUrl() {
+            return serviceUrl;
+        }
+
+        public void setServiceUrl(String serviceUrl) {
+            this.serviceUrl = serviceUrl;
         }
     }
 }

@@ -162,6 +162,8 @@ CREATE TABLE purchase_history (
     purchase_info JSONB NOT NULL,
     purchase_total FLOAT NOT NULL,
     purchase_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    issued_ticket_ref VARCHAR(255),
+    payment_transaction_id INTEGER,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
 );

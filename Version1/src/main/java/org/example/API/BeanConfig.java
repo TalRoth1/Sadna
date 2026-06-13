@@ -7,6 +7,7 @@ import org.example.ApplicationLayer.IAuthenticationGateway;
 import org.example.ApplicationLayer.IKeyedLock;
 import org.example.ApplicationLayer.ILoginRateLimiter;
 import org.example.ApplicationLayer.IPaymentGateway;
+import org.example.ApplicationLayer.PaymentProvider;
 import org.example.ApplicationLayer.ISystemMetricsTracker;
 import org.example.ApplicationLayer.ITicketingGateway;
 import org.example.ApplicationLayer.TicketingProvider;
@@ -32,6 +33,10 @@ import org.example.InfrastructureLayer.AdminRepository;
 import org.example.InfrastructureLayer.BCryptAuthenticationGateway;
 import org.example.InfrastructureLayer.Broadcaster;
 import org.example.InfrastructureLayer.CompanyRepository;
+import org.example.InfrastructureLayer.DelegatingPaymentGateway;
+import org.example.InfrastructureLayer.DelegatingTicketingGateway;
+import org.example.InfrastructureLayer.ExternalPaymentGateway;
+import org.example.InfrastructureLayer.ExternalTicketingGateway;
 import org.example.InfrastructureLayer.HistoryRepository;
 import org.example.InfrastructureLayer.InMemoryEventRepository;
 import org.example.InfrastructureLayer.InMemoryKeyedLock;
@@ -124,23 +129,33 @@ public class BeanConfig {
     // ---------------------------------------------------------------------
 
     /**
-     * Payment + ticketing gateways are exposed by their *concrete* stub
-     * types so {@code DevStubController} can flip outcomes via the
-     * setters on the stubs. The concrete classes implement
-     * {@code IPaymentGateway} / {@code ITicketingGateway}, so anywhere
-     * the domain layer asks for the interface, Spring injects the same
-     * stub bean by type — no need for a separate interface-typed bean.
+     * Multi-provider payment clearing (general requirement I.3). Every
+     * {@link PaymentProvider} bean (simulated + external) is registered with
+     * the single {@link DelegatingPaymentGateway}, which is the only
+     * {@code @Primary} {@link IPaymentGateway} the domain layer sees. The
+     * active provider is chosen by {@code backend.payment.default-provider}
+     * (SIMULATED on dev, EXTERNAL on localdb/prod), so adding a new clearing
+     * service later means adding one provider bean — no domain changes. This
+     * mirrors the ticketing gateway wiring below.
      *
-     * We deliberately avoid declaring a second {@code @Bean} of type
-     * {@code IPaymentGateway} (or {@code ITicketingGateway}) here: that
-     * would create two beans assignable to the same interface, and
-     * Spring 6.1+ no longer falls back to parameter-name matching at
-     * runtime when the project is compiled without {@code -parameters},
-     * which would break {@link #purchaseDomainService}'s autowiring.
+     * <p>The {@code simulatedPaymentGateway} bean is the <em>same</em>
+     * instance {@code DevStubController} toggles, so the decline/refund test
+     * paths keep working when SIMULATED is the active provider.
      */
     @Bean
-    public IPaymentGateway paymentGateway() {
-        return new ExternalPaymentGateway();
+    public ExternalPaymentGateway externalPaymentGateway() {
+        return new ExternalPaymentGateway(backendConfigProperties.getPayment().getServiceUrl());
+    }
+
+    @Bean(name = "paymentGateway")
+    @Primary
+    public IPaymentGateway paymentGateway(
+            SimulatedPaymentGateway simulatedPaymentGateway,
+            ExternalPaymentGateway externalPaymentGateway) {
+        List<PaymentProvider> providers =
+                List.of(simulatedPaymentGateway, externalPaymentGateway);
+        return new DelegatingPaymentGateway(
+                providers, backendConfigProperties.getPayment().getDefaultProvider());
     }
 
     /**
@@ -154,7 +169,7 @@ public class BeanConfig {
      */
     @Bean
     public ExternalTicketingGateway externalTicketingGateway() {
-        return new ExternalTicketingGateway();
+        return new ExternalTicketingGateway(backendConfigProperties.getTicketing().getServiceUrl());
     }
 
     @Bean
@@ -251,9 +266,11 @@ public class BeanConfig {
             IHistoryRepository historyRepository,
             ICompanyRepository companyRepository,
             IUserRepository userRepository,
-            ILotteryRepository lotteryRepository) {
+            ILotteryRepository lotteryRepository,
+            IPaymentGateway paymentGateway) {
         return new EventManagementDomainService(
-                eventRepository, historyRepository, companyRepository, userRepository, lotteryRepository);
+                eventRepository, historyRepository, companyRepository, userRepository,
+                lotteryRepository, paymentGateway);
     }
 
     @Bean

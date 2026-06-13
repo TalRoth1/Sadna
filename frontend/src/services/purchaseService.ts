@@ -68,11 +68,21 @@ type UpdateStandingRequestBody = {
     areaId: string;
 };
 
+// Mirrors the backend org.example.ApplicationLayer.PaymentDetails fields,
+// which are forwarded as-is to the external WSEP payment gateway
+// (action_type=pay: card_number, month, year, holder, cvv, id, currency).
+export type PaymentDetails = {
+    currency?: string;
+    cardNumber: string;
+    month: string;
+    year: string;
+    holder: string;
+    cvv: string;
+    id: string;
+};
+
 type CompletePurchaseRequestBody = {
-    // Backend's PaymentDetails is an empty class for V2 (spec only requires
-    // calling an external payment gateway and receiving a yes/no answer).
-    // We post an empty object so Jackson can instantiate it.
-    paymentDetails: Record<string, unknown>;
+    paymentDetails: PaymentDetails;
     couponCode: string | null;
 };
 
@@ -272,17 +282,20 @@ export async function cancelActivePurchase(
 
 export async function completePurchase(
     activePurchaseId: string,
+    paymentDetails: PaymentDetails,
     couponCode: string | null,
-): Promise<void> {
+): Promise<string | null> {
     const body: CompletePurchaseRequestBody = {
-        paymentDetails: {},
+        paymentDetails,
         couponCode,
     };
     try {
-        await api.post(
+        const response = await api.post(
             `/purchases/active/${encodeURIComponent(activePurchaseId)}/complete`,
             body,
         );
+        // Envelope is { success, message, data: { issuedTicketRef } }.
+        return response.data?.data?.issuedTicketRef ?? null;
     } catch (error) {
         throw new Error(extractMessage(error, "Payment failed. Please try again."), {
             cause: error,

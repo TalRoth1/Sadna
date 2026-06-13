@@ -11,17 +11,32 @@ public class PurchaseHistory {
     private final UUID eventId;
     private final Payment payment;
     private final LocalDateTime purchaseDate;
+    // Confirmation/secure code returned by the external ticketing system at
+    // issuance time. Immutable: set once at construction. May be null for
+    // historical records created before issuance tracking existed.
+    private final String issuedTicketReference;
 
     public PurchaseHistory(UUID userId, List<UUID> ticketIds, UUID eventId, Payment payment) {
-        this(userId, ticketIds, eventId, payment, LocalDateTime.now());
+        this(userId, ticketIds, eventId, payment, LocalDateTime.now(), null);
     }
 
     public PurchaseHistory(UUID userId, List<UUID> ticketIds, UUID eventId, Payment payment, LocalDateTime purchaseDate) {
+        this(userId, ticketIds, eventId, payment, purchaseDate, null);
+    }
+
+    public PurchaseHistory(UUID userId, List<UUID> ticketIds, UUID eventId, Payment payment,
+                           String issuedTicketReference) {
+        this(userId, ticketIds, eventId, payment, LocalDateTime.now(), issuedTicketReference);
+    }
+
+    public PurchaseHistory(UUID userId, List<UUID> ticketIds, UUID eventId, Payment payment,
+                           LocalDateTime purchaseDate, String issuedTicketReference) {
         this.userId = userId;
         this.ticketIds = new ArrayList<>(ticketIds);
         this.eventId = eventId;
         this.payment = payment;
         this.purchaseDate = purchaseDate;
+        this.issuedTicketReference = issuedTicketReference;
     }
 
     public UUID getUserId() {
@@ -42,5 +57,9 @@ public class PurchaseHistory {
 
     public LocalDateTime getPurchaseDate() {
         return purchaseDate;
+    }
+
+    public String getIssuedTicketReference() {
+        return issuedTicketReference;
     }
 }

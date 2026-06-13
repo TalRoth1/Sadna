@@ -2,6 +2,7 @@ package org.example.InfrastructureLayer;
 
 import org.example.ApplicationLayer.IPaymentGateway;
 import org.example.ApplicationLayer.PaymentDetails;
+import org.example.ApplicationLayer.PaymentProvider;
 import org.example.ApplicationLayer.PaymentResult;
 
 import java.io.IOException;
@@ -18,20 +19,36 @@ import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class ExternalPaymentGateway implements IPaymentGateway {
+public class ExternalPaymentGateway implements IPaymentGateway, PaymentProvider {
     private static final Logger logger = Logger.getLogger(ExternalPaymentGateway.class.getName());
 
-    private static final URI PAYMENT_SERVICE_URI =
-            URI.create("https://damp-lynna-wsep-1984852e.koyeb.app/");
+    private static final String DEFAULT_SERVICE_URL =
+            "https://damp-lynna-wsep-1984852e.koyeb.app/";
 
+    /** Provider id used to select this adapter from configuration. */
+    public static final String PROVIDER_ID = "EXTERNAL";
+
+    private final URI paymentServiceUri;
     private final HttpClient httpClient;
 
     public ExternalPaymentGateway() {
+        this(DEFAULT_SERVICE_URL);
+    }
+
+    public ExternalPaymentGateway(String serviceUrl) {
+        this.paymentServiceUri = URI.create(
+                serviceUrl == null || serviceUrl.isBlank() ? DEFAULT_SERVICE_URL : serviceUrl);
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
     }
 
+    @Override
+    public String providerId() {
+        return PROVIDER_ID;
+    }
+
+    @Override
     public boolean handshake() {
         Map<String, String> params = new LinkedHashMap<>();
         params.put("action_type", "handshake");
@@ -115,7 +132,7 @@ public class ExternalPaymentGateway implements IPaymentGateway {
         String body = encodeForm(params);
 
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(PAYMENT_SERVICE_URI)
+                .uri(paymentServiceUri)
                 .timeout(Duration.ofSeconds(15))
                 .header("Content-Type", "application/x-www-form-urlencoded")
                 .POST(HttpRequest.BodyPublishers.ofString(body))

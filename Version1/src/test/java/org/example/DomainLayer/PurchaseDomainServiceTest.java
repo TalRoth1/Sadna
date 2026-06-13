@@ -882,6 +882,40 @@ public class PurchaseDomainServiceTest {
     }
 
     @Test
+    public void completePurchase_persistsIssuedTicketReferenceToHistory() {
+        UUID eventId = UUID.randomUUID();
+        UUID companyId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID areaId = UUID.randomUUID();
+        UUID ticketId = UUID.randomUUID();
+
+        Event event = event(eventId, companyId);
+        event.getLayout().addArea(new org.example.DomainLayer.EventAggregate.SittingArea(areaId, 100f));
+        event.addTicket(new org.example.DomainLayer.EventAggregate.SittingTicket(ticketId, eventId, areaId, 100f, 1, 1));
+        eventRepository.save(event);
+
+        userRepository.add(new User(userId, "user", "mail", "pass", 20));
+
+        purchaseDomainService.selectSittingTickets(eventId, List.of(ticketId), userId, true);
+        ActivePurchase purchase = purchaseRepository.findByUserID(userId);
+
+        purchaseDomainService.setPaymentGateway((uid, amount, details) -> PaymentResult.success(10000));
+        // The external supply system returns a secure confirmation code; the
+        // purchase record must keep it (V3: receive + register the issuance).
+        purchaseDomainService.setTicketingGateway((uid, eid, ticketIds) -> "TIX-ABC-123");
+
+        purchaseDomainService.completePurchase(
+                purchase.getActivePurchaseId(),
+                new org.example.ApplicationLayer.PaymentDetails(),
+                null
+        );
+
+        List<PurchaseHistory> history = historyRepository.getByUserId(userId);
+        assertEquals(1, history.size());
+        assertEquals("TIX-ABC-123", history.get(0).getIssuedTicketReference());
+    }
+
+    @Test
     public void completePurchase_whenPaymentFails_doesNotAddPurchaseToHistory() {
         UUID eventId = UUID.randomUUID();
         UUID companyId = UUID.randomUUID();

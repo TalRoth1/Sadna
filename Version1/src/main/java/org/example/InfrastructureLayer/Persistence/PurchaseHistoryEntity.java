@@ -34,6 +34,16 @@ public class PurchaseHistoryEntity {
     @Column(name = "purchase_date", nullable = false)
     private LocalDateTime purchaseDate;
 
+    // Confirmation/secure code returned by the external ticketing system.
+    // Immutable: set once at construction, exposed read-only.
+    @Column(name = "issued_ticket_ref")
+    private String issuedTicketRef;
+
+    // External clearing-system transaction id captured at charge time, used
+    // to refund the buyer if the event is later cancelled. Immutable.
+    @Column(name = "payment_transaction_id")
+    private Integer paymentTransactionId;
+
     protected PurchaseHistoryEntity() {
     }
 
@@ -42,13 +52,17 @@ public class PurchaseHistoryEntity {
                                  UUID eventId,
                                  String purchaseInfo,
                                  double purchaseTotal,
-                                 LocalDateTime purchaseDate) {
+                                 LocalDateTime purchaseDate,
+                                 String issuedTicketRef,
+                                 Integer paymentTransactionId) {
         this.id = id;
         this.userId = userId;
         this.eventId = eventId;
         this.purchaseInfo = purchaseInfo;
         this.purchaseTotal = purchaseTotal;
         this.purchaseDate = purchaseDate;
+        this.issuedTicketRef = issuedTicketRef;
+        this.paymentTransactionId = paymentTransactionId;
     }
 
     public UUID getId() {
@@ -73,6 +87,14 @@ public class PurchaseHistoryEntity {
 
     public LocalDateTime getPurchaseDate() {
         return purchaseDate;
+    }
+
+    public String getIssuedTicketRef() {
+        return issuedTicketRef;
+    }
+
+    public Integer getPaymentTransactionId() {
+        return paymentTransactionId;
     }
 }
 

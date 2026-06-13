@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { QRCodeSVG } from "qrcode.react";
 import { getPurchaseHistory } from "../services/purchaseHistoryService";
 import type { PurchaseHistoryItem } from "../types/purchase";
 import { getCurrentUser } from "../services/currentUserService";
@@ -35,6 +36,19 @@ function PurchaseCard({ purchase }: { purchase: PurchaseHistoryItem }) {
                 <p>Location: {purchase.eventLocation}</p>
                 <p>Purchased at: {formatEventDate(purchase.purchaseDate)}</p>
                 <p>Payment: {purchase.paymentInfo}</p>
+                {purchase.issuedTicketRef && (
+                    <div className="ticket-code-block">
+                        <QRCodeSVG
+                            value={purchase.issuedTicketRef}
+                            size={96}
+                            level="M"
+                            includeMargin
+                        />
+                        <p className="ticket-code">
+                            Ticket code: {purchase.issuedTicketRef}
+                        </p>
+                    </div>
+                )}
             </div>
 
             <div className="purchase-details">
