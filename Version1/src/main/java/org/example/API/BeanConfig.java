@@ -9,6 +9,7 @@ import org.example.ApplicationLayer.ILoginRateLimiter;
 import org.example.ApplicationLayer.IPaymentGateway;
 import org.example.ApplicationLayer.ISystemMetricsTracker;
 import org.example.ApplicationLayer.ITicketingGateway;
+import org.example.ApplicationLayer.TicketingProvider;
 import org.example.ApplicationLayer.ITokenBlacklist;
 import org.example.ApplicationLayer.JwtService;
 import org.example.ApplicationLayer.LotteryScheduler;
@@ -22,6 +23,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Profile;
+
+import java.util.List;
 
 /**
  * Spring wiring for the domain + infrastructure layers.
@@ -112,9 +115,28 @@ public class BeanConfig {
         return new ExternalPaymentGateway();
     }
 
+    /**
+     * Multi-provider ticket issuance (general requirement I.4). Every
+     * {@link TicketingProvider} bean below is registered with the single
+     * {@link DelegatingTicketingGateway}, which is the only
+     * {@link ITicketingGateway} the domain layer sees. The active provider
+     * is chosen by {@code backend.ticketing.default-provider}, so adding a
+     * new external supply system later means adding one provider bean — no
+     * domain changes.
+     */
     @Bean
-    public ITicketingGateway ticketingGateway() {
+    public ExternalTicketingGateway externalTicketingGateway() {
         return new ExternalTicketingGateway();
+    }
+
+    @Bean
+    public ITicketingGateway ticketingGateway(
+            SimulatedTicketingGateway simulatedTicketingGateway,
+            ExternalTicketingGateway externalTicketingGateway) {
+        List<TicketingProvider> providers =
+                List.of(simulatedTicketingGateway, externalTicketingGateway);
+        return new DelegatingTicketingGateway(
+                providers, backendConfigProperties.getTicketing().getDefaultProvider());
     }
 
     @Bean

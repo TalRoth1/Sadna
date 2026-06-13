@@ -1,6 +1,6 @@
 package org.example.InfrastructureLayer;
 
-import org.example.ApplicationLayer.ITicketingGateway;
+import org.example.ApplicationLayer.TicketingProvider;
 
 import java.io.IOException;
 import java.net.URI;
@@ -17,8 +17,11 @@ import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class ExternalTicketingGateway implements ITicketingGateway {
+public class ExternalTicketingGateway implements TicketingProvider {
     private static final Logger logger = Logger.getLogger(ExternalTicketingGateway.class.getName());
+
+    /** Provider id used to select this adapter from configuration. */
+    public static final String PROVIDER_ID = "EXTERNAL";
 
     private static final URI TICKETING_SERVICE_URI =
             URI.create("https://damp-lynna-wsep-1984852e.koyeb.app/");
@@ -31,6 +34,12 @@ public class ExternalTicketingGateway implements ITicketingGateway {
                 .build();
     }
 
+    @Override
+    public String providerId() {
+        return PROVIDER_ID;
+    }
+
+    @Override
     public boolean handshake() {
         Map<String, String> params = new LinkedHashMap<>();
         params.put("action_type", "handshake");
@@ -92,6 +101,7 @@ public class ExternalTicketingGateway implements ITicketingGateway {
         }
     }
 
+    @Override
     public boolean cancelTicket(String ticketId) {
         if (ticketId == null || ticketId.isBlank()) {
             throw new IllegalArgumentException("Ticket ID is required for ticket cancellation");

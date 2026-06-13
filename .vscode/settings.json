@@ -1,5 +1,18 @@
 {
     "java.configuration.updateBuildConfiguration": "interactive",
     "java.compile.nullAnalysis.mode": "disabled",
-    "java.debug.settings.onBuildFailureProceed": true
+    "java.debug.settings.onBuildFailureProceed": true,
+    "sqltools.connections": [
+        {
+            "ssh": "Disabled",
+            "previewLimit": 50,
+            "server": "35.242.177.151",
+            "port": 5432,
+            "driver": "PostgreSQL",
+            "name": "35.242.177.151",
+            "username": "postgres",
+            "password": "123456",
+            "database": "postgres"
+        }
+    ]
 }

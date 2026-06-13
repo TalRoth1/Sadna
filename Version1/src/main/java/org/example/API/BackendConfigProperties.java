@@ -18,6 +18,7 @@ public class BackendConfigProperties {
     private final JwtAuth jwtAuth = new JwtAuth();
     private final Cors cors = new Cors();
     private final ActivePurchase activePurchase = new ActivePurchase();
+    private final Ticketing ticketing = new Ticketing();
 
     public Jwt getJwt() {
         return jwt;
@@ -57,6 +58,10 @@ public class BackendConfigProperties {
 
     public ActivePurchase getActivePurchase() {
         return activePurchase;
+    }
+
+    public Ticketing getTicketing() {
+        return ticketing;
     }
 
     public static class Jwt {
@@ -263,6 +268,25 @@ public class BackendConfigProperties {
 
         public void setDefaultMaxWaitTime(float defaultMaxWaitTime) {
             this.defaultMaxWaitTime = defaultMaxWaitTime;
+        }
+    }
+
+    /**
+     * Ticket-issuance integration settings. {@code defaultProvider} selects
+     * which registered {@link org.example.ApplicationLayer.TicketingProvider}
+     * the {@code DelegatingTicketingGateway} routes to (e.g. {@code EXTERNAL}
+     * for the real supply system, {@code SIMULATED} for dev / tests). Kept in
+     * configuration so switching providers needs no code change.
+     */
+    public static class Ticketing {
+        private String defaultProvider = "EXTERNAL";
+
+        public String getDefaultProvider() {
+            return defaultProvider;
+        }
+
+        public void setDefaultProvider(String defaultProvider) {
+            this.defaultProvider = defaultProvider;
         }
     }
 }
