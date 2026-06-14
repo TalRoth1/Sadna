@@ -1869,18 +1869,23 @@ export default function TicketPurchasePage({
             return;
         }
 
-        const [expMonth, expYear] = paymentForm.expiry
+        const [expMonthRaw, expYearRaw] = paymentForm.expiry
             .split("/")
             .map((part) => part.trim());
 
+        const expYear =
+            expYearRaw && expYearRaw.length === 2
+                ? `20${expYearRaw}`
+                : expYearRaw ?? "";
+
         const paymentDetails: PaymentDetails = {
             currency: "ILS",
-            cardNumber: paymentForm.cardNumber.replace(/\s+/g, ""),
-            month: expMonth ?? "",
-            year: expYear ?? "",
+            cardNumber: paymentForm.cardNumber.replace(/\D/g, ""),
+            month: expMonthRaw ?? "",
+            year: expYear,
             holder: paymentForm.holder.trim(),
-            cvv: paymentForm.cvv.trim(),
-            id: paymentForm.holderId.trim(),
+            cvv: paymentForm.cvv.replace(/\D/g, ""),
+            id: paymentForm.holderId.replace(/\D/g, ""),
         };
 
         setIsPerformingAction(true);

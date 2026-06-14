@@ -157,7 +157,7 @@ function getTicketSeat(ticket: any): number | null {
     return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
-function computeSittingLayout(event: Event, areaId: string) {
+/*function computeSittingLayout(event: Event, areaId: string) {
     const tickets = ((event as any).tickets ?? []).filter((ticket: any) => {
         return String(ticket.areaId) === String(areaId);
     });
@@ -180,7 +180,7 @@ function computeSittingLayout(event: Event, areaId: string) {
 
     return { rows, seatsPerRow };
 }
-
+*/
 function buildAreaDrafts(event: Event): TicketAreaDraft[] {
     const rawEvent = event as any;
 
