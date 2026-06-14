@@ -81,6 +81,12 @@ public class ExternalPaymentGateway implements IPaymentGateway, PaymentProvider 
         params.put("id", paymentDetails.id);
 
         try {
+
+            logger.info("[ExternalPaymentGateway] sending PAY request to external service"
+                    + ", user=" + userID
+                    + ", amount=" + amount
+                    + ", currency=" + normalizeCurrency(paymentDetails.currency));
+
             String response = postForm(params);
             int transactionId = parseIntegerResponse(response);
 
@@ -113,6 +119,9 @@ public class ExternalPaymentGateway implements IPaymentGateway, PaymentProvider 
         params.put("transaction_id", Integer.toString(transactionId));
 
         try {
+            logger.info("[ExternalPaymentGateway] sending REFUND request to external service"
+                    + ", transactionId=" + transactionId);
+
             String response = postForm(params);
             int result = parseIntegerResponse(response);
 

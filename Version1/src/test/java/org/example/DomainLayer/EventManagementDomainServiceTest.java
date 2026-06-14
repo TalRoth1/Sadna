@@ -285,6 +285,9 @@ public class EventManagementDomainServiceTest {
 
         when(eventRepository.getById(eventId)).thenReturn(event);
 
+        when(event.getStatus()).thenReturn(EventStatus.ACTIVE);
+        when(historyRepository.getAll()).thenReturn(List.of());
+
         Set<UUID> result = service.editEvent(
                 eventId,
                 null,
@@ -292,7 +295,7 @@ public class EventManagementDomainServiceTest {
                 "Haifa",
                 null,
                 "Festival",
-                EventStatus.CANCELED,
+                EventStatus.ACTIVE,
                 "Updated description"
         );
 
@@ -300,7 +303,7 @@ public class EventManagementDomainServiceTest {
         verify(event).setLocation("Haifa");
         verify(event, never()).setArtist(any());
         verify(event).setType("Festival");
-        verify(event).setStatus(EventStatus.CANCELED);
+        verify(event).setStatus(EventStatus.ACTIVE);
         verify(eventRepository).save(event);
     }
 
@@ -321,8 +324,9 @@ public class EventManagementDomainServiceTest {
                 userRepository, lotteryRepository, paymentGateway);
     }
 
-    private PurchaseHistory purchaseWithTransaction(int transactionId) {
+    private PurchaseHistory purchaseWithTransaction(UUID eventId, int transactionId) {
         PurchaseHistory purchase = mock(PurchaseHistory.class);
+        when(purchase.getEventId()).thenReturn(eventId);
         when(purchase.getPayment()).thenReturn(new Payment(50.0, "Valid payment", transactionId));
         when(purchase.getUserId()).thenReturn(UUID.randomUUID());
         return purchase;
@@ -333,7 +337,7 @@ public class EventManagementDomainServiceTest {
         IPaymentGateway paymentGateway = mock(IPaymentGateway.class);
         EventManagementDomainService service = serviceWithPaymentGateway(paymentGateway);
         List<PurchaseHistory> purchases =
-                List.of(purchaseWithTransaction(12345), purchaseWithTransaction(67890));
+                List.of(purchaseWithTransaction(eventId, 12345), purchaseWithTransaction(eventId, 67890));
 
         when(eventRepository.getById(eventId)).thenReturn(event);
         when(userRepository.findByEmail(username)).thenReturn(Optional.of(managerUserWithEvent(eventId)));
@@ -352,7 +356,7 @@ public class EventManagementDomainServiceTest {
     public void deleteEvent_skipsRefundForLegacyRecordsWithoutTransactionId() {
         IPaymentGateway paymentGateway = mock(IPaymentGateway.class);
         EventManagementDomainService service = serviceWithPaymentGateway(paymentGateway);
-        List<PurchaseHistory> purchases = List.of(purchaseWithTransaction(-1));
+        List<PurchaseHistory> purchases = List.of(purchaseWithTransaction(eventId, -1));
 
         when(eventRepository.getById(eventId)).thenReturn(event);
         when(userRepository.findByEmail(username)).thenReturn(Optional.of(managerUserWithEvent(eventId)));
@@ -369,7 +373,7 @@ public class EventManagementDomainServiceTest {
     public void deleteEvent_refundFailureIsBestEffortAndDoesNotBlockDeletion() {
         IPaymentGateway paymentGateway = mock(IPaymentGateway.class);
         EventManagementDomainService service = serviceWithPaymentGateway(paymentGateway);
-        List<PurchaseHistory> purchases = List.of(purchaseWithTransaction(12345));
+        List<PurchaseHistory> purchases = List.of(purchaseWithTransaction(eventId, 12345));
 
         when(eventRepository.getById(eventId)).thenReturn(event);
         when(userRepository.findByEmail(username)).thenReturn(Optional.of(managerUserWithEvent(eventId)));
@@ -383,12 +387,33 @@ public class EventManagementDomainServiceTest {
     }
 
     @Test
+    public void deleteEvent_refundReturnsFalse_doesNotBlockDeletion() {
+        IPaymentGateway paymentGateway = mock(IPaymentGateway.class);
+        EventManagementDomainService service = serviceWithPaymentGateway(paymentGateway);
+        List<PurchaseHistory> purchases = List.of(purchaseWithTransaction(eventId, 12345));
+
+        when(eventRepository.getById(eventId)).thenReturn(event);
+        when(event.getStatus()).thenReturn(EventStatus.ACTIVE);
+        when(userRepository.findByEmail(username)).thenReturn(Optional.of(managerUserWithEvent(eventId)));
+        when(historyRepository.getByEventId(eventId)).thenReturn(purchases);
+        when(paymentGateway.refund(12345)).thenReturn(false);
+
+        boolean result = service.deleteEvent(eventId, username, username);
+
+        assertTrue(result);
+        verify(paymentGateway).refund(12345);
+        verify(eventRepository).delete(eventId);
+    }
+
+
+    @Test
     public void editEvent_onTransitionToCanceled_refundsEveryBuyer() {
         IPaymentGateway paymentGateway = mock(IPaymentGateway.class);
         EventManagementDomainService service = serviceWithPaymentGateway(paymentGateway);
         List<PurchaseHistory> purchases =
-                List.of(purchaseWithTransaction(12345), purchaseWithTransaction(67890));
+                List.of(purchaseWithTransaction(eventId, 12345), purchaseWithTransaction(eventId, 67890));
 
+        when(historyRepository.getAll()).thenReturn(purchases);
         when(eventRepository.getById(eventId)).thenReturn(event);
         when(event.getStatus()).thenReturn(EventStatus.ACTIVE);
         when(historyRepository.getByEventId(eventId)).thenReturn(purchases);
@@ -407,6 +432,7 @@ public class EventManagementDomainServiceTest {
         IPaymentGateway paymentGateway = mock(IPaymentGateway.class);
         EventManagementDomainService service = serviceWithPaymentGateway(paymentGateway);
 
+        when(historyRepository.getAll()).thenReturn(List.of());
         when(eventRepository.getById(eventId)).thenReturn(event);
         when(event.getStatus()).thenReturn(EventStatus.CANCELED);
 
@@ -421,6 +447,7 @@ public class EventManagementDomainServiceTest {
         IPaymentGateway paymentGateway = mock(IPaymentGateway.class);
         EventManagementDomainService service = serviceWithPaymentGateway(paymentGateway);
 
+        when(historyRepository.getAll()).thenReturn(List.of());
         when(eventRepository.getById(eventId)).thenReturn(event);
         when(event.getStatus()).thenReturn(EventStatus.ACTIVE);
 

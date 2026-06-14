@@ -40,6 +40,11 @@ public class DelegatingPaymentGatewayTest {
         }
 
         @Override
+        public boolean handshake() {
+            return true;
+        }
+
+        @Override
         public PaymentResult pay(UUID userId, float amount, PaymentDetails paymentDetails) {
             payCalls++;
             return PaymentResult.success(transactionId);
@@ -123,8 +128,18 @@ public class DelegatingPaymentGatewayTest {
             }
 
             @Override
+            public boolean handshake() {
+                return true;
+            }
+
+            @Override
             public PaymentResult pay(UUID userId, float amount, PaymentDetails paymentDetails) {
                 return PaymentResult.failure();
+            }
+
+            @Override
+            public boolean refund(int transactionId) {
+                return false;
             }
         };
 

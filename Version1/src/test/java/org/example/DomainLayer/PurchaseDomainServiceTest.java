@@ -879,6 +879,9 @@ public class PurchaseDomainServiceTest {
         assertEquals(userId, history.get(0).getUserId());
         assertEquals(eventId, history.get(0).getEventId());
         assertTrue(history.get(0).getTicketIds().contains(ticketId));
+
+        assertNotNull(history.get(0).getPayment());
+        assertEquals(10000, history.get(0).getPayment().getTransactionId());
     }
 
     @Test
@@ -1012,6 +1015,7 @@ public class PurchaseDomainServiceTest {
         purchaseDomainService.selectSittingTickets(eventId, List.of(ticketId), userId, true);
         ActivePurchase purchase = purchaseRepository.findByUserID(userId);
         final boolean[] refundWasCalled = {false};
+        final int[] refundedTransactionId = {-1};
 
         purchaseDomainService.setPaymentGateway(new IPaymentGateway() {
             @Override
@@ -1022,6 +1026,7 @@ public class PurchaseDomainServiceTest {
             @Override
             public boolean refund(int transactionId) {
                 refundWasCalled[0] = true;
+                refundedTransactionId[0] = transactionId;
                 return true;
             }
         });
@@ -1039,6 +1044,8 @@ public class PurchaseDomainServiceTest {
         );
 
         assertTrue("payment must be refunded when ticket issuing fails", refundWasCalled[0]);
+        assertEquals("refund must use the original payment transaction id",
+                10000, refundedTransactionId[0]);
         assertNull("failed ticketing must remove the active purchase after compensation",
                 purchaseRepository.findByID(purchase.getActivePurchaseId()));
         assertEquals("ticket must be released back to AVAILABLE after ticketing failure",
@@ -1447,6 +1454,75 @@ public class PurchaseDomainServiceTest {
                 event.getTicket(ticketId).getStatus()
         );
     }
+
+    @Test
+    public void completePurchase_whenTicketingFailsAndRefundFails_throwsManualReversalMessage() {
+        UUID eventId = UUID.randomUUID();
+        UUID companyId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID areaId = UUID.randomUUID();
+        UUID ticketId = UUID.randomUUID();
+
+        Event event = event(eventId, companyId);
+        event.getLayout().addArea(
+                new org.example.DomainLayer.EventAggregate.SittingArea(areaId, 100f)
+        );
+        event.addTicket(
+                new org.example.DomainLayer.EventAggregate.SittingTicket(
+                        ticketId,
+                        eventId,
+                        areaId,
+                        100f,
+                        1,
+                        1
+                )
+        );
+
+        eventRepository.save(event);
+        userRepository.add(new User(userId, "user", "mail", "pass", 20));
+
+        purchaseDomainService.selectSittingTickets(
+                eventId,
+                List.of(ticketId),
+                userId,
+                true
+        );
+
+        ActivePurchase purchase = purchaseRepository.findByUserID(userId);
+
+        purchaseDomainService.setPaymentGateway(new IPaymentGateway() {
+            @Override
+            public PaymentResult pay(UUID uid, float amount, PaymentDetails details) {
+                return PaymentResult.success(10000);
+            }
+
+            @Override
+            public boolean refund(int transactionId) {
+                return false;
+            }
+        });
+
+        purchaseDomainService.setTicketingGateway((uid, eid, ticketIds) -> {
+            throw new DomainException("Ticketing failed");
+        });
+
+        DomainException exception = assertThrows(
+                DomainException.class,
+                () -> purchaseDomainService.completePurchase(
+                        purchase.getActivePurchaseId(),
+                        new PaymentDetails(),
+                        null
+                )
+        );
+
+        assertTrue(exception.getMessage().contains("refund failed"));
+        assertTrue(exception.getMessage().contains("manual reversal"));
+
+        assertNull(purchaseRepository.findByID(purchase.getActivePurchaseId()));
+        assertEquals(TicketStatus.AVAILABLE, event.getTicket(ticketId).getStatus());
+        assertTrue(historyRepository.getByUserId(userId).isEmpty());
+    }
+
 
     private static class FakeHistoryRepository implements IHistoryRepository {
 
