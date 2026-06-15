@@ -4,7 +4,6 @@ import {
     validateCurrentUserWithServer,
     type CurrentUser,
 } from "../services/currentUserService";
-import { verifyPlatformAdmin } from "../services/admin/adminAuthService";
 import { logoutUser } from "../services/authService";
 
 export type AppPage =

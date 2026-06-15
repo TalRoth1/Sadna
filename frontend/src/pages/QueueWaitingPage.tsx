@@ -2,9 +2,10 @@ import { useEffect, useState } from "react";
 import { getEventById } from "../services/eventSearchService";
 import {
     getSelectionAccessStatus,
-    requestSelectionAccess,
+    requestSelectionAccess, type SelectionAccess,
 } from "../services/selectionAccessService";
 import { ensureGuestSession } from "../services/authService";
+import type { Event } from "../types/event";
 
 type QueueWaitingPageProps = {
     eventId: string;

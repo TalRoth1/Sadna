@@ -1,13 +1,13 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import type { UserNotification } from "../types/notification";
-import { getCurrentUser } from "../services/currentUserService";
+import type { UserNotification } from "../src/types/notification";
+import { getCurrentUser } from "../src/services/currentUserService";
 import {
     connectNotificationStream,
     getUnreadNotifications,
     markAllNotificationsAsRead,
     markNotificationAsRead,
-} from "../services/notificationService";
+} from "../src/services/notificationService";
 
 type NotificationContextValue = {
     notifications: UserNotification[];
