@@ -634,6 +634,13 @@ public class PurchaseDomainConcurrencyAndCheckoutTest {
         public List<ActivePurchase> findAll() {
             return new ArrayList<>(purchasesById.values());
         }
+
+        @Override
+        public List<ActivePurchase> findExpiringBefore(LocalDateTime threshold) {
+            return purchasesById.values().stream()
+                    .filter(purchase -> purchase.getEndTime().isBefore(threshold))
+                    .toList();
+        }
     }
 
     private static class ThreadSafeCompanyRepository implements ICompanyRepository {

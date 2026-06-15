@@ -52,8 +52,9 @@ public class ActivePurchaseCleaner extends Thread {
         logger.info("ActivePurchaseCleaner started");
 
         while (!Thread.currentThread().isInterrupted()) {
-            List<ActivePurchase> purchases = purchaseRepository.findAll();
             LocalDateTime now = LocalDateTime.now();
+            LocalDateTime threshold = now.plusSeconds(warningBeforeExpirySeconds);
+            List<ActivePurchase> purchases = purchaseRepository.findExpiringBefore(threshold);
 
             for (ActivePurchase purchase : purchases) {
                 UUID purchaseId = purchase.getActivePurchaseId();

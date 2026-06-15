@@ -1433,7 +1433,13 @@ public class PurchaseServiceTest {
         @Override
         public List<ActivePurchase> findAll() {
             return new ArrayList<>(purchasesByID.values());
+        }
 
+        @Override
+        public List<ActivePurchase> findExpiringBefore(LocalDateTime threshold) {
+            return purchasesByID.values().stream()
+                    .filter(p -> p.getEndTime().isBefore(threshold))
+                    .toList();
         }
     }
     private static class InMemoryEventRepository implements IEventRepository

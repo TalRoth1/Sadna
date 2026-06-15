@@ -1,5 +1,6 @@
 package org.example.ApplicationLayer;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -9,7 +10,7 @@ import java.util.logging.Logger;
 import org.example.DomainLayer.ILotteryRepository;
 
 public class LotteryScheduler extends Thread {
-    private static final long SWEEP_INTERVAL_MS = 1000;
+    private final long sweepIntervalMs;
 
     private final PurchaseService purchaseService;
     private final ILotteryRepository lotteryRepository;
@@ -17,9 +18,11 @@ public class LotteryScheduler extends Thread {
     private static final Logger logger = Logger.getLogger(LotteryScheduler.class.getName());
 
     public LotteryScheduler(PurchaseService purchaseService,
-                            ILotteryRepository lotteryRepository) {
+                            ILotteryRepository lotteryRepository,
+                            Duration sweepInterval) {
         this.purchaseService = purchaseService;
         this.lotteryRepository = lotteryRepository;
+        this.sweepIntervalMs = sweepInterval.toMillis();
 
         setDaemon(true);
         setName("lottery-scheduler");
@@ -32,7 +35,7 @@ public class LotteryScheduler extends Thread {
         while (!Thread.currentThread().isInterrupted()) {
             try {
                 drawReadyLotteries();
-                Thread.sleep(SWEEP_INTERVAL_MS);
+                Thread.sleep(sweepIntervalMs);
 
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -42,7 +45,7 @@ public class LotteryScheduler extends Thread {
                 logger.log(Level.WARNING, "LotteryScheduler sweep failed: " + e.getMessage(), e);
 
                 try {
-                    Thread.sleep(SWEEP_INTERVAL_MS);
+                    Thread.sleep(sweepIntervalMs);
                 } catch (InterruptedException interruptedException) {
                     Thread.currentThread().interrupt();
                     break;

@@ -13,6 +13,7 @@ public class BackendConfigProperties {
     private final LoginRateLimiter loginRateLimiter = new LoginRateLimiter();
     private final Notifications notifications = new Notifications();
     private final ActivePurchaseCleaner activePurchaseCleaner = new ActivePurchaseCleaner();
+    private final LotteryScheduler lotteryScheduler = new LotteryScheduler();
     private final SystemMetrics systemMetrics = new SystemMetrics();
     private final DevSeed devSeed = new DevSeed();
     private final JwtAuth jwtAuth = new JwtAuth();
@@ -39,6 +40,10 @@ public class BackendConfigProperties {
 
     public ActivePurchaseCleaner getActivePurchaseCleaner() {
         return activePurchaseCleaner;
+    }
+
+    public LotteryScheduler getLotteryScheduler() {
+        return lotteryScheduler;
     }
 
     public SystemMetrics getSystemMetrics() {
@@ -136,15 +141,15 @@ public class BackendConfigProperties {
     }
 
     public static class ActivePurchaseCleaner {
-        private Duration sweepInterval = Duration.ofSeconds(1);
+        private long sweepIntervalMs = 1000L;
         private long warningBeforeExpirySeconds = 60L;
 
         public Duration getSweepInterval() {
-            return sweepInterval;
+            return Duration.ofMillis(sweepIntervalMs);
         }
 
-        public void setSweepInterval(Duration sweepInterval) {
-            this.sweepInterval = sweepInterval;
+        public void setSweepIntervalMs(long sweepIntervalMs) {
+            this.sweepIntervalMs = sweepIntervalMs;
         }
 
         public long getWarningBeforeExpirySeconds() {
@@ -153,6 +158,18 @@ public class BackendConfigProperties {
 
         public void setWarningBeforeExpirySeconds(long warningBeforeExpirySeconds) {
             this.warningBeforeExpirySeconds = warningBeforeExpirySeconds;
+        }
+    }
+
+    public static class LotteryScheduler {
+        private long sweepIntervalMs = 30000L;
+
+        public Duration getSweepInterval() {
+            return Duration.ofMillis(sweepIntervalMs);
+        }
+
+        public void setSweepIntervalMs(long sweepIntervalMs) {
+            this.sweepIntervalMs = sweepIntervalMs;
         }
     }
 
