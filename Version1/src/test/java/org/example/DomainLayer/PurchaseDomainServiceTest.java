@@ -1720,6 +1720,13 @@ public class PurchaseDomainServiceTest {
             return new ArrayList<>(purchasesById.values());
         }
 
+        @Override
+        public List<ActivePurchase> findExpiringBefore(LocalDateTime threshold) {
+            return purchasesById.values().stream()
+                    .filter(p -> p.getEndTime().isBefore(threshold))
+                    .toList();
+        }
+
     }
 
     private static class FakeLotteryRepository implements ILotteryRepository {

@@ -365,7 +365,10 @@ public class BeanConfig {
     public LotteryScheduler lotteryScheduler(
             PurchaseService purchaseService,
             ILotteryRepository lotteryRepository) {
-        return new LotteryScheduler(purchaseService, lotteryRepository);
+        return new LotteryScheduler(
+            purchaseService,
+            lotteryRepository,
+            backendConfigProperties.getLotteryScheduler().getSweepInterval());
     }
 
     // ---------------------------------------------------------------------

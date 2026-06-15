@@ -1,5 +1,6 @@
 package org.example.DomainLayer;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -16,6 +17,8 @@ public interface IPurchaseRepository {
     void deleteByID(UUID activePurchaseID);
 
     List<ActivePurchase> findAll();
+
+    List<ActivePurchase> findExpiringBefore(LocalDateTime threshold);
 
     /**
      * The "at most one active purchase per (user, event)" invariant the spec

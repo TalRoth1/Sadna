@@ -1,10 +1,12 @@
 package org.example.InfrastructureLayer;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 import org.example.DomainLayer.IPurchaseRepository;
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
@@ -60,5 +62,12 @@ public class InMemoryPurchaseRepository implements IPurchaseRepository {
     @Override
     public List<ActivePurchase> findAll() {
         return new ArrayList<>(purchasesById.values());
+    }
+
+    @Override
+    public List<ActivePurchase> findExpiringBefore(LocalDateTime threshold) {
+        return purchasesById.values().stream()
+                .filter(p -> p.getEndTime().isBefore(threshold))
+                .collect(Collectors.toList());
     }
 }
