@@ -1317,21 +1317,29 @@ type PaymentDetailsCardProps = {
     onCouponCodeChange: (next: string) => void;
     card: PaymentCardForm;
     onCardChange: (next: PaymentCardForm) => void;
-    issuedTicketRef: string | null;
+    issuedTicketRefs: string[];
 };
 
 // Digital ticket shown once the purchase is confirmed: the external ticketing
 // system's secure code rendered as a scannable QR plus the code in text, so
 // the buyer (and a grader) can see a concrete, market-style issued ticket.
-function DigitalTicket({ ticketRef }: { ticketRef: string }) {
+function DigitalTickets({ ticketRefs }: { ticketRefs: string[] }) {
     return (
-        <div className="digital-ticket">
-            <span className="digital-ticket-label">Your digital ticket</span>
-            <QRCodeSVG value={ticketRef} size={160} level="M" includeMargin />
-            <code className="digital-ticket-code">{ticketRef}</code>
-            <span className="digital-ticket-hint">
-                Present this code at the entrance.
-            </span>
+        <div className="digital-ticket-list">
+            <span className="digital-ticket-label">Your digital tickets</span>
+
+            {ticketRefs.map((ticketRef, index) => (
+                <div key={`${ticketRef}-${index}`} className="digital-ticket">
+                    <span className="digital-ticket-label">
+                        Ticket #{index + 1}
+                    </span>
+                    <QRCodeSVG value={ticketRef} size={160} level="M" includeMargin />
+                    <code className="digital-ticket-code">{ticketRef}</code>
+                    <span className="digital-ticket-hint">
+                        Present this code at the entrance.
+                    </span>
+                </div>
+            ))}
         </div>
     );
 }
@@ -1339,15 +1347,14 @@ function DigitalTicket({ ticketRef }: { ticketRef: string }) {
 // Payment form for the checkout step. Card details are collected here and
 // forwarded to the backend's external payment gateway (WSEP), which validates
 // and charges them. The coupon code is validated server-side at checkout
-// (Appendix §3c: "הרוכש מזין את הקוד במעמד התשלום").
 function PaymentDetailsCard({
-    isPaymentComplete,
-    couponCode,
-    onCouponCodeChange,
-    card,
-    onCardChange,
-    issuedTicketRef,
-}: PaymentDetailsCardProps) {
+                                isPaymentComplete,
+                                couponCode,
+                                onCouponCodeChange,
+                                card,
+                                onCardChange,
+                                issuedTicketRefs,
+                            }: PaymentDetailsCardProps) {
     const update = (patch: Partial<PaymentCardForm>) =>
         onCardChange({ ...card, ...patch });
 
@@ -1362,8 +1369,8 @@ function PaymentDetailsCard({
                 </p>
             </header>
 
-            {isPaymentComplete && issuedTicketRef && (
-                <DigitalTicket ticketRef={issuedTicketRef} />
+            {isPaymentComplete && issuedTicketRefs.length > 0 && (
+                <DigitalTickets ticketRefs={issuedTicketRefs} />
             )}
 
             {!isPaymentComplete && (
@@ -1479,7 +1486,7 @@ export default function TicketPurchasePage({
         useState<PaymentCardForm>(EMPTY_PAYMENT_FORM);
     // Secure ticket code returned by the external ticketing system, shown as a
     // QR / digital ticket on the confirmation screen after a successful charge.
-    const [issuedTicketRef, setIssuedTicketRef] = useState<string | null>(null);
+    const [issuedTicketRefs, setIssuedTicketRefs] = useState<string[]>([]);
     // Queue feature (from main): when the backend reports the user is
     // waiting in a virtual queue, we surface a dedicated banner instead
     // of the generic error toast.
@@ -1869,23 +1876,18 @@ export default function TicketPurchasePage({
             return;
         }
 
-        const [expMonthRaw, expYearRaw] = paymentForm.expiry
+        const [expMonth, expYear] = paymentForm.expiry
             .split("/")
             .map((part) => part.trim());
 
-        const expYear =
-            expYearRaw && expYearRaw.length === 2
-                ? `20${expYearRaw}`
-                : expYearRaw ?? "";
-
         const paymentDetails: PaymentDetails = {
             currency: "ILS",
-            cardNumber: paymentForm.cardNumber.replace(/\D/g, ""),
-            month: expMonthRaw ?? "",
-            year: expYear,
+            cardNumber: paymentForm.cardNumber.replace(/\s+/g, ""),
+            month: expMonth ?? "",
+            year: expYear ?? "",
             holder: paymentForm.holder.trim(),
-            cvv: paymentForm.cvv.replace(/\D/g, ""),
-            id: paymentForm.holderId.replace(/\D/g, ""),
+            cvv: paymentForm.cvv.trim(),
+            id: paymentForm.holderId.trim(),
         };
 
         setIsPerformingAction(true);
@@ -1893,14 +1895,14 @@ export default function TicketPurchasePage({
 
         try {
             const trimmedCoupon = couponCode.trim();
-            const ticketRef = await completePurchase(
+            const ticketRefs = await completePurchase(
                 activePurchase.activePurchaseId,
                 paymentDetails,
                 trimmedCoupon === "" ? null : trimmedCoupon,
             );
             const total = getTotalPrice(selection, event);
             const count = getTotalSelectedCount(selection);
-            setIssuedTicketRef(ticketRef);
+            setIssuedTicketRefs(ticketRefs);
             setIsPaymentComplete(true);
             setActivePurchase(null);
             setActionMessage({
@@ -2071,7 +2073,7 @@ export default function TicketPurchasePage({
                             onCouponCodeChange={setCouponCode}
                             card={paymentForm}
                             onCardChange={setPaymentForm}
-                            issuedTicketRef={issuedTicketRef}
+                            issuedTicketRefs={issuedTicketRefs}
                         />
                     )}
 
