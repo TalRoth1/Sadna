@@ -4,7 +4,7 @@ import { getMyCompanies, type CompanyMembership, type EventDiscountType } from "
 import { createEvent, type CreateEventRequest } from "../../services/eventService";
 
 import "./CreateEventPage.css";
-import { createLotteryForEvent } from "../../services/lotteryService";
+import { createLotteryEvent  } from "../../services/lotteryService";
 
 type CreateEventPageProps = {
     initialCompanyId?: string | null;
@@ -478,7 +478,17 @@ const [lotteryRegistrationClose, setLotteryRegistrationClose] = useState("");
                 discountType: discountPolicyType,
             };
 
-            const createdEvent = await createEvent(request);
+            const createdEvent = isLotteryEvent
+                ? await createLotteryEvent({
+                    ...request,
+                    type: "Lottery",
+                    lottery: {
+                        registrationOpen: `${lotteryRegistrationOpen}:00`,
+                        registrationClose: `${lotteryRegistrationClose}:00`,
+                    },
+                })
+                : await createEvent(request);
+
             const createdEventId = getCreatedEventId(createdEvent);
 
             if (!createdEventId) {
@@ -491,13 +501,6 @@ const [lotteryRegistrationClose, setLotteryRegistrationClose] = useState("");
                 } else {
                     await addSittingArea(createdEventId, area);
                 }
-            }
-
-            if (isLotteryEvent) {
-                await createLotteryForEvent(createdEventId, {
-                    registrationOpen: `${lotteryRegistrationOpen}:00`,
-                    registrationClose: `${lotteryRegistrationClose}:00`,
-                });
             }
 
             await addEventPolicyRule(createdEventId, companyId, currentUser.email);

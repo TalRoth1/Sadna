@@ -1,4 +1,5 @@
 import axios from "axios";
+import type { CreateEventRequest } from "./eventService";
 
 type ApiResponse<T> = {
     success: boolean;
@@ -45,6 +46,28 @@ export type CreateLotteryRequest = {
     registrationOpen: string;
     registrationClose: string;
 };
+
+export type CreateLotteryEventRequest = CreateEventRequest & {
+    lottery: CreateLotteryRequest;
+};
+
+export async function createLotteryEvent(request: CreateLotteryEventRequest) {
+    const response = await fetch("/api/events/lottery", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify(request),
+    });
+
+    const body = await response.json();
+
+    if (!response.ok || !body.success) {
+        throw new Error(body.message || "Failed to create lottery event.");
+    }
+
+    return body.data;
+}
 
 export async function createLotteryForEvent(
     eventId: string,

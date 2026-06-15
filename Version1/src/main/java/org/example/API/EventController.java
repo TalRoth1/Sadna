@@ -535,6 +535,26 @@ public class EventController {
     //  8. (Future) Lottery management endpoints would go here
     // ================================================================
 
+    @PostMapping("/lottery")
+    public ResponseEntity<ApiResponse<EventDetailsDto>> createLotteryEvent(
+            @RequestBody CreateEventRequest request) {
+        try {
+            EventDetailsDto event = eventService.createLotteryEvent(request);
+
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.success("Lottery event created successfully", event));
+
+        } catch (IllegalArgumentException | IllegalStateException | DomainException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+
+        } catch (Exception e) {
+            String msg = e.getMessage() == null ? "(no message)" : e.getMessage();
+
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to create lottery event: system exception - " + msg));
+        }
+    }
+    
     @PostMapping("/{eventId}/lottery")
     public ResponseEntity<ApiResponse<Void>> createLotteryForEvent(
             @PathVariable("eventId") UUID eventId,

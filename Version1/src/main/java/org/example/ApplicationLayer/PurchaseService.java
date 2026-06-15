@@ -3,15 +3,17 @@ package org.example.ApplicationLayer;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Logger;
 
 import org.example.ApplicationLayer.dto.PurchaseDTOs.ActivePurchaseDTO;
+import org.example.ApplicationLayer.dto.PurchaseDTOs.LotteryStatusDTO;
 import org.example.ApplicationLayer.dto.PurchaseDTOs.PurchaseHistoryDTO;
 import org.example.ApplicationLayer.dto.PurchaseDTOs.SelectionAccessDTO;
-import org.example.ApplicationLayer.dto.PurchaseDTOs.LotteryStatusDTO;
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 import org.example.DomainLayer.DomainException;
 import org.example.DomainLayer.EventAggregate.Event;
@@ -560,71 +562,96 @@ public class PurchaseService {
         }
     }
 
-    public Map<String, String> drawLotteryForEvent(UUID eventId, LocalDateTime codeExpiry) {
-        logger.info("caller=system/admin"
-                + ", action=drawLotteryForEvent"
-                + ", target=PurchaseDomainService.drawLotteryForEvent"
-                + ", params={eventId=" + eventId + ", codeExpiry=" + codeExpiry + "}");
+public Map<String, String> drawLotteryForEvent(UUID eventId, LocalDateTime codeExpiry) {
+    if (eventId == null) {
+        throw new IllegalArgumentException("Event ID is required");
+    }
 
-        if (eventId == null) {
-            throw new IllegalArgumentException("Event ID is required");
-        }
+    if (codeExpiry == null) {
+        throw new IllegalArgumentException("Code expiry is required");
+    }
 
-        if (codeExpiry == null) {
-            throw new IllegalArgumentException("Code expiry is required");
-        }
+    try {
+        /*
+         * Must be before drawing.
+         * winnerCodes contains only winners, so we need this list
+         * in order to notify losers too.
+         */
+        Set<String> registeredUsers =
+                purchaseDomainService.getRegisteredUsersForLottery(eventId);
+
+        Map<String, String> winnerCodes =
+                purchaseDomainService.drawLotteryForEvent(eventId, codeExpiry);
+
+        String eventName = "your event";
 
         try {
-            Map<String, String> winnerCodes =
-                    purchaseDomainService.drawLotteryForEvent(eventId, codeExpiry);
+            Event ev = purchaseDomainService.findEventById(eventId);
+            if (ev != null && ev.getName() != null && !ev.getName().isBlank()) {
+                eventName = ev.getName();
+            }
+        } catch (Exception ignore) {
+        }
 
-            logger.info("action=drawLotteryForEvent completed successfully"
-                    + ", params={eventId=" + eventId + ", codeExpiry=" + codeExpiry + "}");
+        Set<String> notifiedUsers = new HashSet<>();
 
-            for (Map.Entry<String, String> entry : winnerCodes.entrySet()) {
-                String winnerId = entry.getKey();
-                String accessCode = entry.getValue();
+        for (String userId : registeredUsers) {
+            if (winnerCodes.containsKey(userId)) {
+                String accessCode = winnerCodes.get(userId);
 
                 eventPublisher.publish(
-                        new LotteryWonEvent(winnerId, eventId, accessCode, codeExpiry)
+                        new LotteryWonEvent(userId, eventId, accessCode, codeExpiry)
                 );
-                // Send a direct notification to the winner with their access code
-                try {
-                    String eventName = "your event";
-                    try {
-                        Event ev = purchaseDomainService.findEventById(eventId);
-                        if (ev != null && ev.getName() != null && !ev.getName().isBlank()) {
-                            eventName = ev.getName();
-                        }
-                    } catch (Exception ignore) {
-                    }
 
-                    String message = "You won the lottery for '" + eventName + "'. Your access code: " + accessCode + ". Use it on the event page to continue to ticket selection.";
+                String message =
+                        "You won the lottery for '" + eventName +
+                        "'. Your access code: " + accessCode +
+                        ". Use it on the event page to continue to ticket selection.";
 
-                    try {
-                        UUID uid = UUID.fromString(winnerId);
-                        notifier.notifyUser(uid, message);
-                    } catch (IllegalArgumentException ex) {
-                        // fallback to username-based notification if winnerId isn't a UUID string
-                        notifier.notifyUser(winnerId, message);
-                    }
-                } catch (Exception e) {
-                    logger.warning("Failed to send lottery notification to winner " + winnerId + ": " + e.getMessage());
-                }
+                notifier.notifyUser(userId, message);
+            } else {
+                String message =
+                        "Lottery for '" + eventName +
+                        "' ended. You did not win this time.";
+
+                notifier.notifyUser(userId, message);
             }
-            
-            return winnerCodes;
-        } catch (DomainException e) {
-            logger.severe("action=drawLotteryForEvent failed"
-                    + ", caller=system/admin"
-                    + ", target=PurchaseDomainService.drawLotteryForEvent"
-                    + ", params={eventId=" + eventId + ", codeExpiry=" + codeExpiry + "}"
-                    + ", error=" + e.getMessage());
 
-            throw new IllegalStateException("Couldn't draw lottery: " + e.getMessage());
+            notifiedUsers.add(userId);
         }
+
+        /*
+         * Safety fallback.
+         */
+        for (Map.Entry<String, String> entry : winnerCodes.entrySet()) {
+            String winnerId = entry.getKey();
+
+            if (notifiedUsers.contains(winnerId)) {
+                continue;
+            }
+
+            String accessCode = entry.getValue();
+
+            eventPublisher.publish(
+                    new LotteryWonEvent(winnerId, eventId, accessCode, codeExpiry)
+            );
+
+            String message =
+                    "You won the lottery for '" + eventName +
+                    "'. Your access code: " + accessCode +
+                    ". Use it on the event page to continue to ticket selection.";
+
+            notifier.notifyUser(winnerId, message);
+        }
+
+        return winnerCodes;
+
+    } catch (DomainException e) {
+        throw new IllegalStateException("Couldn't draw lottery: " + e.getMessage());
     }
-    private SelectionAccessDTO toSelectionAccessDTO(UUID userId, UUID eventId, QueueAccessResult result) {
+}
+
+private SelectionAccessDTO toSelectionAccessDTO(UUID userId, UUID eventId, QueueAccessResult result) {
         String message = result.isAllowed()
                 ? "Selection access granted"
                 : result.getUserPositionInQueue() > 0
