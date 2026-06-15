@@ -438,7 +438,9 @@ public class EventManagementDomainService {
         if (managerRole == null) {
             throw new DomainException("Event manager is not a member of the company");
         }
-        if (!managerRole.getEventsIds().contains(eventId)) {
+        // The persisted events table owns the manager→event link (manager_username);
+        // the in-memory eventsIds list is not rehydrated under the JPA profile.
+        if (!eventManager.getUsername().equalsIgnoreCase(event.getManagerUsername())) {
             throw new DomainException("Event manager is not in charge of this event");
         }
 
@@ -451,7 +453,6 @@ public class EventManagementDomainService {
             refundEventPurchases(eventId);
         }
 
-        managerRole.getEventsIds().remove(eventId);
         eventRepository.delete(eventId);
         return true;
     }
@@ -620,13 +621,17 @@ public class EventManagementDomainService {
         if (!user.isCompanyMember(companyId)) {
             throw new IllegalArgumentException("User is not a member of the company");
         }
-        ICompanyMember userRole = user.getCompanyRole(companyId);
-        userRole.getEventsIds().forEach(eid -> {
-            Event event = eventRepository.getById(eid);
-            if (event != null) {
+        // Derive the member's events from the persisted events table (company_id +
+        // manager_username) rather than the in-memory ICompanyMember.eventsIds list,
+        // which is never rehydrated under the JPA profile. Mirrors searchEvents().
+        String managerUsername = user.getUsername();
+        for (Event event : eventRepository.getAll()) {
+            if (companyId.equals(event.getCompanyId())
+                    && managerUsername != null
+                    && managerUsername.equalsIgnoreCase(event.getManagerUsername())) {
                 out.add(event);
             }
-        });
+        }
         return out;
     }
 

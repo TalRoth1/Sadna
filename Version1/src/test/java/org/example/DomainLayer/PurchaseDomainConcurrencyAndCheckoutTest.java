@@ -722,6 +722,11 @@ public class PurchaseDomainConcurrencyAndCheckoutTest {
         }
 
         @Override
+        public List<String> getOwnerAndSubordinatesUsernames(UUID companyId, String ownerUsername) {
+            return ownerUsername == null ? List.of() : List.of(ownerUsername);
+        }
+
+        @Override
         public boolean isCompanyOwner(String username, UUID companyId) {
             return false;
         }
@@ -759,6 +764,19 @@ public class PurchaseDomainConcurrencyAndCheckoutTest {
         @Override
         public boolean existsAdmin(UUID adminId) {
             return adminId != null && adminsById.containsKey(adminId);
+        }
+
+        @Override
+        public Set<String> getAllAdminUsernames() {
+            return adminsById.values().stream()
+                    .map(Admin::getUsername)
+                    .filter(name -> name != null)
+                    .collect(java.util.stream.Collectors.toSet());
+        }
+
+        @Override
+        public Map<String, Long> countCompanyMembersByRole(UUID companyId) {
+            return Map.of();
         }
     }
 

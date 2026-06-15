@@ -3,12 +3,18 @@ package org.example.InfrastructureLayer;
 import org.example.DomainLayer.AdminAggregate.Admin;
 import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
 import org.example.DomainLayer.IUserRepository;
+import org.example.DomainLayer.UserAggregate.CompanyOwner;
+import org.example.DomainLayer.UserAggregate.ICompanyMember;
 import org.example.DomainLayer.UserAggregate.User;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -276,6 +282,48 @@ public class UserRepository implements IUserRepository {
 
     /**
      * {@inheritDoc}
+     *
+     * <p>Walks the live in-memory role graph starting from the owner's
+     * {@link CompanyOwner} role, collecting the owner and all transitive
+     * subordinates.
+     */
+    @Override
+    public List<String> getOwnerAndSubordinatesUsernames(UUID companyId, String ownerUsername) {
+        if (companyId == null || ownerUsername == null) {
+            return List.of();
+        }
+
+        User owner = findByEmail(ownerUsername).orElse(null);
+        if (owner == null) {
+            return List.of();
+        }
+
+        ICompanyMember role = owner.getCompanyRole(companyId);
+        if (role == null) {
+            return List.of();
+        }
+
+        List<String> out = new ArrayList<>();
+        collectMemberUsernames(role, out, new HashSet<>());
+        return out;
+    }
+
+    private void collectMemberUsernames(ICompanyMember member, List<String> out, Set<String> visited) {
+        if (member == null || member.getUsername() == null || !visited.add(member.getUsername())) {
+            return;
+        }
+
+        out.add(member.getUsername());
+
+        if (member instanceof CompanyOwner owner) {
+            for (ICompanyMember subordinate : owner.getSubordinates()) {
+                collectMemberUsernames(subordinate, out, visited);
+            }
+        }
+    }
+
+    /**
+     * {@inheritDoc}
      */
     @Override
     public boolean isCompanyOwner(String username, UUID companyId) {
@@ -320,5 +368,45 @@ public class UserRepository implements IUserRepository {
      */
     public void addAdmin(Admin admin) {
         admins.put(admin.getId(), admin);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Collects the usernames of every registered admin from the
+     * {@code admins} store. {@code ConcurrentHashMap} iteration is
+     * weakly consistent and never throws CME.
+     */
+    @Override
+    public Set<String> getAllAdminUsernames() {
+        Set<String> usernames = new HashSet<>();
+        for (Admin admin : admins.values()) {
+            if (admin.getUsername() != null) {
+                usernames.add(admin.getUsername());
+            }
+        }
+        return usernames;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Iterates the {@code users} store, looks up each user's role in the
+     * given company and groups the counts by normalized role name. Users with
+     * no role in the company are skipped.
+     */
+    @Override
+    public Map<String, Long> countCompanyMembersByRole(UUID companyId) {
+        Map<String, Long> countsByRole = new HashMap<>();
+        for (User user : users.values()) {
+            ICompanyMember role = user.getCompanyRoles().get(companyId);
+            if (role == null) {
+                continue;
+            }
+            String roleName = role.getRoleName();
+            String normalized = roleName == null ? "" : roleName.trim().toUpperCase();
+            countsByRole.merge(normalized, 1L, Long::sum);
+        }
+        return countsByRole;
     }
 }
