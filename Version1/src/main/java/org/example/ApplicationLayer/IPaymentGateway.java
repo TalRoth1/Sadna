@@ -20,9 +20,9 @@ import java.util.UUID;
  */
 public interface IPaymentGateway
 {
-    boolean pay(UUID userID, float amount, PaymentDetails paymentDetails);
+    PaymentResult pay(UUID userID, float amount, PaymentDetails paymentDetails);
 
-    default boolean refund(UUID userID, float amount, PaymentDetails paymentDetails) {
+    default boolean refund(int transactionId) {
         return true;
     }
 }

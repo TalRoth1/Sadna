@@ -678,8 +678,8 @@ function LotteryDrawButton({ eventId }: { eventId: string }) {
         try {
             setIsLoading(true);
 
-            const expiry = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-            const winners = await drawLotteryWinners(eventId, expiry);
+            const expiryDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
+            const expiry = toLocalDateTimeString(expiryDate);            const winners = await drawLotteryWinners(eventId, expiry);
 
             const winnerCount = Object.keys(winners || {}).length;
             window.alert(`Winners were drawn successfully. ${winnerCount} winner(s).`);
@@ -1999,6 +1999,13 @@ function HierarchyBranch({
 function extractEmailFromHierarchyLabel(label: string) {
     const emailMatch = label.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/);
     return emailMatch ? emailMatch[0] : null;
+}
+
+function toLocalDateTimeString(date: Date) {
+    const pad = (n: number) => String(n).padStart(2, "0");
+
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+        + `T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 }
 
 function SubordinateEventCard({ event }: { event: SubordinateEvent }) {

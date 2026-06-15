@@ -24,12 +24,12 @@ import org.example.DomainLayer.DomainException;
 import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.PurchaseDomainService;
 import org.example.DomainLayer.RolesDomainService;
-import org.example.ApplicationLayer.EventService;
 import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.EventSummaryDto;
 import org.example.DomainLayer.PolicyManagment.AgeRule;
 import org.example.DomainLayer.PolicyManagment.ConditionalDiscount;
 import org.example.DomainLayer.PolicyManagment.CouponCode;
 import org.example.DomainLayer.PolicyManagment.DiscountPolicy;
+import org.example.DomainLayer.PolicyManagment.DiscountType;
 import org.example.DomainLayer.PolicyManagment.IDiscountRule;
 import org.example.DomainLayer.PolicyManagment.IPurchaseRule;
 import org.example.DomainLayer.PolicyManagment.LoneSeatRule;
@@ -59,11 +59,11 @@ public class CompanyService {
         this.eventService = eventService;
     }
 
-    public CompanyResponse createCompany(String founderEmail, String companyName) {
+    public CompanyResponse createCompany(String founderEmail, String companyName, DiscountType discountType) {
         logger.info("caller=" + founderEmail
                 + ", action=createCompany"
                 + ", target=RolesDomainService.createCompany"
-                + ", params={founderEmail=" + founderEmail + ", companyName=" + companyName + "}");
+                + ", params={founderEmail=" + founderEmail + ", companyName=" + companyName + ", discountType=" + discountType + "}");
 
         if (founderEmail == null || founderEmail.isBlank()) {
             throw new IllegalArgumentException("Founder email is required");
@@ -71,8 +71,11 @@ public class CompanyService {
         if (companyName == null || companyName.isBlank()) {
             throw new IllegalArgumentException("Company name is required");
         }
+        if (discountType == null) {
+            throw new IllegalArgumentException("Discount type is required");
+        }
 
-        UUID companyId = rolesDomainService.createCompany(founderEmail, companyName);
+        UUID companyId = rolesDomainService.createCompany(founderEmail, companyName, discountType);
 
         return new CompanyResponse(
                 companyId,

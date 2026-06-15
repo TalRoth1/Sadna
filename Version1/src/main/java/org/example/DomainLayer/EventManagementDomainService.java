@@ -8,34 +8,58 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
+import org.example.ApplicationLayer.IPaymentGateway;
 import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.DomainLayer.CompanyAggregate.CompanyPermission;
 import org.example.DomainLayer.EventAggregate.Event;
 import org.example.DomainLayer.EventAggregate.EventSearchCriteria;
 import org.example.DomainLayer.EventAggregate.EventStatus;
 import org.example.DomainLayer.LotteryAggregate.PuchaseLottery;
+import org.example.DomainLayer.PolicyManagment.DiscountType;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.example.DomainLayer.UserAggregate.ICompanyMember;
 import org.example.DomainLayer.UserAggregate.User;
 
+import jakarta.transaction.Transactional;
+
 public class EventManagementDomainService {
+
+    private static final Logger logger =
+            Logger.getLogger(EventManagementDomainService.class.getName());
 
     private final IEventRepository eventRepository;
     private final IHistoryRepository historyRepository;
     private final ICompanyRepository companyRepository;
     private final IUserRepository userRepository;
     private final ILotteryRepository lotteryRepository;
+    // Used to auto-refund buyers when an event is cancelled (general
+    // requirement I.3). May be null in unit tests that don't exercise refunds.
+    private final IPaymentGateway paymentGateway;
+
     public EventManagementDomainService(IEventRepository eventRepository,
             IHistoryRepository historyRepository,
             ICompanyRepository companyRepository,
             IUserRepository userRepository,
             ILotteryRepository lotteryRepository) {
+        this(eventRepository, historyRepository, companyRepository,
+                userRepository, lotteryRepository, null);
+    }
+
+    public EventManagementDomainService(IEventRepository eventRepository,
+            IHistoryRepository historyRepository,
+            ICompanyRepository companyRepository,
+            IUserRepository userRepository,
+            ILotteryRepository lotteryRepository,
+            IPaymentGateway paymentGateway) {
         this.eventRepository = eventRepository;
         this.historyRepository = historyRepository;
         this.companyRepository = companyRepository;
         this.userRepository = userRepository;
         this.lotteryRepository = lotteryRepository;
+        this.paymentGateway = paymentGateway;
     }
 
     private Event requireEvent(UUID eventId) {
@@ -277,7 +301,7 @@ public class EventManagementDomainService {
     }
 
     public void addEvent(UUID eventId, UUID companyId, String eventManagerEmail, String name,
-            LocalDateTime date, String location, String artist, String type, EventStatus status, String description) {
+            LocalDateTime date, String location, String artist, String type, EventStatus status, String description, DiscountType discountType) {
         if (eventRepository.getById(eventId) != null) {
             throw new DomainException("Event already exists: " + eventId);
         }
@@ -298,13 +322,15 @@ public class EventManagementDomainService {
             throw new DomainException("Event manager is not a member of the company");
         }
 
-        Event event = new Event(eventId, companyId, date, location, artist, type, status);
+        Event event = new Event(eventId, companyId, date, location, artist, type, status, discountType);
         if (name != null) {
             event.setName(name);
         }
         if (description != null) {
             event.setDescription(description);
         }
+        // Persist the manager username (identifier) so DB FK to users.manager_username is satisfied
+        event.setManagerUsername(eventManager.getUsername());
         eventRepository.save(event);
 
         managerRole.getEventsIds().add(eventId);
@@ -324,6 +350,12 @@ public class EventManagementDomainService {
         if (event == null) {
             throw new DomainException("Event not found");
         }
+
+        // Capture the status before any mutation so we can detect the
+        // ACTIVE/ENDED -> CANCELED transition exactly once. Editing an
+        // already-cancelled event (or any edit that doesn't change the status
+        // to CANCELED) must NOT trigger another round of refunds.
+        EventStatus previousStatus = event.getStatus();
 
         if (name != null) {
             event.setName(name);
@@ -359,6 +391,14 @@ public class EventManagementDomainService {
         if (purchase.getEventId().equals(eventId)) {
             participants.add(purchase.getUserId());
         }
+    }
+
+    // Event cancellation via status change: auto-refund every buyer, but only
+    // on the transition INTO CANCELED (general req. I.3).
+    boolean cancellationTransition =
+            status == EventStatus.CANCELED && previousStatus != EventStatus.CANCELED;
+    if (cancellationTransition) {
+        refundEventPurchases(eventId);
     }
 
     eventRepository.save(event);
@@ -402,9 +442,52 @@ public class EventManagementDomainService {
             throw new DomainException("Event manager is not in charge of this event");
         }
 
+        // Event cancellation: automatically refund every buyer before the
+        // event (and its purchase records) are removed (general req. I.3).
+        // Skip when the event is already CANCELED — those buyers were already
+        // refunded on the cancellation transition, so refunding again would
+        // double-reverse the same charges.
+        if (event.getStatus() != EventStatus.CANCELED) {
+            refundEventPurchases(eventId);
+        }
+
         managerRole.getEventsIds().remove(eventId);
         eventRepository.delete(eventId);
         return true;
+    }
+
+    /**
+     * Best-effort automatic refund of all completed purchases for a cancelled
+     * event. Each charge is reversed via the payment gateway using the stored
+     * external transaction id. Failures are logged and swallowed so one bad
+     * refund can't block the cancellation or the remaining refunds — operator
+     * follow-up handles those.
+     */
+    private void refundEventPurchases(UUID eventId) {
+        if (paymentGateway == null) {
+            return;
+        }
+
+        for (PurchaseHistory purchase : historyRepository.getByEventId(eventId)) {
+            int transactionId = purchase.getPayment() == null
+                    ? -1
+                    : purchase.getPayment().getTransactionId();
+
+            if (transactionId <= 0) {
+                continue;
+            }
+
+            try {
+                boolean refunded = paymentGateway.refund(transactionId);
+                logger.info("[EventManagementDomainService] event=" + eventId
+                        + " user=" + purchase.getUserId()
+                        + " tx=" + transactionId + " refunded=" + refunded);
+            } catch (RuntimeException refundError) {
+                logger.log(Level.WARNING,
+                        "[EventManagementDomainService] refund failed event=" + eventId
+                                + " tx=" + transactionId, refundError);
+            }
+        }
     }
 
     public void addStandingTickets(UUID eventId, UUID areaId, int count) {
@@ -414,6 +497,29 @@ public class EventManagementDomainService {
         }
         event.addStandingTickets(areaId, count);
         eventRepository.save(event);
+    }
+
+    public UUID addStandingArea(UUID eventId, double price, int count) {
+        if (eventId == null) {
+            throw new IllegalArgumentException("Event ID is required");
+        }
+        if (price < 0) {
+            throw new IllegalArgumentException("price must be non-negative");
+        }
+        if (count <= 0) {
+            throw new IllegalArgumentException("count must be positive");
+        }
+
+        Event event = eventRepository.getById(eventId);
+        if (event == null) {
+            throw new DomainException("Event not found");
+        }
+
+        UUID areaId = UUID.randomUUID();
+        event.getLayout().addArea(new org.example.DomainLayer.EventAggregate.StandingArea(areaId, price));
+        event.addStandingTickets(areaId, count);
+        eventRepository.save(event);
+        return areaId;
     }
 
     public void addSittingTickets(UUID eventId, UUID areaId, int rows, int seatsPerRow) {
@@ -467,12 +573,14 @@ public class EventManagementDomainService {
         return eventRepository.getById(eventId);
     }
 
-    /**
-     * Null-safe lookup used by DTO mappers to denormalize company fields
-     * (name/rating) onto event summaries. Returns null when the id is
-     * unknown, null, or when the repository hands us a null Optional
-     * (defensive: some mocks return null instead of Optional.empty()).
-     */
+    public void saveEvent(org.example.DomainLayer.EventAggregate.Event event) {
+        if (event == null) {
+            throw new IllegalArgumentException("event is required");
+        }
+        eventRepository.save(event);
+    }
+
+
     public Company findCompanyById(UUID companyId) {
         if (companyId == null) {
             return null;
@@ -522,21 +630,10 @@ public class EventManagementDomainService {
         return out;
     }
 
+    @Transactional
     public void createLotteryForEvent(UUID eventId,
                                     LocalDateTime registrationOpen,
                                     LocalDateTime registrationClose) {
-        if (eventId == null) {
-            throw new DomainException("Event id is required");
-        }
-
-        if (registrationOpen == null || registrationClose == null) {
-            throw new DomainException("Lottery registration dates are required");
-        }
-
-        if (!registrationClose.isAfter(registrationOpen)) {
-            throw new DomainException("Lottery registration close time must be after open time");
-        }
-
         Event event = eventRepository.getById(eventId);
 
         if (event == null) {
@@ -556,10 +653,13 @@ public class EventManagementDomainService {
                 registrationClose
         );
 
+        // חייב להיות קודם
         lotteryRepository.save(lottery);
 
+        // רק אחרי שההגרלה קיימת ב-DB
         event.setLotteryId(lotteryId.toString());
 
+        // עכשיו אפשר לשמור את האירוע עם foreign key תקין
         eventRepository.save(event);
     }
 

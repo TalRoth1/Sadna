@@ -17,6 +17,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.AreaSummaryDto;
 import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.CompanyCatalogDto;
+import org.example.ApplicationLayer.dto.EventDTOs.CreateEventRequest;
 import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.EventDetailsDto;
 import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.EventSummaryDto;
 import org.example.ApplicationLayer.dto.PurchaseDTOs.PurchaseHistoryDTO;
@@ -34,6 +35,7 @@ import org.example.DomainLayer.IHistoryRepository;
 import org.example.DomainLayer.ILotteryRepository;
 import org.example.DomainLayer.IUserRepository;
 import org.example.DomainLayer.NotificationAggregate.INotifier;
+import org.example.DomainLayer.PolicyManagment.DiscountType;
 import org.example.DomainLayer.PolicyManagment.IDiscountRule;
 import org.example.DomainLayer.UserAggregate.CompanyFounder;
 import org.example.DomainLayer.UserAggregate.User;
@@ -102,11 +104,27 @@ public class EventServiceTest {
 
     private Event newRealEvent() {
         return new Event(eventId, companyId, LocalDateTime.now().plusDays(30),
-                "Tel Aviv", "Some Artist", "concert", EventStatus.ACTIVE);
+                "Tel Aviv", "Some Artist", "concert", EventStatus.ACTIVE, DiscountType.ALL);
     }
 
     private Company newActiveCompany(String name) {
-        return new Company("founder-" + name, name);
+        return new Company("founder-" + name, name, DiscountType.ALL);
+    }
+
+    @Test
+    public void testCreateEventRequest_CarriesDiscountType() {
+        CreateEventRequest request = new CreateEventRequest();
+        request.companyId = UUID.randomUUID();
+        request.eventManagerEmail = "manager@example.com";
+        request.name = "Example Event";
+        request.date = LocalDateTime.now();
+        request.location = "Tel Aviv";
+        request.artist = "Artist";
+        request.type = "concert";
+        request.status = EventStatus.ACTIVE;
+        request.discountType = DiscountType.MAX;
+
+        assertEquals(DiscountType.MAX, request.discountType);
     }
 
     private void stubInventoryAuthorizedRepositories(Event event) {
@@ -123,7 +141,7 @@ public class EventServiceTest {
     }
 
     private Company authorizedCompany(String founderUsername, UUID eventId) {
-        Company c = new Company(founderUsername, "TestCompany");
+        Company c = new Company(founderUsername, "TestCompany", DiscountType.ALL);
         c.addEvent(eventId);
         return c;
     }
@@ -131,7 +149,7 @@ public class EventServiceTest {
     private Event eventOf(UUID compId, String name, String artist, String type,
                           LocalDateTime date, String location,
                           EventStatus status, String... tags) {
-        Event e = new Event(UUID.randomUUID(), compId, date, location, artist, type, status);
+        Event e = new Event(UUID.randomUUID(), compId, date, location, artist, type, status, DiscountType.ALL);
         e.setName(name);
         for (String t : tags) {
             e.addTag(t);
@@ -300,7 +318,7 @@ public class EventServiceTest {
     public void GivenNullEventId_WhenAddEvent_ThenIllegalArgumentExceptionIsThrown() {
         assertThrows(IllegalArgumentException.class,
                 () -> eventService.addEvent(null, companyId, ownerUsername, "name", LocalDateTime.now().plusDays(10),
-                        "Tel Aviv", "Some Artist", "concert", EventStatus.ACTIVE, "description"));
+                        "Tel Aviv", "Some Artist", "concert", EventStatus.ACTIVE, "description", DiscountType.ALL));
         verifyNoInteractions(eventRepository);
     }
 
@@ -308,7 +326,7 @@ public class EventServiceTest {
     public void GivenNullCompanyId_WhenAddEvent_ThenIllegalArgumentExceptionIsThrown() {
         assertThrows(IllegalArgumentException.class,
                 () -> eventService.addEvent(eventId, null, ownerUsername, "name", LocalDateTime.now().plusDays(10),
-                        "Tel Aviv", "Some Artist", "concert", EventStatus.ACTIVE, "description"));
+                        "Tel Aviv", "Some Artist", "concert", EventStatus.ACTIVE, "description", DiscountType.ALL));
         verifyNoInteractions(eventRepository);
     }
 
@@ -429,7 +447,8 @@ public class EventServiceTest {
                 "Tel Aviv",
                 "Some Artist",
                 "concert",
-                EventStatus.ACTIVE
+                EventStatus.ACTIVE,
+                DiscountType.ALL
         );
         created.setName("Headline Show");
         created.setDescription("description");
@@ -452,7 +471,8 @@ public class EventServiceTest {
                 "Some Artist",
                 "concert",
                 EventStatus.ACTIVE,
-                "description"
+                "description",
+                DiscountType.ALL
         );
 
         assertNotNull(result);
@@ -929,7 +949,7 @@ public class EventServiceTest {
 
         assertThrows(DomainException.class,
                 () -> eventService.addEvent(eventId, companyId, ownerUsername, "name", LocalDateTime.now().plusDays(10),
-                        "Tel Aviv", "Some Artist", "concert", EventStatus.ACTIVE, "description"));
+                        "Tel Aviv", "Some Artist", "concert", EventStatus.ACTIVE, "description", DiscountType.ALL));
         verify(eventRepository, never()).save(any(Event.class));
     }
 
@@ -1140,7 +1160,7 @@ public class EventServiceTest {
                         for (int i = 0; i < eventsPerWriter; i++) {
                             Event e = new Event(UUID.randomUUID(), company.getId(),
                                     LocalDateTime.now().plusDays(1),
-                                    "Tel Aviv", "Artist", "concert", EventStatus.ACTIVE);
+                                    "Tel Aviv", "Artist", "concert", EventStatus.ACTIVE, DiscountType.ALL);
                             store.add(e);
                         }
                     } catch (Throwable t) {

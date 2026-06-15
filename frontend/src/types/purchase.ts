@@ -10,4 +10,5 @@ export type PurchaseHistoryItem = {
     totalPrice: number;
     paymentInfo: string;
     purchaseDate: string;
+    issuedTicketRef?: string;
 };

@@ -1,5 +1,7 @@
 package org.example.API;
 
+import java.util.List;
+
 import org.example.ApplicationLayer.ActivePurchaseCleaner;
 import org.example.ApplicationLayer.EventPublisher;
 import org.example.ApplicationLayer.IActiveSessionRegistry;
@@ -12,14 +14,48 @@ import org.example.ApplicationLayer.ITicketingGateway;
 import org.example.ApplicationLayer.ITokenBlacklist;
 import org.example.ApplicationLayer.JwtService;
 import org.example.ApplicationLayer.LotteryScheduler;
+import org.example.ApplicationLayer.PaymentProvider;
 import org.example.ApplicationLayer.PurchaseService;
 import org.example.ApplicationLayer.QueueManager;
 import org.example.ApplicationLayer.SystemMetricsCollector;
-import org.example.DomainLayer.*;
+import org.example.ApplicationLayer.TicketingProvider;
+import org.example.DomainLayer.EventManagementDomainService;
+import org.example.DomainLayer.IAdminRepository;
+import org.example.DomainLayer.ICompanyRepository;
+import org.example.DomainLayer.IEventRepository;
+import org.example.DomainLayer.IHistoryRepository;
+import org.example.DomainLayer.ILotteryRepository;
+import org.example.DomainLayer.INotificationRepository;
+import org.example.DomainLayer.IPurchaseRepository;
+import org.example.DomainLayer.IUserRepository;
 import org.example.DomainLayer.NotificationAggregate.INotifier;
-import org.example.InfrastructureLayer.*;
+import org.example.DomainLayer.PurchaseDomainService;
+import org.example.DomainLayer.RolesDomainService;
+import org.example.InfrastructureLayer.AdminRepository;
+import org.example.InfrastructureLayer.BCryptAuthenticationGateway;
+import org.example.InfrastructureLayer.Broadcaster;
+import org.example.InfrastructureLayer.CompanyRepository;
+import org.example.InfrastructureLayer.DelegatingPaymentGateway;
+import org.example.InfrastructureLayer.DelegatingTicketingGateway;
+import org.example.InfrastructureLayer.ExternalPaymentGateway;
+import org.example.InfrastructureLayer.ExternalTicketingGateway;
+import org.example.InfrastructureLayer.HistoryRepository;
+import org.example.InfrastructureLayer.InMemoryEventRepository;
+import org.example.InfrastructureLayer.InMemoryKeyedLock;
+import org.example.InfrastructureLayer.InMemoryLoginRateLimiter;
+import org.example.InfrastructureLayer.InMemoryPurchaseRepository;
+import org.example.InfrastructureLayer.InMemorySessionRegistry;
+import org.example.InfrastructureLayer.InMemorySystemMetricsTracker;
+import org.example.InfrastructureLayer.InMemoryTokenBlacklist;
+import org.example.InfrastructureLayer.LotteryRepository;
+import org.example.InfrastructureLayer.NotificationRepository;
+import org.example.InfrastructureLayer.Notifier;
+import org.example.InfrastructureLayer.SimulatedPaymentGateway;
+import org.example.InfrastructureLayer.SimulatedTicketingGateway;
+import org.example.InfrastructureLayer.UserRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Profile;
 
 /**
@@ -46,6 +82,7 @@ public class BeanConfig {
     // ---------------------------------------------------------------------
 
     @Bean
+    @Profile("!localdb")
     public IEventRepository eventRepository() {
         return new InMemoryEventRepository();
     }
@@ -58,16 +95,19 @@ public class BeanConfig {
 
 
     @Bean
+    @Profile("!localdb")
     public IHistoryRepository historyRepository() {
         return new HistoryRepository();
     }
 
     @Bean
+    @Profile("!localdb")
     public ILotteryRepository lotteryRepository() {
         return new LotteryRepository();
     }
 
     @Bean
+    @Profile("!localdb")
     public IPurchaseRepository purchaseRepository() {
         return new InMemoryPurchaseRepository();
     }
@@ -90,20 +130,59 @@ public class BeanConfig {
     // ---------------------------------------------------------------------
 
     /**
-     * Payment + ticketing gateways are exposed by their *concrete* stub
-     * types so {@code DevStubController} can flip outcomes via the
-     * setters on the stubs. The concrete classes implement
-     * {@code IPaymentGateway} / {@code ITicketingGateway}, so anywhere
-     * the domain layer asks for the interface, Spring injects the same
-     * stub bean by type — no need for a separate interface-typed bean.
+     * Multi-provider payment clearing (general requirement I.3). Every
+     * {@link PaymentProvider} bean (simulated + external) is registered with
+     * the single {@link DelegatingPaymentGateway}, which is the only
+     * {@code @Primary} {@link IPaymentGateway} the domain layer sees. The
+     * active provider is chosen by {@code backend.payment.default-provider}
+     * (SIMULATED on dev, EXTERNAL on localdb/prod), so adding a new clearing
+     * service later means adding one provider bean — no domain changes. This
+     * mirrors the ticketing gateway wiring below.
      *
-     * We deliberately avoid declaring a second {@code @Bean} of type
-     * {@code IPaymentGateway} (or {@code ITicketingGateway}) here: that
-     * would create two beans assignable to the same interface, and
-     * Spring 6.1+ no longer falls back to parameter-name matching at
-     * runtime when the project is compiled without {@code -parameters},
-     * which would break {@link #purchaseDomainService}'s autowiring.
+     * <p>The {@code simulatedPaymentGateway} bean is the <em>same</em>
+     * instance {@code DevStubController} toggles, so the decline/refund test
+     * paths keep working when SIMULATED is the active provider.
      */
+    @Bean
+    public ExternalPaymentGateway externalPaymentGateway() {
+        return new ExternalPaymentGateway(backendConfigProperties.getPayment().getServiceUrl());
+    }
+
+    @Bean(name = "paymentGateway")
+    @Primary
+    public IPaymentGateway paymentGateway(
+            SimulatedPaymentGateway simulatedPaymentGateway,
+            ExternalPaymentGateway externalPaymentGateway) {
+        List<PaymentProvider> providers =
+                List.of(simulatedPaymentGateway, externalPaymentGateway);
+        return new DelegatingPaymentGateway(
+                providers, backendConfigProperties.getPayment().getDefaultProvider());
+    }
+
+    /**
+     * Multi-provider ticket issuance (general requirement I.4). Every
+     * {@link TicketingProvider} bean below is registered with the single
+     * {@link DelegatingTicketingGateway}, which is the only
+     * {@link ITicketingGateway} the domain layer sees. The active provider
+     * is chosen by {@code backend.ticketing.default-provider}, so adding a
+     * new external supply system later means adding one provider bean — no
+     * domain changes.
+     */
+    @Bean
+    public ExternalTicketingGateway externalTicketingGateway() {
+        return new ExternalTicketingGateway(backendConfigProperties.getTicketing().getServiceUrl());
+    }
+
+    @Bean
+    public ITicketingGateway ticketingGateway(
+            SimulatedTicketingGateway simulatedTicketingGateway,
+            ExternalTicketingGateway externalTicketingGateway) {
+        List<TicketingProvider> providers =
+                List.of(simulatedTicketingGateway, externalTicketingGateway);
+        return new DelegatingTicketingGateway(
+                providers, backendConfigProperties.getTicketing().getDefaultProvider());
+    }
+
     @Bean
     public SimulatedPaymentGateway simulatedPaymentGateway() {
         return new SimulatedPaymentGateway();
@@ -113,7 +192,6 @@ public class BeanConfig {
     public SimulatedTicketingGateway simulatedTicketingGateway() {
         return new SimulatedTicketingGateway();
     }
-
 
     @Bean
     public IAuthenticationGateway authenticationGateway() {
@@ -190,9 +268,11 @@ public class BeanConfig {
             IHistoryRepository historyRepository,
             ICompanyRepository companyRepository,
             IUserRepository userRepository,
-            ILotteryRepository lotteryRepository) {
+            ILotteryRepository lotteryRepository,
+            IPaymentGateway paymentGateway) {
         return new EventManagementDomainService(
-                eventRepository, historyRepository, companyRepository, userRepository, lotteryRepository);
+                eventRepository, historyRepository, companyRepository, userRepository,
+                lotteryRepository, paymentGateway);
     }
 
     @Bean
@@ -281,14 +361,11 @@ public class BeanConfig {
             config.getSweepInterval(),
             config.getWarningBeforeExpirySeconds());
     }
-
     @Bean(initMethod = "start", destroyMethod = "interrupt")
     public LotteryScheduler lotteryScheduler(
-            PurchaseDomainService purchaseDomainService,
-            ILotteryRepository lotteryRepository,
-            INotifier notifier,
-            IEventRepository eventRepository) {
-        return new LotteryScheduler(purchaseDomainService, lotteryRepository, notifier, eventRepository);
+            PurchaseService purchaseService,
+            ILotteryRepository lotteryRepository) {
+        return new LotteryScheduler(purchaseService, lotteryRepository);
     }
 
     // ---------------------------------------------------------------------

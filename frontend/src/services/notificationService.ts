@@ -30,6 +30,8 @@ function mapDto(dto: NotificationDto): UserNotification {
         message: dto.message,
         createdAt: dto.createdAt,
         isRead: dto.read,
+        type: dto.type as UserNotification["type"],
+        targetUrl: dto.targetUrl ?? null,
     };
 }
 

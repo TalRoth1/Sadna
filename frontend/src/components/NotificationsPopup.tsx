@@ -95,47 +95,52 @@ export default function NotificationsPopup({
         let disconnect: (() => void) | undefined;
         let isCancelled = false;
 
-        async function initNotifications() {
-            if (!currentUser) {
-                setNotifications([]);
-                setErrorMessage("");
-                return;
-            }
+        if (!currentUser) {
+            setNotifications([]);
+            setErrorMessage("");
+            return;
+        }
 
+        const userId = currentUser.id;
+
+        disconnect = connectNotificationStream(
+            userId,
+            (notification) => {
+                if (isCancelled) {
+                    return;
+                }
+
+                setNotifications((currentNotifications) =>
+                    mergeNotification(currentNotifications, notification),
+                );
+
+                alert(notification.message);
+            },
+        );
+
+        async function loadUnreadNotifications() {
             try {
                 setIsLoading(true);
                 setErrorMessage("");
 
-                const unreadNotifications = await getUnreadNotifications(
-                    currentUser.id,
-                );
+                const unreadNotifications = await getUnreadNotifications(userId);
 
                 if (!isCancelled) {
-                    setNotifications(
-                        unreadNotifications.filter(
+                    setNotifications((currentNotifications) => {
+                        let merged = currentNotifications;
+
+                        for (const notification of unreadNotifications.filter(
                             (notification) => !notification.isRead,
-                        ),
-                    );
+                        )) {
+                            merged = mergeNotification(merged, notification);
+                        }
+
+                        return merged;
+                    });
                 }
-
-                disconnect = connectNotificationStream(
-                    currentUser.id,
-                    (notification) => {
-                        setNotifications((currentNotifications) =>
-                            mergeNotification(
-                                currentNotifications,
-                                notification,
-                            ),
-                        );
-
-                        // Temporary in-app feedback.
-                        // Later we can replace this with a styled toast.
-                        console.log("New notification:", notification.message);
-                    },
-                );
             } catch {
                 if (!isCancelled) {
-                    setErrorMessage("Failed to load notifications.");
+                    setErrorMessage("Failed to load previous notifications.");
                 }
             } finally {
                 if (!isCancelled) {
@@ -144,7 +149,7 @@ export default function NotificationsPopup({
             }
         }
 
-        initNotifications();
+        void loadUnreadNotifications();
 
         return () => {
             isCancelled = true;

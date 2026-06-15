@@ -760,6 +760,39 @@
     box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
 }
 
+.digital-ticket {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 20px;
+    background: #f8fafc;
+    border: 1px dashed #cbd5e1;
+    border-radius: 12px;
+}
+
+.digital-ticket-label {
+    font-weight: 700;
+    font-size: 15px;
+    color: #0f172a;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.digital-ticket-code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 16px;
+    font-weight: 600;
+    color: #111827;
+    word-break: break-all;
+    text-align: center;
+}
+
+.digital-ticket-hint {
+    font-size: 13px;
+    color: #6b7280;
+}
+
 .payment-details-header {
     display: flex;
     flex-direction: column;

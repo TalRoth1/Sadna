@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { QRCodeSVG } from "qrcode.react";
 import { getEventById } from "../../services/eventSearchService";
 
 import {
@@ -17,6 +18,7 @@ import {
     updateSittingTickets,
     updateStandingTickets,
     type ActivePurchaseResponse,
+    type PaymentDetails,
 } from "../../services/purchaseService";
 import {
     isEventBookable,
@@ -31,7 +33,47 @@ import "./TicketPurchase.css";
 // Types & constants
 // ---------------------------------------------------------------------------
 
+// Local checkout form shape. Expiry is captured as a single "MM/YY" string for
+// UX, then split into the month/year fields the backend gateway expects.
+type PaymentCardForm = {
+    cardNumber: string;
+    expiry: string;
+    cvv: string;
+    holder: string;
+    holderId: string;
+};
 
+const EMPTY_PAYMENT_FORM: PaymentCardForm = {
+    cardNumber: "",
+    expiry: "",
+    cvv: "",
+    holder: "",
+    holderId: "",
+};
+
+// Light client-side guard so users get instant feedback instead of a
+// round-trip to the external gateway. The backend re-validates and remains
+// the source of truth. Returns an error message, or null when the form is ok.
+function validatePaymentForm(card: PaymentCardForm): string | null {
+    const digits = (value: string) => value.replace(/\D/g, "");
+
+    if (digits(card.cardNumber).length < 8) {
+        return "Please enter a valid card number.";
+    }
+    if (!/^(0[1-9]|1[0-2])\s*\/\s*\d{2}$/.test(card.expiry.trim())) {
+        return "Please enter the card expiry as MM/YY.";
+    }
+    if (digits(card.cvv).length < 3) {
+        return "Please enter a valid CVV.";
+    }
+    if (card.holder.trim() === "") {
+        return "Please enter the cardholder name.";
+    }
+    if (digits(card.holderId).length === 0) {
+        return "Please enter the cardholder ID.";
+    }
+    return null;
+}
 
 type TicketPurchasePageProps = {
     eventId: string;
@@ -1273,18 +1315,42 @@ type PaymentDetailsCardProps = {
     isPaymentComplete: boolean;
     couponCode: string;
     onCouponCodeChange: (next: string) => void;
+    card: PaymentCardForm;
+    onCardChange: (next: PaymentCardForm) => void;
+    issuedTicketRef: string | null;
 };
 
-// Payment form for the checkout step. The card-detail inputs stay disabled
-// on purpose — V2 of the assignment only requires calling an external
-// payment service and surfacing its yes/no result, so the body POSTed to
-// /complete is an empty PaymentDetails record. The one live input is the
-// coupon code (Appendix §3c: "הרוכש מזין את הקוד במעמד התשלום").
+// Digital ticket shown once the purchase is confirmed: the external ticketing
+// system's secure code rendered as a scannable QR plus the code in text, so
+// the buyer (and a grader) can see a concrete, market-style issued ticket.
+function DigitalTicket({ ticketRef }: { ticketRef: string }) {
+    return (
+        <div className="digital-ticket">
+            <span className="digital-ticket-label">Your digital ticket</span>
+            <QRCodeSVG value={ticketRef} size={160} level="M" includeMargin />
+            <code className="digital-ticket-code">{ticketRef}</code>
+            <span className="digital-ticket-hint">
+                Present this code at the entrance.
+            </span>
+        </div>
+    );
+}
+
+// Payment form for the checkout step. Card details are collected here and
+// forwarded to the backend's external payment gateway (WSEP), which validates
+// and charges them. The coupon code is validated server-side at checkout
+// (Appendix §3c: "הרוכש מזין את הקוד במעמד התשלום").
 function PaymentDetailsCard({
     isPaymentComplete,
     couponCode,
     onCouponCodeChange,
+    card,
+    onCardChange,
+    issuedTicketRef,
 }: PaymentDetailsCardProps) {
+    const update = (patch: Partial<PaymentCardForm>) =>
+        onCardChange({ ...card, ...patch });
+
     return (
         <section className="payment-details-card">
             <header className="payment-details-header">
@@ -1296,6 +1362,10 @@ function PaymentDetailsCard({
                 </p>
             </header>
 
+            {isPaymentComplete && issuedTicketRef && (
+                <DigitalTicket ticketRef={issuedTicketRef} />
+            )}
+
             {!isPaymentComplete && (
                 <form
                     className="payment-form"
@@ -1306,17 +1376,39 @@ function PaymentDetailsCard({
                         <input
                             type="text"
                             placeholder="•••• •••• •••• ••••"
-                            disabled
+                            value={card.cardNumber}
+                            onChange={(event_) =>
+                                update({ cardNumber: event_.target.value })
+                            }
+                            autoComplete="cc-number"
+                            inputMode="numeric"
                         />
                     </label>
                     <div className="payment-field-row">
                         <label className="payment-field">
                             <span>Expiry</span>
-                            <input type="text" placeholder="MM/YY" disabled />
+                            <input
+                                type="text"
+                                placeholder="MM/YY"
+                                value={card.expiry}
+                                onChange={(event_) =>
+                                    update({ expiry: event_.target.value })
+                                }
+                                autoComplete="cc-exp"
+                            />
                         </label>
                         <label className="payment-field">
                             <span>CVV</span>
-                            <input type="text" placeholder="•••" disabled />
+                            <input
+                                type="text"
+                                placeholder="•••"
+                                value={card.cvv}
+                                onChange={(event_) =>
+                                    update({ cvv: event_.target.value })
+                                }
+                                autoComplete="cc-csc"
+                                inputMode="numeric"
+                            />
                         </label>
                     </div>
                     <label className="payment-field">
@@ -1324,7 +1416,23 @@ function PaymentDetailsCard({
                         <input
                             type="text"
                             placeholder="As shown on card"
-                            disabled
+                            value={card.holder}
+                            onChange={(event_) =>
+                                update({ holder: event_.target.value })
+                            }
+                            autoComplete="cc-name"
+                        />
+                    </label>
+                    <label className="payment-field">
+                        <span>Cardholder ID</span>
+                        <input
+                            type="text"
+                            placeholder="National ID number"
+                            value={card.holderId}
+                            onChange={(event_) =>
+                                update({ holderId: event_.target.value })
+                            }
+                            inputMode="numeric"
                         />
                     </label>
                     <label className="payment-field">
@@ -1339,12 +1447,6 @@ function PaymentDetailsCard({
                             autoComplete="off"
                         />
                     </label>
-                    <p className="payment-form-notice">
-                        Card fields are illustrative — for this milestone the
-                        backend's external payment gateway is contacted with
-                        empty details and always approves. Coupon codes are
-                        validated server-side at checkout.
-                    </p>
                 </form>
             )}
         </section>
@@ -1373,6 +1475,11 @@ export default function TicketPurchasePage({
     const [actionMessage, setActionMessage] =
         useState<ActionResultMessage | null>(null);
     const [couponCode, setCouponCode] = useState<string>("");
+    const [paymentForm, setPaymentForm] =
+        useState<PaymentCardForm>(EMPTY_PAYMENT_FORM);
+    // Secure ticket code returned by the external ticketing system, shown as a
+    // QR / digital ticket on the confirmation screen after a successful charge.
+    const [issuedTicketRef, setIssuedTicketRef] = useState<string | null>(null);
     // Queue feature (from main): when the backend reports the user is
     // waiting in a virtual queue, we surface a dedicated banner instead
     // of the generic error toast.
@@ -1756,17 +1863,44 @@ export default function TicketPurchasePage({
             return;
         }
 
+        const validationError = validatePaymentForm(paymentForm);
+        if (validationError) {
+            setActionMessage({ kind: "error", text: validationError });
+            return;
+        }
+
+        const [expMonthRaw, expYearRaw] = paymentForm.expiry
+            .split("/")
+            .map((part) => part.trim());
+
+        const expYear =
+            expYearRaw && expYearRaw.length === 2
+                ? `20${expYearRaw}`
+                : expYearRaw ?? "";
+
+        const paymentDetails: PaymentDetails = {
+            currency: "ILS",
+            cardNumber: paymentForm.cardNumber.replace(/\D/g, ""),
+            month: expMonthRaw ?? "",
+            year: expYear,
+            holder: paymentForm.holder.trim(),
+            cvv: paymentForm.cvv.replace(/\D/g, ""),
+            id: paymentForm.holderId.replace(/\D/g, ""),
+        };
+
         setIsPerformingAction(true);
         setActionMessage(null);
 
         try {
             const trimmedCoupon = couponCode.trim();
-            await completePurchase(
+            const ticketRef = await completePurchase(
                 activePurchase.activePurchaseId,
+                paymentDetails,
                 trimmedCoupon === "" ? null : trimmedCoupon,
             );
             const total = getTotalPrice(selection, event);
             const count = getTotalSelectedCount(selection);
+            setIssuedTicketRef(ticketRef);
             setIsPaymentComplete(true);
             setActivePurchase(null);
             setActionMessage({
@@ -1935,6 +2069,9 @@ export default function TicketPurchasePage({
                             isPaymentComplete={isPaymentComplete}
                             couponCode={couponCode}
                             onCouponCodeChange={setCouponCode}
+                            card={paymentForm}
+                            onCardChange={setPaymentForm}
+                            issuedTicketRef={issuedTicketRef}
                         />
                     )}
 

@@ -19,6 +19,7 @@ import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.EventSummaryDto;
 import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.PurchasePolicyDto;
 import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.PurchaseRuleDto;
 import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.TicketDetailsDto;
+import org.example.ApplicationLayer.dto.EventDTOs.CreateEventRequest;
 import org.example.ApplicationLayer.dto.PurchaseDTOs.PurchaseHistoryDTO;
 import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.DomainLayer.DomainException;
@@ -36,6 +37,8 @@ import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.PolicyManagment.AgeRule;
 import org.example.DomainLayer.PolicyManagment.ConditionalDiscount;
 import org.example.DomainLayer.PolicyManagment.CouponCode;
+import org.example.DomainLayer.PolicyManagment.DiscountPolicy;
+import org.example.DomainLayer.PolicyManagment.DiscountType;
 import org.example.DomainLayer.PolicyManagment.IDiscountRule;
 import org.example.DomainLayer.PolicyManagment.IPurchaseRule;
 import org.example.DomainLayer.PolicyManagment.LoneSeatRule;
@@ -46,7 +49,7 @@ import org.example.DomainLayer.PolicyManagment.PurchaseComposite;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.springframework.stereotype.Service;
 
-import org.example.DomainLayer.PolicyManagment.DiscountPolicy;
+import jakarta.transaction.Transactional;
 
 @Service
 public class EventService {
@@ -61,7 +64,7 @@ public class EventService {
 
     public EventDetailsDto addEvent(UUID eventId, UUID companyId, String eventManagerEmail, String name,
                                     LocalDateTime date, String location, String artist, String type,
-                                    EventStatus status, String description) {
+                                    EventStatus status, String description, DiscountType discountType) {
         logger.info("[Event Log] Method: addEvent called");
 
         if (eventId == null) {
@@ -72,7 +75,7 @@ public class EventService {
         }
 
         eventManagementDomainService.addEvent(
-                eventId, companyId, eventManagerEmail, name, date, location, artist, type, status, description);
+                eventId, companyId, eventManagerEmail, name, date, location, artist, type, status, description, discountType);
 
         Event event = eventManagementDomainService.getEventForView(eventId);
         boolean lotteryWinnersDrawn = eventManagementDomainService.areLotteryWinnersDrawn(event.getEventId());
@@ -991,6 +994,7 @@ public class EventService {
         dto.eventId = history.getEventId();
         dto.ticketIds = history.getTicketIds();
         dto.purchaseDate = history.getPurchaseDate();
+        dto.issuedTicketRef = history.getIssuedTicketReference();
         dto.ticketsAmount = (dto.ticketIds == null) ? 0 : dto.ticketIds.size();
 
         if (history.getPayment() != null) {
@@ -1052,7 +1056,10 @@ public class EventService {
             Event event = eventManagementDomainService.getEventForView(eventId);
             UUID areaId = UUID.randomUUID();
 
+            // Add the area to the in-memory event so callers (and tests) see it immediately,
+            // then persist the event layout before delegating ticket creation to domain service.
             event.getLayout().addArea(new StandingArea(areaId, price));
+            eventManagementDomainService.saveEvent(event);
             eventManagementDomainService.addStandingTickets(eventId, areaId, count);
 
         } catch (IllegalArgumentException | DomainException e) {
@@ -1082,7 +1089,11 @@ public class EventService {
             Event event = eventManagementDomainService.getEventForView(eventId);
             UUID areaId = UUID.randomUUID();
 
+            // Persist the new area before delegating ticket creation: addSittingTickets
+            // re-fetches a fresh event from the repository, so the area must already be
+            // saved or requireArea() fails with "unknown area" (mirrors addStandingArea).
             event.getLayout().addArea(new SittingArea(areaId, price));
+            eventManagementDomainService.saveEvent(event);
             eventManagementDomainService.addSittingTickets(eventId, areaId, rows, seatsPerRow);
 
         } catch (IllegalArgumentException | DomainException e) {
@@ -1154,4 +1165,53 @@ public class EventService {
         }
     }
 
+    @Transactional
+    public EventDetailsDto createLotteryEvent(CreateEventRequest request) {
+        logger.info("[Event Log] Method: createLotteryEvent called");
+
+        if (request == null) {
+            throw new IllegalArgumentException("request is required");
+        }
+
+        if (request.lottery == null) {
+            throw new IllegalArgumentException("Lottery details are required");
+        }
+
+        if (request.lottery.registrationOpen == null) {
+            throw new IllegalArgumentException("registrationOpen is required");
+        }
+
+        if (request.lottery.registrationClose == null) {
+            throw new IllegalArgumentException("registrationClose is required");
+        }
+
+        if (!request.lottery.registrationClose.isAfter(request.lottery.registrationOpen)) {
+            throw new IllegalArgumentException("Lottery registration close time must be after open time");
+        }
+
+        UUID eventId = UUID.randomUUID();
+
+        eventManagementDomainService.addEvent(
+                eventId,
+                request.companyId,
+                request.eventManagerEmail,
+                request.name,
+                request.date,
+                request.location,
+                request.artist,
+                "Lottery",
+                request.status,
+                request.description,
+                request.discountType
+        );
+
+        eventManagementDomainService.createLotteryForEvent(
+                eventId,
+                request.lottery.registrationOpen,
+                request.lottery.registrationClose
+        );
+
+        Event event = eventManagementDomainService.getEventForView(eventId);
+        return toDetails(event);
+    }
 }

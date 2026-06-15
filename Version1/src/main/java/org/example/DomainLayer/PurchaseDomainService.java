@@ -3,9 +3,11 @@ package org.example.DomainLayer;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -13,6 +15,7 @@ import org.example.API.BackendConfigProperties;
 import org.example.ApplicationLayer.IPaymentGateway;
 import org.example.ApplicationLayer.ITicketingGateway;
 import org.example.ApplicationLayer.PaymentDetails;
+import org.example.ApplicationLayer.PaymentResult;
 import org.example.ApplicationLayer.dto.SalesReport;
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 import org.example.DomainLayer.CompanyAggregate.Company;
@@ -99,10 +102,16 @@ public class PurchaseDomainService {
     }
 
     public void addPurchaseToHistory(UUID userId, List<UUID> ticketIds, UUID eventId, Payment payment) {
+        addPurchaseToHistory(userId, ticketIds, eventId, payment, null);
+    }
+
+    public void addPurchaseToHistory(UUID userId, List<UUID> ticketIds, UUID eventId, Payment payment,
+                                     String issuedTicketReference) {
         if (ticketIds == null || payment == null) {
             throw new IllegalArgumentException("Invalid purchase data");
         }
-        PurchaseHistory purchaseHistory = new PurchaseHistory(userId, ticketIds, eventId, payment);
+        PurchaseHistory purchaseHistory =
+                new PurchaseHistory(userId, ticketIds, eventId, payment, issuedTicketReference);
         historyRepository.add(purchaseHistory);
     }
 
@@ -295,23 +304,65 @@ public class PurchaseDomainService {
             // reservation in place and let the user retry with a
             // different card. ActivePurchaseCleaner will eventually
             // sweep it if they give up.
-            boolean paymentSucceeded = paymentGateway.pay(activePurchase.getUserID(), finalPrice, paymentDetails);
-            if (!paymentSucceeded) {
+            PaymentResult paymentResult;
+            try {
+                paymentResult = paymentGateway.pay(
+                        activePurchase.getUserID(), finalPrice, paymentDetails);
+            } catch (DomainException alreadyFriendly) {
+                throw alreadyFriendly;
+            } catch (IllegalArgumentException invalidDetails) {
+                // Bad/missing card details rejected by the gateway. Nothing was
+                // charged; surface the specific reason so the user can fix it.
+                throw new DomainException(invalidDetails.getMessage());
+            } catch (RuntimeException gatewayError) {
+                // Network failure / timeout / unreachable clearing system.
+                // Nothing was charged — turn the raw exception into a clear,
+                // user-friendly message instead of a generic 500.
                 throw new DomainException(
-                        "Payment was declined. Please try a different payment method.");
+                        "The payment service is temporarily unavailable and your "
+                                + "card was not charged. Please try again in a few moments.");
             }
 
-            // Step 2: ask the ticketing system to issue the tickets. If
-            // this throws AFTER we successfully charged the user, we owe
-            // them a refund — this is the cancellation + refund path the
-            // assignment asks us to exercise.
+            if (!paymentResult.isSuccessful()) {
+                throw new DomainException("Payment was declined. Please try a different payment method.");
+            }
+
+            // Step 2: ask the ticketing system to issue the tickets, then
+            // sell + record the purchase. If ANY step here throws after we
+            // charged the user, we owe a compensating rollback: cancel any
+            // already-issued external codes and refund the payment. This is
+            // the cancellation + refund path the assignment asks us to
+            // exercise.
+            String issuedTicketReference = null;
             try {
-                ticketingGateway.issueTickets(
+                issuedTicketReference = ticketingGateway.issueTickets(
                         activePurchase.getUserID(),
                         activePurchase.getEventID(),
                         activePurchase.getTicketIDs().keySet());
-            } catch (RuntimeException ticketingFailure) {
-                compensateFailedTicketing(activePurchase, finalPrice, paymentDetails, ticketingFailure);
+
+                if (issuedTicketReference == null || issuedTicketReference.isBlank()) {
+                    throw new DomainException("Ticketing system did not return a valid ticket identifier");
+                }
+
+                event.sellTickets(activePurchase.getTicketIDs().keySet());
+
+                Payment payment = new Payment(
+                        finalPrice, "Valid payment", paymentResult.getTransactionId());
+                addPurchaseToHistory(
+                        activePurchase.getUserID(),
+                        new ArrayList<>(activePurchase.getTicketIDs().keySet()),
+                        activePurchase.getEventID(),
+                        payment,
+                        issuedTicketReference
+                );
+            } catch (RuntimeException purchaseFailure) {
+                compensateFailedTicketing(
+                        activePurchase,
+                        finalPrice,
+                        paymentResult.getTransactionId(),
+                        issuedTicketReference,
+                        purchaseFailure
+                );
                 // unreachable — compensateFailedTicketing always throws. We
                 // throw here too so the compiler is satisfied without anyone
                 // mistakenly reading this as a "silent failure" return.
@@ -319,15 +370,7 @@ public class PurchaseDomainService {
                         "compensateFailedTicketing should always throw");
             }
 
-            event.sellTickets(activePurchase.getTicketIDs().keySet());
             purchaseRepository.deleteByID(activePurchaseID);
-
-            Payment payment = new Payment(finalPrice, "Valid payment");
-            addPurchaseToHistory(
-                    activePurchase.getUserID(),
-                    new ArrayList<>(activePurchase.getTicketIDs().keySet()),
-                    activePurchase.getEventID(),
-                    payment);
 
             for (Map.Entry<UUID, Ticket> ticket : event.getTicketsView().entrySet()) {
                 if (ticket.getValue().getStatus() != TicketStatus.SOLD)
@@ -383,14 +426,28 @@ public class PurchaseDomainService {
      * message — at that point operator intervention is required, so we
      * don't want to swallow it under "tickets could not be issued".
      */
-    private void compensateFailedTicketing(ActivePurchase activePurchase,
-                                           float chargedAmount,
-                                           PaymentDetails paymentDetails,
-                                           RuntimeException originalFailure) {
+    private void compensateFailedTicketing(
+            ActivePurchase activePurchase,
+            float chargedAmount,
+            int transactionId,
+            String issuedTicketReference,
+            RuntimeException originalFailure) {
+        // Step A: if external tickets were already issued before the failure,
+        // cancel them so we don't leave orphaned codes at the provider. The
+        // gateway swallows cancellation errors, but we guard again here so a
+        // rollback problem can never hide the original failure or the refund.
+        if (issuedTicketReference != null && !issuedTicketReference.isBlank()) {
+            try {
+                ticketingGateway.cancelTickets(List.of(issuedTicketReference));
+            } catch (RuntimeException cancelError) {
+                // best-effort — proceed to refund regardless
+            }
+        }
+
+        // Step B: refund the charge.
         boolean refunded;
         try {
-            refunded = paymentGateway.refund(
-                    activePurchase.getUserID(), chargedAmount, paymentDetails);
+             refunded = paymentGateway.refund(transactionId);
         } catch (RuntimeException refundError) {
             refunded = false;
         }
@@ -803,39 +860,73 @@ public class PurchaseDomainService {
         }
     }
 
-    public Map<String, String> drawLotteryForEvent(UUID eventId, LocalDateTime codeExpiry) {
+    public Set<String> getRegisteredUsersForLottery(UUID eventId) {
         if (eventId == null) {
             throw new DomainException("Event ID is required");
         }
 
-        if (codeExpiry == null) {
-            throw new DomainException("Code expiry is required");
-        }
-
-        Event event = eventRepository.getById(eventId);
-        if (event == null) {
-            throw new DomainException("Event does not exist");
-        }
-
         PuchaseLottery lottery = lotteryRepository.findByEventID(eventId);
+
         if (lottery == null) {
             throw new DomainException("Lottery does not exist for this event");
         }
 
-        int availableTickets = (int) event.getTicketsView()
-                .values()
-                .stream()
-                .filter(t -> t.getStatus() == TicketStatus.AVAILABLE)
-                .count();
-
-        Map<String, String> winnerCodes = lottery.drawWinners(availableTickets, codeExpiry);
-
-        lotteryRepository.save(lottery);
-
-        return winnerCodes;
+        return new HashSet<>(lottery.getRegisteredUsers());
     }
 
-    public SalesReport getSalesReportForOwner(String ownerEmail, UUID companyId) {
+public Map<String, String> drawLotteryForEvent(UUID eventId, LocalDateTime codeExpiry) {
+    if (eventId == null) {
+        throw new DomainException("Event ID is required");
+    }
+
+    if (codeExpiry == null) {
+        throw new DomainException("Code expiry is required");
+    }
+
+    Event event = eventRepository.getById(eventId);
+    if (event == null) {
+        throw new DomainException("Event does not exist");
+    }
+
+    PuchaseLottery lottery = lotteryRepository.findByEventID(eventId);
+    if (lottery == null) {
+        throw new DomainException("Lottery does not exist for this event");
+    }
+
+    if (lottery.getRegisteredUsers().isEmpty()) {
+        throw new DomainException("No registered users to draw from");
+    }
+
+    int availableTickets = (int) event.getTicketsView()
+            .values()
+            .stream()
+            .filter(t -> t.getStatus() == TicketStatus.AVAILABLE)
+            .count();
+
+    if (availableTickets <= 0) {
+        throw new DomainException("No available tickets for this lottery event");
+    }
+
+    Map<String, String> winnerCodes =
+            lottery.drawWinners(availableTickets, codeExpiry);
+
+    /*
+     * Important:
+     * If this is empty, nothing will be saved to lottery_winners.
+     * Do not treat that as a successful draw.
+     */
+    if (winnerCodes.isEmpty()) {
+        throw new DomainException(
+                "No winners could be selected. The registered users may have requested more tickets than the available ticket count."
+        );
+    }
+
+    lotteryRepository.save(lottery);
+
+    return winnerCodes;
+}
+
+public SalesReport getSalesReportForOwner(String ownerEmail, UUID companyId) {
         Company company = companyRepository.findByID(companyId).orElse(null);
         if (company == null) {
             throw new IllegalArgumentException("Company not found");

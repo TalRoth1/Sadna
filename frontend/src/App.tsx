@@ -175,13 +175,13 @@ function App() {
         setCurrentPage("event-search");
     }
 
-    function handleStartPurchase(eventId: string) {
+/*    function handleStartPurchase(eventId: string) {
         setSelectedEventId(eventId);
         setSelectionAccessExpiresAt(null);
         setLotteryAccessCode(null);
         setCurrentPage("event-queue");
     }
-
+*/
     function handleStartPurchaseWithCode(eventId: string, accessCode?: string | null) {
         setSelectedEventId(eventId);
         setSelectionAccessExpiresAt(null);

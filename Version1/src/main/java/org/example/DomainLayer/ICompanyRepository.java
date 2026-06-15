@@ -5,9 +5,10 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.example.DomainLayer.CompanyAggregate.Company;
+import org.example.DomainLayer.PolicyManagment.DiscountType;
 
 public interface ICompanyRepository {
-    UUID createCompany(String founderEmail, String companyName);
+    UUID createCompany(String founderEmail, String companyName, DiscountType discountType);
 
     Optional<Company> findByID(UUID companyId);
 

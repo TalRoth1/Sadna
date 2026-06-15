@@ -1,9 +1,10 @@
 ﻿import { useEffect, useState, type FormEvent } from "react";
 import { getCurrentUser, type CurrentUser } from "../../services/currentUserService";
-import { getMyCompanies, type CompanyMembership } from "../../services/companyService";
+import { getMyCompanies, type CompanyMembership, type EventDiscountType } from "../../services/companyService";
 import { createEvent, type CreateEventRequest } from "../../services/eventService";
+
 import "./CreateEventPage.css";
-import { createLotteryForEvent } from "../../services/lotteryService";
+import { createLotteryEvent  } from "../../services/lotteryService";
 
 type CreateEventPageProps = {
     initialCompanyId?: string | null;
@@ -121,6 +122,7 @@ const [lotteryRegistrationClose, setLotteryRegistrationClose] = useState("");
     const [maxTickets, setMaxTickets] = useState("");
     const [allowLoneSeat, setAllowLoneSeat] = useState("");
 
+    const [discountPolicyType, setDiscountPolicyType] = useState<EventDiscountType>("MAX");
     const [discountType, setDiscountType] = useState("NONE");
     const [discountPercent, setDiscountPercent] = useState("");
     const [discountFromDate, setDiscountFromDate] = useState("");
@@ -283,6 +285,7 @@ const [lotteryRegistrationClose, setLotteryRegistrationClose] = useState("");
         setMaxTickets("");
         setAllowLoneSeat("");
 
+        setDiscountPolicyType("MAX");
         setDiscountType("NONE");
         setDiscountPercent("");
         setDiscountFromDate("");
@@ -472,9 +475,20 @@ const [lotteryRegistrationClose, setLotteryRegistrationClose] = useState("");
                 type: isLotteryEvent ? "Lottery" : type.trim(),
                 status,
                 description: description.trim() || undefined,
+                discountType: discountPolicyType,
             };
 
-            const createdEvent = await createEvent(request);
+            const createdEvent = isLotteryEvent
+                ? await createLotteryEvent({
+                    ...request,
+                    type: "Lottery",
+                    lottery: {
+                        registrationOpen: `${lotteryRegistrationOpen}:00`,
+                        registrationClose: `${lotteryRegistrationClose}:00`,
+                    },
+                })
+                : await createEvent(request);
+
             const createdEventId = getCreatedEventId(createdEvent);
 
             if (!createdEventId) {
@@ -487,13 +501,6 @@ const [lotteryRegistrationClose, setLotteryRegistrationClose] = useState("");
                 } else {
                     await addSittingArea(createdEventId, area);
                 }
-            }
-
-            if (isLotteryEvent) {
-                await createLotteryForEvent(createdEventId, {
-                    registrationOpen: `${lotteryRegistrationOpen}:00`,
-                    registrationClose: `${lotteryRegistrationClose}:00`,
-                });
             }
 
             await addEventPolicyRule(createdEventId, companyId, currentUser.email);
@@ -644,6 +651,18 @@ const [lotteryRegistrationClose, setLotteryRegistrationClose] = useState("");
                                         onChange={(e) => setDate(e.target.value)}
                                     />
                                     {errors.date && <small>{errors.date}</small>}
+                                </label>
+
+                                <label className="form-field">
+                                    <span>Discount policy type</span>
+                                    <select
+                                        value={discountPolicyType}
+                                        onChange={(e) => setDiscountPolicyType(e.target.value as EventDiscountType)}
+                                    >
+                                        <option value="MAX">MAX</option>
+                                        <option value="ALL">ALL</option>
+                                    </select>
+                                    <small>Choose how discount rules combine for this event.</small>
                                 </label>
 
                                 <label className="form-field">

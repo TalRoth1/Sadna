@@ -1,4 +1,4 @@
-import api from "../api";
+//import api from "../api";
 import type { AdminAction } from "../../types/admin";
 
 const adminActions: AdminAction[] = [

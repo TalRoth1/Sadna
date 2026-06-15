@@ -14,6 +14,7 @@ import org.example.DomainLayer.PolicyManagment.AgeRule;
 import org.example.DomainLayer.PolicyManagment.ConditionalDiscount;
 import org.example.DomainLayer.PolicyManagment.CouponCode;
 import org.example.DomainLayer.PolicyManagment.DiscountPolicy;
+import org.example.DomainLayer.PolicyManagment.DiscountType;
 import org.example.DomainLayer.PolicyManagment.LoneSeatRule;
 import org.example.DomainLayer.PolicyManagment.MaxTicketRule;
 import org.example.DomainLayer.PolicyManagment.MinTicketRule;
@@ -41,12 +42,12 @@ public class Company {
     private CompanyStatus status;
     private String founderName;
 
-public Company(String founderEmail, String name) {
+public Company(String founderEmail, String name, DiscountType discountType) {
     this.id = UUID.randomUUID();
     this.name = name;
     this.founderEmail = founderEmail;
     this.eventIds = new ArrayList<>();
-    this.discountPolicy = new DiscountPolicy();
+    this.discountPolicy = new DiscountPolicy(discountType);
     this.purchasePolicy = new PurchasePolicy();
     this.status = CompanyStatus.ACTIVE;
     this.ratingsByUsers = new HashMap<>();
@@ -65,7 +66,7 @@ public Company(UUID id, String founderEmail, String founderName, String name,
     this.amountRated = amountRated;
     this.ratingsByUsers = ratingsByUsers != null ? new HashMap<>(ratingsByUsers) : new HashMap<>();
     this.eventIds = eventIds != null ? new ArrayList<>(eventIds) : new ArrayList<>();
-    this.discountPolicy = discountPolicy != null ? discountPolicy : new DiscountPolicy();
+    this.discountPolicy = discountPolicy != null ? discountPolicy : new DiscountPolicy(DiscountType.ALL);
     this.purchasePolicy = purchasePolicy != null ? purchasePolicy : new PurchasePolicy();
 }
 

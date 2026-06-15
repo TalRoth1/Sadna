@@ -2,6 +2,7 @@ package org.example.DomainLayer.CompanyAggregate;
 
 import org.example.DomainLayer.PolicyManagment.ConditionalDiscount;
 import org.example.DomainLayer.PolicyManagment.CouponCode;
+import org.example.DomainLayer.PolicyManagment.DiscountType;
 import org.example.DomainLayer.PolicyManagment.OvertDiscount;
 import org.junit.Before;
 import org.junit.Test;
@@ -17,11 +18,12 @@ public class CompanyTest {
     private Company company;
     private final String founderUser = "moshiko123";
     private final String companyName = "Workshop Ltd";
+    private final DiscountType discountType = DiscountType.ALL;
 
     @Before
     public void setUp() {
         // Initialize a real Company instance for state testing
-        company = new Company(founderUser, companyName);
+        company = new Company(founderUser, companyName, discountType);
     }
 
     @Test

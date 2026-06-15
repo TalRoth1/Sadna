@@ -19,6 +19,7 @@ import org.example.DomainLayer.AdminAggregate.AdminComplaint;
 import org.example.DomainLayer.AdminAggregate.SystemAnalyticsSnapshot;
 import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.DomainLayer.NotificationAggregate.INotifier;
+import org.example.DomainLayer.PolicyManagment.DiscountType;
 import org.example.DomainLayer.UserAggregate.CompanyFounder;
 import org.example.DomainLayer.UserAggregate.CompanyManager;
 import org.example.DomainLayer.UserAggregate.CompanyOwner;
@@ -340,8 +341,8 @@ class AdminServiceTest {
 
         @Test
         void getCompanies_HappyPath_ReturnsDTOForEachCompany() {
-            Company c1 = new Company("founder1@test.com", "Acme");
-            Company c2 = new Company("founder2@test.com", "Globex");
+            Company c1 = new Company("founder1@test.com", "Acme", DiscountType.ALL);
+            Company c2 = new Company("founder2@test.com", "Globex", DiscountType.ALL);
             when(companyRepository.getAll()).thenReturn(List.of(c1, c2));
             when(userRepository.getAllUsers()).thenReturn(Map.of());
 
@@ -352,7 +353,7 @@ class AdminServiceTest {
 
         @Test
         void getCompanies_CorrectlyCountsFoundersAndOwnersAsOwnersAndManagers() {
-            Company company   = new Company("founder@test.com", "Acme");
+            Company company   = new Company("founder@test.com", "Acme", DiscountType.ALL);
             UUID    companyId = company.getId();
 
             User founderUser  = mock(User.class);
@@ -386,7 +387,7 @@ class AdminServiceTest {
 
         @Test
         void getCompanies_ActiveCompany_DtoHasCorrectNameAndActiveStatus() {
-            Company company = new Company("a@test.com", "Active Inc");
+            Company company = new Company("a@test.com", "Active Inc", DiscountType.ALL);
             when(companyRepository.getAll()).thenReturn(List.of(company));
             when(userRepository.getAllUsers()).thenReturn(Map.of());
 
@@ -947,7 +948,7 @@ class AdminServiceTest {
             when(userRepository.getAllUsers())
                     .thenReturn(Map.of(loggedInId, loggedIn, loggedOutId, loggedOut));
             when(companyRepository.getAllActive())
-                    .thenReturn(List.of(new Company("c@t.com", "Corp")));
+                    .thenReturn(List.of(new Company("c@t.com", "Corp", DiscountType.ALL)));
             when(queueManager.getAllQueueSnapshots())
                     .thenReturn(List.of(new QueueManager.QueueSnapshot(UUID.randomUUID(), 3, 1, 10, 10)));
             when(purchaseRepository.findAll()).thenReturn(List.of());

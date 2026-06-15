@@ -12,6 +12,7 @@ type PurchaseHistoryDto = {
     totalPrice: number;
     paymentInfo: string;
     purchaseDate: string;
+    issuedTicketRef?: string;
 };
 
 export async function getPurchaseHistory(
@@ -39,5 +40,6 @@ function mapPurchaseHistoryDto(
         totalPrice: dto.totalPrice,
         paymentInfo: dto.paymentInfo,
         purchaseDate: dto.purchaseDate,
+        issuedTicketRef: dto.issuedTicketRef,
     };
 }

@@ -274,15 +274,11 @@ public class DevDataSeeder implements CommandLineRunner {
                 UUID closedId = companiesByName.get("Closed Co.");
                 UUID megaId = companiesByName.get("Mega Events Group");
 
-                /*
-
-
                 assignFounder("founder.live@demo.test", liveNationId);
                 assignFounder("founder.indie@demo.test", indieId);
                 assignFounder("founder.closed@demo.test", closedId);
                 assignFounder("founder.mega@demo.test", megaId);
 
-*/
                 // Live Nation gets a richer hierarchy:
                 // founder -> owner.live (full owner rights)
                 // founder -> manager.live.inv (MANAGE_INVENTORY only)
@@ -832,8 +828,8 @@ private void seedIndieLottery() {
          * {@code companyName} so later sections can refer to it by name.
          */
         private void createCompany(String founderEmail, String companyName) {
-            UUID companyId = rolesDomainService.createCompany(founderEmail, companyName);
-            companiesByName.put(companyName, companyId);
+                UUID companyId = companyRepository.createCompany(founderEmail, companyName, org.example.DomainLayer.PolicyManagment.DiscountType.ALL);
+                companiesByName.put(companyName, companyId);
         }
 
         /**
@@ -884,7 +880,7 @@ private void seedIndieLottery() {
                         LocalDateTime date, EventStatus status) {
                 UUID eventId = UUID.randomUUID();
                 eventManagement.addEvent(eventId, companyId, eventManagerEmail, name, date, location,
-                                artist, type, status , "");
+                                artist, type, status , "", org.example.DomainLayer.PolicyManagment.DiscountType.ALL);
                 eventsByKey.put(key, eventId);
                 return eventId;
         }

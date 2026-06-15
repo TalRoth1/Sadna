@@ -14,6 +14,7 @@ import org.example.DomainLayer.LotteryAggregate.PuchaseLottery;
 import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.NotificationAggregate.Notification;
 import org.example.DomainLayer.NotificationAggregate.NotificationType;
+import org.example.DomainLayer.PolicyManagment.DiscountType;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.example.DomainLayer.UserAggregate.CompanyFounder;
 import org.example.DomainLayer.UserAggregate.User;
@@ -45,7 +46,8 @@ public class InfrastructureLayerAdditionalTests {
                 "Tel Aviv",
                 "Artist",
                 "Concert",
-                EventStatus.ACTIVE
+                EventStatus.ACTIVE,
+                DiscountType.ALL
         );
     }
 
@@ -125,8 +127,8 @@ public class InfrastructureLayerAdditionalTests {
     public void companyRepository_saveCreateFindActiveAndAllBranches() {
         CompanyRepository repo = new CompanyRepository();
 
-        Company active = new Company("founder1@example.com", "Active Company");
-        Company closed = new Company("founder2@example.com", "Closed Company");
+        Company active = new Company("founder1@example.com", "Active Company", DiscountType.ALL);
+        Company closed = new Company("founder2@example.com", "Closed Company", DiscountType.ALL);
         closed.AdminClose();
 
         repo.save(active);
@@ -139,7 +141,7 @@ public class InfrastructureLayerAdditionalTests {
         assertEquals(2, repo.getAll().size());
         assertEquals(List.of(active), repo.getAllActive());
 
-        UUID createdId = repo.createCompany("founder3@example.com", "Created Company");
+        UUID createdId = repo.createCompany("founder3@example.com", "Created Company", DiscountType.ALL);
 
         assertTrue(repo.findByID(createdId).isPresent());
         assertEquals(3, repo.getAll().size());

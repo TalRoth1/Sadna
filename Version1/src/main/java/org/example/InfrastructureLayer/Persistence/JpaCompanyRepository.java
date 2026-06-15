@@ -43,7 +43,7 @@ public class JpaCompanyRepository implements ICompanyRepository {
 
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public UUID createCompany(String founderEmail, String companyName) {
+    public UUID createCompany(String founderEmail, String companyName, DiscountType discountType) {
         UUID purchasePolicyId = UUID.randomUUID();
         UUID discountPolicyId = UUID.randomUUID();
 
@@ -359,7 +359,7 @@ public class JpaCompanyRepository implements ICompanyRepository {
     }
 
     private DiscountPolicy restoreDiscountPolicy(UUID policyId) {
-        DiscountPolicy policy = new DiscountPolicy();
+        DiscountPolicy policy = new DiscountPolicy(DiscountType.ALL); // default type, will be overridden when rules are added
 
         if (policyId == null) {
             return policy;

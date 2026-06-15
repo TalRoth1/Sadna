@@ -6,6 +6,8 @@ import java.util.logging.Logger;
 
 import org.example.ApplicationLayer.IPaymentGateway;
 import org.example.ApplicationLayer.PaymentDetails;
+import org.example.ApplicationLayer.PaymentProvider;
+import org.example.ApplicationLayer.PaymentResult;
 
 /**
  * Development stub for the external payment-clearing system, as required
@@ -29,7 +31,10 @@ import org.example.ApplicationLayer.PaymentDetails;
  * via {@code getAndSet}, so concurrent {@code pay()} calls compete cleanly
  * for the single "next" outcome.
  */
-public class SimulatedPaymentGateway implements IPaymentGateway {
+public class SimulatedPaymentGateway implements IPaymentGateway, PaymentProvider {
+
+    /** Provider id used to select this adapter from configuration. */
+    public static final String PROVIDER_ID = "SIMULATED";
 
     public enum PayOutcome { APPROVE, DECLINE }
     public enum RefundOutcome { SUCCEED, FAIL }
@@ -43,18 +48,31 @@ public class SimulatedPaymentGateway implements IPaymentGateway {
             new AtomicReference<>(RefundOutcome.SUCCEED);
 
     @Override
-    public boolean pay(UUID userID, float amount, PaymentDetails paymentDetails) {
-        PayOutcome outcome = nextPayOutcome.getAndSet(PayOutcome.APPROVE);
-        logger.info("[SimulatedPaymentGateway] pay user=" + userID
-                + " amount=" + amount + " -> " + outcome);
-        return outcome == PayOutcome.APPROVE;
+    public String providerId() {
+        return PROVIDER_ID;
     }
 
     @Override
-    public boolean refund(UUID userID, float amount, PaymentDetails paymentDetails) {
-        RefundOutcome outcome = nextRefundOutcome.getAndSet(RefundOutcome.SUCCEED);
-        logger.info("[SimulatedPaymentGateway] refund user=" + userID
+    public PaymentResult pay(UUID userID, float amount, PaymentDetails paymentDetails) {
+        PayOutcome outcome = nextPayOutcome.getAndSet(PayOutcome.APPROVE);
+
+        logger.info("[SimulatedPaymentGateway] pay user=" + userID
                 + " amount=" + amount + " -> " + outcome);
+
+        if (outcome == PayOutcome.DECLINE) {
+            return PaymentResult.failure();
+        }
+
+        return PaymentResult.success(10000);
+    }
+
+    @Override
+    public boolean refund(int transactionId) {
+        RefundOutcome outcome = nextRefundOutcome.getAndSet(RefundOutcome.SUCCEED);
+
+        logger.info("[SimulatedPaymentGateway] refund transactionId=" + transactionId
+                + " -> " + outcome);
+
         return outcome == RefundOutcome.SUCCEED;
     }
 

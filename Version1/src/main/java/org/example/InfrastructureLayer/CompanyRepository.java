@@ -8,12 +8,13 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.example.DomainLayer.CompanyAggregate.Company;
+import org.example.DomainLayer.PolicyManagment.DiscountType;
 import org.example.DomainLayer.ICompanyRepository;
-import org.springframework.context.annotation.Profile;
-import org.springframework.stereotype.Repository;
+//import org.springframework.context.annotation.Profile;
+//import org.springframework.stereotype.Repository;
 
-@Repository
-@Profile("!localdb")
+//@Repository
+//@Profile("!localdb")
 public class CompanyRepository implements ICompanyRepository {
 
     private final Map<UUID, Company> companies = new ConcurrentHashMap<>();
@@ -33,8 +34,17 @@ public class CompanyRepository implements ICompanyRepository {
     }
 
      @Override
-     public UUID createCompany(String founderEmail, String companyName) {
-        Company newCompany = new Company(founderEmail, companyName);
+     public UUID createCompany(String founderEmail, String companyName, DiscountType discountType) {
+         if (founderEmail == null || founderEmail.isEmpty()) {
+             throw new IllegalArgumentException("Founder email is required");
+         }
+         if (companyName == null || companyName.isEmpty()) {
+             throw new IllegalArgumentException("Company name is required");
+         }
+         if (discountType == null) {
+             throw new IllegalArgumentException("Discount type is required");
+         }
+        Company newCompany = new Company(founderEmail, companyName, discountType);
         companies.put(newCompany.getId(), newCompany);
         return newCompany.getId();
      }
