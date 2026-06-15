@@ -138,24 +138,47 @@ public class JpaCompanyRepository implements ICompanyRepository {
     @Override
     @Transactional(readOnly = true)
     public List<Company> getAll() {
-        return companyJpa.findAll()
-                .stream()
-                .map(this::toDomain)
-                .collect(Collectors.toList());
+        return toDomainBatch(companyJpa.findAll());
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<Company> getAllActive() {
-        return companyJpa.findByStatus(Company.CompanyStatus.ACTIVE)
-                .stream()
-                .map(this::toDomain)
-                .collect(Collectors.toList());
+        return toDomainBatch(companyJpa.findByStatus(Company.CompanyStatus.ACTIVE));
     }
 
     // -------------------------------------------------------------------------
     // Entity → Domain
     // -------------------------------------------------------------------------
+
+    private List<Company> toDomainBatch(List<CompanyEntity> entities) {
+        if (entities.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        Set<UUID> companyIds = entities.stream().map(CompanyEntity::getId).collect(Collectors.toSet());
+        Set<UUID> purchasePolicyIds = entities.stream()
+                .map(CompanyEntity::getPurchasePolicyId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Set<UUID> discountPolicyIds = entities.stream()
+                .map(CompanyEntity::getDiscountPolicyId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        Map<UUID, List<RatingEntity>> ratingsByCompany = ratingJpa.findByCompanyIdIn(companyIds)
+                .stream().collect(Collectors.groupingBy(RatingEntity::getCompanyId));
+
+        Map<UUID, RuleEntity> ruleByPolicyId = ruleJpa.findByPolicyIdIn(purchasePolicyIds)
+                .stream().collect(Collectors.toMap(RuleEntity::getPolicyId, r -> r, (a, b) -> a));
+
+        Map<UUID, List<DiscountRuleEntity>> discountRulesByPolicyId = discountRuleJpa.findByPolicyIdIn(discountPolicyIds)
+                .stream().collect(Collectors.groupingBy(DiscountRuleEntity::getPolicyId));
+
+        return entities.stream()
+                .map(e -> toDomain(e, ratingsByCompany, ruleByPolicyId, discountRulesByPolicyId))
+                .collect(Collectors.toList());
+    }
 
     private Company toDomain(CompanyEntity entity) {
         Map<UUID, Rating> ratingsByUsers = restoreRatings(entity.getId());
@@ -175,6 +198,37 @@ public class JpaCompanyRepository implements ICompanyRepository {
                 amountRated,
                 ratingsByUsers,
                 new ArrayList<>(),   // eventIds are owned by the events table
+                discountPolicy,
+                purchasePolicy
+        );
+    }
+
+    private Company toDomain(CompanyEntity entity,
+                              Map<UUID, List<RatingEntity>> ratingsByCompany,
+                              Map<UUID, RuleEntity> ruleByPolicyId,
+                              Map<UUID, List<DiscountRuleEntity>> discountRulesByPolicyId) {
+        Map<UUID, Rating> ratingsByUsers = new HashMap<>();
+        for (RatingEntity r : ratingsByCompany.getOrDefault(entity.getId(), List.of())) {
+            ratingsByUsers.put(r.getUserId(), new Rating(r.getRating(), r.getUserId()));
+        }
+        double rating = computeAvgRating(ratingsByUsers);
+        int amountRated = ratingsByUsers.size();
+
+        PurchasePolicy purchasePolicy = restorePurchasePolicyFromEntity(
+                ruleByPolicyId.get(entity.getPurchasePolicyId()));
+        DiscountPolicy discountPolicy = restoreDiscountPolicyFromEntities(
+                discountRulesByPolicyId.getOrDefault(entity.getDiscountPolicyId(), List.of()));
+
+        return new Company(
+                entity.getId(),
+                entity.getFounderUsername(),
+                entity.getFounderUsername(),
+                entity.getName(),
+                entity.getStatus(),
+                rating,
+                amountRated,
+                ratingsByUsers,
+                new ArrayList<>(),
                 discountPolicy,
                 purchasePolicy
         );
@@ -258,6 +312,14 @@ public class JpaCompanyRepository implements ICompanyRepository {
             }
         });
 
+        return policy;
+    }
+
+    private PurchasePolicy restorePurchasePolicyFromEntity(RuleEntity entity) {
+        PurchasePolicy policy = new PurchasePolicy();
+        if (entity == null) return policy;
+        IPurchaseRule root = deserializePurchaseRule(entity.getRuleType(), entity.getParameters());
+        if (root != null) restorePurchaseRuleTree(policy, root);
         return policy;
     }
 
@@ -373,6 +435,15 @@ public class JpaCompanyRepository implements ICompanyRepository {
             }
         }
 
+        return policy;
+    }
+
+    private DiscountPolicy restoreDiscountPolicyFromEntities(List<DiscountRuleEntity> entities) {
+        DiscountPolicy policy = new DiscountPolicy(DiscountType.ALL);
+        for (DiscountRuleEntity entity : entities) {
+            IDiscountRule rule = deserializeDiscountRule(entity);
+            if (rule != null) policy.addRule(rule);
+        }
         return policy;
     }
 

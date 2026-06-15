@@ -518,7 +518,9 @@ public class EventServiceTest {
 
     @Test
     public void GivenExistingEvent_WhenDeleteEvent_ThenRepositoryDeleteIsInvokedAndReturnsTrue() {
-        when(eventRepository.getById(eventId)).thenReturn(newRealEvent());
+        Event eventToDelete = newRealEvent();
+        eventToDelete.setManagerUsername(ownerUsername);
+        when(eventRepository.getById(eventId)).thenReturn(eventToDelete);
         User ownerUser = new User(UUID.randomUUID(), ownerUsername, ownerUsername, "hash", 40);
         ownerUser.getCompanyRoles().put(companyId, new CompanyFounder(ownerUsername));
         ownerUser.getCompanyRole(companyId).getEventsIds().add(eventId);

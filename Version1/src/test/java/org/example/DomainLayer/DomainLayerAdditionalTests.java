@@ -189,6 +189,9 @@ public class DomainLayerAdditionalTests {
         when(companyRepository.findByID(companyId)).thenReturn(Optional.of(company));
         when(userRepository.findByEmail("founder@example.com")).thenReturn(Optional.of(founder));
         when(userRepository.findByEmail("manager@example.com")).thenReturn(Optional.of(manager));
+        // The owner/subordinate set is now derived from the persisted company_members table.
+        when(userRepository.getOwnerAndSubordinatesUsernames(companyId, "founder@example.com"))
+                .thenReturn(List.of("founder@example.com", "manager@example.com"));
 
         assertNotNull(service.getCompanyAccess(companyId, "founder@example.com"));
         assertNotNull(service.getCompanyAccess(companyId, "manager@example.com"));
@@ -2121,6 +2124,8 @@ public class DomainLayerAdditionalTests {
                 "Old Type",
                 EventStatus.ACTIVE, DiscountType.ALL
         );
+        // deleteEvent now matches the manager via the persisted manager_username link.
+        event.setManagerUsername("manager");
 
         when(eventRepository.getById(eventId)).thenReturn(event);
 
@@ -2163,7 +2168,6 @@ public class DomainLayerAdditionalTests {
 
         service.deleteEvent(eventId, "manager@example.com", "manager@example.com");
 
-        assertFalse(role.getEventsIds().contains(eventId));
         verify(eventRepository).delete(eventId);
 
         assertThrows(DomainException.class,
@@ -2234,9 +2238,13 @@ public class DomainLayerAdditionalTests {
                 "Concert",
                 EventStatus.ACTIVE, DiscountType.ALL
         );
+        // getEventsForUserInCompany derives the member's events from the persisted
+        // events table (company_id + manager_username), so link the event to the user.
+        realEvent.setManagerUsername(user.getUsername());
 
         when(userRepository.findByEmail("u@example.com")).thenReturn(Optional.of(user));
         when(eventRepository.getById(eventId)).thenReturn(realEvent);
+        when(eventRepository.getAll()).thenReturn(List.of(visible, hidden, otherCompany, realEvent));
 
         assertEquals(List.of(realEvent), service.getEventsForUserInCompany("u@example.com", companyId));
 

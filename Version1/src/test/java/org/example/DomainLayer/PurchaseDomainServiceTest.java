@@ -6,6 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -1645,6 +1646,11 @@ public class PurchaseDomainServiceTest {
         }
 
         @Override
+        public List<String> getOwnerAndSubordinatesUsernames(UUID companyId, String ownerUsername) {
+            return ownerUsername == null ? List.of() : List.of(ownerUsername);
+        }
+
+        @Override
         public boolean isCompanyOwner(String username, UUID companyId) {
             Optional<User> u = findByEmail(username);
             return u.map(user -> user.isOwnerInCompany(companyId)).orElse(false);
@@ -1684,6 +1690,19 @@ public class PurchaseDomainServiceTest {
         @Override
         public boolean existsAdmin(UUID adminId) {
             return adminId != null && adminsById.containsKey(adminId);
+        }
+
+        @Override
+        public Set<String> getAllAdminUsernames() {
+            return adminsById.values().stream()
+                    .map(Admin::getUsername)
+                    .filter(name -> name != null)
+                    .collect(java.util.stream.Collectors.toSet());
+        }
+
+        @Override
+        public Map<String, Long> countCompanyMembersByRole(UUID companyId) {
+            return Map.of();
         }
     }
 

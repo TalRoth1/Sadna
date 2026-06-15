@@ -3,7 +3,9 @@ package org.example.ApplicationLayer;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -613,7 +615,7 @@ public class EventService {
                 List<Event> events = eventManagementDomainService.getVisibleEventsForCompany(c.getId());
                 List<EventSummaryDto> summaries = new ArrayList<>();
                 for (Event e : events) {
-                    summaries.add(toSummary(e));
+                    summaries.add(toSummary(e, c));
                 }
                 out.add(new CompanyCatalogDto(c.getId(), c.getName(), c.getRating(), summaries));
             }
@@ -650,9 +652,10 @@ public class EventService {
             EventSearchCriteria c = (criteria == null) ? EventSearchCriteria.empty() : criteria;
             validateCriteria(c);
             List<Event> matches = eventManagementDomainService.searchEvents(c);
+            Map<UUID, Company> companyCache = buildCompanyCache(matches);
             List<EventSummaryDto> out = new ArrayList<>();
             for (Event e : matches) {
-                out.add(toSummary(e));
+                out.add(toSummary(e, companyCache.get(e.getCompanyId())));
             }
             return out;
         } catch (IllegalArgumentException | DomainException ex) {
@@ -675,9 +678,10 @@ public class EventService {
             EventSearchCriteria scoped = c.withCompanyId(companyId);
             validateCriteria(scoped);
             List<Event> matches = eventManagementDomainService.searchEvents(scoped);
+            Company company = eventManagementDomainService.findCompanyById(companyId);
             List<EventSummaryDto> out = new ArrayList<>();
             for (Event e : matches) {
-                out.add(toSummary(e));
+                out.add(toSummary(e, company));
             }
             return out;
         } catch (IllegalArgumentException | DomainException ex) {
@@ -700,9 +704,10 @@ public class EventService {
                 throw new IllegalArgumentException("companyId is required");
             }
             List<Event> events = eventManagementDomainService.getEventsForUserInCompany(userEmail, companyId);
+            Company company = eventManagementDomainService.findCompanyById(companyId);
             List<EventSummaryDto> out = new ArrayList<>();
             for (Event e : events) {
-                out.add(toSummary(e));
+                out.add(toSummary(e, company));
             }
             return out;
         } catch (IllegalArgumentException | DomainException ex) {
@@ -778,8 +783,24 @@ public class EventService {
      * event's areas and live ticket counts — all derived here so the client
      * doesn't need follow-up calls.
      */
+    /** Load each unique company ID once and return a map for O(1) lookup per event. */
+    private Map<UUID, Company> buildCompanyCache(List<Event> events) {
+        Map<UUID, Company> cache = new HashMap<>();
+        for (Event e : events) {
+            UUID cid = e.getCompanyId();
+            if (cid != null && !cache.containsKey(cid)) {
+                cache.put(cid, eventManagementDomainService.findCompanyById(cid));
+            }
+        }
+        return cache;
+    }
+
     private EventSummaryDto toSummary(Event e) {
         Company company = eventManagementDomainService.findCompanyById(e.getCompanyId());
+        return toSummary(e, company);
+    }
+
+    private EventSummaryDto toSummary(Event e, Company company) {
         String companyName = (company == null) ? "" : company.getName();
         double companyRating = (company == null) ? 0.0 : company.getRating();
 

@@ -543,28 +543,10 @@ public class RolesDomainService {
             throw new IllegalArgumentException("The caller is not a company owner or founder");
         }
 
-        List<String> out = new java.util.ArrayList<>();
-        // owner username is stored on the role/role.getUsername(); use that to remain consistent
-        out.add(role.getUsername());
-
-        if (role instanceof CompanyOwner ownerRole) {
-            collectSubordinatesUsernames(ownerRole, out);
-        }
-
-        return out;
-    }
-
-    private void collectSubordinatesUsernames(ICompanyMember member, List<String> out) {
-        if (member == null) return;
-        if (member instanceof CompanyOwner owner) {
-            for (ICompanyMember sub : owner.getSubordinates()) {
-                out.add(sub.getUsername());
-                collectSubordinatesUsernames(sub, out);
-            }
-        } else if (member instanceof org.example.DomainLayer.UserAggregate.CompanyManager manager) {
-            // managers don't have further subordinates in this model
-            return;
-        }
+        // The owner/report edges are owned by the persisted company_members table
+        // (appointer_username); the in-memory subordinate graph is not rehydrated
+        // under the JPA profile, so derive the set from the repository.
+        return userRepository.getOwnerAndSubordinatesUsernames(companyId, role.getUsername());
     }
 
     private boolean hasCompanyPermission(ICompanyMember role, CompanyPermission permission) {

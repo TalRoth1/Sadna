@@ -130,7 +130,7 @@ public class JpaUserRepository implements IUserRepository {
     public Map<UUID, User> getAllUsers() {
         return userJpa.findAll()
                 .stream()
-                .map(entity -> toDomain(entity, true))
+                .map(entity -> toDomain(entity, false))
                 .collect(Collectors.toMap(User::getId, user -> user));
     }
 
@@ -191,6 +191,50 @@ public class JpaUserRepository implements IUserRepository {
                 .map(CompanyMemberEntity::getCompanyId)
                 .distinct()
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<String> getOwnerAndSubordinatesUsernames(UUID companyId, String ownerUsername) {
+        String owner = normalizeIdentifier(ownerUsername);
+
+        if (companyId == null || owner == null) {
+            return List.of();
+        }
+
+        // Build the appointer -> direct reports adjacency from the persisted
+        // company_members rows, then BFS down from the owner.
+        Map<String, List<String>> reportsByAppointer = new HashMap<>();
+        for (CompanyMemberEntity member : companyMemberJpa.findByIdCompanyId(companyId)) {
+            String appointer = normalizeIdentifier(member.getAppointerUsername());
+            String memberUsername = normalizeIdentifier(member.getUsername());
+
+            if (appointer == null || memberUsername == null) {
+                continue;
+            }
+
+            reportsByAppointer.computeIfAbsent(appointer, key -> new ArrayList<>())
+                    .add(memberUsername);
+        }
+
+        List<String> result = new ArrayList<>();
+        Set<String> visited = new HashSet<>();
+        Deque<String> queue = new ArrayDeque<>();
+        queue.add(owner);
+        visited.add(owner);
+
+        while (!queue.isEmpty()) {
+            String current = queue.poll();
+            result.add(current);
+
+            for (String report : reportsByAppointer.getOrDefault(current, List.of())) {
+                if (visited.add(report)) {
+                    queue.add(report);
+                }
+            }
+        }
+
+        return result;
     }
 
     @Override
@@ -505,5 +549,22 @@ public class JpaUserRepository implements IUserRepository {
         }
 
         return normalized;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Set<String> getAllAdminUsernames() {
+        return adminJpa.findAll().stream()
+                .map(AdminEntity::getUsername)
+                .collect(Collectors.toSet());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<String, Long> countCompanyMembersByRole(UUID companyId) {
+        return companyMemberJpa.findByIdCompanyId(companyId).stream()
+                .collect(Collectors.groupingBy(
+                        e -> normalizeRole(e.getRole()),
+                        Collectors.counting()));
     }
 }

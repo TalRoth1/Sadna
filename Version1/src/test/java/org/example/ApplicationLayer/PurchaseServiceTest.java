@@ -1542,6 +1542,11 @@ public class PurchaseServiceTest {
         }
 
         @Override
+        public List<String> getOwnerAndSubordinatesUsernames(UUID companyId, String ownerUsername) {
+            return ownerUsername == null ? List.of() : List.of(ownerUsername);
+        }
+
+        @Override
         public List<UUID> getCompaniesIdsByMember(String username) {
             return List.of();
         }
@@ -1554,6 +1559,19 @@ public class PurchaseServiceTest {
         @Override
         public Map<UUID, User> getAllUsers() {
             return Collections.unmodifiableMap(usersByID);
+        }
+
+        @Override
+        public Set<String> getAllAdminUsernames() {
+            return adminsByID.values().stream()
+                    .map(Admin::getUsername)
+                    .filter(name -> name != null)
+                    .collect(java.util.stream.Collectors.toSet());
+        }
+
+        @Override
+        public Map<String, Long> countCompanyMembersByRole(UUID companyId) {
+            return Map.of();
         }
     }
     private static class InMemoryCompanyRepository implements ICompanyRepository

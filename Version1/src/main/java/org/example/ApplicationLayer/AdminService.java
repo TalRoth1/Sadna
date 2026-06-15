@@ -1,6 +1,8 @@
 package org.example.ApplicationLayer;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Logger;
 
@@ -25,9 +27,6 @@ import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.DomainLayer.EventAggregate.Event;
 import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
-import org.example.DomainLayer.UserAggregate.CompanyFounder;
-import org.example.DomainLayer.UserAggregate.CompanyManager;
-import org.example.DomainLayer.UserAggregate.CompanyOwner;
 import org.example.DomainLayer.UserAggregate.ICompanyMember;
 import org.example.DomainLayer.UserAggregate.User;
 import org.example.DomainLayer.UserAggregate.UserStatus;
@@ -210,10 +209,11 @@ public class AdminService {
         try {
             validateAdmin(adminId, adminUsername);
 
+            Set<String> adminUsernames = userRepository.getAllAdminUsernames();
             List<AdminSubscriberDTO> result = userRepository.getAllUsers()
                     .values()
                     .stream()
-                    .filter(user -> !userRepository.isSystemAdmin(user.getUsername()))
+                    .filter(user -> !adminUsernames.contains(user.getUsername()))
                     .filter(user -> user.getStatus() != UserStatus.REMOVED)
                     .map(this::toSubscriberDTO)
                     .toList();
@@ -764,23 +764,9 @@ public class AdminService {
         dto.name = company.getName();
         dto.status = company.isActive() ? "active" : "closed";
 
-        int ownersCount = 0;
-        int managersCount = 0;
-
-        for (User user : userRepository.getAllUsers().values()) {
-            ICompanyMember role = user.getCompanyRole(company.getId());
-
-            if (role instanceof CompanyFounder || role instanceof CompanyOwner) {
-                ownersCount++;
-            }
-
-            if (role instanceof CompanyManager) {
-                managersCount++;
-            }
-        }
-
-        dto.ownersCount = ownersCount;
-        dto.managersCount = managersCount;
+        Map<String, Long> roleCounts = userRepository.countCompanyMembersByRole(company.getId());
+        dto.ownersCount = (int) (roleCounts.getOrDefault("FOUNDER", 0L) + roleCounts.getOrDefault("OWNER", 0L));
+        dto.managersCount = roleCounts.getOrDefault("MANAGER", 0L).intValue();
 
         return dto;
     }
