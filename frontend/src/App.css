@@ -397,6 +397,25 @@ textarea {
   font-size: 17px;
 }
 
+.ticket-code-block {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 10px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.ticket-code-block .ticket-code {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 600;
+  color: #111827;
+  word-break: break-all;
+}
+
 .purchase-details {
   display: flex;
   flex-direction: column;

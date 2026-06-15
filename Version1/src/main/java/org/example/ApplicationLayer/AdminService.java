@@ -803,6 +803,7 @@ public class AdminService {
         dto.eventId = history.getEventId();
         dto.ticketIds = history.getTicketIds();
         dto.purchaseDate = history.getPurchaseDate();
+        dto.issuedTicketRef = history.getIssuedTicketReference();
         dto.ticketsAmount = dto.ticketIds == null ? 0 : dto.ticketIds.size();
 
         if (history.getPayment() != null) {

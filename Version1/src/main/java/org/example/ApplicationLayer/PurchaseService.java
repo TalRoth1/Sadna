@@ -2,7 +2,7 @@ package org.example.ApplicationLayer;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -263,7 +263,7 @@ public class PurchaseService {
     }
 }
 
-    public void completePurchase(UUID activePurchaseID, PaymentDetails paymentDetails, String couponCode)
+    public String completePurchase(UUID activePurchaseID, PaymentDetails paymentDetails, String couponCode)
     {
         String normalizedCouponCode =
                 couponCode == null || couponCode.isBlank()
@@ -284,6 +284,7 @@ public class PurchaseService {
         {
             ActivePurchase activePurchase = purchaseDomainService.viewActivePurchase(activePurchaseID);
             UUID userId = activePurchase.getUserID();
+            UUID eventId = activePurchase.getEventID();
             boolean isSoldOut = purchaseDomainService.completePurchase(
                     activePurchaseID,
                     paymentDetails,
@@ -302,6 +303,26 @@ public class PurchaseService {
                 );
             }
             eventPublisher.publish(new PurchaseCompletedEvent(userId));
+
+            // Return the external ticketing confirmation (secure code) just
+            // persisted for this buyer + event, so the UI can render the
+            // digital ticket / barcode on the confirmation screen. Best-effort:
+            // the code is for display only, so a lookup hiccup must never fail
+            // an already-completed purchase.
+            try {
+                List<PurchaseHistory> history = purchaseDomainService.getHistoryByEvent(eventId);
+                if (history != null) {
+                    return history.stream()
+                            .filter(record -> userId.equals(record.getUserId()))
+                            .max(Comparator.comparing(PurchaseHistory::getPurchaseDate))
+                            .map(PurchaseHistory::getIssuedTicketReference)
+                            .orElse(null);
+                }
+            } catch (RuntimeException lookupError) {
+                logger.warning("Could not resolve issued ticket reference for activePurchaseID="
+                        + activePurchaseID + ": " + lookupError.getMessage());
+            }
+            return null;
         }
         catch (DomainException e) {
             logger.severe("Critical failure in completePurchase for ID " + activePurchaseID +
@@ -651,6 +672,7 @@ public class PurchaseService {
         dto.eventId = history.getEventId();
         dto.ticketIds = history.getTicketIds();
         dto.purchaseDate = history.getPurchaseDate();
+        dto.issuedTicketRef = history.getIssuedTicketReference();
         dto.ticketsAmount = (dto.ticketIds == null) ? 0 : dto.ticketIds.size();
 
         if (history.getPayment() != null) {

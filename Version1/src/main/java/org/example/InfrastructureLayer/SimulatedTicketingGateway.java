@@ -5,7 +5,7 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
 
-import org.example.ApplicationLayer.ITicketingGateway;
+import org.example.ApplicationLayer.TicketingProvider;
 
 /**
  * Development stub for the external ticketing system (the service that
@@ -17,8 +17,15 @@ import org.example.ApplicationLayer.ITicketingGateway;
  * is responsible for catching the failure and running a compensating
  * refund against the payment gateway — that's the cancellation+refund
  * scenario the assignment asks us to exercise.
+ *
+ * <p>Registered as the {@code "SIMULATED"} {@link TicketingProvider} so the
+ * dev profile and the robustness tests can exercise the issuance flow
+ * without calling the real external supply system.
  */
-public class SimulatedTicketingGateway implements ITicketingGateway {
+public class SimulatedTicketingGateway implements TicketingProvider {
+
+    /** Provider id used to select this stub from configuration. */
+    public static final String PROVIDER_ID = "SIMULATED";
 
     public enum Outcome { SUCCEED, FAIL }
 
@@ -41,14 +48,23 @@ public class SimulatedTicketingGateway implements ITicketingGateway {
             new AtomicReference<>(Outcome.SUCCEED);
 
     @Override
-    public void issueTickets(UUID userId, UUID eventId, Set<UUID> ticketIds) {
+    public String providerId() {
+        return PROVIDER_ID;
+    }
+
+    @Override
+    public String issueTickets(UUID userId, UUID eventId, Set<UUID> ticketIds) {
         Outcome outcome = nextOutcome.getAndSet(Outcome.SUCCEED);
+
         logger.info("[SimulatedTicketingGateway] issueTickets user=" + userId
                 + " event=" + eventId + " tickets=" + ticketIds + " -> " + outcome);
+
         if (outcome == Outcome.FAIL) {
             throw new TicketingFailedException(
                     "Simulated ticketing failure for event " + eventId);
         }
+
+        return "SIM-TICKET-" + eventId + "-" + userId;
     }
 
     // ---------- one-shot toggle ----------

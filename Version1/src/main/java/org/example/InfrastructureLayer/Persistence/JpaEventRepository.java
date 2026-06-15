@@ -9,7 +9,9 @@ import org.example.DomainLayer.EventAggregate.Event;
 import org.example.DomainLayer.EventAggregate.EventStatus;
 import org.example.DomainLayer.EventAggregate.Layout;
 import org.example.DomainLayer.EventAggregate.SittingArea;
+import org.example.DomainLayer.EventAggregate.SittingTicket;
 import org.example.DomainLayer.EventAggregate.StandingArea;
+import org.example.DomainLayer.EventAggregate.StandingTicket;
 import org.example.DomainLayer.EventAggregate.Ticket;
 import org.example.DomainLayer.EventAggregate.TicketStatus;
 import org.example.DomainLayer.IEventRepository;
@@ -151,12 +153,24 @@ public class JpaEventRepository implements IEventRepository {
 
     private void saveTickets(Event event) {
         for (Ticket ticket : event.getTicketsView().values()) {
+            // Assigned-seating tickets carry a row/seat: persist a Seat row and
+            // link it via seat_id so the seat survives a reload (otherwise the
+            // grid has no seats to render and the area looks empty).
+            UUID seatId = null;
+            if (ticket instanceof SittingTicket sittingTicket) {
+                seatId = UUID.randomUUID();
+                seatJpa.save(new SeatEntity(
+                        seatId,
+                        sittingTicket.getSeatRow(),
+                        sittingTicket.getSeatNumber()));
+            }
+
             ticketJpa.save(new TicketEntity(
                     ticket.getTicketId(),
                     event.getEventId(),
                     ticket.getAreaId(),
                     null,
-                    null,
+                    seatId,
                     ticket.getStatus(),
                     ticket.getPrice(),
                     null,
@@ -184,12 +198,31 @@ public class JpaEventRepository implements IEventRepository {
         List<TicketEntity> tickets = ticketJpa.findByEventId(event.getEventId());
 
         for (TicketEntity ticketEntity : tickets) {
-            Ticket ticket = new org.example.DomainLayer.EventAggregate.StandingTicket(
-                    ticketEntity.getId(),
-                    event.getEventId(),
-                    ticketEntity.getAreaId(),
-                    (float) ticketEntity.getPrice()
-            );
+            Ticket ticket;
+
+            // A linked seat means this was an assigned-seating ticket: rebuild it
+            // as a SittingTicket carrying its row/seat so the seat map renders.
+            SeatEntity seat = ticketEntity.getSeatId() == null
+                    ? null
+                    : seatJpa.findById(ticketEntity.getSeatId()).orElse(null);
+
+            if (seat != null) {
+                ticket = new SittingTicket(
+                        ticketEntity.getId(),
+                        event.getEventId(),
+                        ticketEntity.getAreaId(),
+                        (float) ticketEntity.getPrice(),
+                        seat.getNumber(),
+                        seat.getRow()
+                );
+            } else {
+                ticket = new StandingTicket(
+                        ticketEntity.getId(),
+                        event.getEventId(),
+                        ticketEntity.getAreaId(),
+                        (float) ticketEntity.getPrice()
+                );
+            }
 
             restoreTicketStatus(ticket, ticketEntity.getStatus());
 

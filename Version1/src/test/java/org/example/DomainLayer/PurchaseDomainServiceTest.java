@@ -10,6 +10,9 @@ import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.example.ApplicationLayer.IPaymentGateway;
+import org.example.ApplicationLayer.PaymentDetails;
+import org.example.ApplicationLayer.PaymentResult;
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 import org.example.DomainLayer.AdminAggregate.Admin;
 import org.example.DomainLayer.CompanyAggregate.Company;
@@ -276,11 +279,14 @@ public class PurchaseDomainServiceTest {
         final boolean[] ticketingWasCalled = {false};
 
         purchaseDomainService.setPaymentGateway(
-                (uid, amount, details) -> false
+                (uid, amount, details) -> PaymentResult.failure()
         );
 
         purchaseDomainService.setTicketingGateway(
-                (uid, eid, ticketIds) -> ticketingWasCalled[0] = true
+                (uid, eid, ticketIds) -> {
+                    ticketingWasCalled[0] = true;
+                    return "SIM-TICKET";
+                }
         );
 
         assertThrows(
@@ -292,28 +298,23 @@ public class PurchaseDomainServiceTest {
                 )
         );
 
-        // ticketing לא נקרא
         assertFalse(ticketingWasCalled[0]);
 
-        // ה-active purchase עדיין קיים
         assertNotNull(
                 purchaseRepository.findByID(
                         purchase.getActivePurchaseId()
                 )
         );
 
-        // הכרטיס לא נמכר
         assertEquals(
                 org.example.DomainLayer.EventAggregate.TicketStatus.RESERVED,
                 event.getTicket(ticketId).getStatus()
         );
 
-        // לא נוספה היסטוריה
         assertTrue(
                 historyRepository.getByUserId(userId).isEmpty()
         );
     }
-
 
     @Test
     public void getAllHistory_whenPurchasesExist_returnsAllPurchasesWithoutFiltering() {
@@ -578,11 +579,14 @@ public class PurchaseDomainServiceTest {
         final boolean[] ticketingWasCalled = {false};
 
         purchaseDomainService.setPaymentGateway(
-                (uid, amount, details) -> false
+                (uid, amount, details) -> PaymentResult.failure()
         );
 
         purchaseDomainService.setTicketingGateway(
-                (uid, eid, ticketIds) -> ticketingWasCalled[0] = true
+                (uid, eid, ticketIds) -> {
+                    ticketingWasCalled[0] = true;
+                    return "SIM-TICKET";
+                }
         );
 
         assertThrows(
@@ -596,8 +600,6 @@ public class PurchaseDomainServiceTest {
 
         assertFalse(ticketingWasCalled[0]);
     }
-
-
 
     @Test
     public void isCompanyOwnerOfEvent_whenUserIsOwnerOfEventCompany_returnsTrue() {
@@ -830,8 +832,8 @@ public class PurchaseDomainServiceTest {
         purchaseDomainService.selectSittingTickets(eventId, List.of(ticketId), userId, true);
         ActivePurchase purchase = purchaseRepository.findByUserID(userId);
 
-        purchaseDomainService.setPaymentGateway((uid, amount, details) -> true);
-        purchaseDomainService.setTicketingGateway((uid, eid, ticketIds) -> {});
+        purchaseDomainService.setPaymentGateway((uid, amount, details) -> PaymentResult.success(10000));
+        purchaseDomainService.setTicketingGateway((uid, eid, ticketIds) -> "SIM-TICKET");
 
         purchaseDomainService.completePurchase(
                 purchase.getActivePurchaseId(),
@@ -862,8 +864,8 @@ public class PurchaseDomainServiceTest {
         purchaseDomainService.selectSittingTickets(eventId, List.of(ticketId), userId, true);
         ActivePurchase purchase = purchaseRepository.findByUserID(userId);
 
-        purchaseDomainService.setPaymentGateway((uid, amount, details) -> true);
-        purchaseDomainService.setTicketingGateway((uid, eid, ticketIds) -> {});
+        purchaseDomainService.setPaymentGateway((uid, amount, details) -> PaymentResult.success(10000));
+        purchaseDomainService.setTicketingGateway((uid, eid, ticketIds) -> "SIM-TICKET");
 
         purchaseDomainService.completePurchase(
                 purchase.getActivePurchaseId(),
@@ -877,6 +879,43 @@ public class PurchaseDomainServiceTest {
         assertEquals(userId, history.get(0).getUserId());
         assertEquals(eventId, history.get(0).getEventId());
         assertTrue(history.get(0).getTicketIds().contains(ticketId));
+
+        assertNotNull(history.get(0).getPayment());
+        assertEquals(10000, history.get(0).getPayment().getTransactionId());
+    }
+
+    @Test
+    public void completePurchase_persistsIssuedTicketReferenceToHistory() {
+        UUID eventId = UUID.randomUUID();
+        UUID companyId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID areaId = UUID.randomUUID();
+        UUID ticketId = UUID.randomUUID();
+
+        Event event = event(eventId, companyId);
+        event.getLayout().addArea(new org.example.DomainLayer.EventAggregate.SittingArea(areaId, 100f));
+        event.addTicket(new org.example.DomainLayer.EventAggregate.SittingTicket(ticketId, eventId, areaId, 100f, 1, 1));
+        eventRepository.save(event);
+
+        userRepository.add(new User(userId, "user", "mail", "pass", 20));
+
+        purchaseDomainService.selectSittingTickets(eventId, List.of(ticketId), userId, true);
+        ActivePurchase purchase = purchaseRepository.findByUserID(userId);
+
+        purchaseDomainService.setPaymentGateway((uid, amount, details) -> PaymentResult.success(10000));
+        // The external supply system returns a secure confirmation code; the
+        // purchase record must keep it (V3: receive + register the issuance).
+        purchaseDomainService.setTicketingGateway((uid, eid, ticketIds) -> "TIX-ABC-123");
+
+        purchaseDomainService.completePurchase(
+                purchase.getActivePurchaseId(),
+                new org.example.ApplicationLayer.PaymentDetails(),
+                null
+        );
+
+        List<PurchaseHistory> history = historyRepository.getByUserId(userId);
+        assertEquals(1, history.size());
+        assertEquals("TIX-ABC-123", history.get(0).getIssuedTicketReference());
     }
 
     @Test
@@ -897,10 +936,11 @@ public class PurchaseDomainServiceTest {
         purchaseDomainService.selectSittingTickets(eventId, List.of(ticketId), userId, true);
         ActivePurchase purchase = purchaseRepository.findByUserID(userId);
 
-        purchaseDomainService.setPaymentGateway((uid, amount, details) -> false);
-        purchaseDomainService.setTicketingGateway((uid, eid, ticketIds) ->
-                fail("Ticketing should not be called when payment fails")
-        );
+        purchaseDomainService.setPaymentGateway((uid, amount, details) -> PaymentResult.failure());
+        purchaseDomainService.setTicketingGateway((uid, eid, ticketIds) -> {
+            fail("Ticketing should not be called when payment fails");
+            return "SHOULD_NOT_REACH";
+        });
 
         assertThrows(DomainException.class, () ->
                 purchaseDomainService.completePurchase(
@@ -931,7 +971,18 @@ public class PurchaseDomainServiceTest {
         purchaseDomainService.selectSittingTickets(eventId, List.of(ticketId), userId, true);
         ActivePurchase purchase = purchaseRepository.findByUserID(userId);
 
-        purchaseDomainService.setPaymentGateway((uid, amount, details) -> true);
+        purchaseDomainService.setPaymentGateway(new IPaymentGateway() {
+            @Override
+            public PaymentResult pay(UUID uid, float amount, PaymentDetails details) {
+                return PaymentResult.success(10000);
+            }
+
+            @Override
+            public boolean refund(int transactionId) {
+                return true;
+            }
+        });
+
         purchaseDomainService.setTicketingGateway((uid, eid, ticketIds) -> {
             throw new DomainException("Ticketing failed");
         });
@@ -946,7 +997,6 @@ public class PurchaseDomainServiceTest {
 
         assertTrue(historyRepository.getByUserId(userId).isEmpty());
     }
-
 
     @Test
     public void completePurchase_whenTicketingFails_refundsReleasesTicketsDeletesActivePurchaseAndDoesNotAddHistory() {
@@ -965,19 +1015,22 @@ public class PurchaseDomainServiceTest {
         purchaseDomainService.selectSittingTickets(eventId, List.of(ticketId), userId, true);
         ActivePurchase purchase = purchaseRepository.findByUserID(userId);
         final boolean[] refundWasCalled = {false};
+        final int[] refundedTransactionId = {-1};
 
-        purchaseDomainService.setPaymentGateway(new org.example.ApplicationLayer.IPaymentGateway() {
+        purchaseDomainService.setPaymentGateway(new IPaymentGateway() {
             @Override
-            public boolean pay(UUID uid, float amount, org.example.ApplicationLayer.PaymentDetails details) {
-                return true;
+            public PaymentResult pay(UUID uid, float amount, PaymentDetails details) {
+                return PaymentResult.success(10000);
             }
 
             @Override
-            public boolean refund(UUID uid, float amount, org.example.ApplicationLayer.PaymentDetails details) {
+            public boolean refund(int transactionId) {
                 refundWasCalled[0] = true;
+                refundedTransactionId[0] = transactionId;
                 return true;
             }
         });
+
         purchaseDomainService.setTicketingGateway((uid, eid, ticketIds) -> {
             throw new DomainException("Ticketing failed");
         });
@@ -985,12 +1038,14 @@ public class PurchaseDomainServiceTest {
         assertThrows(DomainException.class, () ->
                 purchaseDomainService.completePurchase(
                         purchase.getActivePurchaseId(),
-                        new org.example.ApplicationLayer.PaymentDetails(),
+                        new PaymentDetails(),
                         null
                 )
         );
 
         assertTrue("payment must be refunded when ticket issuing fails", refundWasCalled[0]);
+        assertEquals("refund must use the original payment transaction id",
+                10000, refundedTransactionId[0]);
         assertNull("failed ticketing must remove the active purchase after compensation",
                 purchaseRepository.findByID(purchase.getActivePurchaseId()));
         assertEquals("ticket must be released back to AVAILABLE after ticketing failure",
@@ -1017,8 +1072,11 @@ public class PurchaseDomainServiceTest {
         purchaseDomainService.selectSittingTickets(eventId, List.of(ticketId), userId, true);
         ActivePurchase purchase = purchaseRepository.findByUserID(userId);
 
-        purchaseDomainService.setPaymentGateway((uid, amount, details) -> false);
-        purchaseDomainService.setTicketingGateway((uid, eid, ticketIds) -> fail("Ticketing should not be called when payment fails"));
+        purchaseDomainService.setPaymentGateway((uid, amount, details) -> PaymentResult.failure());
+        purchaseDomainService.setTicketingGateway((uid, eid, ticketIds) -> {
+            fail("Ticketing should not be called when payment fails");
+            return "SHOULD_NOT_REACH";
+        });
 
         assertThrows(DomainException.class, () ->
                 purchaseDomainService.completePurchase(
@@ -1182,8 +1240,8 @@ public class PurchaseDomainServiceTest {
         purchaseDomainService.selectSittingTickets(eventId, List.of(ticketId), userId, false);
         ActivePurchase purchase = purchaseRepository.findByUserID(userId);
 
-        purchaseDomainService.setPaymentGateway((uid, amount, details) -> true);
-        purchaseDomainService.setTicketingGateway((uid, eid, ticketIds) -> {});
+        purchaseDomainService.setPaymentGateway((uid, amount, details) -> PaymentResult.success(10000));
+        purchaseDomainService.setTicketingGateway((uid, eid, ticketIds) -> "SIM-TICKET");
 
         purchaseDomainService.completePurchase(
                 purchase.getActivePurchaseId(),
@@ -1214,8 +1272,11 @@ public class PurchaseDomainServiceTest {
 
         final boolean[] ticketingWasCalled = {false};
 
-        purchaseDomainService.setPaymentGateway((uid, amount, details) -> true);
-        purchaseDomainService.setTicketingGateway((uid, eid, ticketIds) -> ticketingWasCalled[0] = true);
+        purchaseDomainService.setPaymentGateway((uid, amount, details) -> PaymentResult.success(10000));
+        purchaseDomainService.setTicketingGateway((uid, eid, ticketIds) -> {
+            ticketingWasCalled[0] = true;
+            return "SIM-TICKET";
+        });
 
         purchaseDomainService.completePurchase(
                 purchase.getActivePurchaseId(),
@@ -1393,6 +1454,75 @@ public class PurchaseDomainServiceTest {
                 event.getTicket(ticketId).getStatus()
         );
     }
+
+    @Test
+    public void completePurchase_whenTicketingFailsAndRefundFails_throwsManualReversalMessage() {
+        UUID eventId = UUID.randomUUID();
+        UUID companyId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID areaId = UUID.randomUUID();
+        UUID ticketId = UUID.randomUUID();
+
+        Event event = event(eventId, companyId);
+        event.getLayout().addArea(
+                new org.example.DomainLayer.EventAggregate.SittingArea(areaId, 100f)
+        );
+        event.addTicket(
+                new org.example.DomainLayer.EventAggregate.SittingTicket(
+                        ticketId,
+                        eventId,
+                        areaId,
+                        100f,
+                        1,
+                        1
+                )
+        );
+
+        eventRepository.save(event);
+        userRepository.add(new User(userId, "user", "mail", "pass", 20));
+
+        purchaseDomainService.selectSittingTickets(
+                eventId,
+                List.of(ticketId),
+                userId,
+                true
+        );
+
+        ActivePurchase purchase = purchaseRepository.findByUserID(userId);
+
+        purchaseDomainService.setPaymentGateway(new IPaymentGateway() {
+            @Override
+            public PaymentResult pay(UUID uid, float amount, PaymentDetails details) {
+                return PaymentResult.success(10000);
+            }
+
+            @Override
+            public boolean refund(int transactionId) {
+                return false;
+            }
+        });
+
+        purchaseDomainService.setTicketingGateway((uid, eid, ticketIds) -> {
+            throw new DomainException("Ticketing failed");
+        });
+
+        DomainException exception = assertThrows(
+                DomainException.class,
+                () -> purchaseDomainService.completePurchase(
+                        purchase.getActivePurchaseId(),
+                        new PaymentDetails(),
+                        null
+                )
+        );
+
+        assertTrue(exception.getMessage().contains("refund failed"));
+        assertTrue(exception.getMessage().contains("manual reversal"));
+
+        assertNull(purchaseRepository.findByID(purchase.getActivePurchaseId()));
+        assertEquals(TicketStatus.AVAILABLE, event.getTicket(ticketId).getStatus());
+        assertTrue(historyRepository.getByUserId(userId).isEmpty());
+    }
+
 
     private static class FakeHistoryRepository implements IHistoryRepository {
 

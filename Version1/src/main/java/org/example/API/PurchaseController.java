@@ -8,6 +8,7 @@ import org.example.ApplicationLayer.PurchaseService;
 import org.example.ApplicationLayer.dto.ApiResponse;
 import org.example.ApplicationLayer.dto.PurchaseDTOs.ActivePurchaseDTO;
 import org.example.ApplicationLayer.dto.PurchaseDTOs.CompletePurchaseRequest;
+import org.example.ApplicationLayer.dto.PurchaseDTOs.CompletePurchaseResponse;
 import org.example.ApplicationLayer.dto.PurchaseDTOs.LotteryDrawRequest;
 import org.example.ApplicationLayer.dto.PurchaseDTOs.LotteryRegisterRequest;
 import org.example.ApplicationLayer.dto.PurchaseDTOs.PurchaseHistoryDTO;
@@ -213,12 +214,15 @@ public class PurchaseController {
     }
 
     @PostMapping("/active/{activePurchaseId}/complete")
-    public ResponseEntity<ApiResponse<Void>> completePurchase(
+    public ResponseEntity<ApiResponse<CompletePurchaseResponse>> completePurchase(
             @PathVariable("activePurchaseId") UUID activePurchaseId,
             @RequestBody CompletePurchaseRequest request) {
         try {
-            purchaseService.completePurchase(activePurchaseId, request.paymentDetails, request.couponCode);
-            return ResponseEntity.ok(ApiResponse.success("Purchase completed successfully"));
+            String issuedTicketRef = purchaseService.completePurchase(
+                    activePurchaseId, request.paymentDetails, request.couponCode);
+            return ResponseEntity.ok(ApiResponse.success(
+                    "Purchase completed successfully",
+                    new CompletePurchaseResponse(issuedTicketRef)));
         } catch (IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {

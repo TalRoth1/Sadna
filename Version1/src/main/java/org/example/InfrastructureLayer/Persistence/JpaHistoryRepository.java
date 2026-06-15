@@ -55,7 +55,9 @@ public class JpaHistoryRepository implements IHistoryRepository {
                 purchaseHistory.getEventId(),
                 paymentInfoJson,
                 purchaseHistory.getPayment().getTotal(),
-                purchaseHistory.getPurchaseDate()
+                purchaseHistory.getPurchaseDate(),
+                purchaseHistory.getIssuedTicketReference(),
+                purchaseHistory.getPayment().getTransactionId()
         );
 
         historyJpa.save(entity);
@@ -107,7 +109,11 @@ public class JpaHistoryRepository implements IHistoryRepository {
     }
 
     private PurchaseHistory toDomain(PurchaseHistoryEntity entity) {
-        Payment payment = new Payment(entity.getPurchaseTotal(), entity.getPurchaseInfo());
+        int transactionId = entity.getPaymentTransactionId() == null
+                ? -1
+                : entity.getPaymentTransactionId();
+        Payment payment = new Payment(
+                entity.getPurchaseTotal(), entity.getPurchaseInfo(), transactionId);
 
         List<UUID> ticketIds = ticketJpa.findByPurchaseHistoryId(entity.getId())
             .stream()
@@ -119,7 +125,8 @@ public class JpaHistoryRepository implements IHistoryRepository {
             ticketIds,
             entity.getEventId(),
             payment,
-            entity.getPurchaseDate()
+            entity.getPurchaseDate(),
+            entity.getIssuedTicketRef()
         );
     }
 }
