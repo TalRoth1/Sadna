@@ -1,5 +1,6 @@
 package org.example.ApplicationLayer;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -7,6 +8,23 @@ import java.util.UUID;
 public interface ITicketingGateway
 {
     String issueTickets(UUID userId, UUID eventId, Set<UUID> ticketIds);
+
+    default List<String> issueTicketRefs(UUID userId, UUID eventId, Set<UUID> ticketIds) {
+        if (ticketIds == null || ticketIds.isEmpty()) {
+            return List.of();
+        }
+
+        List<String> refs = new ArrayList<>();
+        for (UUID ticketId : ticketIds) {
+            String ref = issueTickets(userId, eventId, Set.of(ticketId));
+            if (ref == null || ref.isBlank()) {
+                throw new IllegalStateException("Ticketing system did not return a valid ticket identifier");
+            }
+            refs.add(ref);
+        }
+
+        return refs;
+    }
 
     /**
      * System-initiated rollback: cancel ticket codes that were already

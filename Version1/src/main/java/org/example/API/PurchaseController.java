@@ -218,11 +218,11 @@ public class PurchaseController {
             @PathVariable("activePurchaseId") UUID activePurchaseId,
             @RequestBody CompletePurchaseRequest request) {
         try {
-            String issuedTicketRef = purchaseService.completePurchase(
+            List<String> issuedTicketRefs = purchaseService.completePurchase(
                     activePurchaseId, request.paymentDetails, request.couponCode);
             return ResponseEntity.ok(ApiResponse.success(
                     "Purchase completed successfully",
-                    new CompletePurchaseResponse(issuedTicketRef)));
+                    new CompletePurchaseResponse(issuedTicketRefs)));
         } catch (IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {

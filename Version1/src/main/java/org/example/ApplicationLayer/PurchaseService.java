@@ -24,6 +24,7 @@ import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.PurchaseDomainService;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.springframework.stereotype.Service;
+import java.util.Arrays;
 
 @Service
 public class PurchaseService {
@@ -265,7 +266,7 @@ public class PurchaseService {
     }
 }
 
-    public String completePurchase(UUID activePurchaseID, PaymentDetails paymentDetails, String couponCode)
+    public List<String> completePurchase(UUID activePurchaseID, PaymentDetails paymentDetails, String couponCode)
     {
         String normalizedCouponCode =
                 couponCode == null || couponCode.isBlank()
@@ -318,19 +319,31 @@ public class PurchaseService {
                             .filter(record -> userId.equals(record.getUserId()))
                             .max(Comparator.comparing(PurchaseHistory::getPurchaseDate))
                             .map(PurchaseHistory::getIssuedTicketReference)
-                            .orElse(null);
+                            .map(this::splitIssuedTicketRefs)
+                            .orElse(List.of());
                 }
             } catch (RuntimeException lookupError) {
                 logger.warning("Could not resolve issued ticket reference for activePurchaseID="
                         + activePurchaseID + ": " + lookupError.getMessage());
             }
-            return null;
+            return List.of();
         }
         catch (DomainException e) {
             logger.severe("Critical failure in completePurchase for ID " + activePurchaseID +
                     ". Reason: " + e.getMessage());
             throw new IllegalStateException("Couldn't complete purchase: " + e.getMessage());
         }
+    }
+
+    private List<String> splitIssuedTicketRefs(String issuedTicketReference) {
+        if (issuedTicketReference == null || issuedTicketReference.isBlank()) {
+            return List.of();
+        }
+
+        return Arrays.stream(issuedTicketReference.split(","))
+                .map(String::trim)
+                .filter(ref -> !ref.isBlank())
+                .toList();
     }
 
     public List<PurchaseHistoryDTO> getPurchaseHistoryForMember(UUID memberId) {

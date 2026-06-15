@@ -284,18 +284,30 @@ export async function completePurchase(
     activePurchaseId: string,
     paymentDetails: PaymentDetails,
     couponCode: string | null,
-): Promise<string | null> {
+): Promise<string[]> {
     const body: CompletePurchaseRequestBody = {
         paymentDetails,
         couponCode,
     };
+
     try {
         const response = await api.post(
             `/purchases/active/${encodeURIComponent(activePurchaseId)}/complete`,
             body,
         );
-        // Envelope is { success, message, data: { issuedTicketRef } }.
-        return response.data?.data?.issuedTicketRef ?? null;
+
+        // Envelope is { success, message, data: { issuedTicketRef, issuedTicketRefs } }.
+        const data = response.data?.data;
+
+        if (Array.isArray(data?.issuedTicketRefs)) {
+            return data.issuedTicketRefs;
+        }
+
+        if (data?.issuedTicketRef) {
+            return [data.issuedTicketRef];
+        }
+
+        return [];
     } catch (error) {
         throw new Error(extractMessage(error, "Payment failed. Please try again."), {
             cause: error,

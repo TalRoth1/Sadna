@@ -333,16 +333,18 @@ public class PurchaseDomainService {
             // already-issued external codes and refund the payment. This is
             // the cancellation + refund path the assignment asks us to
             // exercise.
-            String issuedTicketReference = null;
+            List<String> issuedTicketReferences = new ArrayList<>();
             try {
-                issuedTicketReference = ticketingGateway.issueTickets(
+                issuedTicketReferences = ticketingGateway.issueTicketRefs(
                         activePurchase.getUserID(),
                         activePurchase.getEventID(),
                         activePurchase.getTicketIDs().keySet());
 
-                if (issuedTicketReference == null || issuedTicketReference.isBlank()) {
-                    throw new DomainException("Ticketing system did not return a valid ticket identifier");
+                if (issuedTicketReferences == null || issuedTicketReferences.isEmpty()) {
+                    throw new DomainException("Ticketing system did not return valid ticket identifiers");
                 }
+
+                String issuedTicketReference = String.join(",", issuedTicketReferences);
 
                 event.sellTickets(activePurchase.getTicketIDs().keySet());
 
@@ -360,12 +362,9 @@ public class PurchaseDomainService {
                         activePurchase,
                         finalPrice,
                         paymentResult.getTransactionId(),
-                        issuedTicketReference,
+                        issuedTicketReferences,
                         purchaseFailure
                 );
-                // unreachable — compensateFailedTicketing always throws. We
-                // throw here too so the compiler is satisfied without anyone
-                // mistakenly reading this as a "silent failure" return.
                 throw new IllegalStateException(
                         "compensateFailedTicketing should always throw");
             }
@@ -430,15 +429,15 @@ public class PurchaseDomainService {
             ActivePurchase activePurchase,
             float chargedAmount,
             int transactionId,
-            String issuedTicketReference,
+            List<String> issuedTicketReferences,
             RuntimeException originalFailure) {
         // Step A: if external tickets were already issued before the failure,
         // cancel them so we don't leave orphaned codes at the provider. The
         // gateway swallows cancellation errors, but we guard again here so a
         // rollback problem can never hide the original failure or the refund.
-        if (issuedTicketReference != null && !issuedTicketReference.isBlank()) {
+        if (issuedTicketReferences != null && !issuedTicketReferences.isEmpty()) {
             try {
-                ticketingGateway.cancelTickets(List.of(issuedTicketReference));
+                ticketingGateway.cancelTickets(issuedTicketReferences);
             } catch (RuntimeException cancelError) {
                 // best-effort — proceed to refund regardless
             }
