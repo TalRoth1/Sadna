@@ -641,7 +641,11 @@ public Map<String, String> drawLotteryForEvent(UUID eventId, LocalDateTime codeE
                     "'. Your access code: " + accessCode +
                     ". Use it on the event page to continue to ticket selection.";
 
-            notifier.notifyUser(winnerId, message);
+            try {
+                notifier.notifyUser(UUID.fromString(winnerId), message);
+            } catch (IllegalArgumentException e) {
+                notifier.notifyUser(winnerId, message);
+            }
         }
 
         return winnerCodes;
