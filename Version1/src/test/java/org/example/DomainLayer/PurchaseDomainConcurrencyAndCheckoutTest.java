@@ -780,6 +780,9 @@ public class PurchaseDomainConcurrencyAndCheckoutTest {
             return new ArrayList<>(lotteriesById.values());
         }
 
-
+        @Override
+        public List<UUID> findEventIdsReadyForDraw(LocalDateTime now) {
+            return Collections.emptyList();
+        }
     }
 }

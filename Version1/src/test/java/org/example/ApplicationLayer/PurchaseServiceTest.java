@@ -1644,6 +1644,11 @@ public class PurchaseServiceTest {
         public List<PuchaseLottery> findAll() {
             return new ArrayList<>(lotteriesByEvent.values());
         }
+
+        @Override
+        public List<UUID> findEventIdsReadyForDraw(LocalDateTime now) {
+            return Collections.emptyList();
+        }
     }
 
     @Test

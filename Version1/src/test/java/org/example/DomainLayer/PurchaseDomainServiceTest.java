@@ -1746,5 +1746,10 @@ public class PurchaseDomainServiceTest {
         public List<PuchaseLottery> findAll() {
             return new ArrayList<>(lotteriesById.values());
         }
+
+        @Override
+        public List<UUID> findEventIdsReadyForDraw(LocalDateTime now) {
+            return new ArrayList<>();
+        }
     }
 }
