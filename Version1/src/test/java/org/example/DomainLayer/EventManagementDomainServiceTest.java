@@ -75,6 +75,14 @@ public class EventManagementDomainServiceTest {
         return user;
     }
 
+    /**
+     * Link the {@code event} mock to {@code username} via the persisted
+     * manager_username field that deleteEvent now matches against.
+     */
+    private void linkEventToManager() {
+        when(event.getManagerUsername()).thenReturn(username);
+    }
+
     @Test
     public void getEventPurchaseHistory_whenEventExistsAndUserIsOwner_returnsHistory() {
         List<PurchaseHistory> expected = List.of(mock(PurchaseHistory.class));
@@ -311,6 +319,7 @@ public class EventManagementDomainServiceTest {
     public void deleteEvent_whenEventExists_deletesEvent() {
         when(eventRepository.getById(eventId)).thenReturn(event);
         when(userRepository.findByEmail(username)).thenReturn(Optional.of(managerUserWithEvent(eventId)));
+        linkEventToManager();
 
         boolean result = service.deleteEvent(eventId, username, username);
 
@@ -343,6 +352,7 @@ public class EventManagementDomainServiceTest {
         when(userRepository.findByEmail(username)).thenReturn(Optional.of(managerUserWithEvent(eventId)));
         when(historyRepository.getByEventId(eventId)).thenReturn(purchases);
         when(paymentGateway.refund(anyInt())).thenReturn(true);
+        linkEventToManager();
 
         boolean result = service.deleteEvent(eventId, username, username);
 
@@ -361,6 +371,7 @@ public class EventManagementDomainServiceTest {
         when(eventRepository.getById(eventId)).thenReturn(event);
         when(userRepository.findByEmail(username)).thenReturn(Optional.of(managerUserWithEvent(eventId)));
         when(historyRepository.getByEventId(eventId)).thenReturn(purchases);
+        linkEventToManager();
 
         boolean result = service.deleteEvent(eventId, username, username);
 
@@ -379,6 +390,7 @@ public class EventManagementDomainServiceTest {
         when(userRepository.findByEmail(username)).thenReturn(Optional.of(managerUserWithEvent(eventId)));
         when(historyRepository.getByEventId(eventId)).thenReturn(purchases);
         when(paymentGateway.refund(anyInt())).thenThrow(new RuntimeException("clearing system down"));
+        linkEventToManager();
 
         boolean result = service.deleteEvent(eventId, username, username);
 
@@ -397,6 +409,7 @@ public class EventManagementDomainServiceTest {
         when(userRepository.findByEmail(username)).thenReturn(Optional.of(managerUserWithEvent(eventId)));
         when(historyRepository.getByEventId(eventId)).thenReturn(purchases);
         when(paymentGateway.refund(12345)).thenReturn(false);
+        linkEventToManager();
 
         boolean result = service.deleteEvent(eventId, username, username);
 
@@ -465,6 +478,7 @@ public class EventManagementDomainServiceTest {
         when(eventRepository.getById(eventId)).thenReturn(event);
         when(event.getStatus()).thenReturn(EventStatus.CANCELED);
         when(userRepository.findByEmail(username)).thenReturn(Optional.of(managerUserWithEvent(eventId)));
+        linkEventToManager();
 
         boolean result = service.deleteEvent(eventId, username, username);
 

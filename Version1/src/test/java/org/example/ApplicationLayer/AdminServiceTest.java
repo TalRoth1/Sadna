@@ -20,9 +20,6 @@ import org.example.DomainLayer.AdminAggregate.SystemAnalyticsSnapshot;
 import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.PolicyManagment.DiscountType;
-import org.example.DomainLayer.UserAggregate.CompanyFounder;
-import org.example.DomainLayer.UserAggregate.CompanyManager;
-import org.example.DomainLayer.UserAggregate.CompanyOwner;
 import org.example.DomainLayer.UserAggregate.ICompanyMember;
 import org.example.DomainLayer.UserAggregate.User;
 import org.junit.jupiter.api.BeforeEach;
@@ -344,7 +341,7 @@ class AdminServiceTest {
             Company c1 = new Company("founder1@test.com", "Acme", DiscountType.ALL);
             Company c2 = new Company("founder2@test.com", "Globex", DiscountType.ALL);
             when(companyRepository.getAll()).thenReturn(List.of(c1, c2));
-            when(userRepository.getAllUsers()).thenReturn(Map.of());
+            when(userRepository.countCompanyMembersByRole(any())).thenReturn(Map.of());
 
             List<AdminCompanyDTO> result = adminService.getCompanies(ADMIN_ID, ADMIN_USERNAME);
 
@@ -356,26 +353,11 @@ class AdminServiceTest {
             Company company   = new Company("founder@test.com", "Acme", DiscountType.ALL);
             UUID    companyId = company.getId();
 
-            User founderUser  = mock(User.class);
-            User ownerUser    = mock(User.class);
-            User managerUser  = mock(User.class);
-            User strangerUser = mock(User.class);
-
-            when(founderUser.getCompanyRole(companyId))
-                    .thenReturn(new CompanyFounder("founderUser"));
-            when(ownerUser.getCompanyRole(companyId))
-                    .thenReturn(new CompanyOwner("ownerUser", null));
-            when(managerUser.getCompanyRole(companyId))
-                    .thenReturn(new CompanyManager("managerUser", null, Set.of()));
-            when(strangerUser.getCompanyRole(companyId))
-                    .thenReturn(null);
-
             when(companyRepository.getAll()).thenReturn(List.of(company));
-            when(userRepository.getAllUsers()).thenReturn(Map.of(
-                    UUID.randomUUID(), founderUser,
-                    UUID.randomUUID(), ownerUser,
-                    UUID.randomUUID(), managerUser,
-                    UUID.randomUUID(), strangerUser
+            when(userRepository.countCompanyMembersByRole(companyId)).thenReturn(Map.of(
+                    "FOUNDER", 1L,
+                    "OWNER",   1L,
+                    "MANAGER", 1L
             ));
 
             AdminCompanyDTO dto = adminService.getCompanies(ADMIN_ID, ADMIN_USERNAME).get(0);
@@ -389,7 +371,7 @@ class AdminServiceTest {
         void getCompanies_ActiveCompany_DtoHasCorrectNameAndActiveStatus() {
             Company company = new Company("a@test.com", "Active Inc", DiscountType.ALL);
             when(companyRepository.getAll()).thenReturn(List.of(company));
-            when(userRepository.getAllUsers()).thenReturn(Map.of());
+            when(userRepository.countCompanyMembersByRole(any())).thenReturn(Map.of());
 
             AdminCompanyDTO dto = adminService.getCompanies(ADMIN_ID, ADMIN_USERNAME).get(0);
 
@@ -410,7 +392,7 @@ class AdminServiceTest {
             UUID adminUserId = UUID.randomUUID();
             User adminUser   = mock(User.class);
             when(adminUser.getUsername()).thenReturn("sysadmin2");
-            when(userRepository.isSystemAdmin("sysadmin2")).thenReturn(true);
+            when(userRepository.getAllAdminUsernames()).thenReturn(Set.of("sysadmin2"));
             when(userRepository.getAllUsers()).thenReturn(Map.of(adminUserId, adminUser));
 
             List<AdminSubscriberDTO> result = adminService.getSubscribers(ADMIN_ID, ADMIN_USERNAME);
@@ -425,7 +407,7 @@ class AdminServiceTest {
             User removedUser = new User(removedId, "removed", "r@test.com", "hash", 25f);
             removedUser.removeFromPlatformAsAdmin();
 
-            when(userRepository.isSystemAdmin("removed")).thenReturn(false);
+            when(userRepository.getAllAdminUsernames()).thenReturn(Set.of());
             when(userRepository.getAllUsers()).thenReturn(Map.of(removedId, removedUser));
 
             List<AdminSubscriberDTO> result = adminService.getSubscribers(ADMIN_ID, ADMIN_USERNAME);
@@ -438,7 +420,7 @@ class AdminServiceTest {
             UUID userId = UUID.randomUUID();
             User user   = new User(userId, "john", "john@test.com", "hash", 30f);
 
-            when(userRepository.isSystemAdmin("john")).thenReturn(false);
+            when(userRepository.getAllAdminUsernames()).thenReturn(Set.of());
             when(userRepository.getAllUsers()).thenReturn(Map.of(userId, user));
 
             List<AdminSubscriberDTO> result = adminService.getSubscribers(ADMIN_ID, ADMIN_USERNAME);
