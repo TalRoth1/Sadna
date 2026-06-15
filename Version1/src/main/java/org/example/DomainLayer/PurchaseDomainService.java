@@ -3,9 +3,11 @@ package org.example.DomainLayer;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -858,39 +860,73 @@ public class PurchaseDomainService {
         }
     }
 
-    public Map<String, String> drawLotteryForEvent(UUID eventId, LocalDateTime codeExpiry) {
+    public Set<String> getRegisteredUsersForLottery(UUID eventId) {
         if (eventId == null) {
             throw new DomainException("Event ID is required");
         }
 
-        if (codeExpiry == null) {
-            throw new DomainException("Code expiry is required");
-        }
-
-        Event event = eventRepository.getById(eventId);
-        if (event == null) {
-            throw new DomainException("Event does not exist");
-        }
-
         PuchaseLottery lottery = lotteryRepository.findByEventID(eventId);
+
         if (lottery == null) {
             throw new DomainException("Lottery does not exist for this event");
         }
 
-        int availableTickets = (int) event.getTicketsView()
-                .values()
-                .stream()
-                .filter(t -> t.getStatus() == TicketStatus.AVAILABLE)
-                .count();
-
-        Map<String, String> winnerCodes = lottery.drawWinners(availableTickets, codeExpiry);
-
-        lotteryRepository.save(lottery);
-
-        return winnerCodes;
+        return new HashSet<>(lottery.getRegisteredUsers());
     }
 
-    public SalesReport getSalesReportForOwner(String ownerEmail, UUID companyId) {
+public Map<String, String> drawLotteryForEvent(UUID eventId, LocalDateTime codeExpiry) {
+    if (eventId == null) {
+        throw new DomainException("Event ID is required");
+    }
+
+    if (codeExpiry == null) {
+        throw new DomainException("Code expiry is required");
+    }
+
+    Event event = eventRepository.getById(eventId);
+    if (event == null) {
+        throw new DomainException("Event does not exist");
+    }
+
+    PuchaseLottery lottery = lotteryRepository.findByEventID(eventId);
+    if (lottery == null) {
+        throw new DomainException("Lottery does not exist for this event");
+    }
+
+    if (lottery.getRegisteredUsers().isEmpty()) {
+        throw new DomainException("No registered users to draw from");
+    }
+
+    int availableTickets = (int) event.getTicketsView()
+            .values()
+            .stream()
+            .filter(t -> t.getStatus() == TicketStatus.AVAILABLE)
+            .count();
+
+    if (availableTickets <= 0) {
+        throw new DomainException("No available tickets for this lottery event");
+    }
+
+    Map<String, String> winnerCodes =
+            lottery.drawWinners(availableTickets, codeExpiry);
+
+    /*
+     * Important:
+     * If this is empty, nothing will be saved to lottery_winners.
+     * Do not treat that as a successful draw.
+     */
+    if (winnerCodes.isEmpty()) {
+        throw new DomainException(
+                "No winners could be selected. The registered users may have requested more tickets than the available ticket count."
+        );
+    }
+
+    lotteryRepository.save(lottery);
+
+    return winnerCodes;
+}
+
+public SalesReport getSalesReportForOwner(String ownerEmail, UUID companyId) {
         Company company = companyRepository.findByID(companyId).orElse(null);
         if (company == null) {
             throw new IllegalArgumentException("Company not found");

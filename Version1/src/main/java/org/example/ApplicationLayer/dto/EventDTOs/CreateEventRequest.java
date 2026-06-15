@@ -17,8 +17,13 @@ public class CreateEventRequest {
     public EventStatus status;
     public String description;
     public DiscountType discountType;
+
+    // probably old fields, can stay for now if other code still uses them
     public Float ticketPrice;
     public Integer availableTickets;
+
+    // new field
+    public CreateLotteryRequest lottery;
 
     public CreateEventRequest() {}
 }

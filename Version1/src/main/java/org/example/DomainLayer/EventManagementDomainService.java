@@ -23,6 +23,8 @@ import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.example.DomainLayer.UserAggregate.ICompanyMember;
 import org.example.DomainLayer.UserAggregate.User;
 
+import jakarta.transaction.Transactional;
+
 public class EventManagementDomainService {
 
     private static final Logger logger =
@@ -628,21 +630,10 @@ public class EventManagementDomainService {
         return out;
     }
 
+    @Transactional
     public void createLotteryForEvent(UUID eventId,
                                     LocalDateTime registrationOpen,
                                     LocalDateTime registrationClose) {
-        if (eventId == null) {
-            throw new DomainException("Event id is required");
-        }
-
-        if (registrationOpen == null || registrationClose == null) {
-            throw new DomainException("Lottery registration dates are required");
-        }
-
-        if (!registrationClose.isAfter(registrationOpen)) {
-            throw new DomainException("Lottery registration close time must be after open time");
-        }
-
         Event event = eventRepository.getById(eventId);
 
         if (event == null) {
@@ -662,10 +653,13 @@ public class EventManagementDomainService {
                 registrationClose
         );
 
+        // חייב להיות קודם
         lotteryRepository.save(lottery);
 
+        // רק אחרי שההגרלה קיימת ב-DB
         event.setLotteryId(lotteryId.toString());
 
+        // עכשיו אפשר לשמור את האירוע עם foreign key תקין
         eventRepository.save(event);
     }
 

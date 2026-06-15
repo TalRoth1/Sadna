@@ -1,5 +1,7 @@
 package org.example.API;
 
+import java.util.List;
+
 import org.example.ApplicationLayer.ActivePurchaseCleaner;
 import org.example.ApplicationLayer.EventPublisher;
 import org.example.ApplicationLayer.IActiveSessionRegistry;
@@ -7,16 +9,16 @@ import org.example.ApplicationLayer.IAuthenticationGateway;
 import org.example.ApplicationLayer.IKeyedLock;
 import org.example.ApplicationLayer.ILoginRateLimiter;
 import org.example.ApplicationLayer.IPaymentGateway;
-import org.example.ApplicationLayer.PaymentProvider;
 import org.example.ApplicationLayer.ISystemMetricsTracker;
 import org.example.ApplicationLayer.ITicketingGateway;
-import org.example.ApplicationLayer.TicketingProvider;
 import org.example.ApplicationLayer.ITokenBlacklist;
 import org.example.ApplicationLayer.JwtService;
 import org.example.ApplicationLayer.LotteryScheduler;
+import org.example.ApplicationLayer.PaymentProvider;
 import org.example.ApplicationLayer.PurchaseService;
 import org.example.ApplicationLayer.QueueManager;
 import org.example.ApplicationLayer.SystemMetricsCollector;
+import org.example.ApplicationLayer.TicketingProvider;
 import org.example.DomainLayer.EventManagementDomainService;
 import org.example.DomainLayer.IAdminRepository;
 import org.example.DomainLayer.ICompanyRepository;
@@ -55,8 +57,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Profile;
-
-import java.util.List;
 
 /**
  * Spring wiring for the domain + infrastructure layers.
@@ -101,6 +101,7 @@ public class BeanConfig {
     }
 
     @Bean
+    @Profile("!localdb")
     public ILotteryRepository lotteryRepository() {
         return new LotteryRepository();
     }
@@ -359,14 +360,11 @@ public class BeanConfig {
             config.getSweepInterval(),
             config.getWarningBeforeExpirySeconds());
     }
-
     @Bean(initMethod = "start", destroyMethod = "interrupt")
     public LotteryScheduler lotteryScheduler(
-            PurchaseDomainService purchaseDomainService,
-            ILotteryRepository lotteryRepository,
-            INotifier notifier,
-            IEventRepository eventRepository) {
-        return new LotteryScheduler(purchaseDomainService, lotteryRepository, notifier, eventRepository);
+            PurchaseService purchaseService,
+            ILotteryRepository lotteryRepository) {
+        return new LotteryScheduler(purchaseService, lotteryRepository);
     }
 
     // ---------------------------------------------------------------------

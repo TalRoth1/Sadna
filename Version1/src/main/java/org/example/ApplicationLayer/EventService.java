@@ -19,6 +19,7 @@ import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.EventSummaryDto;
 import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.PurchasePolicyDto;
 import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.PurchaseRuleDto;
 import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.TicketDetailsDto;
+import org.example.ApplicationLayer.dto.EventDTOs.CreateEventRequest;
 import org.example.ApplicationLayer.dto.PurchaseDTOs.PurchaseHistoryDTO;
 import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.DomainLayer.DomainException;
@@ -37,6 +38,7 @@ import org.example.DomainLayer.PolicyManagment.AgeRule;
 import org.example.DomainLayer.PolicyManagment.ConditionalDiscount;
 import org.example.DomainLayer.PolicyManagment.CouponCode;
 import org.example.DomainLayer.PolicyManagment.DiscountPolicy;
+import org.example.DomainLayer.PolicyManagment.DiscountType;
 import org.example.DomainLayer.PolicyManagment.IDiscountRule;
 import org.example.DomainLayer.PolicyManagment.IPurchaseRule;
 import org.example.DomainLayer.PolicyManagment.LoneSeatRule;
@@ -47,8 +49,7 @@ import org.example.DomainLayer.PolicyManagment.PurchaseComposite;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.springframework.stereotype.Service;
 
-import org.example.DomainLayer.PolicyManagment.DiscountPolicy;
-import org.example.DomainLayer.PolicyManagment.DiscountType;
+import jakarta.transaction.Transactional;
 
 @Service
 public class EventService {
@@ -1164,4 +1165,53 @@ public class EventService {
         }
     }
 
+    @Transactional
+    public EventDetailsDto createLotteryEvent(CreateEventRequest request) {
+        logger.info("[Event Log] Method: createLotteryEvent called");
+
+        if (request == null) {
+            throw new IllegalArgumentException("request is required");
+        }
+
+        if (request.lottery == null) {
+            throw new IllegalArgumentException("Lottery details are required");
+        }
+
+        if (request.lottery.registrationOpen == null) {
+            throw new IllegalArgumentException("registrationOpen is required");
+        }
+
+        if (request.lottery.registrationClose == null) {
+            throw new IllegalArgumentException("registrationClose is required");
+        }
+
+        if (!request.lottery.registrationClose.isAfter(request.lottery.registrationOpen)) {
+            throw new IllegalArgumentException("Lottery registration close time must be after open time");
+        }
+
+        UUID eventId = UUID.randomUUID();
+
+        eventManagementDomainService.addEvent(
+                eventId,
+                request.companyId,
+                request.eventManagerEmail,
+                request.name,
+                request.date,
+                request.location,
+                request.artist,
+                "Lottery",
+                request.status,
+                request.description,
+                request.discountType
+        );
+
+        eventManagementDomainService.createLotteryForEvent(
+                eventId,
+                request.lottery.registrationOpen,
+                request.lottery.registrationClose
+        );
+
+        Event event = eventManagementDomainService.getEventForView(eventId);
+        return toDetails(event);
+    }
 }
