@@ -1,4 +1,4 @@
-import { useState } from "react";
+import {useEffect, useState} from "react";
 import NavigationMenu from "./components/NavigationMenu";
 import type { AppPage } from "./components/NavigationMenu";
 import AdminAnalyticsPage from "./pages/admin/AdminAnalyticsPage";
@@ -26,6 +26,7 @@ import type { CompanyResponse } from "./services/companyService";
 import type { AdminActionId } from "./types/admin";
 import "./App.css";
 import MyActivePurchasesPage from "./pages/MyActivePurchasesPage";
+import SystemAdminRequiredPage from "./pages/SystemAdminRequiredPage";
 
 type CompanyStatus = "Active" | "Suspended" | "Closed";
 
@@ -121,6 +122,40 @@ function App() {
     const [lotteryAccessCode, setLotteryAccessCode] = useState<string | null>(null);
     const [selectedCompany, setSelectedCompany] = useState<SelectedCompany | null>(null);
     const [createEventCompanyId, setCreateEventCompanyId] = useState<string | null>(null);
+
+
+    const [backendAvailable, setBackendAvailable] = useState<boolean | null>(null);
+
+    useEffect(() => {
+        let mounted = true;
+
+        fetch("http://localhost:8080/api/system/ping", {
+            method: "GET",
+        })
+            .then(() => {
+                if (mounted) {
+                    setBackendAvailable(true);
+                }
+            })
+            .catch(() => {
+                if (mounted) {
+                    setBackendAvailable(false);
+                }
+            });
+
+        return () => {
+            mounted = false;
+        };
+    }, []);
+
+    if (backendAvailable === null) {
+        return <div>Loading...</div>;
+    }
+
+    if (!backendAvailable) {
+        return <SystemAdminRequiredPage />;
+    }
+
 
     function navigate(page: AppPage) {
         if (
