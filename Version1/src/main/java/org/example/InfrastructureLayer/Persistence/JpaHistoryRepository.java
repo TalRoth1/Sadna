@@ -15,10 +15,15 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 @Repository
 @Profile("localdb")
 @Transactional
 public class JpaHistoryRepository implements IHistoryRepository {
+
+    private static final ObjectMapper PAYMENT_INFO_MAPPER = new ObjectMapper();
 
     private final SpringDataHistoryRepository historyJpa;
     private final SpringDataTicketRepository ticketJpa;
@@ -113,7 +118,7 @@ public class JpaHistoryRepository implements IHistoryRepository {
                 ? -1
                 : entity.getPaymentTransactionId();
         Payment payment = new Payment(
-                entity.getPurchaseTotal(), entity.getPurchaseInfo(), transactionId);
+                entity.getPurchaseTotal(), parsePaymentInfo(entity.getPurchaseInfo()), transactionId);
 
         List<UUID> ticketIds = ticketJpa.findByPurchaseHistoryId(entity.getId())
             .stream()
@@ -128,6 +133,32 @@ public class JpaHistoryRepository implements IHistoryRepository {
             entity.getPurchaseDate(),
             entity.getIssuedTicketRef()
         );
+    }
+
+    /**
+     * The payment info is persisted as a small JSON envelope ({@code {"info":"..."}}).
+     * Unwrap it back to the human-readable value so the UI shows e.g.
+     * "Valid payment" rather than the raw JSON. Legacy/plain values (not JSON)
+     * are returned as-is.
+     */
+    private String parsePaymentInfo(String stored) {
+        if (stored == null || stored.isBlank()) {
+            return "Valid payment";
+        }
+
+        String trimmed = stored.trim();
+        if (trimmed.startsWith("{")) {
+            try {
+                JsonNode info = PAYMENT_INFO_MAPPER.readTree(trimmed).get("info");
+                if (info != null && !info.isNull()) {
+                    return info.asText();
+                }
+            } catch (Exception ignored) {
+                // Not valid JSON — fall back to the raw stored value below.
+            }
+        }
+
+        return stored;
     }
 }
 

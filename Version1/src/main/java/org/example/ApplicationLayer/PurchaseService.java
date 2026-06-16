@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -16,7 +17,12 @@ import org.example.ApplicationLayer.dto.PurchaseDTOs.PurchaseHistoryDTO;
 import org.example.ApplicationLayer.dto.PurchaseDTOs.SelectionAccessDTO;
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 import org.example.DomainLayer.DomainException;
+import org.example.DomainLayer.EventAggregate.Area;
 import org.example.DomainLayer.EventAggregate.Event;
+import org.example.DomainLayer.EventAggregate.SittingArea;
+import org.example.DomainLayer.EventAggregate.SittingTicket;
+import org.example.DomainLayer.EventAggregate.StandingArea;
+import org.example.DomainLayer.EventAggregate.Ticket;
 import org.example.DomainLayer.Events.LotteryWonEvent;
 import org.example.DomainLayer.Events.PurchaseCompletedEvent;
 import org.example.DomainLayer.Events.TicketReservedEvent;
@@ -720,7 +726,7 @@ private SelectionAccessDTO toSelectionAccessDTO(UUID userId, UUID eventId, Queue
         dto.ticketsAmount = (dto.ticketIds == null) ? 0 : dto.ticketIds.size();
 
         if (history.getPayment() != null) {
-            dto.paymentInfo = history.getPayment().toString();
+            dto.paymentInfo = history.getPayment().getPaymentInfo();
             dto.totalPrice = history.getPayment().getTotal();
         }
 
@@ -737,6 +743,63 @@ private SelectionAccessDTO toSelectionAccessDTO(UUID userId, UUID eventId, Queue
         dto.eventName = event.getName();
         dto.eventDate = event.getDate();
         dto.eventLocation = event.getLocation();
+        dto.seatLabels = buildSeatLabels(event, dto.ticketIds);
+    }
+
+    /**
+     * Builds a per-ticket seat descriptor aligned by index with {@code ticketIds},
+     * so the purchase-history page can show which seat each issued QR belongs to.
+     * Uses the same synthesized area naming the frontend applies on the event
+     * pages ("Sitting area N" / "Standing area N") for a consistent display.
+     */
+    private List<String> buildSeatLabels(Event event, List<UUID> ticketIds) {
+        List<String> labels = new ArrayList<>();
+        if (ticketIds == null || ticketIds.isEmpty()) {
+            return labels;
+        }
+
+        Map<UUID, String> areaNameById = synthesizeAreaNames(event);
+        Map<UUID, Ticket> ticketsById = event.getTicketsView();
+
+        for (UUID ticketId : ticketIds) {
+            Ticket ticket = ticketsById.get(ticketId);
+            if (ticket == null) {
+                labels.add("Ticket");
+                continue;
+            }
+
+            String areaName = areaNameById.getOrDefault(ticket.getAreaId(), "Area");
+            if (ticket instanceof SittingTicket st) {
+                labels.add(areaName + " \u00B7 Row " + st.getSeatRow()
+                        + " \u00B7 Seat " + st.getSeatNumber());
+            } else {
+                labels.add(areaName + " \u00B7 Standing");
+            }
+        }
+
+        return labels;
+    }
+
+    private Map<UUID, String> synthesizeAreaNames(Event event) {
+        Map<UUID, String> names = new LinkedHashMap<>();
+        int standingIndex = 0;
+        int sittingIndex = 0;
+
+        for (Area area : event.getLayout().getAreasView()) {
+            String name;
+            if (area instanceof StandingArea) {
+                standingIndex += 1;
+                name = "Standing area " + standingIndex;
+            } else if (area instanceof SittingArea) {
+                sittingIndex += 1;
+                name = "Sitting area " + sittingIndex;
+            } else {
+                name = "Area";
+            }
+            names.put(area.getAreaId(), name);
+        }
+
+        return names;
     }
 
     private void populateEventFields(ActivePurchaseDTO dto, UUID eventId) {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
     connectNotificationStream,
     getUnreadNotifications,
@@ -7,6 +7,21 @@ import {
 } from "../services/notificationService";
 import type { CurrentUser } from "../services/currentUserService";
 import type { UserNotification } from "../types/notification";
+import { showToast, type ToastType } from "./toast";
+
+function toastTypeFor(notificationType?: string): ToastType {
+    switch (notificationType) {
+        case "PURCHASE_COMPLETED":
+        case "LOTTERY_WON":
+        case "QUEUE_ACCESS_GRANTED":
+            return "success";
+        case "COMPANY_CLOSED":
+        case "EVENT_CANCELLED":
+            return "error";
+        default:
+            return "info";
+    }
+}
 
 type NotificationsPopupProps = {
     currentUser: CurrentUser | null;
@@ -90,6 +105,9 @@ export default function NotificationsPopup({
     const [notifications, setNotifications] = useState<UserNotification[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [errorMessage, setErrorMessage] = useState("");
+    // Notification ids we've already shown a popup for, so a single event never
+    // alerts twice (guards against reconnects / StrictMode double-mount).
+    const alertedIdsRef = useRef<Set<string>>(new Set());
 
     useEffect(() => {
         let disconnect: (() => void) | undefined;
@@ -105,7 +123,7 @@ export default function NotificationsPopup({
 
         disconnect = connectNotificationStream(
             userId,
-            (notification) => {
+            (notification, meta) => {
                 if (isCancelled) {
                     return;
                 }
@@ -114,7 +132,17 @@ export default function NotificationsPopup({
                     mergeNotification(currentNotifications, notification),
                 );
 
-                alert(notification.message);
+                // Only pop an alert for fresh, live notifications — never for
+                // the unread backlog the server replays on every reconnect.
+                if (meta.delayed || alertedIdsRef.current.has(notification.id)) {
+                    return;
+                }
+
+                alertedIdsRef.current.add(notification.id);
+                showToast(
+                    notification.message,
+                    toastTypeFor(notification.type),
+                );
             },
         );
 
