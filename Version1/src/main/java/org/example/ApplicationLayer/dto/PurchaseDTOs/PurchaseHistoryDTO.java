@@ -22,6 +22,11 @@ public class PurchaseHistoryDTO {
     // Secure confirmation/barcode returned by the external ticketing system.
     public String issuedTicketRef;
 
+    // Human-readable seat descriptor per purchased ticket, aligned by index with
+    // ticketIds (e.g. "Sitting area 1 · Row 2 · Seat 5" or "Standing area 1 ·
+    // Standing"). Lets the purchase-history page show which seat each QR is for.
+    public List<String> seatLabels;
+
     public LocalDateTime purchaseDate;
 
     public PurchaseHistoryDTO() {}

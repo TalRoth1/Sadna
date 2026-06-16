@@ -793,7 +793,7 @@ public class AdminService {
         dto.ticketsAmount = dto.ticketIds == null ? 0 : dto.ticketIds.size();
 
         if (history.getPayment() != null) {
-            dto.paymentInfo = history.getPayment().toString();
+            dto.paymentInfo = history.getPayment().getPaymentInfo();
             dto.totalPrice = history.getPayment().getTotal();
         } else {
             dto.paymentInfo = "";

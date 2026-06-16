@@ -178,6 +178,7 @@ public class EventManagementDomainService {
         if (!userRepository.hasPermission(username, companyId, CompanyPermission.MANAGE_POLICIES, eventId))
             throw new IllegalArgumentException("User has no permissions to change event policies");
         event.addPurchasePolicy(age, minTicket, maxTicket, allowLoneSeat, andOr);
+        eventRepository.save(event);
     }
 
     public boolean areLotteryWinnersDrawn(UUID eventId) {
@@ -231,6 +232,7 @@ public class EventManagementDomainService {
         if (!userRepository.hasPermission(username, companyId, CompanyPermission.MANAGE_POLICIES, eventId))
             throw new IllegalArgumentException("User has no permissions to change event policies");
         event.deletePurchaseRule(ruleId);
+        eventRepository.save(event);
     }
 
     public void addOvertDiscount(String username, UUID companyId, UUID eventId, LocalDate fromDate, LocalDate toDate,
@@ -244,6 +246,7 @@ public class EventManagementDomainService {
         if (!userRepository.hasPermission(username, companyId, CompanyPermission.MANAGE_POLICIES, eventId))
             throw new IllegalArgumentException("User has no permissions to change event policies");
         event.addOvertDiscount(fromDate, toDate, discountPrecent);
+        eventRepository.save(event);
     }
 
     public void addConditionalDiscount(String username, UUID companyId, UUID eventId, LocalDate fromDate,
@@ -257,6 +260,7 @@ public class EventManagementDomainService {
         if (!userRepository.hasPermission(username, companyId, CompanyPermission.MANAGE_POLICIES, eventId))
             throw new IllegalArgumentException("User has no permissions to change event policies");
         event.addConditionalDiscount(fromDate, toDate, discountPrecent, requiredTickets, appliedTickets);
+        eventRepository.save(event);
     }
 
     public void addCouponCode(String username, UUID companyId, UUID eventId, LocalDate fromDate, LocalDate toDate,
@@ -270,6 +274,7 @@ public class EventManagementDomainService {
         if (!userRepository.hasPermission(username, companyId, CompanyPermission.MANAGE_POLICIES, eventId))
             throw new IllegalArgumentException("User has no permissions to change event policies");
         event.addCouponCode(fromDate, toDate, discountPrecent, code);
+        eventRepository.save(event);
     }
 
     public void removeDiscount(String username, UUID companyId, UUID eventId, UUID discountId) {
@@ -285,6 +290,7 @@ public class EventManagementDomainService {
         if (!user.hasPremisions(companyId, CompanyPermission.MANAGE_POLICIES, eventId))
             throw new IllegalArgumentException("User has no permissions to change event policies");
         event.removeDiscount(discountId);
+        eventRepository.save(event);
     }
 
     public void rateEvent(UUID userID, UUID eventID, int rating) {

@@ -36,17 +36,34 @@ function PurchaseCard({ purchase }: { purchase: PurchaseHistoryItem }) {
                 <p>Location: {purchase.eventLocation}</p>
                 <p>Purchased at: {formatEventDate(purchase.purchaseDate)}</p>
                 <p>Payment: {purchase.paymentInfo}</p>
-                {purchase.issuedTicketRef && (
-                    <div className="ticket-code-block">
-                        <QRCodeSVG
-                            value={purchase.issuedTicketRef}
-                            size={96}
-                            level="M"
-                            includeMargin
-                        />
-                        <p className="ticket-code">
-                            Ticket code: {purchase.issuedTicketRef}
-                        </p>
+                {purchase.issuedTicketRefs.length > 0 && (
+                    <div className="ticket-codes">
+                        <span className="ticket-codes-label">
+                            {purchase.issuedTicketRefs.length > 1
+                                ? "Your digital tickets"
+                                : "Your digital ticket"}
+                        </span>
+                        <div className="ticket-codes-grid">
+                            {purchase.issuedTicketRefs.map((ref, index) => (
+                                <div key={ref} className="ticket-code-block">
+                                    <span className="ticket-code-title">
+                                        Ticket #{index + 1}
+                                    </span>
+                                    {purchase.seatLabels[index] && (
+                                        <span className="ticket-code-seat">
+                                            {purchase.seatLabels[index]}
+                                        </span>
+                                    )}
+                                    <QRCodeSVG
+                                        value={ref}
+                                        size={96}
+                                        level="M"
+                                        includeMargin
+                                    />
+                                    <p className="ticket-code">{ref}</p>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 )}
             </div>

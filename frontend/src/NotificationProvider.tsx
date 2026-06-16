@@ -1,7 +1,8 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { UserNotification } from "../src/types/notification";
 import { getCurrentUser } from "../src/services/currentUserService";
+import { showToast } from "./components/toast";
 import {
     connectNotificationStream,
     getUnreadNotifications,
@@ -21,6 +22,7 @@ const NotificationContext = createContext<NotificationContextValue | null>(null)
 export function NotificationProvider({ children }: { children: ReactNode }) {
     const [userId, setUserId] = useState<string | null>(null);
     const [notifications, setNotifications] = useState<UserNotification[]>([]);
+    const toastedIdsRef = useRef<Set<string>>(new Set());
 
     useEffect(() => {
         getCurrentUser().then((user) => {
@@ -40,11 +42,20 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
         disconnect = connectNotificationStream(
             userId,
-            (notification) => {
+            (notification, meta) => {
                 setNotifications((prev) => [notification, ...prev]);
 
+                // Only surface fresh, live notifications — never the unread
+                // backlog the server replays on every reconnect, and never the
+                // same notification twice.
+                const shouldToast =
+                    !meta.delayed && !toastedIdsRef.current.has(notification.id);
+
                 if (notification.type === "QUEUE_ACCESS_GRANTED") {
-                    alert(notification.message);
+                    if (shouldToast) {
+                        toastedIdsRef.current.add(notification.id);
+                        showToast(notification.message, "success");
+                    }
 
                     if (notification.targetUrl) {
                         window.location.href = notification.targetUrl;
@@ -53,7 +64,10 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
                     return;
                 }
 
-                alert(notification.message);
+                if (shouldToast) {
+                    toastedIdsRef.current.add(notification.id);
+                    showToast(notification.message, "info");
+                }
             },
             () => console.log("Connected to notifications stream"),
             () => console.warn("Notifications stream disconnected"),

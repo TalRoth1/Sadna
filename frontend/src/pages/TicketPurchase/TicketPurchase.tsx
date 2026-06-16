@@ -1318,12 +1318,54 @@ type PaymentDetailsCardProps = {
     card: PaymentCardForm;
     onCardChange: (next: PaymentCardForm) => void;
     issuedTicketRefs: string[];
+    seatLabels: string[];
 };
 
 // Digital ticket shown once the purchase is confirmed: the external ticketing
 // system's secure code rendered as a scannable QR plus the code in text, so
 // the buyer (and a grader) can see a concrete, market-style issued ticket.
-function DigitalTickets({ ticketRefs }: { ticketRefs: string[] }) {
+// Builds a human-readable seat descriptor for every purchased ticket so the
+// confirmation screen can show WHICH seat each QR belongs to. Sitting tickets
+// are listed first (ordered by row then seat for a stable pairing with the
+// issued refs), followed by standing tickets labelled by their area.
+function getPurchasedSeatLabels(selection: SeatSelection, event: Event): string[] {
+    const ticketsById = new Map(event.tickets.map((ticket) => [ticket.id, ticket]));
+    const areasById = new Map(event.layout.areas.map((area) => [area.id, area]));
+    const labels: string[] = [];
+
+    const sittingTickets = getSelectedTicketIds(selection)
+        .map((id) => ticketsById.get(id))
+        .filter((ticket): ticket is Ticket => Boolean(ticket))
+        .sort(
+            (a, b) =>
+                (a.row ?? 0) - (b.row ?? 0) || (a.seat ?? 0) - (b.seat ?? 0),
+        );
+
+    for (const ticket of sittingTickets) {
+        const areaName = areasById.get(ticket.areaId)?.name ?? "Seating";
+        labels.push(`${areaName} · Row ${ticket.row} · Seat ${ticket.seat}`);
+    }
+
+    for (const [areaId, count] of Object.entries(selection.standingCountByArea)) {
+        if (count <= 0) {
+            continue;
+        }
+        const areaName = areasById.get(areaId)?.name ?? "Standing";
+        for (let i = 0; i < count; i += 1) {
+            labels.push(`${areaName} · Standing`);
+        }
+    }
+
+    return labels;
+}
+
+function DigitalTickets({
+    ticketRefs,
+    seatLabels,
+}: {
+    ticketRefs: string[];
+    seatLabels: string[];
+}) {
     return (
         <div className="digital-ticket-list">
             <span className="digital-ticket-label">Your digital tickets</span>
@@ -1333,6 +1375,11 @@ function DigitalTickets({ ticketRefs }: { ticketRefs: string[] }) {
                     <span className="digital-ticket-label">
                         Ticket #{index + 1}
                     </span>
+                    {seatLabels[index] && (
+                        <span className="digital-ticket-seat">
+                            {seatLabels[index]}
+                        </span>
+                    )}
                     <QRCodeSVG value={ticketRef} size={160} level="M" includeMargin />
                     <code className="digital-ticket-code">{ticketRef}</code>
                     <span className="digital-ticket-hint">
@@ -1354,6 +1401,7 @@ function PaymentDetailsCard({
                                 card,
                                 onCardChange,
                                 issuedTicketRefs,
+                                seatLabels,
                             }: PaymentDetailsCardProps) {
     const update = (patch: Partial<PaymentCardForm>) =>
         onCardChange({ ...card, ...patch });
@@ -1370,7 +1418,10 @@ function PaymentDetailsCard({
             </header>
 
             {isPaymentComplete && issuedTicketRefs.length > 0 && (
-                <DigitalTickets ticketRefs={issuedTicketRefs} />
+                <DigitalTickets
+                    ticketRefs={issuedTicketRefs}
+                    seatLabels={seatLabels}
+                />
             )}
 
             {!isPaymentComplete && (
@@ -2074,6 +2125,7 @@ export default function TicketPurchasePage({
                             card={paymentForm}
                             onCardChange={setPaymentForm}
                             issuedTicketRefs={issuedTicketRefs}
+                            seatLabels={getPurchasedSeatLabels(selection, event)}
                         />
                     )}
 
