@@ -92,11 +92,29 @@ public class ExternalTicketingGateway implements TicketingProvider {
                     + ", quantity=" + ticketIds.size()
                     + ", response=" + response);
 
-            if (response == null || response.isBlank() || "-1".equals(response.trim())) {
-                throw new TicketingFailedException("External ticketing service failed to issue tickets");
+            if (response == null || response.isBlank()) {
+                throw new TicketingFailedException(
+                        "External ticketing service returned an empty response. Tickets were not issued."
+                );
             }
 
-            return response.trim();
+            String ticketReference = response.trim();
+
+            if ("-1".equals(ticketReference)) {
+                throw new TicketingFailedException(
+                        "External ticketing service failed to issue tickets for event "
+                                + eventId + " and user " + userId + "."
+                );
+            }
+
+            if (!ticketReference.startsWith("TIX-")) {
+                throw new TicketingFailedException(
+                        "External ticketing service returned an unexpected ticket reference: "
+                                + ticketReference
+                );
+            }
+
+            return ticketReference;
         } catch (TicketingFailedException e) {
             throw e;
         } catch (RuntimeException e) {
@@ -120,12 +138,24 @@ public class ExternalTicketingGateway implements TicketingProvider {
 
         try {
             String response = postForm(params);
-            boolean success = "1".equals(response.trim());
+            String result = response == null ? "" : response.trim();
 
             logger.info("[ExternalTicketingGateway] cancelTicket ticketId=" + ticketId
-                    + ", result=" + response);
+                    + ", result=" + result);
 
-            return success;
+            if ("1".equals(result)) {
+                return true;
+            }
+
+            if ("-1".equals(result)) {
+                throw new TicketingFailedException(
+                        "External ticketing service failed to cancel ticket " + ticketId + "."
+                );
+            }
+
+            throw new TicketingFailedException(
+                    "External ticketing service returned an unexpected cancellation response: " + result
+            );
         } catch (RuntimeException e) {
             logger.log(Level.SEVERE,
                     "[ExternalTicketingGateway] cancelTicket failed for ticketId=" + ticketId,
@@ -151,18 +181,34 @@ public class ExternalTicketingGateway implements TicketingProvider {
             );
 
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                throw new IllegalStateException(
+                throw new TicketingFailedException(
                         "External ticketing service returned HTTP " + response.statusCode()
+                                + ". Response body: " + safeBody(response.body())
                 );
             }
 
             return response.body() == null ? "" : response.body().trim();
         } catch (IOException e) {
-            throw new IllegalStateException("External ticketing service is not reachable", e);
+            throw new TicketingFailedException(
+                    "External ticketing service is not reachable or timed out. Tickets could not be issued or cancelled.",
+                    e
+            );
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new IllegalStateException("External ticketing request was interrupted", e);
+            throw new TicketingFailedException(
+                    "External ticketing request was interrupted before completion.",
+                    e
+            );
         }
+    }
+
+    private String safeBody(String body) {
+        if (body == null || body.isBlank()) {
+            return "<empty>";
+        }
+
+        String trimmed = body.trim();
+        return trimmed.length() > 300 ? trimmed.substring(0, 300) + "..." : trimmed;
     }
 
     private String encodeForm(Map<String, String> params) {
@@ -188,6 +234,10 @@ public class ExternalTicketingGateway implements TicketingProvider {
     public static class TicketingFailedException extends RuntimeException {
         public TicketingFailedException(String message) {
             super(message);
+        }
+
+        public TicketingFailedException(String message, Throwable cause) {
+            super(message, cause);
         }
     }
 }
