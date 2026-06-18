@@ -90,9 +90,12 @@ public class ExternalPaymentGatewayAdditionalTests {
         ExternalPaymentGateway gateway = gatewayWithServer(body -> "9999");
         PaymentDetails details = paymentDetails(" USD ", "4580458045804580", "01", "2030", "Alice", "123", "123456789");
 
-        PaymentResult result = gateway.pay(UUID.randomUUID(), 1f, details);
+        IllegalStateException error = assertThrows(
+                IllegalStateException.class,
+                () -> gateway.pay(UUID.randomUUID(), 1f, details)
+        );
 
-        assertFalse(paymentSucceeded(result));
+        assertTrue(error.getMessage().contains("unexpected transaction id: 9999"));
         assertTrue(requestBodies.get(0).contains("currency=USD"));
     }
 
@@ -141,7 +144,13 @@ public class ExternalPaymentGatewayAdditionalTests {
         assertThrows(IllegalArgumentException.class, () -> gateway.refund(100001));
 
         assertTrue(gateway.refund(10000));
-        assertFalse(gateway.refund(10001));
+
+        IllegalStateException error = assertThrows(
+                IllegalStateException.class,
+                () -> gateway.refund(10001)
+        );
+
+        assertTrue(error.getMessage().contains("unexpected refund response: 0"));
 
         assertTrue(requestBodies.get(0).contains("action_type=refund"));
         assertTrue(requestBodies.get(0).contains("transaction_id=10000"));
