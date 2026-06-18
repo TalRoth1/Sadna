@@ -397,15 +397,48 @@ textarea {
   font-size: 17px;
 }
 
+.ticket-codes {
+  margin-top: 12px;
+}
+
+.ticket-codes-label {
+  display: block;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #0f172a;
+  margin-bottom: 8px;
+}
+
+.ticket-codes-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
 .ticket-code-block {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 12px;
-  margin-top: 10px;
-  padding: 10px;
+  gap: 8px;
+  padding: 12px;
   background: #f9fafb;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
+}
+
+.ticket-code-block .ticket-code-title {
+  font-weight: 700;
+  font-size: 13px;
+  color: #0f172a;
+}
+
+.ticket-code-block .ticket-code-seat {
+  font-weight: 600;
+  font-size: 12px;
+  color: #1d4ed8;
+  text-align: center;
 }
 
 .ticket-code-block .ticket-code {
@@ -414,6 +447,7 @@ textarea {
   font-weight: 600;
   color: #111827;
   word-break: break-all;
+  text-align: center;
 }
 
 .purchase-details {

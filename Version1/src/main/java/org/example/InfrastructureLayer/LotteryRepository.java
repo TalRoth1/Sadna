@@ -1,5 +1,6 @@
 package org.example.InfrastructureLayer;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -8,7 +9,11 @@ import java.util.UUID;
 
 import org.example.DomainLayer.ILotteryRepository;
 import org.example.DomainLayer.LotteryAggregate.PuchaseLottery;
+import org.springframework.context.annotation.Profile;
+import org.springframework.stereotype.Repository;
 
+@Repository
+@Profile("!localdb")
 public class LotteryRepository implements ILotteryRepository {
     private final Map<UUID, PuchaseLottery> lotteriesById = new HashMap<>();
     private final Map<UUID, PuchaseLottery> lotteriesByEventId = new HashMap<>();
@@ -32,5 +37,17 @@ public class LotteryRepository implements ILotteryRepository {
     @Override
     public List<PuchaseLottery> findAll() {
         return new ArrayList<>(lotteriesById.values());
+    }
+
+    @Override
+    public List<UUID> findEventIdsReadyForDraw(LocalDateTime now) {
+        return lotteriesById.values()
+                .stream()
+                .filter(lottery -> lottery.getRegistrationClose() != null)
+                .filter(lottery -> !lottery.getRegistrationClose().isAfter(now))
+                .filter(lottery -> !lottery.getRegisteredUsers().isEmpty())
+                .filter(lottery -> lottery.getWinnerUsers().isEmpty())
+                .map(PuchaseLottery::getEventId)
+                .toList();
     }
 }

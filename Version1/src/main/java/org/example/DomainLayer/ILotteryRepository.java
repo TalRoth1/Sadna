@@ -1,5 +1,6 @@
 package org.example.DomainLayer;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -10,4 +11,5 @@ public interface ILotteryRepository {
     PuchaseLottery findByID(UUID lotteryId);
     PuchaseLottery findByEventID(UUID eventId);
     List<PuchaseLottery> findAll();
+    List<UUID> findEventIdsReadyForDraw(LocalDateTime now);
 }

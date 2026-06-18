@@ -7,6 +7,7 @@ import org.example.DomainLayer.UserAggregate.User;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 public interface IUserRepository {
@@ -28,6 +29,14 @@ public interface IUserRepository {
 
     public List<UUID> getCompaniesIdsByMember(String username);
 
+    /**
+     * Return the owner's own username plus the usernames of all transitive
+     * subordinates in the company hierarchy. Derived from the persisted
+     * appointer relationship so it survives a DB-backed reload (the in-memory
+     * subordinate graph is not rehydrated under the JPA profile).
+     */
+    List<String> getOwnerAndSubordinatesUsernames(UUID companyId, String ownerUsername);
+
     public boolean isCompanyOwner(String username, UUID companyId);
 
     public boolean hasPermission(String username, UUID companyId, CompanyPermission permission, UUID eventId);
@@ -35,4 +44,8 @@ public interface IUserRepository {
     public Map<UUID, User> getAllUsers();
 
     void addAdmin(Admin adminImpl);
+
+    Set<String> getAllAdminUsernames();
+
+    Map<String, Long> countCompanyMembersByRole(UUID companyId);
 }

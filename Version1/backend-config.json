@@ -14,8 +14,11 @@
     "sseTimeoutMs": 1800000
   },
   "activePurchaseCleaner": {
-    "sweepIntervalMs": 1000,
+    "sweepIntervalMs": 5000,
     "warningBeforeExpirySeconds": 60
+  },
+  "lotteryScheduler": {
+    "sweepIntervalMs": 30000
   },
   "systemMetrics": {
     "windowSeconds": 60

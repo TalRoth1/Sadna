@@ -634,6 +634,13 @@ public class PurchaseDomainConcurrencyAndCheckoutTest {
         public List<ActivePurchase> findAll() {
             return new ArrayList<>(purchasesById.values());
         }
+
+        @Override
+        public List<ActivePurchase> findExpiringBefore(LocalDateTime threshold) {
+            return purchasesById.values().stream()
+                    .filter(purchase -> purchase.getEndTime().isBefore(threshold))
+                    .toList();
+        }
     }
 
     private static class ThreadSafeCompanyRepository implements ICompanyRepository {
@@ -715,6 +722,11 @@ public class PurchaseDomainConcurrencyAndCheckoutTest {
         }
 
         @Override
+        public List<String> getOwnerAndSubordinatesUsernames(UUID companyId, String ownerUsername) {
+            return ownerUsername == null ? List.of() : List.of(ownerUsername);
+        }
+
+        @Override
         public boolean isCompanyOwner(String username, UUID companyId) {
             return false;
         }
@@ -753,6 +765,19 @@ public class PurchaseDomainConcurrencyAndCheckoutTest {
         public boolean existsAdmin(UUID adminId) {
             return adminId != null && adminsById.containsKey(adminId);
         }
+
+        @Override
+        public Set<String> getAllAdminUsernames() {
+            return adminsById.values().stream()
+                    .map(Admin::getUsername)
+                    .filter(name -> name != null)
+                    .collect(java.util.stream.Collectors.toSet());
+        }
+
+        @Override
+        public Map<String, Long> countCompanyMembersByRole(UUID companyId) {
+            return Map.of();
+        }
     }
 
     private static class ThreadSafeLotteryRepository implements ILotteryRepository {
@@ -780,6 +805,9 @@ public class PurchaseDomainConcurrencyAndCheckoutTest {
             return new ArrayList<>(lotteriesById.values());
         }
 
-
+        @Override
+        public List<UUID> findEventIdsReadyForDraw(LocalDateTime now) {
+            return Collections.emptyList();
+        }
     }
 }

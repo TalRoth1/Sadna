@@ -30,6 +30,8 @@ function mapDto(dto: NotificationDto): UserNotification {
         message: dto.message,
         createdAt: dto.createdAt,
         isRead: dto.read,
+        type: dto.type as UserNotification["type"],
+        targetUrl: dto.targetUrl ?? null,
     };
 }
 
@@ -83,7 +85,10 @@ export async function markAllNotificationsAsRead(userId: string): Promise<void> 
 
 export function connectNotificationStream(
     userId: string,
-    onNotification: (notification: UserNotification) => void,
+    onNotification: (
+        notification: UserNotification,
+        meta: { delayed: boolean },
+    ) => void,
     onConnected?: () => void,
     onDisconnected?: () => void,
 ): () => void {
@@ -91,12 +96,16 @@ export function connectNotificationStream(
         `${API_BASE_URL}/notifications/stream/${userId}`,
     );
 
+    // Live notifications: pushed once, when something actually happens.
     source.addEventListener("notification", (event) => {
-        onNotification(fromStreamData(event.data));
+        onNotification(fromStreamData(event.data), { delayed: false });
     });
 
+    // Backlog replay: the server re-sends every UNREAD notification on each
+    // (re)connect. These must populate the list silently — alerting on them
+    // would spam the user with the whole backlog on every reconnect.
     source.addEventListener("delayed-notification", (event) => {
-        onNotification(fromStreamData(event.data));
+        onNotification(fromStreamData(event.data), { delayed: true });
     });
 
     source.addEventListener("connected", () => {

@@ -205,6 +205,33 @@ public class JpaPurchaseRepository implements IPurchaseRepository {
         return purchases;
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<ActivePurchase> findExpiringBefore(java.time.LocalDateTime threshold) {
+        List<Object[]> rows = entityManager.createNativeQuery("""
+                        SELECT id,
+                               user_id,
+                               event_id,
+                               end_time,
+                               is_guest_confirmed_age,
+                               copon,
+                               price,
+                               max_wait_time,
+                               last_updated
+                        FROM active_purchases
+                        WHERE end_time < :threshold
+                        ORDER BY last_updated DESC
+                        """)
+                .setParameter("threshold", threshold)
+                .getResultList();
+
+        List<ActivePurchase> purchases = new ArrayList<>();
+        for (Object[] row : rows) {
+            purchases.add(toDomain(row));
+        }
+        return purchases;
+    }
+
     private void syncReservedTickets(ActivePurchase activePurchase) {
         UUID activePurchaseId = activePurchase.getActivePurchaseId();
         List<UUID> ticketIds = new ArrayList<>(activePurchase.getTicketIDs().keySet());

@@ -1433,7 +1433,13 @@ public class PurchaseServiceTest {
         @Override
         public List<ActivePurchase> findAll() {
             return new ArrayList<>(purchasesByID.values());
+        }
 
+        @Override
+        public List<ActivePurchase> findExpiringBefore(LocalDateTime threshold) {
+            return purchasesByID.values().stream()
+                    .filter(p -> p.getEndTime().isBefore(threshold))
+                    .toList();
         }
     }
     private static class InMemoryEventRepository implements IEventRepository
@@ -1536,6 +1542,11 @@ public class PurchaseServiceTest {
         }
 
         @Override
+        public List<String> getOwnerAndSubordinatesUsernames(UUID companyId, String ownerUsername) {
+            return ownerUsername == null ? List.of() : List.of(ownerUsername);
+        }
+
+        @Override
         public List<UUID> getCompaniesIdsByMember(String username) {
             return List.of();
         }
@@ -1548,6 +1559,19 @@ public class PurchaseServiceTest {
         @Override
         public Map<UUID, User> getAllUsers() {
             return Collections.unmodifiableMap(usersByID);
+        }
+
+        @Override
+        public Set<String> getAllAdminUsernames() {
+            return adminsByID.values().stream()
+                    .map(Admin::getUsername)
+                    .filter(name -> name != null)
+                    .collect(java.util.stream.Collectors.toSet());
+        }
+
+        @Override
+        public Map<String, Long> countCompanyMembersByRole(UUID companyId) {
+            return Map.of();
         }
     }
     private static class InMemoryCompanyRepository implements ICompanyRepository
@@ -1643,6 +1667,11 @@ public class PurchaseServiceTest {
         @Override
         public List<PuchaseLottery> findAll() {
             return new ArrayList<>(lotteriesByEvent.values());
+        }
+
+        @Override
+        public List<UUID> findEventIdsReadyForDraw(LocalDateTime now) {
+            return Collections.emptyList();
         }
     }
 

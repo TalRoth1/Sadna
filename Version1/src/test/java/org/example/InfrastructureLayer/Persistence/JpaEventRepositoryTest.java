@@ -37,11 +37,24 @@ class JpaEventRepositoryTest {
     @Mock
     private SpringDataTicketRepository ticketJpa;
 
+    @Mock
+    private SpringDataDiscountPolicyRepository discountPolicyJpa;
+
+    @Mock
+    private SpringDataDiscountRuleRepository discountRuleJpa;
+
+    @Mock
+    private SpringDataPurchasePolicyRepository purchasePolicyJpa;
+
+    @Mock
+    private SpringDataRuleRepository ruleJpa;
+
     private JpaEventRepository repository;
 
     @BeforeEach
     void setUp() {
-        repository = new JpaEventRepository(eventJpa, layoutJpa, areaJpa, seatJpa, ticketJpa);
+        repository = new JpaEventRepository(eventJpa, layoutJpa, areaJpa, seatJpa, ticketJpa,
+                discountPolicyJpa, discountRuleJpa, purchasePolicyJpa, ruleJpa);
     }
 
     @Test

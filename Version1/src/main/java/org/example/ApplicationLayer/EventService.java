@@ -3,7 +3,9 @@ package org.example.ApplicationLayer;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -19,6 +21,7 @@ import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.EventSummaryDto;
 import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.PurchasePolicyDto;
 import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.PurchaseRuleDto;
 import org.example.ApplicationLayer.dto.CompanyDTOs.EventDtos.TicketDetailsDto;
+import org.example.ApplicationLayer.dto.EventDTOs.CreateEventRequest;
 import org.example.ApplicationLayer.dto.PurchaseDTOs.PurchaseHistoryDTO;
 import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.DomainLayer.DomainException;
@@ -37,6 +40,7 @@ import org.example.DomainLayer.PolicyManagment.AgeRule;
 import org.example.DomainLayer.PolicyManagment.ConditionalDiscount;
 import org.example.DomainLayer.PolicyManagment.CouponCode;
 import org.example.DomainLayer.PolicyManagment.DiscountPolicy;
+import org.example.DomainLayer.PolicyManagment.DiscountType;
 import org.example.DomainLayer.PolicyManagment.IDiscountRule;
 import org.example.DomainLayer.PolicyManagment.IPurchaseRule;
 import org.example.DomainLayer.PolicyManagment.LoneSeatRule;
@@ -47,8 +51,7 @@ import org.example.DomainLayer.PolicyManagment.PurchaseComposite;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.springframework.stereotype.Service;
 
-import org.example.DomainLayer.PolicyManagment.DiscountPolicy;
-import org.example.DomainLayer.PolicyManagment.DiscountType;
+import jakarta.transaction.Transactional;
 
 @Service
 public class EventService {
@@ -612,7 +615,7 @@ public class EventService {
                 List<Event> events = eventManagementDomainService.getVisibleEventsForCompany(c.getId());
                 List<EventSummaryDto> summaries = new ArrayList<>();
                 for (Event e : events) {
-                    summaries.add(toSummary(e));
+                    summaries.add(toSummary(e, c));
                 }
                 out.add(new CompanyCatalogDto(c.getId(), c.getName(), c.getRating(), summaries));
             }
@@ -649,9 +652,10 @@ public class EventService {
             EventSearchCriteria c = (criteria == null) ? EventSearchCriteria.empty() : criteria;
             validateCriteria(c);
             List<Event> matches = eventManagementDomainService.searchEvents(c);
+            Map<UUID, Company> companyCache = buildCompanyCache(matches);
             List<EventSummaryDto> out = new ArrayList<>();
             for (Event e : matches) {
-                out.add(toSummary(e));
+                out.add(toSummary(e, companyCache.get(e.getCompanyId())));
             }
             return out;
         } catch (IllegalArgumentException | DomainException ex) {
@@ -674,9 +678,10 @@ public class EventService {
             EventSearchCriteria scoped = c.withCompanyId(companyId);
             validateCriteria(scoped);
             List<Event> matches = eventManagementDomainService.searchEvents(scoped);
+            Company company = eventManagementDomainService.findCompanyById(companyId);
             List<EventSummaryDto> out = new ArrayList<>();
             for (Event e : matches) {
-                out.add(toSummary(e));
+                out.add(toSummary(e, company));
             }
             return out;
         } catch (IllegalArgumentException | DomainException ex) {
@@ -699,9 +704,10 @@ public class EventService {
                 throw new IllegalArgumentException("companyId is required");
             }
             List<Event> events = eventManagementDomainService.getEventsForUserInCompany(userEmail, companyId);
+            Company company = eventManagementDomainService.findCompanyById(companyId);
             List<EventSummaryDto> out = new ArrayList<>();
             for (Event e : events) {
-                out.add(toSummary(e));
+                out.add(toSummary(e, company));
             }
             return out;
         } catch (IllegalArgumentException | DomainException ex) {
@@ -777,8 +783,24 @@ public class EventService {
      * event's areas and live ticket counts — all derived here so the client
      * doesn't need follow-up calls.
      */
+    /** Load each unique company ID once and return a map for O(1) lookup per event. */
+    private Map<UUID, Company> buildCompanyCache(List<Event> events) {
+        Map<UUID, Company> cache = new HashMap<>();
+        for (Event e : events) {
+            UUID cid = e.getCompanyId();
+            if (cid != null && !cache.containsKey(cid)) {
+                cache.put(cid, eventManagementDomainService.findCompanyById(cid));
+            }
+        }
+        return cache;
+    }
+
     private EventSummaryDto toSummary(Event e) {
         Company company = eventManagementDomainService.findCompanyById(e.getCompanyId());
+        return toSummary(e, company);
+    }
+
+    private EventSummaryDto toSummary(Event e, Company company) {
         String companyName = (company == null) ? "" : company.getName();
         double companyRating = (company == null) ? 0.0 : company.getRating();
 
@@ -997,7 +1019,7 @@ public class EventService {
         dto.ticketsAmount = (dto.ticketIds == null) ? 0 : dto.ticketIds.size();
 
         if (history.getPayment() != null) {
-            dto.paymentInfo = history.getPayment().toString();
+            dto.paymentInfo = history.getPayment().getPaymentInfo();
             dto.totalPrice = history.getPayment().getTotal();
         } else {
             dto.paymentInfo = "";
@@ -1164,4 +1186,53 @@ public class EventService {
         }
     }
 
+    @Transactional
+    public EventDetailsDto createLotteryEvent(CreateEventRequest request) {
+        logger.info("[Event Log] Method: createLotteryEvent called");
+
+        if (request == null) {
+            throw new IllegalArgumentException("request is required");
+        }
+
+        if (request.lottery == null) {
+            throw new IllegalArgumentException("Lottery details are required");
+        }
+
+        if (request.lottery.registrationOpen == null) {
+            throw new IllegalArgumentException("registrationOpen is required");
+        }
+
+        if (request.lottery.registrationClose == null) {
+            throw new IllegalArgumentException("registrationClose is required");
+        }
+
+        if (!request.lottery.registrationClose.isAfter(request.lottery.registrationOpen)) {
+            throw new IllegalArgumentException("Lottery registration close time must be after open time");
+        }
+
+        UUID eventId = UUID.randomUUID();
+
+        eventManagementDomainService.addEvent(
+                eventId,
+                request.companyId,
+                request.eventManagerEmail,
+                request.name,
+                request.date,
+                request.location,
+                request.artist,
+                "Lottery",
+                request.status,
+                request.description,
+                request.discountType
+        );
+
+        eventManagementDomainService.createLotteryForEvent(
+                eventId,
+                request.lottery.registrationOpen,
+                request.lottery.registrationClose
+        );
+
+        Event event = eventManagementDomainService.getEventForView(eventId);
+        return toDetails(event);
+    }
 }

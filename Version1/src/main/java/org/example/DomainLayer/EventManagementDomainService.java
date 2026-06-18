@@ -23,6 +23,8 @@ import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.example.DomainLayer.UserAggregate.ICompanyMember;
 import org.example.DomainLayer.UserAggregate.User;
 
+import jakarta.transaction.Transactional;
+
 public class EventManagementDomainService {
 
     private static final Logger logger =
@@ -176,6 +178,7 @@ public class EventManagementDomainService {
         if (!userRepository.hasPermission(username, companyId, CompanyPermission.MANAGE_POLICIES, eventId))
             throw new IllegalArgumentException("User has no permissions to change event policies");
         event.addPurchasePolicy(age, minTicket, maxTicket, allowLoneSeat, andOr);
+        eventRepository.save(event);
     }
 
     public boolean areLotteryWinnersDrawn(UUID eventId) {
@@ -229,6 +232,7 @@ public class EventManagementDomainService {
         if (!userRepository.hasPermission(username, companyId, CompanyPermission.MANAGE_POLICIES, eventId))
             throw new IllegalArgumentException("User has no permissions to change event policies");
         event.deletePurchaseRule(ruleId);
+        eventRepository.save(event);
     }
 
     public void addOvertDiscount(String username, UUID companyId, UUID eventId, LocalDate fromDate, LocalDate toDate,
@@ -242,6 +246,7 @@ public class EventManagementDomainService {
         if (!userRepository.hasPermission(username, companyId, CompanyPermission.MANAGE_POLICIES, eventId))
             throw new IllegalArgumentException("User has no permissions to change event policies");
         event.addOvertDiscount(fromDate, toDate, discountPrecent);
+        eventRepository.save(event);
     }
 
     public void addConditionalDiscount(String username, UUID companyId, UUID eventId, LocalDate fromDate,
@@ -255,6 +260,7 @@ public class EventManagementDomainService {
         if (!userRepository.hasPermission(username, companyId, CompanyPermission.MANAGE_POLICIES, eventId))
             throw new IllegalArgumentException("User has no permissions to change event policies");
         event.addConditionalDiscount(fromDate, toDate, discountPrecent, requiredTickets, appliedTickets);
+        eventRepository.save(event);
     }
 
     public void addCouponCode(String username, UUID companyId, UUID eventId, LocalDate fromDate, LocalDate toDate,
@@ -268,6 +274,7 @@ public class EventManagementDomainService {
         if (!userRepository.hasPermission(username, companyId, CompanyPermission.MANAGE_POLICIES, eventId))
             throw new IllegalArgumentException("User has no permissions to change event policies");
         event.addCouponCode(fromDate, toDate, discountPrecent, code);
+        eventRepository.save(event);
     }
 
     public void removeDiscount(String username, UUID companyId, UUID eventId, UUID discountId) {
@@ -283,6 +290,7 @@ public class EventManagementDomainService {
         if (!user.hasPremisions(companyId, CompanyPermission.MANAGE_POLICIES, eventId))
             throw new IllegalArgumentException("User has no permissions to change event policies");
         event.removeDiscount(discountId);
+        eventRepository.save(event);
     }
 
     public void rateEvent(UUID userID, UUID eventID, int rating) {
@@ -436,7 +444,9 @@ public class EventManagementDomainService {
         if (managerRole == null) {
             throw new DomainException("Event manager is not a member of the company");
         }
-        if (!managerRole.getEventsIds().contains(eventId)) {
+        // The persisted events table owns the manager→event link (manager_username);
+        // the in-memory eventsIds list is not rehydrated under the JPA profile.
+        if (!eventManager.getUsername().equalsIgnoreCase(event.getManagerUsername())) {
             throw new DomainException("Event manager is not in charge of this event");
         }
 
@@ -449,7 +459,6 @@ public class EventManagementDomainService {
             refundEventPurchases(eventId);
         }
 
-        managerRole.getEventsIds().remove(eventId);
         eventRepository.delete(eventId);
         return true;
     }
@@ -618,31 +627,24 @@ public class EventManagementDomainService {
         if (!user.isCompanyMember(companyId)) {
             throw new IllegalArgumentException("User is not a member of the company");
         }
-        ICompanyMember userRole = user.getCompanyRole(companyId);
-        userRole.getEventsIds().forEach(eid -> {
-            Event event = eventRepository.getById(eid);
-            if (event != null) {
+        // Derive the member's events from the persisted events table (company_id +
+        // manager_username) rather than the in-memory ICompanyMember.eventsIds list,
+        // which is never rehydrated under the JPA profile. Mirrors searchEvents().
+        String managerUsername = user.getUsername();
+        for (Event event : eventRepository.getAll()) {
+            if (companyId.equals(event.getCompanyId())
+                    && managerUsername != null
+                    && managerUsername.equalsIgnoreCase(event.getManagerUsername())) {
                 out.add(event);
             }
-        });
+        }
         return out;
     }
 
+    @Transactional
     public void createLotteryForEvent(UUID eventId,
                                     LocalDateTime registrationOpen,
                                     LocalDateTime registrationClose) {
-        if (eventId == null) {
-            throw new DomainException("Event id is required");
-        }
-
-        if (registrationOpen == null || registrationClose == null) {
-            throw new DomainException("Lottery registration dates are required");
-        }
-
-        if (!registrationClose.isAfter(registrationOpen)) {
-            throw new DomainException("Lottery registration close time must be after open time");
-        }
-
         Event event = eventRepository.getById(eventId);
 
         if (event == null) {
@@ -662,10 +664,13 @@ public class EventManagementDomainService {
                 registrationClose
         );
 
+        // חייב להיות קודם
         lotteryRepository.save(lottery);
 
+        // רק אחרי שההגרלה קיימת ב-DB
         event.setLotteryId(lotteryId.toString());
 
+        // עכשיו אפשר לשמור את האירוע עם foreign key תקין
         eventRepository.save(event);
     }
 
