@@ -2137,6 +2137,8 @@ public class DomainLayerAdditionalTests {
         when(history.getUserId()).thenReturn(buyer);
         when(other.getEventId()).thenReturn(UUID.randomUUID());
         when(historyRepository.getAll()).thenReturn(List.of(history, other));
+        when(userRepository.hasPermission("manager@example.com", companyId,
+                CompanyPermission.MANAGE_INVENTORY, eventId)).thenReturn(true);
 
         Set<UUID> participants = service.editEvent(
                 eventId,
@@ -2146,7 +2148,8 @@ public class DomainLayerAdditionalTests {
                 "New Artist",
                 "Festival",
                 EventStatus.CANCELED,
-                "New Description"
+                "New Description",
+                "manager@example.com"
         );
 
         assertEquals(Set.of(buyer), participants);

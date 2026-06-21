@@ -250,10 +250,12 @@ public class PurchaseDomainServiceAdditionalTests {
         when(activePurchase.getMaxWaitTime()).thenReturn(10f);
         when(activePurchase.isExpired(any(LocalDateTime.class))).thenReturn(false);
         when(eventRepository.getById(eventId)).thenReturn(event);
+        when(event.getStatus()).thenReturn(EventStatus.ACTIVE);
+        when(event.getCompanyId()).thenReturn(null);
         when(userRepository.getUser(userId)).thenReturn(Optional.of(user));
         when(event.getPurchasePolicy()).thenReturn(purchasePolicy);
-        when(purchasePolicy.validate(activePurchase, user, event))
-                .thenThrow(new DomainException("blocked by policy"));
+        doThrow(new DomainException("blocked by policy"))
+                .when(purchasePolicy).validateOrThrow(activePurchase, user, event);
 
         service.setPaymentGateway(paymentGateway);
         service.setTicketingGateway(ticketingGateway);
@@ -281,6 +283,7 @@ public class PurchaseDomainServiceAdditionalTests {
 
         when(purchaseRepository.findByID(activePurchaseId)).thenReturn(activePurchase);
         when(eventRepository.getById(eventId)).thenReturn(event);
+        when(event.getStatus()).thenReturn(EventStatus.ACTIVE);
         when(userRepository.getUser(userId)).thenReturn(Optional.of(user));
         when(event.getPurchasePolicy()).thenReturn(new PurchasePolicy());
         when(event.getDiscountPolicy()).thenReturn(null);
@@ -328,6 +331,7 @@ public class PurchaseDomainServiceAdditionalTests {
 
         when(purchaseRepository.findByID(activePurchaseId)).thenReturn(activePurchase);
         when(eventRepository.getById(eventId)).thenReturn(event);
+        when(event.getStatus()).thenReturn(EventStatus.ACTIVE);
         when(userRepository.getUser(userId)).thenReturn(Optional.of(user));
         when(event.getPurchasePolicy()).thenReturn(new PurchasePolicy());
         when(event.getDiscountPolicy()).thenReturn(null);

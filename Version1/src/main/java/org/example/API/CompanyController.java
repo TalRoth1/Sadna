@@ -95,7 +95,7 @@ public class CompanyController {
 
     @GetMapping("/me/invitations")
     public ResponseEntity<ApiResponse<List<InvitationResponse>>> getMyInvitations(
-            @RequestParam String userEmail) {
+            @RequestParam("userEmail") String userEmail) {
         try {
             List<InvitationResponse> invitations = companyService.getUserInvitations(userEmail);
             return ResponseEntity.ok(ApiResponse.success("User invitations loaded successfully", invitations));
@@ -110,7 +110,7 @@ public class CompanyController {
     @GetMapping("/{companyId}/permissions")
     public ResponseEntity<ApiResponse<CompanyAccessResponse>> getCompanyPermissions(
             @PathVariable("companyId") UUID companyId,
-            @RequestParam String userEmail) {
+            @RequestParam("userEmail") String userEmail) {
         try {
             CompanyAccessResponse access = companyService.getCompanyAccess(companyId, userEmail);
             return ResponseEntity.ok(ApiResponse.success("Company permissions loaded successfully", access));
@@ -125,7 +125,7 @@ public class CompanyController {
     @GetMapping("/{companyId}/policies")
     public ResponseEntity<ApiResponse<CompanyPoliciesResponse>> getCompanyPolicies(
             @PathVariable("companyId") UUID companyId,
-            @RequestParam String userEmail) {
+            @RequestParam("userEmail") String userEmail) {
         try {
             CompanyPoliciesResponse policies = companyService.getCompanyPolicies(companyId, userEmail);
             return ResponseEntity.ok(ApiResponse.success("Company policies loaded successfully", policies));
@@ -140,7 +140,7 @@ public class CompanyController {
     @GetMapping("/{companyId}/events/subordinates")
     public ResponseEntity<ApiResponse<List<org.example.ApplicationLayer.dto.CompanyDTOs.SubordinateEventDto>>> getSubordinatesEvents(
             @PathVariable("companyId") UUID companyId,
-            @RequestParam String ownerEmail) {
+            @RequestParam("ownerEmail") String ownerEmail) {
         try {
             List<org.example.ApplicationLayer.dto.CompanyDTOs.SubordinateEventDto> events = companyService.getEventsManagedBySubordinates(ownerEmail, companyId);
             return ResponseEntity.ok(ApiResponse.success("Subordinate events loaded successfully", events));
@@ -231,7 +231,7 @@ public class CompanyController {
     public ResponseEntity<ApiResponse<Void>> acceptInvitation(
             @PathVariable("companyId") UUID companyId,
             @PathVariable("invitationId") UUID invitationId,
-            @RequestParam String username) {
+            @RequestParam("username") String username) {
         try {
             companyService.acceptCompanyInvitation(invitationId, username, companyId);
             return ResponseEntity.ok(ApiResponse.success("Invitation accepted successfully"));
@@ -247,7 +247,7 @@ public class CompanyController {
     public ResponseEntity<ApiResponse<Void>> rejectInvitation(
             @PathVariable("companyId") UUID companyId,
             @PathVariable("invitationId") UUID invitationId,
-            @RequestParam String username) {
+            @RequestParam("username") String username) {
         try {
             companyService.rejectCompanyInvitation(invitationId, username, companyId);
             return ResponseEntity.ok(ApiResponse.success("Invitation rejected successfully"));
@@ -434,7 +434,7 @@ public class CompanyController {
     @GetMapping("/{companyId}/hierarchy")
     public ResponseEntity<ApiResponse<HierarchyResponse>> getCompanyHierarchy(
             @PathVariable("companyId") UUID companyId,
-            @RequestParam String requester) {
+            @RequestParam("requester") String requester) {
         try {
             HierarchyResponse hierarchy = companyService.getCompanyHierarchyMermaid(
                     companyId, requester);
@@ -450,7 +450,7 @@ public class CompanyController {
     @GetMapping("/{companyId}/sales-report")
     public ResponseEntity<ApiResponse<SalesReportResponse>> getSalesReport(
             @PathVariable("companyId") UUID companyId,
-            @RequestParam String ownerEmail) {
+            @RequestParam("ownerEmail") String ownerEmail) {
         try {
             SalesReportResponse report = companyService.getSalesReportForOwner(
                     ownerEmail, companyId);

@@ -181,7 +181,9 @@ public class UserService {
                 request.plainPassword,
                 request.age,
                 request.username)) {
-            throw new IllegalArgumentException("One or more of the details is incorrect.");
+            // Surface the specific field that failed so the user knows what
+            // to fix, instead of a single opaque "details are incorrect".
+            throw new IllegalArgumentException(describeInvalidDetails(request));
         }
 
         // Normalise the key once; re-used for both the lock and the lookup.
@@ -228,6 +230,27 @@ public class UserService {
         // (SystemMetricsCollector) does not contend on the same lock key.
         eventPublisher.publish(new UserRegisteredEvent(response.userId));
         return response;
+    }
+
+    /**
+     * Pinpoints which registration field failed {@code verifyUserDetails} so
+     * the caller can return an actionable message. Mirrors the order/rules of
+     * the active {@link IAuthenticationGateway}.
+     */
+    private String describeInvalidDetails(RegisterRequest request) {
+        if (!authGateway.verifyEmail(request.email)) {
+            return "Email address is invalid. Please use the format name@example.com.";
+        }
+        if (!authGateway.verifyPassword(request.plainPassword)) {
+            return "Password is too short. Please choose a password with at least 8 characters.";
+        }
+        if (request.age < 0) {
+            return "Age must be a positive number.";
+        }
+        if (request.username == null || request.username.isBlank()) {
+            return "Username is required.";
+        }
+        return "One or more of the details is incorrect.";
     }
 
     /**

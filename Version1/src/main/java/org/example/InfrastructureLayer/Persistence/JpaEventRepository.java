@@ -142,6 +142,40 @@ public class JpaEventRepository implements IEventRepository {
         eventJpa.deleteById(eventId);
     }
 
+    /**
+     * Persist only the ticket statuses of the given event. Each changed
+     * {@code tickets} row is updated in place (same id ⇒ merge), preserving
+     * its seat link, price and FKs. Does NOT touch layout/area/seat rows, so
+     * unlike {@link #save} it neither regenerates ids nor leaks orphans.
+     */
+    @Override
+    public void updateTicketStatuses(Event event) {
+        if (event == null) {
+            return;
+        }
+
+        Map<UUID, Ticket> domainTickets = event.getTicketsView();
+
+        for (TicketEntity entity : ticketJpa.findByEventId(event.getEventId())) {
+            Ticket domainTicket = domainTickets.get(entity.getId());
+            if (domainTicket == null || entity.getStatus() == domainTicket.getStatus()) {
+                continue;
+            }
+
+            ticketJpa.save(new TicketEntity(
+                    entity.getId(),
+                    entity.getEventId(),
+                    entity.getAreaId(),
+                    entity.getUserId(),
+                    entity.getSeatId(),
+                    domainTicket.getStatus(),
+                    entity.getPrice(),
+                    entity.getActivePurchaseId(),
+                    entity.getPurchaseHistoryId()
+            ));
+        }
+    }
+
     private Event toDomain(EventEntity entity) {
         Event event = new Event(
                 entity.getId(),

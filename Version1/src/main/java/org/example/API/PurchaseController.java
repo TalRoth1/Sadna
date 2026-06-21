@@ -351,7 +351,7 @@ public class PurchaseController {
     @GetMapping("/events/{eventId}/history/owner")
     public ResponseEntity<ApiResponse<List<PurchaseHistoryDTO>>> getEventPurchaseHistoryForOwner(
             @PathVariable("eventId") UUID eventId,
-            @RequestParam String ownerName) {
+            @RequestParam("ownerName") String ownerName) {
         try {
             List<PurchaseHistoryDTO> history = purchaseService.getEventPurchaseHistoryForOwner(ownerName, eventId);
             return ResponseEntity.ok(ApiResponse.success("Event history for owner fetched", history));

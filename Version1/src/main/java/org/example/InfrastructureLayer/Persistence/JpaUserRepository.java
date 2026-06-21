@@ -329,13 +329,91 @@ public class JpaUserRepository implements IUserRepository {
     }
 
     private void restoreCompanyRoles(User user) {
-        for (CompanyMemberEntity member : companyMemberJpa.findByIdUsernameIn(identifiersForUser(user))) {
-            ICompanyMember role = toCompanyMemberDomain(member);
+        List<String> userIdentifiers = identifiersForUser(user);
 
-            if (role != null) {
-                user.getCompanyRoles().put(member.getCompanyId(), role);
+        Set<String> normalizedUserIdentifiers = new HashSet<>();
+        for (String identifier : userIdentifiers) {
+            String normalized = normalizeIdentifier(identifier);
+            if (normalized != null) {
+                normalizedUserIdentifiers.add(normalized);
             }
         }
+
+        // Determine which companies this user belongs to.
+        Set<UUID> companyIds = new LinkedHashSet<>();
+        for (CompanyMemberEntity member : companyMemberJpa.findByIdUsernameIn(userIdentifiers)) {
+            companyIds.add(member.getCompanyId());
+        }
+
+        // For each company, rebuild the full appointer -> subordinate tree so the
+        // in-memory hierarchy (subordinates list + appointer chain) is restored.
+        // Without this the hierarchy view shows only the founder, subordinate
+        // checks fail, and re-saving a member wipes its appointer link.
+        for (UUID companyId : companyIds) {
+            ICompanyMember ownNode = buildCompanyHierarchy(companyId, normalizedUserIdentifiers);
+            if (ownNode != null) {
+                user.getCompanyRoles().put(companyId, ownNode);
+            }
+        }
+    }
+
+    /**
+     * Rebuilds the full company hierarchy from the persisted company_members rows
+     * and returns the node that belongs to the user being rehydrated.
+     *
+     * Edges are wired from appointer_username. Non-founder members whose appointer
+     * link is missing (legacy rows persisted before appointer links were restored
+     * on load) are attached directly under the founder so they still appear in the
+     * hierarchy and pass owner/subordinate permission checks.
+     */
+    private ICompanyMember buildCompanyHierarchy(UUID companyId, Set<String> targetUsernames) {
+        List<CompanyMemberEntity> members = companyMemberJpa.findByIdCompanyId(companyId);
+
+        Map<String, ICompanyMember> nodes = new HashMap<>();
+        CompanyFounder founder = null;
+
+        for (CompanyMemberEntity member : members) {
+            ICompanyMember node = toCompanyMemberDomain(member);
+            String key = normalizeIdentifier(member.getUsername());
+
+            if (node == null || key == null) {
+                continue;
+            }
+
+            nodes.put(key, node);
+
+            if (node instanceof CompanyFounder companyFounder) {
+                founder = companyFounder;
+            }
+        }
+
+        for (CompanyMemberEntity member : members) {
+            String key = normalizeIdentifier(member.getUsername());
+            ICompanyMember node = key == null ? null : nodes.get(key);
+
+            if (node == null || node instanceof CompanyFounder) {
+                continue;
+            }
+
+            String appointerKey = normalizeIdentifier(member.getAppointerUsername());
+            ICompanyMember appointerNode = appointerKey == null ? null : nodes.get(appointerKey);
+
+            if (!(appointerNode instanceof CompanyOwner) && founder != null) {
+                appointerNode = founder;
+            }
+
+            if (appointerNode instanceof CompanyOwner owner && appointerNode != node) {
+                owner.addSubordinate(node);
+            }
+        }
+
+        for (Map.Entry<String, ICompanyMember> entry : nodes.entrySet()) {
+            if (targetUsernames.contains(entry.getKey())) {
+                return entry.getValue();
+            }
+        }
+
+        return null;
     }
 
     private ICompanyMember toCompanyMemberDomain(CompanyMemberEntity entity) {

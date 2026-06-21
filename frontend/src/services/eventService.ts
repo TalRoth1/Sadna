@@ -27,6 +27,7 @@ export type EditEventRequest = {
     type: string;
     status: string;
     description?: string;
+    requesterEmail: string;
 };
 
 export type AddEventPolicyRuleRequest = {

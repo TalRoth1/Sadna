@@ -303,7 +303,8 @@ public class NotificationTests {
                 eq("Coldplay"),
                 eq("Concert"),
                 eq(EventStatus.ACTIVE),
-                eq("hello")
+                eq("hello"),
+                eq("requester@example.com")
         )).thenReturn(Set.of(buyer1, buyer2));
 
         /*
@@ -322,7 +323,8 @@ public class NotificationTests {
                         "Tel Aviv",
                         "Coldplay",
                         "Concert",
-                        EventStatus.ACTIVE, "hello"
+                        EventStatus.ACTIVE, "hello",
+                        "requester@example.com"
                 )
         );
         thrown.getMessage();

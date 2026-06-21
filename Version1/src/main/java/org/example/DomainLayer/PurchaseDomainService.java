@@ -9,6 +9,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Collectors;
 
 import org.example.API.BackendConfigProperties;
@@ -20,6 +22,7 @@ import org.example.ApplicationLayer.dto.SalesReport;
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
 import org.example.DomainLayer.CompanyAggregate.Company;
 import org.example.DomainLayer.EventAggregate.Event;
+import org.example.DomainLayer.EventAggregate.EventStatus;
 import org.example.DomainLayer.EventAggregate.Ticket;
 import org.example.DomainLayer.EventAggregate.TicketStatus;
 import org.example.DomainLayer.LotteryAggregate.PuchaseLottery;
@@ -49,6 +52,21 @@ public class PurchaseDomainService {
 
     IPaymentGateway paymentGateway;
     ITicketingGateway ticketingGateway;
+
+    /**
+     * Per-event critical-section locks. {@link #getById} returns a fresh
+     * {@link Event} instance on every call under the JPA profile, so the old
+     * {@code synchronized(event)} locked a different monitor per request and
+     * provided NO mutual exclusion. This registry gives a single, stable
+     * monitor per eventId for the lifetime of this (singleton) service, so the
+     * read-modify-persist sequence on an event's inventory is atomic across
+     * concurrent requests (single JVM).
+     */
+    private final ConcurrentMap<UUID, Object> eventLocks = new ConcurrentHashMap<>();
+
+    private Object lockFor(UUID eventId) {
+        return eventLocks.computeIfAbsent(eventId, k -> new Object());
+    }
 
     public PurchaseDomainService(IHistoryRepository historyRepository,
                                  IEventRepository eventRepository,
@@ -172,13 +190,16 @@ public class PurchaseDomainService {
 
         validateSelectionEligibility(eventID, userID, accessCode);
 
-        Event event = eventRepository.getById(eventID);
-        if (event == null) {
-            throw new DomainException("Event does not exist");
-        }
+        synchronized (lockFor(eventID)) {
+            Event event = eventRepository.getById(eventID);
+            if (event == null) {
+                throw new DomainException("Event does not exist");
+            }
 
-        synchronized (event) {
             event.reserveSittingTickets(ticketIDs);
+            // Persist RESERVED so a concurrent/later request (which re-reads the
+            // event from the database) sees these seats as taken.
+            eventRepository.updateTicketStatuses(event);
 
             LinkedHashMap<UUID, Float> ticketBasePrices = new LinkedHashMap<>();
 
@@ -213,13 +234,16 @@ public class PurchaseDomainService {
 
         validateSelectionEligibility(eventID, userID, accessCode);
 
-        Event event = eventRepository.getById(eventID);
-        if (event == null) {
-            throw new DomainException("Event does not exist");
-        }
+        synchronized (lockFor(eventID)) {
+            Event event = eventRepository.getById(eventID);
+            if (event == null) {
+                throw new DomainException("Event does not exist");
+            }
 
-        synchronized (event) {
             List<UUID> reservedTicketIDs = event.reserveStandingTickets(amount, areaID);
+            // Persist RESERVED so a concurrent/later request (which re-reads the
+            // event from the database) sees these tickets as taken.
+            eventRepository.updateTicketStatuses(event);
 
             LinkedHashMap<UUID, Float> ticketBasePrices = new LinkedHashMap<>();
 
@@ -263,9 +287,25 @@ public class PurchaseDomainService {
             throw new DomainException("Purchase canceled due to inactivity");
         }
 
-        Event event = eventRepository.getById(activePurchase.getEventID());
+        UUID eventId = activePurchase.getEventID();
 
-        synchronized (event) {
+        synchronized (lockFor(eventId)) {
+            Event event = eventRepository.getById(eventId);
+            if (event == null) {
+                throw new DomainException("Event does not exist");
+            }
+
+            // A purchase must never complete for a canceled/ended event or an
+            // event of an inactive company. Release the dead reservation and
+            // drop the active purchase so the held seats return to inventory.
+            if (event.getStatus() != EventStatus.ACTIVE
+                    || isCompanyInactive(event.getCompanyId())) {
+                event.releaseTickets(activePurchase.getTicketIDs());
+                eventRepository.updateTicketStatuses(event);
+                purchaseRepository.deleteByID(activePurchaseID);
+                throw new DomainException("This event is no longer open for ticket purchases.");
+            }
+
             // Use orElseThrow so that a stale userID (e.g. cached in a
             // browser session after the in-memory user repository was
             // wiped on a server restart) surfaces as a clean
@@ -276,14 +316,22 @@ public class PurchaseDomainService {
                             "Your session is no longer valid. Please refresh the page and try again."));
 
             try {
+                // Purchase policy must be ENFORCED, not merely evaluated. Both
+                // the event-level and the company-level policy must hold; a
+                // violation releases the held tickets and aborts before any
+                // charge (general doc integrity rules; V2 II.4.3 / 3.5).
                 if (event.getPurchasePolicy() != null) {
-                    event.getPurchasePolicy().validate(activePurchase, user, event);
-                } else {
-                    Company eventCompany = companyRepository.findByID(event.getCompanyId()).get();
-                    eventCompany.getPurchasePolicy().validate(activePurchase, user, event);
+                    event.getPurchasePolicy().validateOrThrow(activePurchase, user, event);
+                }
+                Company eventCompany = event.getCompanyId() == null
+                        ? null
+                        : companyRepository.findByID(event.getCompanyId()).orElse(null);
+                if (eventCompany != null && eventCompany.getPurchasePolicy() != null) {
+                    eventCompany.getPurchasePolicy().validateOrThrow(activePurchase, user, event);
                 }
             } catch (DomainException e) {
                 event.releaseTickets(activePurchase.getTicketIDs());
+                eventRepository.updateTicketStatuses(event);
                 throw e;
             }
 
@@ -357,6 +405,10 @@ public class PurchaseDomainService {
                         payment,
                         issuedTicketReference
                 );
+                // Persist SOLD only after the sale is durably recorded, so a
+                // failure before this point leaves the DB at RESERVED and the
+                // compensating rollback can release the seats cleanly.
+                eventRepository.updateTicketStatuses(event);
             } catch (RuntimeException purchaseFailure) {
                 compensateFailedTicketing(
                         activePurchase,
@@ -454,6 +506,7 @@ public class PurchaseDomainService {
         Event event = eventRepository.getById(activePurchase.getEventID());
         if (event != null) {
             event.releaseTickets(activePurchase.getTicketIDs());
+            eventRepository.updateTicketStatuses(event);
         }
         purchaseRepository.deleteByID(activePurchase.getActivePurchaseId());
 
@@ -466,6 +519,30 @@ public class PurchaseDomainService {
                 "Tickets could not be issued AND the refund failed. "
                         + "Please contact customer support — charge of " + chargedAmount
                         + " is pending manual reversal.");
+    }
+
+    /**
+     * Guards the purchase paths: tickets may only be reserved/bought for an
+     * ACTIVE event whose production company is active. Canceled/ended events
+     * and events of closed/suspended companies are not purchasable.
+     */
+    private void ensureEventPurchasable(Event event) {
+        if (event.getStatus() != EventStatus.ACTIVE) {
+            throw new DomainException("This event is not open for ticket purchases.");
+        }
+
+        if (isCompanyInactive(event.getCompanyId())) {
+            throw new DomainException(
+                    "This production company is not active, so its events cannot be purchased.");
+        }
+    }
+
+    private boolean isCompanyInactive(UUID companyId) {
+        if (companyId == null) {
+            return false;
+        }
+        Company company = companyRepository.findByID(companyId).orElse(null);
+        return company != null && !company.isActive();
     }
 
     public void validateSelectionEligibility(UUID eventId, UUID userId, String accessCode) {
@@ -489,6 +566,11 @@ public class PurchaseDomainService {
         if (event == null) {
             throw new DomainException("Event does not exist");
         }
+
+        // Inventory of a non-active event (canceled/ended) or an event of an
+        // inactive production company is NOT purchasable (general doc II.4.13,
+        // and the canceled-event constraint).
+        ensureEventPurchasable(event);
 
         PuchaseLottery lottery = lotteryRepository.findByEventID(eventId);
 
@@ -617,11 +699,17 @@ public class PurchaseDomainService {
             throw new DomainException("Purchase canceled due to inactivity");
         }
 
-        Event event = eventRepository.getById(activePurchase.getEventID());
+        UUID eventId = activePurchase.getEventID();
 
-        synchronized (event) {
+        synchronized (lockFor(eventId)) {
+            Event event = eventRepository.getById(eventId);
+            if (event == null) {
+                throw new DomainException("Event does not exist");
+            }
+
             if (activePurchase.isExpired(LocalDateTime.now())) {
                 event.releaseTickets(activePurchase.getTicketIDs());
+                eventRepository.updateTicketStatuses(event);
                 purchaseRepository.deleteByID(activePurchaseID);
                 throw new DomainException("Active Purchase Expired");
             }
@@ -631,6 +719,7 @@ public class PurchaseDomainService {
             try {
                 event.releaseTickets(oldTickets);
                 event.reserveSittingTickets(newTicketIDs);
+                eventRepository.updateTicketStatuses(event);
 
                 LinkedHashMap<UUID, Float> newTicketPrices = new LinkedHashMap<>();
                 for (UUID ticketId : newTicketIDs) {
@@ -643,6 +732,7 @@ public class PurchaseDomainService {
             } catch (DomainException | IllegalStateException e) {
                 List<UUID> oldticketsId = new ArrayList<>(oldTickets.keySet());
                 event.reserveSittingTickets(oldticketsId);
+                eventRepository.updateTicketStatuses(event);
                 activePurchase.update();
                 throw e;
             }
@@ -659,11 +749,17 @@ public class PurchaseDomainService {
             throw new DomainException("Purchase canceled due to inactivity");
         }
 
-        Event event = eventRepository.getById(activePurchase.getEventID());
+        UUID eventId = activePurchase.getEventID();
 
-        synchronized (event) {
+        synchronized (lockFor(eventId)) {
+            Event event = eventRepository.getById(eventId);
+            if (event == null) {
+                throw new DomainException("Event does not exist");
+            }
+
             if (activePurchase.isExpired(LocalDateTime.now())) {
                 event.releaseTickets(activePurchase.getTicketIDs());
+                eventRepository.updateTicketStatuses(event);
                 purchaseRepository.deleteByID(activePurchaseId);
                 throw new DomainException("Active Purchase Expired");
             }
@@ -673,6 +769,7 @@ public class PurchaseDomainService {
             try {
                 event.releaseTickets(oldTickets);
                 List<UUID> newTicketIDs = event.reserveStandingTickets(newAmount, areaId);
+                eventRepository.updateTicketStatuses(event);
 
                 LinkedHashMap<UUID, Float> newTicketPrices = new LinkedHashMap<>();
                 for (UUID ticketId : newTicketIDs) {
@@ -685,6 +782,7 @@ public class PurchaseDomainService {
             } catch (DomainException | IllegalStateException e) {
                 List<UUID> oldticketsId = new ArrayList<>(oldTickets.keySet());
                 event.reserveSittingTickets(oldticketsId);
+                eventRepository.updateTicketStatuses(event);
                 activePurchase.update();
                 throw e;
             }
@@ -697,10 +795,14 @@ public class PurchaseDomainService {
             throw new DomainException("Active Purchase Not Found");
         }
 
-        Event event = eventRepository.getById(activePurchase.getEventID());
+        UUID eventId = activePurchase.getEventID();
 
-        synchronized (event) {
-            event.releaseTickets(activePurchase.getTicketIDs());
+        synchronized (lockFor(eventId)) {
+            Event event = eventRepository.getById(eventId);
+            if (event != null) {
+                event.releaseTickets(activePurchase.getTicketIDs());
+                eventRepository.updateTicketStatuses(event);
+            }
             purchaseRepository.deleteByID(activePurchaseId);
         }
     }
@@ -714,11 +816,15 @@ public class PurchaseDomainService {
             throw new DomainException("Purchase canceled due to inactivity");
         }
 
-        Event event = eventRepository.getById(activePurchase.getEventID());
+        UUID eventId = activePurchase.getEventID();
 
-        synchronized (event) {
+        synchronized (lockFor(eventId)) {
             if (activePurchase.isExpired(LocalDateTime.now())) {
-                event.releaseTickets(activePurchase.getTicketIDs());
+                Event event = eventRepository.getById(eventId);
+                if (event != null) {
+                    event.releaseTickets(activePurchase.getTicketIDs());
+                    eventRepository.updateTicketStatuses(event);
+                }
                 purchaseRepository.deleteByID(activePurchaseId);
                 throw new DomainException("Active Purchase Expired");
             } else {

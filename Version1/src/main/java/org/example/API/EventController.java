@@ -103,7 +103,8 @@ public class EventController {
         try {
             EventSummaryDto event = eventService.editEvent(
                     eventId, request.name, request.date, request.location,
-                    request.artist, request.type, request.status, request.description);
+                    request.artist, request.type, request.status, request.description,
+                    request.requesterEmail);
             return ResponseEntity.ok(ApiResponse.success("Event updated successfully", event));
         } catch (IllegalArgumentException | IllegalStateException | DomainException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
@@ -500,7 +501,7 @@ public class EventController {
     @GetMapping("/companies/{companyId}/users")
     public ResponseEntity<ApiResponse<List<EventSummaryDto>>> getEventsForUserInCompany(
             @PathVariable("companyId") UUID companyId,
-            @RequestParam String userEmail) {
+            @RequestParam("userEmail") String userEmail) {
         try {
             List<EventSummaryDto> results = eventService.getEventsForUserInCompany(userEmail, companyId);
             return ResponseEntity.ok(ApiResponse.success("Managed events fetched", results));
@@ -519,7 +520,7 @@ public class EventController {
     @GetMapping("/{eventId}/history/owner")
     public ResponseEntity<ApiResponse<List<PurchaseHistoryDTO>>> getEventPurchaseHistoryForOwner(
             @PathVariable("eventId") UUID eventId,
-            @RequestParam String ownerName) {
+            @RequestParam("ownerName") String ownerName) {
         try {
             List<PurchaseHistoryDTO> history = eventService.getEventPurchaseHistoryForOwner(ownerName, eventId);
             return ResponseEntity.ok(ApiResponse.success("Event history fetched", history));

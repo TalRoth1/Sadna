@@ -719,6 +719,7 @@ export default function EditEventPage({
                 type: type.trim(),
                 status,
                 description: description.trim() || undefined,
+                requesterEmail: currentUser.email,
             };
 
             await editEvent(event.id, request);

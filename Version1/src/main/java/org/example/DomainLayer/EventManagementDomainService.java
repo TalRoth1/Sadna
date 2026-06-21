@@ -349,12 +349,26 @@ public class EventManagementDomainService {
                             String artist,
                             String type,
                             EventStatus status,
-                            String description) {
+                            String description,
+                            String requesterEmail) {
 
         Event event = eventRepository.getById(eventId);
 
         if (event == null) {
             throw new DomainException("Event not found");
+        }
+
+        // Authorization: editing an event is restricted to a company owner/founder
+        // or a manager that was explicitly granted the MANAGE_INVENTORY permission.
+        // hasPermission returns true for owners/founders and, for managers, only
+        // when the permission set contains MANAGE_INVENTORY.
+        if (requesterEmail == null || requesterEmail.isBlank()) {
+            throw new IllegalArgumentException("Requester email is required");
+        }
+
+        if (!userRepository.hasPermission(requesterEmail, event.getCompanyId(),
+                CompanyPermission.MANAGE_INVENTORY, eventId)) {
+            throw new DomainException("User is not authorized to edit this event");
         }
 
         // Capture the status before any mutation so we can detect the
