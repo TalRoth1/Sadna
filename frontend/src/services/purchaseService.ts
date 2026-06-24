@@ -68,6 +68,77 @@ type UpdateStandingRequestBody = {
     areaId: string;
 };
 
+type SelectTicketsRequestBody = {
+    ticketIDs: string[];
+    standingAmount: number;
+    standingAreaID: string | null;
+    userID: string;
+    isConfirmedAge: boolean;
+    accessCode?: string | null;
+};
+
+type UpdateTicketsRequestBody = {
+    ticketIDs: string[];
+    standingAmount: number;
+    standingAreaID: string | null;
+};
+
+export async function selectTickets(
+    eventId: string,
+    ticketIds: string[],
+    standingAreaId: string | null,
+    standingAmount: number,
+    userId: string,
+    isConfirmedAge: boolean,
+    accessCode?: string | null,
+): Promise<ActivePurchaseResponse> {
+    const body: SelectTicketsRequestBody = {
+        ticketIDs: ticketIds,
+        standingAreaID: standingAreaId,
+        standingAmount,
+        userID: userId,
+        isConfirmedAge,
+        accessCode: accessCode ?? null,
+    };
+
+    try {
+        const response = await api.post(
+            `/purchases/events/${encodeURIComponent(eventId)}/tickets`,
+            body,
+        );
+        return response.data.data as ActivePurchaseResponse;
+    } catch (error) {
+        throw new Error(extractMessage(error, "Failed to reserve tickets."), {
+            cause: error,
+        });
+    }
+}
+
+export async function updateTickets(
+    activePurchaseId: string,
+    ticketIds: string[],
+    standingAreaId: string | null,
+    standingAmount: number,
+): Promise<ActivePurchaseResponse> {
+    const body: UpdateTicketsRequestBody = {
+        ticketIDs: ticketIds,
+        standingAreaID: standingAreaId,
+        standingAmount,
+    };
+
+    try {
+        const response = await api.put(
+            `/purchases/active/${encodeURIComponent(activePurchaseId)}/tickets`,
+            body,
+        );
+        return response.data.data as ActivePurchaseResponse;
+    } catch (error) {
+        throw new Error(extractMessage(error, "Failed to update tickets."), {
+            cause: error,
+        });
+    }
+}
+
 // Mirrors the backend org.example.ApplicationLayer.PaymentDetails fields,
 // which are forwarded as-is to the external WSEP payment gateway
 // (action_type=pay: card_number, month, year, holder, cvv, id, currency).

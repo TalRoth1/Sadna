@@ -48,6 +48,90 @@ public class PurchaseService {
         this.notifier = notifier;
     }
 
+    public ActivePurchaseDTO selectTickets(
+            UUID eventID,
+            List<UUID> sittingTicketIDs,
+            int standingAmount,
+            UUID standingAreaID,
+            UUID userID,
+            boolean isConfirmedAge,
+            String accessCode
+    ) {
+        if (eventID == null) {
+            throw new IllegalArgumentException("Event ID is required");
+        }
+        if (userID == null) {
+            throw new IllegalArgumentException("User ID is required");
+        }
+
+        boolean hasSitting = sittingTicketIDs != null && !sittingTicketIDs.isEmpty();
+        boolean hasStanding = standingAmount > 0;
+
+        if (!hasSitting && !hasStanding) {
+            throw new IllegalArgumentException("Select at least one ticket");
+        }
+
+        if (hasStanding && standingAreaID == null) {
+            throw new IllegalArgumentException("Standing area ID is required");
+        }
+
+        if (purchaseDomainService.isLotteryEvent(eventID)) {
+            if (accessCode == null || accessCode.isBlank()) {
+                throw new IllegalStateException("Lottery access code is required for this event");
+            }
+            purchaseDomainService.validateSelectionEligibility(eventID, userID, accessCode);
+        }
+
+        requireQueueAccess(userID, eventID);
+
+        try {
+            ActivePurchase activePurchase = purchaseDomainService.selectTickets(
+                    eventID,
+                    sittingTicketIDs,
+                    standingAmount,
+                    standingAreaID,
+                    userID,
+                    isConfirmedAge,
+                    accessCode
+            );
+
+            eventPublisher.publish(new TicketReservedEvent(userID, eventID));
+
+            return toActivePurchaseDTO(activePurchase);
+        } catch (DomainException e) {
+            throw new IllegalStateException("Couldn't select tickets: " + e.getMessage());
+        } finally {
+            queueManager.finishAccess(userID, eventID);
+            queueManager.releaseBatch(eventID, 1);
+        }
+    }
+
+    public ActivePurchaseDTO updateActivePurchaseTickets(
+            UUID activePurchaseID,
+            List<UUID> sittingTicketIDs,
+            int standingAmount,
+            UUID standingAreaID
+    ) {
+        if (activePurchaseID == null) {
+            throw new IllegalArgumentException("Active purchase ID is required");
+        }
+
+        try {
+            purchaseDomainService.updateActivePurchaseTickets(
+                    activePurchaseID,
+                    sittingTicketIDs,
+                    standingAmount,
+                    standingAreaID
+            );
+
+            return toActivePurchaseDTO(
+                    purchaseDomainService.viewActivePurchase(activePurchaseID)
+            );
+        } catch (DomainException e) {
+            throw new IllegalStateException("Couldn't update tickets: " + e.getMessage());
+        }
+    }
+
     public void validateAdmin(UUID adminId) {
         if (adminId == null) {
             throw new IllegalArgumentException("Admin ID is required");

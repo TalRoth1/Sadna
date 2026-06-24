@@ -985,4 +985,122 @@ public SalesReport getSalesReportForOwner(String ownerEmail, UUID companyId) {
         }
         return lottery.isWinner(userId.toString());
     }
+
+    public ActivePurchase selectTickets(
+            UUID eventID,
+            List<UUID> sittingTicketIDs,
+            int standingAmount,
+            UUID standingAreaID,
+            UUID userID,
+            boolean guestAgeConfirmed,
+            String accessCode
+    ) {
+        ensureUserHasNoOtherActivePurchaseForEvent(userID, eventID);
+
+        validateSelectionEligibility(eventID, userID, accessCode);
+
+        Event event = eventRepository.getById(eventID);
+        if (event == null) {
+            throw new DomainException("Event does not exist");
+        }
+
+        synchronized (event) {
+            LinkedHashMap<UUID, Float> ticketBasePrices =
+                    reserveRequestedTickets(event, sittingTicketIDs, standingAmount, standingAreaID);
+
+            ActivePurchase activePurchase = new ActivePurchase(
+                    userID,
+                    eventID,
+                    ticketBasePrices,
+                    LocalDateTime.now().plusMinutes(activePurchaseTimeoutMinutes),
+                    defaultMaxWaitTime
+            );
+
+            activePurchase.SetGuestAgeConfirmed(guestAgeConfirmed);
+
+            purchaseRepository.save(activePurchase);
+            return activePurchase;
+        }
+    }
+
+    public void updateActivePurchaseTickets(
+            UUID activePurchaseID,
+            List<UUID> sittingTicketIDs,
+            int standingAmount,
+            UUID standingAreaID
+    ) {
+        ActivePurchase activePurchase = purchaseRepository.findByID(activePurchaseID);
+
+        if (activePurchase == null) {
+            throw new DomainException("Active Purchase Not Found");
+        }
+
+        if (!checkLastUpdate(activePurchase)) {
+            cancelActivePurchase(activePurchaseID);
+            throw new DomainException("Purchase canceled due to inactivity");
+        }
+
+        Event event = eventRepository.getById(activePurchase.getEventID());
+
+        synchronized (event) {
+            if (activePurchase.isExpired(LocalDateTime.now())) {
+                event.releaseTickets(activePurchase.getTicketIDs());
+                purchaseRepository.deleteByID(activePurchaseID);
+                throw new DomainException("Active Purchase Expired");
+            }
+
+            Map<UUID, Float> oldTickets = activePurchase.getTicketIDs();
+
+            event.releaseTickets(oldTickets);
+
+            try {
+                LinkedHashMap<UUID, Float> newTicketPrices =
+                        reserveRequestedTickets(event, sittingTicketIDs, standingAmount, standingAreaID);
+
+                activePurchase.replaceTickets(newTicketPrices);
+                purchaseRepository.save(activePurchase);
+            } catch (DomainException | IllegalStateException e) {
+                throw e;
+            }
+        }
+    }
+
+    private LinkedHashMap<UUID, Float> reserveRequestedTickets(
+            Event event,
+            List<UUID> sittingTicketIDs,
+            int standingAmount,
+            UUID standingAreaID
+    ) {
+        LinkedHashMap<UUID, Float> ticketBasePrices = new LinkedHashMap<>();
+
+        boolean hasSitting = sittingTicketIDs != null && !sittingTicketIDs.isEmpty();
+        boolean hasStanding = standingAmount > 0;
+
+        if (!hasSitting && !hasStanding) {
+            throw new DomainException("Select at least one ticket");
+        }
+
+        if (hasSitting) {
+            event.reserveSittingTickets(sittingTicketIDs);
+
+            for (UUID ticketId : sittingTicketIDs) {
+                ticketBasePrices.put(ticketId, event.getTicket(ticketId).getPrice());
+            }
+        }
+
+        if (hasStanding) {
+            if (standingAreaID == null) {
+                throw new DomainException("Standing area ID is required");
+            }
+
+            List<UUID> reservedStandingTicketIDs =
+                    event.reserveStandingTickets(standingAmount, standingAreaID);
+
+            for (UUID ticketId : reservedStandingTicketIDs) {
+                ticketBasePrices.put(ticketId, event.getTicket(ticketId).getPrice());
+            }
+        }
+
+        return ticketBasePrices;
+    }
 }

@@ -13,10 +13,8 @@ import {
     completePurchase,
     getActivePurchaseForEvent,
     registerToLottery,
-    selectSittingTickets,
-    selectStandingTickets,
-    updateSittingTickets,
-    updateStandingTickets,
+    selectTickets,
+    updateTickets,
     type ActivePurchaseResponse,
     type PaymentDetails,
 } from "../../services/purchaseService";
@@ -125,14 +123,15 @@ type PurchaseStep = "select" | "checkout";
 // ticket ids) and standing (single area + amount) — and the domain
 // invariant "one active purchase per (user, event)" means we can have at
 // most one shape live at a time. The UI mirrors that on the client.
-type ActiveShape =
-    | { kind: "sitting"; ticketIds: string[] }
-    | { kind: "standing"; areaId: string; amount: number };
+type ReservableSelection = {
+    sittingTicketIds: string[];
+    standingAreaId: string | null;
+    standingAmount: number;
+};
 
 type ActivePurchaseState = {
     activePurchaseId: string;
     endTime: Date;
-    shape: ActiveShape;
 };
 
 // ---------------------------------------------------------------------------
@@ -399,20 +398,33 @@ function detectLoneSeats(
  * "one active purchase per (user, event)" domain invariant and would
  * be impossible to send via select{Sitting,Standing}Tickets.
  */
-function deriveActiveShape(selection: SeatSelection): ActiveShape | null {
-    const sittingIds = getSelectedTicketIds(selection);
+function toReservableSelection(selection: SeatSelection): ReservableSelection | null {
+    const sittingTicketIds = getSelectedTicketIds(selection);
     const standingEntries = Object.entries(selection.standingCountByArea).filter(
         ([, count]) => count > 0,
     );
 
-    if (sittingIds.length > 0 && standingEntries.length === 0) {
-        return { kind: "sitting", ticketIds: sittingIds };
+    // מותר sitting + standing, אבל רק standing area אחת
+    if (standingEntries.length > 1) {
+        return null;
     }
-    if (sittingIds.length === 0 && standingEntries.length === 1) {
-        const [areaId, amount] = standingEntries[0];
-        return { kind: "standing", areaId, amount };
+
+    let standingAreaId: string | null = null;
+    let standingAmount = 0;
+
+    if (standingEntries.length === 1) {
+        [standingAreaId, standingAmount] = standingEntries[0];
     }
-    return null;
+
+    if (sittingTicketIds.length === 0 && standingAmount === 0) {
+        return null;
+    }
+
+    return {
+        sittingTicketIds,
+        standingAreaId,
+        standingAmount,
+    };
 }
 
 /**
@@ -433,7 +445,7 @@ function deriveActiveShape(selection: SeatSelection): ActiveShape | null {
 function reconstructFromActivePurchase(
     response: ActivePurchaseResponse,
     event: Event,
-): { selection: SeatSelection; shape: ActiveShape } | null {
+): { selection: SeatSelection } | null {
     const sittingTicketIds: Record<string, true> = {};
     const standingCountByArea: Record<string, number> = {};
     const orderedSittingIds: string[] = [];
@@ -454,31 +466,19 @@ function reconstructFromActivePurchase(
         }
     }
 
-    const selection: SeatSelection = { sittingTicketIds, standingCountByArea };
-    const standingAreaCount = Object.keys(standingCountByArea).length;
+        const selection: SeatSelection = { sittingTicketIds, standingCountByArea };
+        const standingAreaCount = Object.keys(standingCountByArea).length;
 
-    if (orderedSittingIds.length > 0 && standingAreaCount === 0) {
-        return {
-            selection,
-            shape: { kind: "sitting", ticketIds: orderedSittingIds },
-        };
+        if (orderedSittingIds.length === 0 && standingAreaCount === 0) {
+            return null;
+        }
+
+        if (standingAreaCount > 1) {
+            return null;
+        }
+
+        return { selection };
     }
-    if (
-        orderedSittingIds.length === 0 &&
-        standingAreaCount === 1 &&
-        standingAreaId
-    ) {
-        return {
-            selection,
-            shape: {
-                kind: "standing",
-                areaId: standingAreaId,
-                amount: standingCountByArea[standingAreaId],
-            },
-        };
-    }
-    return null;
-}
 
 function validateSelection(
     selection: SeatSelection,
@@ -516,10 +516,8 @@ function validateSelection(
         // Single-shape constraint — the backend select endpoints accept
         // either a list of sitting ticket ids OR one standing area at a
         // time. Mixing is impossible per the domain invariant.
-        if (totalCount > 0 && deriveActiveShape(selection) === null) {
-            blockers.push(
-                "Please pick either sitting tickets or standing tickets in a single area — not both.",
-            );
+        if (totalCount > 0 && toReservableSelection(selection) === null) {
+            blockers.push("Please pick standing tickets from only one standing area.");
         }
     }
 
@@ -1635,7 +1633,6 @@ export default function TicketPurchasePage({
                     setActivePurchase({
                         activePurchaseId: activeResponse.activePurchaseId,
                         endTime: new Date(activeResponse.endTime),
-                        shape: restored.shape,
                     });
                 } catch {
                     // Best-effort resume. A transient lookup failure must
@@ -1695,14 +1692,10 @@ export default function TicketPurchasePage({
     // the deadline to `endTime` (rather than computing it client-side) is
     // what keeps the timer in lockstep with ActivePurchaseCleaner on the
     // server — see PurchaseService.toActivePurchaseDTO.
-    function adoptActivePurchase(
-        response: ActivePurchaseResponse,
-        shape: ActiveShape,
-    ): ActivePurchaseState {
+    function adoptActivePurchase(response: ActivePurchaseResponse): ActivePurchaseState {
         const state: ActivePurchaseState = {
             activePurchaseId: response.activePurchaseId,
             endTime: new Date(response.endTime),
-            shape,
         };
         setActivePurchase(state);
         return state;
@@ -1712,28 +1705,7 @@ export default function TicketPurchasePage({
     // we can retry it with a fresh session if the first attempt fails
     // because the cached guest userId is no longer recognised by the
     // server (e.g. after a backend restart wiped the in-memory user repo).
-    async function selectForShape(
-        event_: Event,
-        shape: ActiveShape,
-        userId: string,
-    ): Promise<ActivePurchaseResponse> {
-        return shape.kind === "sitting"
-            ? await selectSittingTickets(
-                  event_.id,
-                  shape.ticketIds,
-                  userId,
-                  agreedToTerms,
-                  lotteryAccessCode,
-              )
-            : await selectStandingTickets(
-                  event_.id,
-                  shape.areaId,
-                  shape.amount,
-                  userId,
-                  agreedToTerms,
-                  lotteryAccessCode,
-              );
-    }
+
 
     // Run a select* call (cancelling any leftover reservation first, so we
     // honour "at most one active purchase per (user, event)") and stash
@@ -1741,38 +1713,50 @@ export default function TicketPurchasePage({
     // backend message surfaced as actionMessage.
     async function createReservation(
         event_: Event,
-        shape: ActiveShape,
+        reservation: ReservableSelection,
     ): Promise<boolean> {
         try {
             if (activePurchase) {
                 try {
                     await cancelActivePurchase(activePurchase.activePurchaseId);
                 } catch {
-                    // Best-effort: even if the old reservation has already
-                    // expired or been swept, we still try to open a fresh
-                    // one. Any persistent problem will resurface on the
-                    // select* call below.
+                    // Best-effort
                 }
                 setActivePurchase(null);
             }
 
             let session = await ensureGuestSession();
             let response: ActivePurchaseResponse;
+
             try {
-                response = await selectForShape(event_, shape, session.userId);
+                response = await selectTickets(
+                    event_.id,
+                    reservation.sittingTicketIds,
+                    reservation.standingAreaId,
+                    reservation.standingAmount,
+                    session.userId,
+                    agreedToTerms,
+                    lotteryAccessCode,
+                );
             } catch (error) {
-                // Self-heal: if the backend says the cached guest is
-                // stale, mint a fresh session and try exactly once more.
-                const message =
-                    error instanceof Error ? error.message : "";
+                const message = error instanceof Error ? error.message : "";
                 if (!isSessionInvalidError(message)) {
                     throw error;
                 }
+
                 session = await ensureGuestSession(true);
-                response = await selectForShape(event_, shape, session.userId);
+                response = await selectTickets(
+                    event_.id,
+                    reservation.sittingTicketIds,
+                    reservation.standingAreaId,
+                    reservation.standingAmount,
+                    session.userId,
+                    agreedToTerms,
+                    lotteryAccessCode,
+                );
             }
 
-            adoptActivePurchase(response, shape);
+            adoptActivePurchase(response);
             return true;
         } catch (error) {
             setActionMessage({
@@ -1790,8 +1774,8 @@ export default function TicketPurchasePage({
         if (!event) {
             return;
         }
-        const shape = deriveActiveShape(selection);
-        if (!shape) {
+        const reservation = toReservableSelection(selection);
+        if (!reservation) {
             return;
         }
 
@@ -1809,42 +1793,21 @@ export default function TicketPurchasePage({
 
         try {
             if (!activePurchase) {
-                const ok = await createReservation(event, shape);
+                const ok = await createReservation(event, reservation);
                 if (!ok) return;
-            } else if (
-                activePurchase.shape.kind === "sitting" &&
-                shape.kind === "sitting"
-            ) {
-                await updateSittingTickets(
-                    activePurchase.activePurchaseId,
-                    shape.ticketIds,
-                );
-                setActivePurchase({ ...activePurchase, shape });
-            } else if (
-                activePurchase.shape.kind === "standing" &&
-                shape.kind === "standing"
-            ) {
-                await updateStandingTickets(
-                    activePurchase.activePurchaseId,
-                    shape.areaId,
-                    shape.amount,
-                );
-                setActivePurchase({ ...activePurchase, shape });
             } else {
-                // Shape changed (sitting <-> standing). The domain forbids
-                // mixing, so we cancel and open a fresh reservation — this
-                // unavoidably restarts the 10-min window, which is the
-                // correct semantic.
-                const ok = await createReservation(event, shape);
-                if (!ok) return;
+                const response = await updateTickets(
+                    activePurchase.activePurchaseId,
+                    reservation.sittingTicketIds,
+                    reservation.standingAreaId,
+                    reservation.standingAmount,
+                );
+                adoptActivePurchase(response);
             }
 
             setStep("checkout");
         } catch (error) {
             const message = error instanceof Error ? error.message : "";
-            // Queue feature (from main): surface a dedicated banner when
-            // the backend tells us the user is waiting in queue, so the
-            // UI can match the rest of the queue UX.
             if (message.includes("User is waiting in queue")) {
                 setQueueMessage(message);
                 setShowQueueMessage(true);
@@ -1853,10 +1816,10 @@ export default function TicketPurchasePage({
                 kind: "error",
                 text: message || "Could not continue to checkout.",
             });
-        } finally {
-            setIsPerformingAction(false);
-        }
-    }
+                } finally {
+                    setIsPerformingAction(false);
+                }
+            }
 
     function handleChangeSeats() {
         // The active purchase stays alive server-side with its original
