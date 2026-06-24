@@ -3,7 +3,7 @@ import axios from 'axios';
 const api = axios.create({
     baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api',
     // timeout in milliseconds (10 seconds) if no response is received from the server, the request will be aborted
-    timeout: 30000,
+    timeout: 90000,
     headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
