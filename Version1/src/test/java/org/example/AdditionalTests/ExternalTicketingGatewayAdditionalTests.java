@@ -77,13 +77,13 @@ public class ExternalTicketingGatewayAdditionalTests {
 
     @Test
     public void issueTickets_postsQuantityAndReturnsTrimmedReference() throws Exception {
-        ExternalTicketingGateway gateway = gatewayWithServer(body -> "  EXT-123  ");
+        ExternalTicketingGateway gateway = gatewayWithServer(body -> "  TIX-123  ");
         UUID userId = UUID.randomUUID();
         UUID eventId = UUID.randomUUID();
 
         String reference = gateway.issueTickets(userId, eventId, Set.of(UUID.randomUUID(), UUID.randomUUID()));
 
-        assertEquals("EXT-123", reference);
+        assertEquals("TIX-123", reference);
         String body = requestBodies.get(0);
         assertTrue(body.contains("action_type=issue_ticket"));
         assertTrue(body.contains("customer_id=" + userId));
@@ -120,7 +120,13 @@ public class ExternalTicketingGatewayAdditionalTests {
         assertThrows(IllegalArgumentException.class, () -> gateway.cancelTicket("   "));
 
         assertTrue(gateway.cancelTicket("A-123"));
-        assertFalse(gateway.cancelTicket("B 123"));
+
+        ExternalTicketingGateway.TicketingFailedException error = assertThrows(
+                ExternalTicketingGateway.TicketingFailedException.class,
+                () -> gateway.cancelTicket("B 123")
+        );
+
+        assertTrue(error.getMessage().contains("unexpected cancellation response: 0"));
 
         assertTrue(requestBodies.get(0).contains("action_type=cancel_ticket"));
         assertTrue(requestBodies.get(0).contains("ticket_id=A-123"));
@@ -131,7 +137,12 @@ public class ExternalTicketingGatewayAdditionalTests {
     public void cancelTicket_propagatesExternalHttpErrors() throws Exception {
         ExternalTicketingGateway gateway = gatewayWithServer(body -> "not used", 500);
 
-        assertThrows(IllegalStateException.class, () -> gateway.cancelTicket("A-123"));
+        ExternalTicketingGateway.TicketingFailedException error = assertThrows(
+                ExternalTicketingGateway.TicketingFailedException.class,
+                () -> gateway.cancelTicket("A-123")
+        );
+
+        assertTrue(error.getMessage().contains("External ticketing service returned HTTP"));
     }
 
     private ExternalTicketingGateway gatewayWithServer(Function<String, String> responder) throws IOException {

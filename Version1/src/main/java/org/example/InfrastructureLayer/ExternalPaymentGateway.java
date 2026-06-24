@@ -98,7 +98,15 @@ public class ExternalPaymentGateway implements IPaymentGateway, PaymentProvider 
                 return PaymentResult.success(transactionId);
             }
 
-            return PaymentResult.failure();
+            if (transactionId == -1) {
+                throw new IllegalStateException(
+                        "Payment was declined by the external payment system. Please check the card details or try another payment method."
+                );
+            }
+
+            throw new IllegalStateException(
+                    "External payment system returned an unexpected transaction id: " + transactionId
+            );
         } catch (RuntimeException e) {
             logger.log(Level.SEVERE,
                     "[ExternalPaymentGateway] pay failed for user=" + userID
@@ -128,7 +136,19 @@ public class ExternalPaymentGateway implements IPaymentGateway, PaymentProvider 
             logger.info("[ExternalPaymentGateway] refund transactionId=" + transactionId
                     + ", result=" + result);
 
-            return result == 1;
+            if (result == 1) {
+                return true;
+            }
+
+            if (result == -1) {
+                throw new IllegalStateException(
+                        "External payment system failed to refund transaction " + transactionId + "."
+                );
+            }
+
+            throw new IllegalStateException(
+                    "External payment system returned an unexpected refund response: " + result
+            );
         } catch (RuntimeException e) {
             logger.log(Level.SEVERE,
                     "[ExternalPaymentGateway] refund failed for transactionId=" + transactionId,
@@ -156,16 +176,32 @@ public class ExternalPaymentGateway implements IPaymentGateway, PaymentProvider 
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 throw new IllegalStateException(
                         "External payment service returned HTTP " + response.statusCode()
+                                + ". Response body: " + safeBody(response.body())
                 );
             }
 
             return response.body() == null ? "" : response.body().trim();
         } catch (IOException e) {
-            throw new IllegalStateException("External payment service is not reachable", e);
+            throw new IllegalStateException(
+                    "External payment service is not reachable or timed out. The payment request could not be completed.",
+                    e
+            );
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new IllegalStateException("External payment request was interrupted", e);
+            throw new IllegalStateException(
+                    "External payment request was interrupted before completion.",
+                    e
+            );
         }
+    }
+
+    private String safeBody(String body) {
+        if (body == null || body.isBlank()) {
+            return "<empty>";
+        }
+
+        String trimmed = body.trim();
+        return trimmed.length() > 300 ? trimmed.substring(0, 300) + "..." : trimmed;
     }
 
     private String encodeForm(Map<String, String> params) {
@@ -189,11 +225,17 @@ public class ExternalPaymentGateway implements IPaymentGateway, PaymentProvider 
     }
 
     private int parseIntegerResponse(String response) {
+        if (response == null || response.isBlank()) {
+            throw new IllegalStateException(
+                    "External payment service returned an empty response."
+            );
+        }
+
         try {
             return Integer.parseInt(response.trim());
         } catch (NumberFormatException e) {
             throw new IllegalStateException(
-                    "External payment service returned invalid response: " + response,
+                    "External payment service returned an invalid numeric response: " + response,
                     e
             );
         }
