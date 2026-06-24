@@ -82,7 +82,7 @@ public class AdminController {
 
     @DeleteMapping("/companies/{companyId}")
     public ResponseEntity<ApiResponse<Void>> closeCompany(
-            @PathVariable UUID companyId,
+            @PathVariable("companyId") UUID companyId,
             @RequestBody(required = false) AdminCloseCompanyRequest body,
             HttpServletRequest request) {
         String action = "CLOSE_COMPANY";
@@ -133,7 +133,7 @@ public class AdminController {
 
     @DeleteMapping("/subscribers/{username}")
     public ResponseEntity<ApiResponse<Void>> removeSubscriber(
-            @PathVariable String username,
+            @PathVariable("username") String username,
             @RequestBody(required = false) AdminRemoveSubscriberRequest body,
             HttpServletRequest request) {
         String action = "REMOVE_SUBSCRIBER";
@@ -209,8 +209,8 @@ public class AdminController {
 
     @GetMapping("/purchases/filter")
     public ResponseEntity<ApiResponse<List<PurchaseHistoryDTO>>> getPurchaseHistoryByFilter(
-            @RequestParam String type,
-            @RequestParam(required = false) UUID id,
+            @RequestParam("type") String type,
+            @RequestParam(name = "id", required = false) UUID id,
             HttpServletRequest request) {
         String action = "GET_PURCHASE_HISTORY_BY_FILTER";
 
@@ -236,7 +236,7 @@ public class AdminController {
 
     @GetMapping("/purchases/users/{userId}")
     public ResponseEntity<ApiResponse<List<PurchaseHistoryDTO>>> getPurchaseHistoryByUser(
-            @PathVariable UUID userId,
+            @PathVariable("userId") UUID userId,
             HttpServletRequest request) {
         String action = "GET_PURCHASE_HISTORY_BY_USER";
 
@@ -261,7 +261,7 @@ public class AdminController {
 
     @GetMapping("/purchases/events/{eventId}")
     public ResponseEntity<ApiResponse<List<PurchaseHistoryDTO>>> getPurchaseHistoryByEvent(
-            @PathVariable UUID eventId,
+            @PathVariable("eventId") UUID eventId,
             HttpServletRequest request) {
         String action = "GET_PURCHASE_HISTORY_BY_EVENT";
 
@@ -286,7 +286,7 @@ public class AdminController {
 
     @GetMapping("/purchases/companies/{companyId}")
     public ResponseEntity<ApiResponse<List<PurchaseHistoryDTO>>> getPurchaseHistoryByCompany(
-            @PathVariable UUID companyId,
+            @PathVariable("companyId") UUID companyId,
             HttpServletRequest request) {
         String action = "GET_PURCHASE_HISTORY_BY_COMPANY";
 
@@ -382,7 +382,7 @@ public class AdminController {
 
     @PatchMapping("/complaints/{complaintId}/response")
     public ResponseEntity<ApiResponse<AdminComplaintDTO>> respondToComplaint(
-            @PathVariable UUID complaintId,
+            @PathVariable("complaintId") UUID complaintId,
             @RequestBody AdminRespondToComplaintRequest body,
             HttpServletRequest request) {
         String action = "RESPOND_TO_COMPLAINT";
@@ -409,7 +409,7 @@ public class AdminController {
 
     @PatchMapping("/complaints/{complaintId}/close")
     public ResponseEntity<ApiResponse<AdminComplaintDTO>> closeComplaint(
-            @PathVariable UUID complaintId,
+            @PathVariable("complaintId") UUID complaintId,
             HttpServletRequest request) {
         String action = "CLOSE_COMPLAINT";
 
@@ -478,7 +478,7 @@ public class AdminController {
 
     @GetMapping("/queues/{eventId}")
     public ResponseEntity<ApiResponse<AdminQueueSnapshotDTO>> getQueue(
-            @PathVariable UUID eventId,
+            @PathVariable("eventId") UUID eventId,
             HttpServletRequest request) {
         String action = "GET_QUEUE";
 
@@ -503,7 +503,7 @@ public class AdminController {
 
     @PostMapping("/queues/{eventId}/release")
     public ResponseEntity<ApiResponse<AdminQueueSnapshotDTO>> releaseQueueBatch(
-            @PathVariable UUID eventId,
+            @PathVariable("eventId") UUID eventId,
             @RequestBody AdminQueueReleaseRequest body,
             HttpServletRequest request) {
         String action = "RELEASE_QUEUE_BATCH";
@@ -530,7 +530,7 @@ public class AdminController {
 
     @DeleteMapping("/queues/{eventId}")
     public ResponseEntity<ApiResponse<AdminQueueSnapshotDTO>> clearQueue(
-            @PathVariable UUID eventId,
+            @PathVariable("eventId") UUID eventId,
             HttpServletRequest request) {
         String action = "CLEAR_QUEUE";
 

@@ -91,7 +91,8 @@ public class EventService {
                                  String artist,
                                  String type,
                                  EventStatus status,
-                                 String description) {
+                                 String description,
+                                 String requesterEmail) {
 
     logger.info("[Event Log] Method: editEvent called with parameters: eventId=" + eventId
             + ", date=" + date + ", location=" + location + ", artist=" + artist
@@ -110,7 +111,8 @@ public class EventService {
                 artist,
                 type,
                 status,
-                description
+                description,
+                requesterEmail
         );
 
         for (UUID uid : participants) {

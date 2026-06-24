@@ -16,6 +16,10 @@ public class EditEventRequest {
     public String type;
     public EventStatus status;
     public String description;
+    // Identifier (email/username) of the user requesting the edit. Used to
+    // authorize the operation: must be a company owner or a manager that was
+    // granted the MANAGE_INVENTORY permission.
+    public String requesterEmail;
 
     public EditEventRequest() {}
 }

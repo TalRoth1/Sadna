@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { getEventById } from "../../services/eventSearchService";
 import { getCurrentUser, type CurrentUser } from "../../services/currentUserService";
-import { getMyCompanies, type CompanyMembership } from "../../services/companyService";
+import {
+    getMyCompanies,
+    getCompanyPermissions,
+    type CompanyMembership,
+    type CompanyPermissionName,
+} from "../../services/companyService";
 import { drawLotteryWinners,startRegularSale, getLotteryStatus, type LotteryStatus } from "../../services/lotteryService";
 // Edit actions removed: editEvent, addEventPolicyRule, deleteEventPolicyRule
 import {
@@ -237,6 +242,7 @@ export default function EventDetailsPage({
         useState<ActionResultMessage | null>(null);
     const [isPerformingAction, setIsPerformingAction] = useState(false);
     const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+    const [grantedPermissions, setGrantedPermissions] = useState<CompanyPermissionName[]>([]);
     const [companies, setCompanies] = useState<CompanyMembership[]>([]);
     const [isDrawingWinners, setIsDrawingWinners] = useState(false);
     const [isStartingRegularSale, setIsStartingRegularSale] = useState(false);
@@ -359,6 +365,37 @@ export default function EventDetailsPage({
         return companies.find((company) => company.companyId === event.companyId) ?? null;
     }, [companies, event]);
 
+    // Fetch the user's real granted permissions for the event's company so the
+    // Edit button matches what the backend will actually allow. Managers must
+    // hold MANAGE_INVENTORY to edit an event; role alone is not enough.
+    useEffect(() => {
+        let isCancelled = false;
+
+        async function loadGrantedPermissions() {
+            if (!event || !currentUser || !currentCompanyMembership) {
+                setGrantedPermissions([]);
+                return;
+            }
+
+            try {
+                const access = await getCompanyPermissions(event.companyId, currentUser.email);
+                if (!isCancelled) {
+                    setGrantedPermissions(access.grantedPermissions ?? []);
+                }
+            } catch {
+                if (!isCancelled) {
+                    setGrantedPermissions([]);
+                }
+            }
+        }
+
+        loadGrantedPermissions();
+
+        return () => {
+            isCancelled = true;
+        };
+    }, [event, currentUser, currentCompanyMembership]);
+
     const canEditEvent = useMemo(() => {
         if (!event || !currentUser) {
             return false;
@@ -373,17 +410,15 @@ export default function EventDetailsPage({
         }
 
         const role = String((currentCompanyMembership as any).role ?? "").toLowerCase();
-        const permissions = ((currentCompanyMembership as any).permissions ?? []) as string[];
 
-        return (
-            role === "founder" ||
-            role === "owner" ||
-            role === "manager" ||
-            permissions.includes("Manage inventory") ||
-            permissions.includes("Manage policies") ||
-            permissions.includes("Configure layout")
-        );
-    }, [currentUser, currentCompanyMembership, event]);
+        if (role === "founder" || role === "owner") {
+            return true;
+        }
+
+        // Managers may edit only when explicitly granted MANAGE_INVENTORY,
+        // matching the backend authorization check in editEvent.
+        return grantedPermissions.includes("MANAGE_INVENTORY");
+    }, [currentUser, currentCompanyMembership, event, grantedPermissions]);
 
     const canStartRegularSale = useMemo(() => {
         return Boolean(event && canEditEvent && event.lotteryId);

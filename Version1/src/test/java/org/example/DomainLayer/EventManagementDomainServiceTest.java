@@ -295,6 +295,8 @@ public class EventManagementDomainServiceTest {
 
         when(event.getStatus()).thenReturn(EventStatus.ACTIVE);
         when(historyRepository.getAll()).thenReturn(List.of());
+        when(userRepository.hasPermission(username, companyId,
+                CompanyPermission.MANAGE_INVENTORY, eventId)).thenReturn(true);
 
         Set<UUID> result = service.editEvent(
                 eventId,
@@ -304,7 +306,8 @@ public class EventManagementDomainServiceTest {
                 null,
                 "Festival",
                 EventStatus.ACTIVE,
-                "Updated description"
+                "Updated description",
+                username
         );
 
         verify(event).setDate(newDate);
@@ -431,8 +434,10 @@ public class EventManagementDomainServiceTest {
         when(event.getStatus()).thenReturn(EventStatus.ACTIVE);
         when(historyRepository.getByEventId(eventId)).thenReturn(purchases);
         when(paymentGateway.refund(anyInt())).thenReturn(true);
+        when(userRepository.hasPermission(username, companyId,
+                CompanyPermission.MANAGE_INVENTORY, eventId)).thenReturn(true);
 
-        service.editEvent(eventId, null, null, null, null, null, EventStatus.CANCELED, null);
+        service.editEvent(eventId, null, null, null, null, null, EventStatus.CANCELED, null, username);
 
         verify(event).setStatus(EventStatus.CANCELED);
         verify(paymentGateway).refund(12345);
@@ -448,8 +453,10 @@ public class EventManagementDomainServiceTest {
         when(historyRepository.getAll()).thenReturn(List.of());
         when(eventRepository.getById(eventId)).thenReturn(event);
         when(event.getStatus()).thenReturn(EventStatus.CANCELED);
+        when(userRepository.hasPermission(username, companyId,
+                CompanyPermission.MANAGE_INVENTORY, eventId)).thenReturn(true);
 
-        service.editEvent(eventId, "New name", null, null, null, null, EventStatus.CANCELED, null);
+        service.editEvent(eventId, "New name", null, null, null, null, EventStatus.CANCELED, null, username);
 
         verify(paymentGateway, never()).refund(anyInt());
         verify(eventRepository).save(event);
@@ -463,8 +470,10 @@ public class EventManagementDomainServiceTest {
         when(historyRepository.getAll()).thenReturn(List.of());
         when(eventRepository.getById(eventId)).thenReturn(event);
         when(event.getStatus()).thenReturn(EventStatus.ACTIVE);
+        when(userRepository.hasPermission(username, companyId,
+                CompanyPermission.MANAGE_INVENTORY, eventId)).thenReturn(true);
 
-        service.editEvent(eventId, null, null, "Haifa", null, null, EventStatus.ACTIVE, null);
+        service.editEvent(eventId, null, null, "Haifa", null, null, EventStatus.ACTIVE, null, username);
 
         verify(paymentGateway, never()).refund(anyInt());
         verify(eventRepository).save(event);

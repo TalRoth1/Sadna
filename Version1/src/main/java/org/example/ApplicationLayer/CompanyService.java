@@ -401,9 +401,18 @@ public class CompanyService {
 
         List<String> managers = rolesDomainService.getOwnerAndSubordinatesUsernames(companyId, ownerEmail);
 
+        // The owner's own events belong under "My Events", not "Subordinates
+        // Events". getOwnerAndSubordinatesUsernames intentionally includes the
+        // owner (it is reused for owner-scoped reports), so filter the owner out
+        // here. Identities are persisted as normalized (lower-cased) usernames.
+        String ownerKey = ownerEmail.trim().toLowerCase();
+
         List<org.example.ApplicationLayer.dto.CompanyDTOs.SubordinateEventDto> out = new java.util.ArrayList<>();
         java.util.Set<java.util.UUID> seen = new java.util.HashSet<>();
         for (String mgr : managers) {
+            if (mgr != null && mgr.trim().toLowerCase().equals(ownerKey)) {
+                continue;
+            }
             List<EventSummaryDto> events = eventService.getEventsForUserInCompany(mgr, companyId);
             for (EventSummaryDto e : events) {
                 if (!seen.contains(e.eventId())) {
