@@ -57,5 +57,13 @@
   "activePurchase": {
     "timeoutMinutes": 10,
     "defaultMaxWaitTime": 10.0
+  },
+  "ticketing": {
+    "defaultProvider": "EXTERNAL",
+    "serviceUrl": "https://damp-lynna-wsep-1984852e.koyeb.app/"
+  },
+  "payment": {
+    "defaultProvider": "EXTERNAL",
+    "serviceUrl": "https://damp-lynna-wsep-1984852e.koyeb.app/"
   }
 }
