@@ -28,7 +28,7 @@ public class ActivePurchase
     {
         this.id = UUID.randomUUID();
         this.userID = userID;
-        this.ticketIDPrices = ticketIDPrices;
+        this.ticketIDPrices = new LinkedHashMap<>(ticketIDPrices);
         this.eventID = eventID;
         this.endTime = endTime;
         this.coupon = "";
@@ -123,5 +123,6 @@ public class ActivePurchase
         this.ticketIDPrices.clear();
         this.ticketIDPrices.putAll(newTicketPrices);
         this.price = newTicketPrices.values().stream().reduce(0.0f, Float::sum);
+        update();
     }
 }

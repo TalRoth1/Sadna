@@ -6,18 +6,7 @@ import java.util.UUID;
 
 import org.example.ApplicationLayer.PurchaseService;
 import org.example.ApplicationLayer.dto.ApiResponse;
-import org.example.ApplicationLayer.dto.PurchaseDTOs.ActivePurchaseDTO;
-import org.example.ApplicationLayer.dto.PurchaseDTOs.CompletePurchaseRequest;
-import org.example.ApplicationLayer.dto.PurchaseDTOs.CompletePurchaseResponse;
-import org.example.ApplicationLayer.dto.PurchaseDTOs.LotteryDrawRequest;
-import org.example.ApplicationLayer.dto.PurchaseDTOs.LotteryRegisterRequest;
-import org.example.ApplicationLayer.dto.PurchaseDTOs.PurchaseHistoryDTO;
-import org.example.ApplicationLayer.dto.PurchaseDTOs.SelectSittingRequest;
-import org.example.ApplicationLayer.dto.PurchaseDTOs.SelectStandingRequest;
-import org.example.ApplicationLayer.dto.PurchaseDTOs.SelectionAccessDTO;
-import org.example.ApplicationLayer.dto.PurchaseDTOs.SelectionAccessRequest;
-import org.example.ApplicationLayer.dto.PurchaseDTOs.UpdateSittingRequest;
-import org.example.ApplicationLayer.dto.PurchaseDTOs.UpdateStandingRequest;
+import org.example.ApplicationLayer.dto.PurchaseDTOs.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -117,6 +106,55 @@ public class PurchaseController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to select sitting tickets: system exception"));
+        }
+    }
+
+    // TODO (V3): Extract userID from JWT token
+    @PostMapping("/events/{eventId}/tickets")
+    public ResponseEntity<ApiResponse<ActivePurchaseDTO>> selectTickets(
+            @PathVariable("eventId") UUID eventId,
+            @RequestBody SelectTicketsRequest request) {
+        try {
+            ActivePurchaseDTO activePurchase = purchaseService.selectTickets(
+                    eventId,
+                    request.ticketIDs,
+                    request.standingAmount,
+                    request.standingAreaID,
+                    request.userID,
+                    request.isConfirmedAge,
+                    request.accessCode
+            );
+
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.success("Tickets selected successfully", activePurchase));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to select tickets: system exception"));
+        }
+    }
+
+    @PutMapping("/active/{activePurchaseId}/tickets")
+    public ResponseEntity<ApiResponse<ActivePurchaseDTO>> updateActivePurchaseTickets(
+            @PathVariable("activePurchaseId") UUID activePurchaseId,
+            @RequestBody UpdateTicketsRequest request) {
+        try {
+            ActivePurchaseDTO activePurchase = purchaseService.updateActivePurchaseTickets(
+                    activePurchaseId,
+                    request.ticketIDs,
+                    request.standingAmount,
+                    request.standingAreaID
+            );
+
+            return ResponseEntity.ok(
+                    ApiResponse.success("Tickets updated", activePurchase)
+            );
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to update tickets: system exception"));
         }
     }
 
