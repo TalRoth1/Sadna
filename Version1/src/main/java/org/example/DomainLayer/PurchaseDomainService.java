@@ -362,10 +362,11 @@ public class PurchaseDomainService {
                 // Bad/missing card details rejected by the gateway. Nothing was
                 // charged; surface the specific reason so the user can fix it.
                 throw new DomainException(invalidDetails.getMessage());
-            } catch (RuntimeException gatewayError) {
-                // Network failure / timeout / unreachable clearing system.
-                // Nothing was charged — turn the raw exception into a clear,
-                // user-friendly message instead of a generic 500.
+            } catch (RuntimeException e) {
+                if (isExternalPaymentDecline(e)) {
+                    throw new DomainException(e.getMessage());
+                }
+
                 throw new DomainException(
                         "The payment service is temporarily unavailable and your "
                                 + "card was not charged. Please try again in a few moments.");
@@ -430,6 +431,11 @@ public class PurchaseDomainService {
             return true;
         }
 
+    }
+
+    private boolean isExternalPaymentDecline(RuntimeException error) {
+        return error.getMessage() != null
+                && error.getMessage().contains("Payment was declined by the external payment system");
     }
 
     private DiscountPolicy resolveRelevantDiscountPolicy(Event event) {
