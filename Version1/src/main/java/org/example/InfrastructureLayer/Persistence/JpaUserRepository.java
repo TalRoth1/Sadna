@@ -69,7 +69,6 @@ public class JpaUserRepository implements IUserRepository {
             identifiers.add(identifier);
         }
 
-        companyMemberJpa.deleteByIdUsernameIn(identifiers);
         invitationJpa.deleteByApointeeUsernameIn(identifiers);
 
         saveCompanyRoles(user);

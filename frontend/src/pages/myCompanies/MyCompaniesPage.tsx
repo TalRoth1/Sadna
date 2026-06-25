@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import { getCurrentUser, type CurrentUser } from "../../services/currentUserService";
+import { useEffect, useRef, useState } from "react";import { getCurrentUser, type CurrentUser } from "../../services/currentUserService";
 import {
     acceptInvitation,
     getMyCompanies,
@@ -205,11 +204,15 @@ function InvitationCard({
     invitation,
     onAccept,
     onReject,
+    pendingAction,
 }: {
     invitation: CompanyInvitation;
     onAccept: (invitationId: string) => void;
     onReject: (invitationId: string) => void;
+    pendingAction: "accept" | "reject" | null;
 }) {
+    const isPending = pendingAction !== null;
+
     return (
         <article className="company-invitation-card">
             <div className="company-invitation-card-main">
@@ -231,15 +234,18 @@ function InvitationCard({
                     type="button"
                     className="company-invitation-button company-invitation-button--accept"
                     onClick={() => onAccept(invitation.id)}
+                    disabled={isPending}
                 >
-                    Accept
+                    {pendingAction === "accept" ? "Accepting..." : "Accept"}
                 </button>
+
                 <button
                     type="button"
                     className="company-invitation-button company-invitation-button--reject"
                     onClick={() => onReject(invitation.id)}
+                    disabled={isPending}
                 >
-                    Reject
+                    {pendingAction === "reject" ? "Rejecting..." : "Reject"}
                 </button>
             </div>
         </article>
@@ -254,6 +260,12 @@ export default function MyCompaniesPage({
     const [companies, setCompanies] = useState<CompanyMembership[]>([]);
     const [invitations, setInvitations] = useState<CompanyInvitation[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [pendingInvitationAction, setPendingInvitationAction] = useState<{
+        invitationId: string;
+        action: "accept" | "reject";
+    } | null>(null);
+
+    const pendingInvitationIdsRef = useRef<Set<string>>(new Set());
 
     async function reloadDataForUser(userEmail: string) {
         const memberships = await getMyCompanies(userEmail);
@@ -303,6 +315,13 @@ export default function MyCompaniesPage({
             return;
         }
 
+        if (pendingInvitationIdsRef.current.has(invitationId)) {
+            return;
+        }
+
+        pendingInvitationIdsRef.current.add(invitationId);
+        setPendingInvitationAction({ invitationId, action });
+
         try {
             if (action === "accept") {
                 await acceptInvitation(companyId, invitationId, currentUser.email);
@@ -314,6 +333,9 @@ export default function MyCompaniesPage({
         } catch (error) {
             console.error(`Failed to ${action} invitation:`, error);
             window.alert(`Failed to ${action} the invitation. Please try again.`);
+        } finally {
+            pendingInvitationIdsRef.current.delete(invitationId);
+            setPendingInvitationAction(null);
         }
     }
 
@@ -379,6 +401,11 @@ export default function MyCompaniesPage({
                             <InvitationCard
                                 key={invitation.id}
                                 invitation={invitation}
+                                pendingAction={
+                                    pendingInvitationAction?.invitationId === invitation.id
+                                        ? pendingInvitationAction.action
+                                        : null
+                                }
                                 onAccept={(invitationId) => {
                                     void handleInvitationAction(
                                         invitationId,
