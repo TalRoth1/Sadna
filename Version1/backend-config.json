@@ -7,7 +7,7 @@
     "active": "dev"
   },
   "database": {
-    "mode": "in-memory",
+    "mode": "localdb",
     "gcp": {
       "url": "jdbc:postgresql://35.242.177.151:5432/postgres",
       "username": "postgres",

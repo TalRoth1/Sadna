@@ -11,7 +11,9 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.springframework.boot.SpringApplication;
+import org.springframework.boot.context.config.ConfigDataEnvironmentPostProcessor;
 import org.springframework.boot.env.EnvironmentPostProcessor;
+import org.springframework.core.Ordered;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.MapPropertySource;
 
@@ -34,8 +36,22 @@ import com.fasterxml.jackson.core.JsonProcessingException;
  * <p>{@link EnvironmentPostProcessor}s run before the application context is
  * created, so this class is registered via {@code META-INF/spring.factories}
  * rather than component scanning.
+ *
+ * <p>This processor runs <em>just before</em>
+ * {@link ConfigDataEnvironmentPostProcessor} (see {@link #getOrder()}). That
+ * ordering is essential: it sets {@code spring.profiles.active} (derived from
+ * {@code backend.database.mode}) into the environment <em>before</em> config
+ * data is loaded, so Spring Boot then imports the matching
+ * {@code application-<profile>.properties} file itself. If we instead flipped
+ * the profile <em>after</em> config data had run, the wrong profile's property
+ * file (e.g. the localdb datasource) would already be loaded and the right
+ * one (e.g. the dev JPA-autoconfig excludes) never would be.
  */
-public class BackendConfigJsonLoader implements EnvironmentPostProcessor {
+public class BackendConfigJsonLoader implements EnvironmentPostProcessor, Ordered {
+
+    // Run immediately before Spring Boot loads application*.properties so the
+    // profile we select drives which profile-specific property file is imported.
+    private static final int ORDER = ConfigDataEnvironmentPostProcessor.ORDER - 1;
 
     /** Optional override: {@code -Dbackend.config.file=/path/to/backend-config.json}. */
     private static final String FILE_OVERRIDE_PROPERTY = "backend.config.file";
@@ -57,6 +73,11 @@ public class BackendConfigJsonLoader implements EnvironmentPostProcessor {
 
         Map<String, Object> runtimeOverrides = buildRuntimeOverrides(flattened);
         if (!runtimeOverrides.isEmpty()) {
+            // addFirst so this beats the default spring.profiles.active=localdb in
+            // application.properties. Because this processor runs before
+            // ConfigDataEnvironmentPostProcessor (see getOrder()), config data then
+            // resolves the active profile from here and imports the matching
+            // application-<profile>.properties file.
             environment.getPropertySources().addFirst(new MapPropertySource(RUNTIME_OVERRIDE_SOURCE_NAME, runtimeOverrides));
             logger.info("Applied " + runtimeOverrides.size()
                     + " runtime override(s) from backend-config.json (profile/datasource).");
@@ -64,6 +85,11 @@ public class BackendConfigJsonLoader implements EnvironmentPostProcessor {
 
         environment.getPropertySources().addLast(new MapPropertySource(PROPERTY_SOURCE_NAME, flattened));
         logger.info("Loaded " + DEFAULT_FILE_NAME + " (" + flattened.size() + " properties) into the environment.");
+    }
+
+    @Override
+    public int getOrder() {
+        return ORDER;
     }
 
     private Map<String, Object> buildRuntimeOverrides(Map<String, Object> flattened) {

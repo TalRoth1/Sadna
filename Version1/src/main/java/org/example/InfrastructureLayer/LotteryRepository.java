@@ -9,11 +9,7 @@ import java.util.UUID;
 
 import org.example.DomainLayer.ILotteryRepository;
 import org.example.DomainLayer.LotteryAggregate.PuchaseLottery;
-import org.springframework.context.annotation.Profile;
-import org.springframework.stereotype.Repository;
 
-@Repository
-@Profile("!localdb")
 public class LotteryRepository implements ILotteryRepository {
     private final Map<UUID, PuchaseLottery> lotteriesById = new HashMap<>();
     private final Map<UUID, PuchaseLottery> lotteriesByEventId = new HashMap<>();
