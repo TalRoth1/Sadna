@@ -22,6 +22,7 @@ public class BackendConfigProperties {
     private final ActivePurchase activePurchase = new ActivePurchase();
     private final Ticketing ticketing = new Ticketing();
     private final Payment payment = new Payment();
+    private final Admin admin = new Admin();
 
     public Jwt getJwt() {
         return jwt;
@@ -77,6 +78,22 @@ public class BackendConfigProperties {
 
     public Payment getPayment() {
         return payment;
+    }
+
+    public Admin getAdmin() {
+        return admin;
+    }
+
+    public static class Admin {
+        private String id = "";
+
+        public String getId() {
+            return id;
+        }
+
+        public void setId(String id) {
+            this.id = id;
+        }
     }
 
     public static class Jwt {

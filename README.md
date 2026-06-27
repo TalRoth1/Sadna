@@ -89,6 +89,28 @@ To run this project locally, the following tools are required:
 
 The backend configuration is defined under the resources folder. If a different database setup is needed, update the relevant application settings before running the server.
 
+### Configuration File (`backend-config.json`)
+
+`Version1/backend-config.json` is the central configuration file for the backend. It is loaded at startup and controls the following areas:
+
+| Key | Purpose |
+|-----|---------|
+| `jwt` | JWT secret key and token expiration time (milliseconds) |
+| `profiles.active` | Active Spring profile (`dev` or `prod`) |
+| `database` | Database mode (`localdb` for local PostgreSQL, `gcp` for cloud) and GCP connection details |
+| `loginRateLimiter` | Maximum failed login attempts and the time window before a lockout resets |
+| `notifications` | Server-Sent Events (SSE) connection timeout |
+| `activePurchaseCleaner` | How often the cleaner sweeps expired purchases and how early it warns users before expiry |
+| `lotteryScheduler` | How often the lottery scheduler checks for draws to run |
+| `systemMetrics` | Rolling window size for system metric calculations |
+| `devSeed` | Default password assigned to seeded demo users in development |
+| `jwtAuth` | Bearer token prefix and the list of API paths that are accessible without authentication |
+| `cors` | Allowed origins, HTTP methods, headers, and credentials policy for cross-origin requests |
+| `activePurchase` | Timeout for an in-progress purchase reservation and the default maximum queue wait time |
+| `admin` | Fixed UUID of the system administrator account |
+
+To switch between local and cloud database, change `database.mode` to `localdb` or `gcp` and fill in the corresponding connection details under `database.gcp`.
+
 ## Frontend Setup
 
 1. Navigate to the frontend folder:

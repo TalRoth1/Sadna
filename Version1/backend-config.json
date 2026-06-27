@@ -66,5 +66,8 @@
   "activePurchase": {
     "timeoutMinutes": 10,
     "defaultMaxWaitTime": 10.0
+  },
+  "admin": {
+    "id": "8d9ba8af-dcba-45e6-9376-048564fc78fe"
   }
 }
