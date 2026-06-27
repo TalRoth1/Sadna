@@ -6,6 +6,15 @@
   "profiles": {
     "active": "dev"
   },
+  "database": {
+    "mode": "in-memory",
+    "gcp": {
+      "url": "jdbc:postgresql://35.242.177.151:5432/postgres",
+      "username": "postgres",
+      "password": "123456",
+      "driverClassName": "org.postgresql.Driver"
+    }
+  },
   "loginRateLimiter": {
     "maxFailedAttempts": 5,
     "windowMinutes": 15
