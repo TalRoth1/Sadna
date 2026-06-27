@@ -43,6 +43,7 @@ import org.example.InfrastructureLayer.NotificationRepository;
 import org.example.InfrastructureLayer.UserRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Profile;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 /**
@@ -82,6 +83,10 @@ import org.springframework.stereotype.Component;
  */
 @Component
 @Profile("dev")
+// Must run before SystemAdminStartupValidator (@Order(100)), which blocks
+// startup if no system admin exists. In-memory mode starts empty, so the
+// seeded admin must be in place first; in localdb the admin already exists.
+@Order(0)
 public class DevDataSeeder implements CommandLineRunner {
 
         private static final Logger logger = Logger.getLogger(DevDataSeeder.class.getName());
