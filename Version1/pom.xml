@@ -116,6 +116,18 @@
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
 
+            <!-- Point every test JVM at the test-only config so no test
+                 ever touches the real backend-config.json or GCP database. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <systemPropertyVariables>
+                        <backend.config.file>${project.basedir}/src/test/resources/backend-config-test.json</backend.config.file>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
+
             <!-- Existing JaCoCo -->
             <plugin>
                 <groupId>org.jacoco</groupId>
