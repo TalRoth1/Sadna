@@ -5,6 +5,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -16,8 +17,11 @@ import org.springframework.core.env.MapPropertySource;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
 
 /**
  * Loads {@code backend-config.json} into the Spring {@link ConfigurableEnvironment}
@@ -30,6 +34,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  * {@code application*.properties} and command-line args stay authoritative,
  * while the JSON still overrides the inline Java defaults in
  * {@link BackendConfigProperties}.
+ *
+ * <p>Startup is aborted (with a SEVERE log) if the config file is missing,
+ * contains an unrecognized property name, or contains an invalid value for a
+ * constrained field (e.g. an unknown provider name).
  *
  * <p>{@link EnvironmentPostProcessor}s run before the application context is
  * created, so this class is registered via {@code META-INF/spring.factories}
@@ -53,16 +61,13 @@ public class BackendConfigJsonLoader implements EnvironmentPostProcessor {
         try {
             root = readConfig(environment);
         } catch (IOException e) {
-            logger.log(Level.WARNING,
-                    "Failed to read " + DEFAULT_FILE_NAME + "; falling back to inline defaults: " + e.getMessage(), e);
-            return;
+            logger.log(Level.SEVERE,
+                    "Failed to read " + DEFAULT_FILE_NAME + "; server startup aborted: " + e.getMessage(), e);
+            throw new IllegalStateException(
+                    "Failed to read " + DEFAULT_FILE_NAME + ": " + e.getMessage(), e);
         }
 
-        if (root == null) {
-            logger.warning(DEFAULT_FILE_NAME + " not found on filesystem or classpath; "
-                    + "backend.* config falls back to inline defaults.");
-            return;
-        }
+        validateShape(root);
 
         Map<String, Object> flattened = new LinkedHashMap<>();
         flatten("", root, flattened);
@@ -74,9 +79,8 @@ public class BackendConfigJsonLoader implements EnvironmentPostProcessor {
     /**
      * Locates and parses the config file. First match wins: the
      * {@value #FILE_OVERRIDE_PROPERTY} system property, then the working-directory
-     * file (where the file actually lives), then a classpath resource.
-     *
-     * @return the parsed JSON root, or {@code null} if no file was found.
+     * file, then a classpath resource. Throws {@link IllegalStateException} if no
+     * file is found.
      */
     private JsonNode readConfig(ConfigurableEnvironment environment) throws IOException {
         String override = environment.getProperty(FILE_OVERRIDE_PROPERTY);
@@ -87,7 +91,10 @@ public class BackendConfigJsonLoader implements EnvironmentPostProcessor {
                     return objectMapper.readTree(in);
                 }
             }
-            logger.warning(FILE_OVERRIDE_PROPERTY + " set to '" + override + "' but that file is not readable.");
+            String msg = FILE_OVERRIDE_PROPERTY + " set to '" + override
+                    + "' but that file is not readable; server startup aborted.";
+            logger.severe(msg);
+            throw new IllegalStateException(msg);
         }
 
         Path workingDirFile = Path.of(DEFAULT_FILE_NAME);
@@ -104,7 +111,31 @@ public class BackendConfigJsonLoader implements EnvironmentPostProcessor {
             }
         }
 
-        return null;
+        String msg = DEFAULT_FILE_NAME + " not found on filesystem or classpath; server startup aborted.";
+        logger.severe(msg);
+        throw new IllegalStateException(msg);
+    }
+
+    /**
+     * Validates the parsed JSON against {@link ConfigShape}: unknown property names
+     * and invalid enum values both abort startup with a SEVERE log entry.
+     */
+    private void validateShape(JsonNode root) {
+        ObjectMapper strict = new ObjectMapper()
+                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, true);
+        try {
+            strict.treeToValue(root, ConfigShape.class);
+        } catch (UnrecognizedPropertyException e) {
+            String msg = "Unknown property in " + DEFAULT_FILE_NAME + ": '"
+                    + e.getPropertyName() + "' at " + e.getPathReference()
+                    + " — check for typos in the config file.";
+            logger.severe(msg);
+            throw new IllegalStateException(msg, e);
+        } catch (JsonProcessingException e) {
+            String msg = "Invalid value in " + DEFAULT_FILE_NAME + ": " + e.getOriginalMessage();
+            logger.severe(msg);
+            throw new IllegalStateException(msg, e);
+        }
     }
 
     /**
@@ -142,5 +173,92 @@ public class BackendConfigJsonLoader implements EnvironmentPostProcessor {
             return node.numberValue();
         }
         return node.asText();
+    }
+
+    // -------------------------------------------------------------------------
+    // Config shape — used only by validateShape(). Field names must match the
+    // exact JSON key names (which differ from the Java property names for
+    // Duration fields that use aliases like windowMinutes, sseTimeoutMs, etc.).
+    // -------------------------------------------------------------------------
+
+    private static final class ConfigShape {
+        public JwtShape jwt;
+        public ProfilesShape profiles;
+        public LoginRateLimiterShape loginRateLimiter;
+        public NotificationsShape notifications;
+        public ActivePurchaseCleanerShape activePurchaseCleaner;
+        public LotterySchedulerShape lotteryScheduler;
+        public SystemMetricsShape systemMetrics;
+        public DevSeedShape devSeed;
+        public JwtAuthShape jwtAuth;
+        public CorsShape cors;
+        public ActivePurchaseShape activePurchase;
+        public TicketingShape ticketing;
+        public PaymentShape payment;
+
+        static final class JwtShape {
+            public String secret;
+            public Long expirationMs;
+        }
+
+        static final class ProfilesShape {
+            public String active;
+        }
+
+        static final class LoginRateLimiterShape {
+            public Integer maxFailedAttempts;
+            public Integer windowMinutes;
+        }
+
+        static final class NotificationsShape {
+            public Long sseTimeoutMs;
+        }
+
+        static final class ActivePurchaseCleanerShape {
+            public Long sweepIntervalMs;
+            public Long warningBeforeExpirySeconds;
+        }
+
+        static final class LotterySchedulerShape {
+            public Long sweepIntervalMs;
+        }
+
+        static final class SystemMetricsShape {
+            public Long windowSeconds;
+        }
+
+        static final class DevSeedShape {
+            public String defaultPassword;
+        }
+
+        static final class JwtAuthShape {
+            public String bearerPrefix;
+            public List<String> publicPaths;
+        }
+
+        static final class CorsShape {
+            public List<String> allowedOriginPatterns;
+            public List<String> allowedMethods;
+            public List<String> allowedHeaders;
+            public Boolean allowCredentials;
+            public Long maxAgeSeconds;
+        }
+
+        static final class ActivePurchaseShape {
+            public Integer timeoutMinutes;
+            public Float defaultMaxWaitTime;
+        }
+
+        enum Provider { EXTERNAL, SIMULATED }
+
+        static final class TicketingShape {
+            public Provider defaultProvider;
+            public String serviceUrl;
+        }
+
+        static final class PaymentShape {
+            public Provider defaultProvider;
+            public String serviceUrl;
+        }
     }
 }
