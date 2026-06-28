@@ -1,19 +1,10 @@
 {
   "jwt": {
-    "secret": "change-me-please-this-is-a-development-only-default-secret-key-1234567890",
+    "secret": "test-only-secret-key-not-for-production-use-1234567890abcdef",
     "expirationMs": 3600000
   },
-  "profiles": {
-    "active": "dev"
-  },
   "database": {
-    "mode": "localdb",
-    "gcp": {
-      "url": "jdbc:postgresql://35.242.177.151:5432/postgres",
-      "username": "postgres",
-      "password": "123456",
-      "driverClassName": "org.postgresql.Driver"
-    }
+    "mode": "in-memory"
   },
   "loginRateLimiter": {
     "maxFailedAttempts": 5,
@@ -66,6 +57,12 @@
   "activePurchase": {
     "timeoutMinutes": 10,
     "defaultMaxWaitTime": 10.0
+  },
+  "payment": {
+    "defaultProvider": "SIMULATED"
+  },
+  "ticketing": {
+    "defaultProvider": "SIMULATED"
   },
   "admin": {
     "id": "8d9ba8af-dcba-45e6-9376-048564fc78fe"
