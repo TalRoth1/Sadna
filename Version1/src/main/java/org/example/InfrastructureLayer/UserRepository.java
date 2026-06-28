@@ -137,16 +137,50 @@ public class UserRepository implements IUserRepository {
             return;
         }
 
-        // Member registration: the three-step check-and-insert must be atomic.
+        // Member registration / update: the check-and-insert must be atomic.
+        // This doubles as an upsert — re-adding an already-stored user (same id,
+        // e.g. after a role mutation in RolesDomainService.inviteCompanyOwner)
+        // updates it in place. A duplicate email/username is therefore only a
+        // genuine conflict when it belongs to a *different* user id. This mirrors
+        // the JPA repository's save() semantics so the domain layer behaves the
+        // same under the in-memory and localdb profiles.
         synchronized (registrationLock) {
-            if (existsByEmail(user.getEmail())) {
+            if (emailOwnedByOther(user.getEmail(), user.getId())) {
                 throw new IllegalArgumentException("User email already exists.");
             }
-            if (user.getUsername() != null && existsByUsername(user.getUsername())) {
+            if (user.getUsername() != null && usernameOwnedByOther(user.getUsername(), user.getId())) {
                 throw new IllegalArgumentException("Username already exists.");
             }
             users.put(user.getId(), user);
         }
+    }
+
+    /**
+     * True when a user <em>other than</em> {@code selfId} already holds
+     * {@code email}. Used by {@link #add(User)} so re-saving an existing user
+     * (an update) is not mistaken for a duplicate registration.
+     */
+    private boolean emailOwnedByOther(String email, UUID selfId) {
+        if (email == null) return false;
+        for (Map.Entry<UUID, User> entry : users.entrySet()) {
+            if (email.equals(entry.getValue().getEmail()) && !entry.getKey().equals(selfId)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Username-equivalent of {@link #emailOwnedByOther(String, UUID)}.
+     */
+    private boolean usernameOwnedByOther(String username, UUID selfId) {
+        if (username == null) return false;
+        for (Map.Entry<UUID, User> entry : users.entrySet()) {
+            if (username.equals(entry.getValue().getUsername()) && !entry.getKey().equals(selfId)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // ------------------------------------------------------------------
