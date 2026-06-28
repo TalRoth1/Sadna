@@ -8,6 +8,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -60,7 +61,6 @@ public class BackendConfigJsonLoader implements EnvironmentPostProcessor, Ordere
     // profile we select drives which profile-specific property file is imported.
     private static final int ORDER = ConfigDataEnvironmentPostProcessor.ORDER - 1;
 
-    /** Optional override: {@code -Dbackend.config.file=/path/to/backend-config.json}. */
     private static final String FILE_OVERRIDE_PROPERTY = "backend.config.file";
     private static final String DEFAULT_FILE_NAME = "backend-config.json";
     private static final String PROPERTY_PREFIX = "backend.";
@@ -69,7 +69,23 @@ public class BackendConfigJsonLoader implements EnvironmentPostProcessor, Ordere
 
     private static final Logger logger = Logger.getLogger(BackendConfigJsonLoader.class.getName());
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
+    private final Path workingDirectoryConfigFile;
+    private final Function<String, Resource> classpathResourceFactory;
+
+    public BackendConfigJsonLoader() {
+        this(new ObjectMapper(), Path.of(DEFAULT_FILE_NAME), ClassPathResource::new);
+    }
+
+    BackendConfigJsonLoader(
+            ObjectMapper objectMapper,
+            Path workingDirectoryConfigFile,
+            Function<String, Resource> classpathResourceFactory
+    ) {
+        this.objectMapper = objectMapper;
+        this.workingDirectoryConfigFile = workingDirectoryConfigFile;
+        this.classpathResourceFactory = classpathResourceFactory;
+    }
 
     @Override
     public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {
@@ -196,6 +212,7 @@ public class BackendConfigJsonLoader implements EnvironmentPostProcessor, Ordere
      */
     private JsonNode readConfig(ConfigurableEnvironment environment) {
         String override = environment.getProperty(FILE_OVERRIDE_PROPERTY);
+
         if (override != null && !override.isBlank()) {
             Path path = Path.of(override);
             if (!Files.isReadable(path)) {
@@ -236,40 +253,43 @@ public class BackendConfigJsonLoader implements EnvironmentPostProcessor, Ordere
         }
     }
 
-    /**
-     * Recursively flattens a JSON node into dotted property names. Objects become
-     * {@code prefix.child}, arrays become {@code prefix[i]}, and scalars are stored
-     * as their raw value so Spring's {@code Binder} can convert them. The root is
-     * passed with an empty prefix and each top-level key is given the
-     * {@value #PROPERTY_PREFIX} prefix.
-     */
     private void flatten(String prefix, JsonNode node, Map<String, Object> target) {
         if (node.isObject()) {
             for (Map.Entry<String, JsonNode> field : node.properties()) {
                 String key = prefix.isEmpty()
                         ? PROPERTY_PREFIX + field.getKey()
                         : prefix + "." + field.getKey();
+
                 flatten(key, field.getValue(), target);
             }
-        } else if (node.isArray()) {
+
+            return;
+        }
+
+        if (node.isArray()) {
             for (int i = 0; i < node.size(); i++) {
                 flatten(prefix + "[" + i + "]", node.get(i), target);
             }
-        } else {
-            target.put(prefix, scalarValue(node));
+
+            return;
         }
+
+        target.put(prefix, scalarValue(node));
     }
 
     private Object scalarValue(JsonNode node) {
         if (node.isBoolean()) {
             return node.booleanValue();
         }
+
         if (node.isInt() || node.isLong()) {
             return node.longValue();
         }
+
         if (node.isNumber()) {
             return node.numberValue();
         }
+
         return node.asText();
     }
 

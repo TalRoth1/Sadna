@@ -4,7 +4,7 @@ import { getMyCompanies, type CompanyMembership, type EventDiscountType } from "
 import { createEvent, type CreateEventRequest } from "../../services/eventService";
 
 import "./CreateEventPage.css";
-import { createLotteryEvent  } from "../../services/lotteryService";
+import { createLotteryEvent } from "../../services/lotteryService";
 
 type CreateEventPageProps = {
     initialCompanyId?: string | null;
@@ -25,6 +25,19 @@ type TicketAreaDraft = {
     seatsPerRow: string;
 };
 
+type DiscountType = "OVERT" | "COUPON" | "CONDITIONAL";
+
+type DiscountDraft = {
+    id: string;
+    discountType: DiscountType;
+    discountPercent: string;
+    discountFromDate: string;
+    discountToDate: string;
+    couponCode: string;
+    requiredTickets: string;
+    appliedTickets: string;
+};
+
 type FormErrors = {
     companyId?: string;
     name?: string;
@@ -33,6 +46,7 @@ type FormErrors = {
     type?: string;
     ticketAreas?: string;
     lottery?: string;
+    discount?: string;
 };
 
 const statusOptions = [
@@ -42,7 +56,11 @@ const statusOptions = [
 ];
 
 function createLocalId() {
-    return crypto.randomUUID();
+    if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+        return crypto.randomUUID();
+    }
+
+    return `local-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
 function getCreatedEventId(createdEvent: unknown): string | null {
@@ -114,22 +132,18 @@ export default function CreateEventPage({
     const [artist, setArtist] = useState("");
     const [type, setType] = useState("");
     const [status, setStatus] = useState("ACTIVE");
+
     const [isLotteryEvent, setIsLotteryEvent] = useState(false);
-const [lotteryRegistrationOpen, setLotteryRegistrationOpen] = useState("");
-const [lotteryRegistrationClose, setLotteryRegistrationClose] = useState("");
+    const [lotteryRegistrationOpen, setLotteryRegistrationOpen] = useState("");
+    const [lotteryRegistrationClose, setLotteryRegistrationClose] = useState("");
+
     const [minAge, setMinAge] = useState("");
     const [minTickets, setMinTickets] = useState("");
     const [maxTickets, setMaxTickets] = useState("");
     const [allowLoneSeat, setAllowLoneSeat] = useState("");
 
     const [discountPolicyType, setDiscountPolicyType] = useState<EventDiscountType>("MAX");
-    const [discountType, setDiscountType] = useState("NONE");
-    const [discountPercent, setDiscountPercent] = useState("");
-    const [discountFromDate, setDiscountFromDate] = useState("");
-    const [discountToDate, setDiscountToDate] = useState("");
-    const [couponCode, setCouponCode] = useState("");
-    const [requiredTickets, setRequiredTickets] = useState("");
-    const [appliedTickets, setAppliedTickets] = useState("");
+    const [discounts, setDiscounts] = useState<DiscountDraft[]>([]);
 
     const [ticketAreas, setTicketAreas] = useState<TicketAreaDraft[]>([
         {
@@ -207,6 +221,7 @@ const [lotteryRegistrationClose, setLotteryRegistrationClose] = useState("");
 
                 if (area.areaType === "STANDING") {
                     const capacity = Number(area.capacity);
+
                     if (
                         !area.capacity.trim() ||
                         Number.isNaN(capacity) ||
@@ -238,6 +253,7 @@ const [lotteryRegistrationClose, setLotteryRegistrationClose] = useState("");
                 }
             }
         }
+
         if (isLotteryEvent) {
             if (!lotteryRegistrationOpen || !lotteryRegistrationClose) {
                 validation.lottery = "Lottery registration open and close dates are required.";
@@ -255,6 +271,51 @@ const [lotteryRegistrationClose, setLotteryRegistrationClose] = useState("");
                 }
             }
         }
+
+        for (const discount of discounts) {
+            const percent = Number(discount.discountPercent);
+
+            if (
+                !discount.discountPercent.trim() ||
+                Number.isNaN(percent) ||
+                percent < 0 ||
+                percent > 100
+            ) {
+                validation.discount = "Each discount percent must be between 0 and 100.";
+                break;
+            }
+
+            if (!discount.discountToDate) {
+                validation.discount = "Each discount must have an end date.";
+                break;
+            }
+
+            if (discount.discountType === "COUPON" && !discount.couponCode.trim()) {
+                validation.discount = "Each coupon discount must have a coupon code.";
+                break;
+            }
+
+            if (discount.discountType === "CONDITIONAL") {
+                const required = Number(discount.requiredTickets);
+                const applied = Number(discount.appliedTickets);
+
+                if (
+                    !discount.requiredTickets.trim() ||
+                    !discount.appliedTickets.trim() ||
+                    Number.isNaN(required) ||
+                    Number.isNaN(applied) ||
+                    required <= 0 ||
+                    applied <= 0 ||
+                    !Number.isInteger(required) ||
+                    !Number.isInteger(applied)
+                ) {
+                    validation.discount =
+                        "Each conditional discount requires positive ticket amounts.";
+                    break;
+                }
+            }
+        }
+
         return validation;
     }
 
@@ -269,6 +330,7 @@ const [lotteryRegistrationClose, setLotteryRegistrationClose] = useState("");
         setIsLotteryEvent(false);
         setLotteryRegistrationOpen("");
         setLotteryRegistrationClose("");
+
         setTicketAreas([
             {
                 id: createLocalId(),
@@ -279,6 +341,7 @@ const [lotteryRegistrationClose, setLotteryRegistrationClose] = useState("");
                 seatsPerRow: "",
             },
         ]);
+
         setErrors({});
         setMinAge("");
         setMinTickets("");
@@ -286,13 +349,7 @@ const [lotteryRegistrationClose, setLotteryRegistrationClose] = useState("");
         setAllowLoneSeat("");
 
         setDiscountPolicyType("MAX");
-        setDiscountType("NONE");
-        setDiscountPercent("");
-        setDiscountFromDate("");
-        setDiscountToDate("");
-        setCouponCode("");
-        setRequiredTickets("");
-        setAppliedTickets("");
+        setDiscounts([]);
     }
 
     function addTicketArea(areaType: TicketAreaType) {
@@ -320,65 +377,100 @@ const [lotteryRegistrationClose, setLotteryRegistrationClose] = useState("");
             ),
         );
     }
+
+    function addDiscount() {
+        setDiscounts((current) => [
+            ...current,
+            {
+                id: createLocalId(),
+                discountType: "OVERT",
+                discountPercent: "",
+                discountFromDate: "",
+                discountToDate: "",
+                couponCode: "",
+                requiredTickets: "",
+                appliedTickets: "",
+            },
+        ]);
+    }
+
+    function removeDiscount(id: string) {
+        setDiscounts((current) =>
+            current.filter((discount) => discount.id !== id),
+        );
+    }
+
+    function updateDiscount(
+        id: string,
+        field: keyof DiscountDraft,
+        value: string,
+    ) {
+        setDiscounts((current) =>
+            current.map((discount) =>
+                discount.id === id
+                    ? {
+                          ...discount,
+                          [field]: value,
+                      }
+                    : discount,
+            ),
+        );
+    }
+
     async function addEventPolicyRule(
-            eventId: string,
-            companyId: string,
-            username: string,
-        ) {
-            const hasPolicy =
-                minAge.trim() ||
-                minTickets.trim() ||
-                maxTickets.trim() ||
-                allowLoneSeat !== "";
+        eventId: string,
+        companyId: string,
+        username: string,
+    ) {
+        const hasPolicy =
+            minAge.trim() ||
+            minTickets.trim() ||
+            maxTickets.trim() ||
+            allowLoneSeat !== "";
 
-            if (!hasPolicy) {
-                return;
-            }
-
-            const response = await fetch(`/api/events/${eventId}/policy`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    username,
-                    companyId,
-                    age: minAge.trim() ? Number(minAge) : null,
-                    minTicket: minTickets.trim() ? Number(minTickets) : null,
-                    maxTicket: maxTickets.trim() ? Number(maxTickets) : null,
-                    allowLoneSeat: allowLoneSeat === "" ? null : allowLoneSeat === "true",
-                }),
-            });
-
-            const body = await response.json();
-
-            if (!response.ok || !body.success) {
-                throw new Error(body.message || "Failed to create event policy.");
-            }
+        if (!hasPolicy) {
+            return;
         }
 
-        async function addEventDiscount(
-            eventId: string,
-            companyId: string,
-            username: string,
-        ) {
-            if (discountType === "NONE") {
-                return;
-            }
+        const response = await fetch(`/api/events/${eventId}/policy`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                username,
+                companyId,
+                age: minAge.trim() ? Number(minAge) : null,
+                minTicket: minTickets.trim() ? Number(minTickets) : null,
+                maxTicket: maxTickets.trim() ? Number(maxTickets) : null,
+                allowLoneSeat: allowLoneSeat === "" ? null : allowLoneSeat === "true",
+            }),
+        });
 
-            if (!discountPercent.trim() || !discountToDate) {
-                throw new Error("Discount percent and end date are required.");
-            }
+        const body = await response.json();
 
-            if (discountType === "OVERT") {
+        if (!response.ok || !body.success) {
+            throw new Error(body.message || "Failed to create event policy.");
+        }
+    }
+
+    async function addEventDiscounts(
+        eventId: string,
+        companyId: string,
+        username: string,
+    ) {
+        for (const discount of discounts) {
+            const commonBody = {
+                username,
+                companyId,
+                fromDate: discount.discountFromDate || null,
+                toDate: discount.discountToDate,
+                discountPercent: Number(discount.discountPercent),
+            };
+
+            if (discount.discountType === "OVERT") {
                 const response = await fetch(`/api/events/${eventId}/discounts/overt`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        username,
-                        companyId,
-                        fromDate: discountFromDate || null,
-                        toDate: discountToDate,
-                        discountPercent: Number(discountPercent),
-                    }),
+                    body: JSON.stringify(commonBody),
                 });
 
                 const body = await response.json();
@@ -386,25 +478,15 @@ const [lotteryRegistrationClose, setLotteryRegistrationClose] = useState("");
                 if (!response.ok || !body.success) {
                     throw new Error(body.message || "Failed to create overt discount.");
                 }
-
-                return;
             }
 
-            if (discountType === "COUPON") {
-                if (!couponCode.trim()) {
-                    throw new Error("Coupon code is required.");
-                }
-
+            if (discount.discountType === "COUPON") {
                 const response = await fetch(`/api/events/${eventId}/discounts/coupon`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        username,
-                        companyId,
-                        fromDate: discountFromDate || null,
-                        toDate: discountToDate,
-                        discountPercent: Number(discountPercent),
-                        code: couponCode.trim(),
+                        ...commonBody,
+                        code: discount.couponCode.trim(),
                     }),
                 });
 
@@ -413,26 +495,16 @@ const [lotteryRegistrationClose, setLotteryRegistrationClose] = useState("");
                 if (!response.ok || !body.success) {
                     throw new Error(body.message || "Failed to create coupon discount.");
                 }
-
-                return;
             }
 
-            if (discountType === "CONDITIONAL") {
-                if (!requiredTickets.trim() || !appliedTickets.trim()) {
-                    throw new Error("Required tickets and applied tickets are required.");
-                }
-
+            if (discount.discountType === "CONDITIONAL") {
                 const response = await fetch(`/api/events/${eventId}/discounts/conditional`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        username,
-                        companyId,
-                        fromDate: discountFromDate || null,
-                        toDate: discountToDate,
-                        discountPercent: Number(discountPercent),
-                        requiredTickets: Number(requiredTickets),
-                        appliedTickets: Number(appliedTickets),
+                        ...commonBody,
+                        requiredTickets: Number(discount.requiredTickets),
+                        appliedTickets: Number(discount.appliedTickets),
                     }),
                 });
 
@@ -443,6 +515,7 @@ const [lotteryRegistrationClose, setLotteryRegistrationClose] = useState("");
                 }
             }
         }
+    }
 
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
@@ -480,13 +553,13 @@ const [lotteryRegistrationClose, setLotteryRegistrationClose] = useState("");
 
             const createdEvent = isLotteryEvent
                 ? await createLotteryEvent({
-                    ...request,
-                    type: "Lottery",
-                    lottery: {
-                        registrationOpen: `${lotteryRegistrationOpen}:00`,
-                        registrationClose: `${lotteryRegistrationClose}:00`,
-                    },
-                })
+                      ...request,
+                      type: "Lottery",
+                      lottery: {
+                          registrationOpen: `${lotteryRegistrationOpen}:00`,
+                          registrationClose: `${lotteryRegistrationClose}:00`,
+                      },
+                  })
                 : await createEvent(request);
 
             const createdEventId = getCreatedEventId(createdEvent);
@@ -504,13 +577,14 @@ const [lotteryRegistrationClose, setLotteryRegistrationClose] = useState("");
             }
 
             await addEventPolicyRule(createdEventId, companyId, currentUser.email);
-            await addEventDiscount(createdEventId, companyId, currentUser.email);   
+            await addEventDiscounts(createdEventId, companyId, currentUser.email);
 
             setSuccessMessage(
                 isLotteryEvent
                     ? "Lottery event, ticket areas, policies and discounts created successfully."
                     : "Event, ticket areas, policies and discounts created successfully.",
             );
+
             resetForm();
 
             if (onEventCreated) {
@@ -657,7 +731,9 @@ const [lotteryRegistrationClose, setLotteryRegistrationClose] = useState("");
                                     <span>Discount policy type</span>
                                     <select
                                         value={discountPolicyType}
-                                        onChange={(e) => setDiscountPolicyType(e.target.value as EventDiscountType)}
+                                        onChange={(e) =>
+                                            setDiscountPolicyType(e.target.value as EventDiscountType)
+                                        }
                                     >
                                         <option value="MAX">MAX</option>
                                         <option value="ALL">ALL</option>
@@ -675,6 +751,7 @@ const [lotteryRegistrationClose, setLotteryRegistrationClose] = useState("");
                                         ))}
                                     </select>
                                 </label>
+
                                 <div className="form-field">
                                     <label className="create-event-checkbox-row">
                                         <input
@@ -858,6 +935,7 @@ const [lotteryRegistrationClose, setLotteryRegistrationClose] = useState("");
                                     ))}
                                 </div>
                             </section>
+
                             <section className="policy-panel">
                                 <h2>Event policy</h2>
 
@@ -913,28 +991,61 @@ const [lotteryRegistrationClose, setLotteryRegistrationClose] = useState("");
                                     </select>
                                 </label>
                             </section>
+
                             <section className="policy-panel">
-                                <h2>Discount</h2>
+                                <h2>Discounts</h2>
 
                                 <p className="form-note">
-                                    Optional discount rule for this event.
+                                    Optional discount rules for this event. You can add more than one discount.
                                 </p>
 
-                                <label className="form-field">
-                                    <span>Discount type</span>
-                                    <select
-                                        value={discountType}
-                                        onChange={(e) => setDiscountType(e.target.value)}
-                                    >
-                                        <option value="NONE">No discount</option>
-                                        <option value="OVERT">Overt discount</option>
-                                        <option value="COUPON">Coupon code</option>
-                                        <option value="CONDITIONAL">Conditional discount</option>
-                                    </select>
-                                </label>
+                                {errors.discount && (
+                                    <p className="create-event-error">{errors.discount}</p>
+                                )}
 
-                                {discountType !== "NONE" && (
-                                    <>
+                                {discounts.length === 0 && (
+                                    <p className="form-note">
+                                        No discounts were added.
+                                    </p>
+                                )}
+
+                                {discounts.map((discount, index) => (
+                                    <section key={discount.id} className="ticket-area-card">
+                                        <div className="ticket-area-card-header">
+                                            <div>
+                                                <h3>Discount #{index + 1}</h3>
+                                                <p>
+                                                    Choose a discount type and fill the relevant fields.
+                                                </p>
+                                            </div>
+
+                                            <button
+                                                type="button"
+                                                className="ticket-area-remove"
+                                                onClick={() => removeDiscount(discount.id)}
+                                            >
+                                                Remove
+                                            </button>
+                                        </div>
+
+                                        <label className="form-field">
+                                            <span>Discount type</span>
+                                            <select
+                                                value={discount.discountType}
+                                                onChange={(e) =>
+                                                    updateDiscount(
+                                                        discount.id,
+                                                        "discountType",
+                                                        e.target.value as DiscountType,
+                                                    )
+                                                }
+                                            >
+                                                <option value="OVERT">Overt discount</option>
+                                                <option value="COUPON">Coupon code</option>
+                                                <option value="CONDITIONAL">Conditional discount</option>
+                                            </select>
+                                        </label>
+
                                         <label className="form-field">
                                             <span>Discount percent</span>
                                             <input
@@ -942,8 +1053,14 @@ const [lotteryRegistrationClose, setLotteryRegistrationClose] = useState("");
                                                 min={0}
                                                 max={100}
                                                 step="1"
-                                                value={discountPercent}
-                                                onChange={(e) => setDiscountPercent(e.target.value)}
+                                                value={discount.discountPercent}
+                                                onChange={(e) =>
+                                                    updateDiscount(
+                                                        discount.id,
+                                                        "discountPercent",
+                                                        e.target.value,
+                                                    )
+                                                }
                                                 placeholder="e.g. 15"
                                             />
                                         </label>
@@ -952,8 +1069,14 @@ const [lotteryRegistrationClose, setLotteryRegistrationClose] = useState("");
                                             <span>From date</span>
                                             <input
                                                 type="date"
-                                                value={discountFromDate}
-                                                onChange={(e) => setDiscountFromDate(e.target.value)}
+                                                value={discount.discountFromDate}
+                                                onChange={(e) =>
+                                                    updateDiscount(
+                                                        discount.id,
+                                                        "discountFromDate",
+                                                        e.target.value,
+                                                    )
+                                                }
                                             />
                                         </label>
 
@@ -961,52 +1084,86 @@ const [lotteryRegistrationClose, setLotteryRegistrationClose] = useState("");
                                             <span>To date</span>
                                             <input
                                                 type="date"
-                                                value={discountToDate}
-                                                onChange={(e) => setDiscountToDate(e.target.value)}
-                                            />
-                                        </label>
-                                    </>
-                                )}
-
-                                {discountType === "COUPON" && (
-                                    <label className="form-field">
-                                        <span>Coupon code</span>
-                                        <input
-                                            type="text"
-                                            value={couponCode}
-                                            onChange={(e) => setCouponCode(e.target.value)}
-                                            placeholder="e.g. JAZZ20"
-                                        />
-                                    </label>
-                                )}
-
-                                {discountType === "CONDITIONAL" && (
-                                    <>
-                                        <label className="form-field">
-                                            <span>Required tickets</span>
-                                            <input
-                                                type="number"
-                                                min={1}
-                                                step="1"
-                                                value={requiredTickets}
-                                                onChange={(e) => setRequiredTickets(e.target.value)}
-                                                placeholder="e.g. 3"
+                                                value={discount.discountToDate}
+                                                onChange={(e) =>
+                                                    updateDiscount(
+                                                        discount.id,
+                                                        "discountToDate",
+                                                        e.target.value,
+                                                    )
+                                                }
                                             />
                                         </label>
 
-                                        <label className="form-field">
-                                            <span>Applied free/discounted tickets</span>
-                                            <input
-                                                type="number"
-                                                min={1}
-                                                step="1"
-                                                value={appliedTickets}
-                                                onChange={(e) => setAppliedTickets(e.target.value)}
-                                                placeholder="e.g. 1"
-                                            />
-                                        </label>
-                                    </>
-                                )}
+                                        {discount.discountType === "COUPON" && (
+                                            <label className="form-field">
+                                                <span>Coupon code</span>
+                                                <input
+                                                    type="text"
+                                                    value={discount.couponCode}
+                                                    onChange={(e) =>
+                                                        updateDiscount(
+                                                            discount.id,
+                                                            "couponCode",
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                    placeholder="e.g. JAZZ20"
+                                                />
+                                            </label>
+                                        )}
+
+                                        {discount.discountType === "CONDITIONAL" && (
+                                            <>
+                                                <label className="form-field">
+                                                    <span>Required tickets</span>
+                                                    <input
+                                                        type="number"
+                                                        min={1}
+                                                        step="1"
+                                                        value={discount.requiredTickets}
+                                                        onChange={(e) =>
+                                                            updateDiscount(
+                                                                discount.id,
+                                                                "requiredTickets",
+                                                                e.target.value,
+                                                            )
+                                                        }
+                                                        placeholder="e.g. 3"
+                                                    />
+                                                </label>
+
+                                                <label className="form-field">
+                                                    <span>Applied free/discounted tickets</span>
+                                                    <input
+                                                        type="number"
+                                                        min={1}
+                                                        step="1"
+                                                        value={discount.appliedTickets}
+                                                        onChange={(e) =>
+                                                            updateDiscount(
+                                                                discount.id,
+                                                                "appliedTickets",
+                                                                e.target.value,
+                                                            )
+                                                        }
+                                                        placeholder="e.g. 1"
+                                                    />
+                                                </label>
+                                            </>
+                                        )}
+                                    </section>
+                                ))}
+
+                                <div className="create-event-actions create-event-actions--left">
+                                    <button
+                                        type="button"
+                                        className="create-event-button create-event-button--secondary"
+                                        onClick={addDiscount}
+                                    >
+                                        Add discount
+                                    </button>
+                                </div>
                             </section>
                         </div>
 

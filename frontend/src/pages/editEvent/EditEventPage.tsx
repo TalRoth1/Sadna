@@ -51,7 +51,19 @@ type TicketAreaDraft = {
     isDeleted: boolean;
 };
 
-type DiscountType = "NONE" | "OVERT" | "COUPON" | "CONDITIONAL";
+type DiscountType = "OVERT" | "COUPON" | "CONDITIONAL";
+
+type DiscountDraft = {
+    id: string;
+    existingId?: string;
+    discountType: DiscountType;
+    discountPercent: string;
+    discountFromDate: string;
+    discountToDate: string;
+    couponCode: string;
+    requiredTickets: string;
+    appliedTickets: string;
+};
 
 const statusOptions: { value: EventStatus; label: string }[] = [
     { value: "ACTIVE", label: "Active" },
@@ -76,6 +88,25 @@ function toDateTimeLocalValue(date: string) {
 
     const offsetMs = parsed.getTimezoneOffset() * 60 * 1000;
     return new Date(parsed.getTime() - offsetMs).toISOString().slice(0, 16);
+}
+
+function toDateInputValue(date?: string | null) {
+    if (!date) {
+        return "";
+    }
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return date;
+    }
+
+    const parsed = new Date(date);
+
+    if (Number.isNaN(parsed.getTime())) {
+        return String(date).slice(0, 10);
+    }
+
+    const offsetMs = parsed.getTimezoneOffset() * 60 * 1000;
+    return new Date(parsed.getTime() - offsetMs).toISOString().slice(0, 10);
 }
 
 function normalizePermission(value: unknown): string {
@@ -157,30 +188,6 @@ function getTicketSeat(ticket: any): number | null {
     return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
-/*function computeSittingLayout(event: Event, areaId: string) {
-    const tickets = ((event as any).tickets ?? []).filter((ticket: any) => {
-        return String(ticket.areaId) === String(areaId);
-    });
-
-    let rows = 0;
-    let seatsPerRow = 0;
-
-    for (const ticket of tickets) {
-        const row = getTicketRow(ticket);
-        const seat = getTicketSeat(ticket);
-
-        if (row !== null) {
-            rows = Math.max(rows, row);
-        }
-
-        if (seat !== null) {
-            seatsPerRow = Math.max(seatsPerRow, seat);
-        }
-    }
-
-    return { rows, seatsPerRow };
-}
-*/
 function buildAreaDrafts(event: Event): TicketAreaDraft[] {
     const rawEvent = event as any;
 
@@ -277,6 +284,58 @@ function buildAreaDrafts(event: Event): TicketAreaDraft[] {
     });
 }
 
+function buildDiscountDrafts(event: Event): DiscountDraft[] {
+    const rules = event.discountPolicy?.rules ?? [];
+    const drafts: DiscountDraft[] = [];
+
+    for (const rule of rules as any[]) {
+        const rawKind = String(
+            rule.kind ??
+                rule.discountType ??
+                rule.type ??
+                "",
+        ).toUpperCase();
+
+        if (
+            rawKind !== "OVERT" &&
+            rawKind !== "COUPON" &&
+            rawKind !== "CONDITIONAL"
+        ) {
+            continue;
+        }
+
+        const existingId =
+            rule.id !== undefined && rule.id !== null
+                ? String(rule.id)
+                : undefined;
+
+        const draft: DiscountDraft = {
+            id: existingId ?? createLocalId(),
+            discountType: rawKind as DiscountType,
+            discountPercent: String(rule.percent ?? rule.discountPercent ?? ""),
+            discountFromDate: toDateInputValue(rule.fromDate),
+            discountToDate: toDateInputValue(rule.toDate),
+            couponCode: String(rule.code ?? rule.couponCode ?? ""),
+            requiredTickets:
+                rule.requiredTickets !== undefined && rule.requiredTickets !== null
+                    ? String(rule.requiredTickets)
+                    : "",
+            appliedTickets:
+                rule.appliedTickets !== undefined && rule.appliedTickets !== null
+                    ? String(rule.appliedTickets)
+                    : "",
+        };
+
+        if (existingId) {
+            draft.existingId = existingId;
+        }
+
+        drafts.push(draft);
+    }
+
+    return drafts;
+}
+
 function hasPolicyFields(
     minAge: string,
     minTickets: string,
@@ -318,13 +377,7 @@ export default function EditEventPage({
     const [maxTickets, setMaxTickets] = useState("");
     const [allowLoneSeat, setAllowLoneSeat] = useState("");
 
-    const [discountType, setDiscountType] = useState<DiscountType>("NONE");
-    const [discountPercent, setDiscountPercent] = useState("");
-    const [discountFromDate, setDiscountFromDate] = useState("");
-    const [discountToDate, setDiscountToDate] = useState("");
-    const [couponCode, setCouponCode] = useState("");
-    const [requiredTickets, setRequiredTickets] = useState("");
-    const [appliedTickets, setAppliedTickets] = useState("");
+    const [discounts, setDiscounts] = useState<DiscountDraft[]>([]);
 
     const [ticketAreas, setTicketAreas] = useState<TicketAreaDraft[]>([]);
 
@@ -388,34 +441,7 @@ export default function EditEventPage({
                 );
 
                 setTicketAreas(buildAreaDrafts(loadedEvent));
-
-                const firstDiscount = loadedEvent.discountPolicy.rules[0];
-
-                if (!firstDiscount) {
-                    setDiscountType("NONE");
-                    setDiscountPercent("");
-                    setDiscountFromDate("");
-                    setDiscountToDate("");
-                    setCouponCode("");
-                    setRequiredTickets("");
-                    setAppliedTickets("");
-                } else {
-                    setDiscountType(firstDiscount.kind as DiscountType);
-                    setDiscountPercent(String(firstDiscount.percent ?? ""));
-                    setDiscountFromDate(firstDiscount.fromDate ?? "");
-                    setDiscountToDate(firstDiscount.toDate ?? "");
-                    setCouponCode(firstDiscount.code ?? "");
-                    setRequiredTickets(
-                        firstDiscount.requiredTickets !== undefined
-                            ? String(firstDiscount.requiredTickets)
-                            : "",
-                    );
-                    setAppliedTickets(
-                        firstDiscount.appliedTickets !== undefined
-                            ? String(firstDiscount.appliedTickets)
-                            : "",
-                    );
-                }
+                setDiscounts(buildDiscountDrafts(loadedEvent));
 
                 if (!user || user.role === "GUEST") {
                     setCompanies([]);
@@ -525,33 +551,36 @@ export default function EditEventPage({
             }
         }
 
-        if (discountType !== "NONE") {
-            const percent = Number(discountPercent);
+        for (const discount of discounts) {
+            const percent = Number(discount.discountPercent);
 
             if (
-                !discountPercent.trim() ||
+                !discount.discountPercent.trim() ||
                 Number.isNaN(percent) ||
                 percent < 0 ||
                 percent > 100
             ) {
-                validation.discount = "Discount percent must be between 0 and 100.";
+                validation.discount = "Each discount percent must be between 0 and 100.";
+                break;
             }
 
-            if (!discountToDate) {
-                validation.discount = "Discount end date is required.";
+            if (!discount.discountToDate) {
+                validation.discount = "Each discount end date is required.";
+                break;
             }
 
-            if (discountType === "COUPON" && !couponCode.trim()) {
-                validation.discount = "Coupon code is required.";
+            if (discount.discountType === "COUPON" && !discount.couponCode.trim()) {
+                validation.discount = "Each coupon discount must have a coupon code.";
+                break;
             }
 
-            if (discountType === "CONDITIONAL") {
-                const required = Number(requiredTickets);
-                const applied = Number(appliedTickets);
+            if (discount.discountType === "CONDITIONAL") {
+                const required = Number(discount.requiredTickets);
+                const applied = Number(discount.appliedTickets);
 
                 if (
-                    !requiredTickets.trim() ||
-                    !appliedTickets.trim() ||
+                    !discount.requiredTickets.trim() ||
+                    !discount.appliedTickets.trim() ||
                     Number.isNaN(required) ||
                     Number.isNaN(applied) ||
                     required <= 0 ||
@@ -559,7 +588,9 @@ export default function EditEventPage({
                     !Number.isInteger(required) ||
                     !Number.isInteger(applied)
                 ) {
-                    validation.discount = "Conditional discount requires positive ticket amounts.";
+                    validation.discount =
+                        "Each conditional discount requires positive ticket amounts.";
+                    break;
                 }
             }
         }
@@ -633,6 +664,45 @@ export default function EditEventPage({
         );
     }
 
+    function addNewDiscount() {
+        setDiscounts((current) => [
+            ...current,
+            {
+                id: createLocalId(),
+                discountType: "OVERT",
+                discountPercent: "",
+                discountFromDate: "",
+                discountToDate: "",
+                couponCode: "",
+                requiredTickets: "",
+                appliedTickets: "",
+            },
+        ]);
+    }
+
+    function removeDiscountDraft(id: string) {
+        setDiscounts((current) =>
+            current.filter((discount) => discount.id !== id),
+        );
+    }
+
+    function updateDiscountDraft(
+        id: string,
+        field: keyof DiscountDraft,
+        value: string,
+    ) {
+        setDiscounts((current) =>
+            current.map((discount) =>
+                discount.id === id
+                    ? {
+                          ...discount,
+                          [field]: value,
+                      }
+                    : discount,
+            ),
+        );
+    }
+
     async function saveDiscountChanges(eventToEdit: Event, username: string) {
         const existingDiscounts = eventToEdit.discountPolicy.rules ?? [];
 
@@ -645,37 +715,33 @@ export default function EditEventPage({
             }
         }
 
-        if (discountType === "NONE") {
-            return;
-        }
+        for (const discount of discounts) {
+            const commonRequest = {
+                username,
+                companyId: eventToEdit.companyId,
+                fromDate: discount.discountFromDate || null,
+                toDate: discount.discountToDate,
+                discountPercent: Number(discount.discountPercent),
+            };
 
-        const commonRequest = {
-            username,
-            companyId: eventToEdit.companyId,
-            fromDate: discountFromDate || null,
-            toDate: discountToDate,
-            discountPercent: Number(discountPercent),
-        };
+            if (discount.discountType === "OVERT") {
+                await addOvertDiscount(eventToEdit.id, commonRequest);
+            }
 
-        if (discountType === "OVERT") {
-            await addOvertDiscount(eventToEdit.id, commonRequest);
-            return;
-        }
+            if (discount.discountType === "COUPON") {
+                await addCouponDiscount(eventToEdit.id, {
+                    ...commonRequest,
+                    code: discount.couponCode.trim(),
+                });
+            }
 
-        if (discountType === "COUPON") {
-            await addCouponDiscount(eventToEdit.id, {
-                ...commonRequest,
-                code: couponCode.trim(),
-            });
-            return;
-        }
-
-        if (discountType === "CONDITIONAL") {
-            await addConditionalDiscount(eventToEdit.id, {
-                ...commonRequest,
-                requiredTickets: Number(requiredTickets),
-                appliedTickets: Number(appliedTickets),
-            });
+            if (discount.discountType === "CONDITIONAL") {
+                await addConditionalDiscount(eventToEdit.id, {
+                    ...commonRequest,
+                    requiredTickets: Number(discount.requiredTickets),
+                    appliedTickets: Number(discount.appliedTickets),
+                });
+            }
         }
     }
 
@@ -964,6 +1030,157 @@ export default function EditEventPage({
         );
     }
 
+    function renderDiscountCard(discount: DiscountDraft, index: number) {
+        return (
+            <article key={discount.id} className="ticket-area-card">
+                <div className="create-event-panel-header">
+                    <div>
+                        <h3>Discount #{index + 1}</h3>
+                        <p className="form-note">
+                            Choose the discount type and fill only the relevant fields.
+                        </p>
+                    </div>
+
+                    <button
+                        type="button"
+                        className="create-event-remove-area"
+                        onClick={() => removeDiscountDraft(discount.id)}
+                    >
+                        Remove
+                    </button>
+                </div>
+
+                <div className="create-event-grid">
+                    <label className="form-field">
+                        <span>Discount type</span>
+                        <select
+                            value={discount.discountType}
+                            onChange={(e) =>
+                                updateDiscountDraft(
+                                    discount.id,
+                                    "discountType",
+                                    e.target.value as DiscountType,
+                                )
+                            }
+                        >
+                            <option value="OVERT">Overt discount</option>
+                            <option value="COUPON">Coupon code</option>
+                            <option value="CONDITIONAL">
+                                Conditional discount
+                            </option>
+                        </select>
+                    </label>
+
+                    <label className="form-field">
+                        <span>Discount percent</span>
+                        <input
+                            type="number"
+                            min={0}
+                            max={100}
+                            value={discount.discountPercent}
+                            onChange={(e) =>
+                                updateDiscountDraft(
+                                    discount.id,
+                                    "discountPercent",
+                                    e.target.value,
+                                )
+                            }
+                            placeholder="e.g. 20"
+                        />
+                    </label>
+
+                    <label className="form-field">
+                        <span>From date</span>
+                        <input
+                            type="date"
+                            value={discount.discountFromDate}
+                            onChange={(e) =>
+                                updateDiscountDraft(
+                                    discount.id,
+                                    "discountFromDate",
+                                    e.target.value,
+                                )
+                            }
+                        />
+                    </label>
+
+                    <label className="form-field">
+                        <span>To date</span>
+                        <input
+                            type="date"
+                            value={discount.discountToDate}
+                            onChange={(e) =>
+                                updateDiscountDraft(
+                                    discount.id,
+                                    "discountToDate",
+                                    e.target.value,
+                                )
+                            }
+                        />
+                    </label>
+
+                    {discount.discountType === "COUPON" && (
+                        <label className="form-field">
+                            <span>Coupon code</span>
+                            <input
+                                type="text"
+                                value={discount.couponCode}
+                                onChange={(e) =>
+                                    updateDiscountDraft(
+                                        discount.id,
+                                        "couponCode",
+                                        e.target.value,
+                                    )
+                                }
+                                placeholder="e.g. SUMMER20"
+                            />
+                        </label>
+                    )}
+
+                    {discount.discountType === "CONDITIONAL" && (
+                        <>
+                            <label className="form-field">
+                                <span>Required tickets</span>
+                                <input
+                                    type="number"
+                                    min={1}
+                                    step={1}
+                                    value={discount.requiredTickets}
+                                    onChange={(e) =>
+                                        updateDiscountDraft(
+                                            discount.id,
+                                            "requiredTickets",
+                                            e.target.value,
+                                        )
+                                    }
+                                    placeholder="e.g. 2"
+                                />
+                            </label>
+
+                            <label className="form-field">
+                                <span>Applied tickets</span>
+                                <input
+                                    type="number"
+                                    min={1}
+                                    step={1}
+                                    value={discount.appliedTickets}
+                                    onChange={(e) =>
+                                        updateDiscountDraft(
+                                            discount.id,
+                                            "appliedTickets",
+                                            e.target.value,
+                                        )
+                                    }
+                                    placeholder="e.g. 1"
+                                />
+                            </label>
+                        </>
+                    )}
+                </div>
+            </article>
+        );
+    }
+
     return (
         <main className="app-page create-event-page">
             <section className="page-header">
@@ -1237,9 +1454,10 @@ export default function EditEventPage({
                             </section>
 
                             <section className="create-event-panel">
-                                <h2>Discount</h2>
+                                <h2>Discounts</h2>
                                 <p className="form-note">
                                     Saving this section replaces the existing discount rules.
+                                    You can add more than one discount rule.
                                 </p>
 
                                 {errors.discount && (
@@ -1248,108 +1466,23 @@ export default function EditEventPage({
                                     </p>
                                 )}
 
-                                <label className="form-field">
-                                    <span>Discount type</span>
-                                    <select
-                                        value={discountType}
-                                        onChange={(e) =>
-                                            setDiscountType(e.target.value as DiscountType)
-                                        }
+                                {discounts.length === 0 && (
+                                    <p className="form-note">
+                                        No discount rules. Add a discount if needed.
+                                    </p>
+                                )}
+
+                                {discounts.map(renderDiscountCard)}
+
+                                <div className="create-event-actions">
+                                    <button
+                                        type="button"
+                                        className="create-event-button create-event-button--secondary"
+                                        onClick={addNewDiscount}
                                     >
-                                        <option value="NONE">No discount</option>
-                                        <option value="OVERT">Overt discount</option>
-                                        <option value="COUPON">Coupon code</option>
-                                        <option value="CONDITIONAL">
-                                            Conditional discount
-                                        </option>
-                                    </select>
-                                </label>
-
-                                {discountType !== "NONE" && (
-                                    <>
-                                        <label className="form-field">
-                                            <span>Discount percent</span>
-                                            <input
-                                                type="number"
-                                                min={0}
-                                                max={100}
-                                                value={discountPercent}
-                                                onChange={(e) =>
-                                                    setDiscountPercent(e.target.value)
-                                                }
-                                                placeholder="e.g. 20"
-                                            />
-                                        </label>
-
-                                        <label className="form-field">
-                                            <span>From date</span>
-                                            <input
-                                                type="date"
-                                                value={discountFromDate}
-                                                onChange={(e) =>
-                                                    setDiscountFromDate(e.target.value)
-                                                }
-                                            />
-                                        </label>
-
-                                        <label className="form-field">
-                                            <span>To date</span>
-                                            <input
-                                                type="date"
-                                                value={discountToDate}
-                                                onChange={(e) =>
-                                                    setDiscountToDate(e.target.value)
-                                                }
-                                            />
-                                        </label>
-                                    </>
-                                )}
-
-                                {discountType === "COUPON" && (
-                                    <label className="form-field">
-                                        <span>Coupon code</span>
-                                        <input
-                                            type="text"
-                                            value={couponCode}
-                                            onChange={(e) =>
-                                                setCouponCode(e.target.value)
-                                            }
-                                            placeholder="e.g. SUMMER20"
-                                        />
-                                    </label>
-                                )}
-
-                                {discountType === "CONDITIONAL" && (
-                                    <>
-                                        <label className="form-field">
-                                            <span>Required tickets</span>
-                                            <input
-                                                type="number"
-                                                min={1}
-                                                step={1}
-                                                value={requiredTickets}
-                                                onChange={(e) =>
-                                                    setRequiredTickets(e.target.value)
-                                                }
-                                                placeholder="e.g. 2"
-                                            />
-                                        </label>
-
-                                        <label className="form-field">
-                                            <span>Applied tickets</span>
-                                            <input
-                                                type="number"
-                                                min={1}
-                                                step={1}
-                                                value={appliedTickets}
-                                                onChange={(e) =>
-                                                    setAppliedTickets(e.target.value)
-                                                }
-                                                placeholder="e.g. 1"
-                                            />
-                                        </label>
-                                    </>
-                                )}
+                                        Add discount
+                                    </button>
+                                </div>
                             </section>
                         </div>
 
