@@ -10,6 +10,7 @@ public class BackendConfigProperties {
 
     private final Jwt jwt = new Jwt();
     private final Profiles profiles = new Profiles();
+    private final Database database = new Database();
     private final LoginRateLimiter loginRateLimiter = new LoginRateLimiter();
     private final Notifications notifications = new Notifications();
     private final ActivePurchaseCleaner activePurchaseCleaner = new ActivePurchaseCleaner();
@@ -28,6 +29,10 @@ public class BackendConfigProperties {
 
     public Profiles getProfiles() {
         return profiles;
+    }
+
+    public Database getDatabase() {
+        return database;
     }
 
     public LoginRateLimiter getLoginRateLimiter() {
@@ -104,6 +109,62 @@ public class BackendConfigProperties {
 
         public void setActive(String active) {
             this.active = active;
+        }
+    }
+
+    public static class Database {
+        private String mode = "in-memory";
+        private final Gcp gcp = new Gcp();
+
+        public String getMode() {
+            return mode;
+        }
+
+        public void setMode(String mode) {
+            this.mode = mode;
+        }
+
+        public Gcp getGcp() {
+            return gcp;
+        }
+    }
+
+    public static class Gcp {
+        private String url = "jdbc:postgresql://35.242.177.151:5432/postgres";
+        private String username = "postgres";
+        private String password = "123456";
+        private String driverClassName = "org.postgresql.Driver";
+
+        public String getUrl() {
+            return url;
+        }
+
+        public void setUrl(String url) {
+            this.url = url;
+        }
+
+        public String getUsername() {
+            return username;
+        }
+
+        public void setUsername(String username) {
+            this.username = username;
+        }
+
+        public String getPassword() {
+            return password;
+        }
+
+        public void setPassword(String password) {
+            this.password = password;
+        }
+
+        public String getDriverClassName() {
+            return driverClassName;
+        }
+
+        public void setDriverClassName(String driverClassName) {
+            this.driverClassName = driverClassName;
         }
     }
 
