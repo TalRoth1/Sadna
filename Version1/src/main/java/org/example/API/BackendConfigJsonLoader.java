@@ -8,7 +8,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -69,23 +68,7 @@ public class BackendConfigJsonLoader implements EnvironmentPostProcessor, Ordere
 
     private static final Logger logger = Logger.getLogger(BackendConfigJsonLoader.class.getName());
 
-    private final ObjectMapper objectMapper;
-    private final Path workingDirectoryConfigFile;
-    private final Function<String, Resource> classpathResourceFactory;
-
-    public BackendConfigJsonLoader() {
-        this(new ObjectMapper(), Path.of(DEFAULT_FILE_NAME), ClassPathResource::new);
-    }
-
-    BackendConfigJsonLoader(
-            ObjectMapper objectMapper,
-            Path workingDirectoryConfigFile,
-            Function<String, Resource> classpathResourceFactory
-    ) {
-        this.objectMapper = objectMapper;
-        this.workingDirectoryConfigFile = workingDirectoryConfigFile;
-        this.classpathResourceFactory = classpathResourceFactory;
-    }
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
     public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {

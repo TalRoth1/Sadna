@@ -7,7 +7,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -15,7 +15,6 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.MapPropertySource;
 import org.springframework.core.env.StandardEnvironment;
-import org.springframework.core.io.FileSystemResource;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -24,53 +23,44 @@ class BackendConfigJsonLoaderTest {
     @TempDir
     Path tempDir;
 
-    @Test
-    void whenConfigFileDoesNotExist_thenNoBackendConfigPropertySourceIsAdded() {
+    private ConfigurableEnvironment environmentPointingAt(Path configFile) {
         ConfigurableEnvironment environment = new StandardEnvironment();
-
-        BackendConfigJsonLoader loader = new BackendConfigJsonLoader(
-                new ObjectMapper(),
-                tempDir.resolve("backend-config.json"),
-                ignored -> new FileSystemResource(tempDir.resolve("classpath-backend-config.json"))
+        environment.getPropertySources().addFirst(
+                new MapPropertySource(
+                        "testOverride",
+                        Map.of("backend.config.file", configFile.toString())
+                )
         );
-
-        assertDoesNotThrow(() ->
-                loader.postProcessEnvironment(environment, new SpringApplication())
-        );
-
-        assertNull(environment.getPropertySources().get("backendConfigJson"));
-        assertNull(environment.getProperty("backend.jwt.secret"));
+        return environment;
     }
 
     @Test
-    void whenConfigFileHasInvalidJsonSyntax_thenNoBackendConfigPropertySourceIsAdded() throws Exception {
+    void whenConfigFileDoesNotExist_thenStartupIsAborted() {
+        ConfigurableEnvironment environment =
+                environmentPointingAt(tempDir.resolve("missing-backend-config.json"));
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> new BackendConfigJsonLoader().postProcessEnvironment(environment, new SpringApplication())
+        );
+    }
+
+    @Test
+    void whenConfigFileHasInvalidJsonSyntax_thenStartupIsAborted() throws Exception {
         Path invalidConfig = tempDir.resolve("backend-config.json");
+        Files.writeString(invalidConfig, "{ \"jwt\": { \"secret\": \"broken\", }");
 
-        Files.writeString(
-                invalidConfig,
-                "{ \"jwt\": { \"secret\": \"broken\", }"
+        ConfigurableEnvironment environment = environmentPointingAt(invalidConfig);
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> new BackendConfigJsonLoader().postProcessEnvironment(environment, new SpringApplication())
         );
-
-        ConfigurableEnvironment environment = new StandardEnvironment();
-
-        BackendConfigJsonLoader loader = new BackendConfigJsonLoader(
-                new ObjectMapper(),
-                invalidConfig,
-                ignored -> new FileSystemResource(tempDir.resolve("classpath-backend-config.json"))
-        );
-
-        assertDoesNotThrow(() ->
-                loader.postProcessEnvironment(environment, new SpringApplication())
-        );
-
-        assertNull(environment.getPropertySources().get("backendConfigJson"));
-        assertNull(environment.getProperty("backend.jwt.secret"));
     }
 
     @Test
     void whenConfigFileIsValid_thenBackendPropertiesAreLoadedIntoEnvironment() throws Exception {
         Path validConfig = tempDir.resolve("backend-config.json");
-
         Files.writeString(
                 validConfig,
                 """
@@ -87,21 +77,27 @@ class BackendConfigJsonLoaderTest {
                 """
         );
 
-        ConfigurableEnvironment environment = new StandardEnvironment();
+        ConfigurableEnvironment environment = environmentPointingAt(validConfig);
 
-        BackendConfigJsonLoader loader = new BackendConfigJsonLoader(
-                new ObjectMapper(),
-                validConfig,
-                ignored -> new FileSystemResource(tempDir.resolve("classpath-backend-config.json"))
-        );
-
-        loader.postProcessEnvironment(environment, new SpringApplication());
+        new BackendConfigJsonLoader().postProcessEnvironment(environment, new SpringApplication());
 
         assertNotNull(environment.getPropertySources().get("backendConfigJson"));
         assertEquals("test-secret", environment.getProperty("backend.jwt.secret"));
         assertEquals("12345", environment.getProperty("backend.jwt.expirationMs"));
         assertEquals("http://localhost:*", environment.getProperty("backend.cors.allowedOriginPatterns[0]"));
         assertEquals("true", environment.getProperty("backend.cors.allowCredentials"));
+    }
+
+    @Test
+    void whenOverrideConfigFileIsSet_thenOverrideFileIsLoaded() throws Exception {
+        Path overrideConfig = tempDir.resolve("override-backend-config.json");
+        Files.writeString(overrideConfig, "{ \"jwt\": { \"secret\": \"override-secret\" } }");
+
+        ConfigurableEnvironment environment = environmentPointingAt(overrideConfig);
+
+        new BackendConfigJsonLoader().postProcessEnvironment(environment, new SpringApplication());
+
+        assertEquals("override-secret", environment.getProperty("backend.jwt.secret"));
     }
 
     @Test
@@ -127,44 +123,5 @@ class BackendConfigJsonLoaderTest {
             ObjectMapper objectMapper = new ObjectMapper();
             objectMapper.readTree(configPath.toFile());
         });
-    }
-
-    @Test
-    void whenOverrideConfigFileIsValid_thenOverrideFileIsLoadedBeforeWorkingDirectoryFile() throws Exception {
-        Path workingDirConfig = tempDir.resolve("backend-config.json");
-        Path overrideConfig = tempDir.resolve("override-backend-config.json");
-
-        Files.writeString(
-                workingDirConfig,
-                """
-                { "jwt": { "secret": "working-dir-secret" } }
-                """
-        );
-
-        Files.writeString(
-                overrideConfig,
-                """
-                { "jwt": { "secret": "override-secret" } }
-                """
-        );
-
-        ConfigurableEnvironment environment = new StandardEnvironment();
-
-        environment.getPropertySources().addFirst(
-                new MapPropertySource(
-                        "testOverride",
-                        Map.of("backend.config.file", overrideConfig.toString())
-                )
-        );
-
-        BackendConfigJsonLoader loader = new BackendConfigJsonLoader(
-                new ObjectMapper(),
-                workingDirConfig,
-                ignored -> new FileSystemResource(tempDir.resolve("classpath-backend-config.json"))
-        );
-
-        loader.postProcessEnvironment(environment, new SpringApplication());
-
-        assertEquals("override-secret", environment.getProperty("backend.jwt.secret"));
     }
 }
