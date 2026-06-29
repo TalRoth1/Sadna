@@ -6,7 +6,10 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Logger;
+import java.util.ArrayList;
 
+import org.example.ApplicationLayer.dto.PurchaseDTOs.PurchaseHistoryDTO;
+import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.example.ApplicationLayer.dto.CompanyDTOs.CompanyAccessResponse;
 import org.example.ApplicationLayer.dto.CompanyDTOs.CompanyMembershipResponse;
 import org.example.ApplicationLayer.dto.CompanyDTOs.CompanyResponse;
@@ -370,21 +373,100 @@ public class CompanyService {
             throw new IllegalArgumentException("Owner email is required");
         }
 
+        if (companyId == null) {
+            throw new IllegalArgumentException("Company ID is required");
+        }
+
         org.example.ApplicationLayer.dto.CompanyDTOs.CompanyAccessResponse access =
-            rolesDomainService.getCompanyAccess(companyId, ownerEmail);
+                rolesDomainService.getCompanyAccess(companyId, ownerEmail);
+
         String normalizedRole = access.role == null ? "" : access.role.trim().toLowerCase();
         if (!normalizedRole.equals("owner") && !normalizedRole.equals("founder")) {
             throw new IllegalArgumentException("Only company owners can view the sales report");
         }
 
-        org.example.ApplicationLayer.dto.SalesReport report =
-            purchaseDomainService.getSalesReportForOwner(ownerEmail, companyId);
+        List<PurchaseHistory> histories =
+                purchaseDomainService.getHistoryByCompany(companyId);
+
+        List<UUID> eventIds = histories.stream()
+                .map(PurchaseHistory::getEventId)
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .collect(java.util.stream.Collectors.toList());
+
+        List<UUID> soldTicketIds = histories.stream()
+                .filter(history -> history.getTicketIds() != null)
+                .flatMap(history -> history.getTicketIds().stream())
+                .collect(java.util.stream.Collectors.toList());
+
+        double totalRevenue = histories.stream()
+                .filter(history -> history.getPayment() != null)
+                .mapToDouble(history -> history.getPayment().getTotal())
+                .sum();
+
+        List<PurchaseHistoryDTO> purchases = histories.stream()
+                .map(this::toPurchaseHistoryDTO)
+                .collect(java.util.stream.Collectors.toList());
+
         return new SalesReportResponse(
                 companyId,
                 ownerEmail,
-                report.getEventIds(),
-                report.getTicketIds(),
-                report.getTotalRevenue());
+                eventIds,
+                soldTicketIds,
+                totalRevenue,
+                purchases);
+    }
+    private PurchaseHistoryDTO toPurchaseHistoryDTO(PurchaseHistory history) {
+        PurchaseHistoryDTO dto = new PurchaseHistoryDTO();
+
+        dto.userId = history.getUserId();
+        dto.eventId = history.getEventId();
+        dto.ticketIds = history.getTicketIds();
+        dto.purchaseDate = history.getPurchaseDate();
+        dto.issuedTicketRef = history.getIssuedTicketReference();
+        dto.ticketsAmount = countPurchasedTickets(history);
+
+        if (history.getPayment() != null) {
+            dto.paymentInfo = history.getPayment().getPaymentInfo();
+            dto.totalPrice = history.getPayment().getTotal();
+        } else {
+            dto.paymentInfo = "";
+            dto.totalPrice = 0;
+        }
+
+        try {
+            org.example.DomainLayer.EventAggregate.Event event =
+                    purchaseDomainService.findEventById(history.getEventId());
+
+            if (event != null) {
+                dto.eventName = event.getName();
+                dto.eventDate = event.getDate();
+                dto.eventLocation = event.getLocation();
+            }
+        } catch (RuntimeException ignored) {
+            dto.eventName = history.getEventId() == null
+                    ? ""
+                    : history.getEventId().toString();
+        }
+
+        return dto;
+    }
+
+    private int countPurchasedTickets(PurchaseHistory history) {
+        if (history.getTicketIds() != null && !history.getTicketIds().isEmpty()) {
+            return history.getTicketIds().size();
+        }
+
+        String issuedTicketReference = history.getIssuedTicketReference();
+
+        if (issuedTicketReference == null || issuedTicketReference.isBlank()) {
+            return 0;
+        }
+
+        return (int) java.util.Arrays.stream(issuedTicketReference.split(","))
+                .map(String::trim)
+                .filter(reference -> !reference.isEmpty())
+                .count();
     }
 
     public List<org.example.ApplicationLayer.dto.CompanyDTOs.SubordinateEventDto> getEventsManagedBySubordinates(String ownerEmail, UUID companyId) {
