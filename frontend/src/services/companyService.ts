@@ -86,12 +86,28 @@ export type CompanyPoliciesResponse = {
 	discountPolicy: CompanyDiscountPolicyResponse;
 };
 
+export type CompanySalesReportPurchase = {
+	userId: string;
+	eventId: string;
+	ticketIds: string[];
+	eventName?: string;
+	eventDate?: string;
+	eventLocation?: string;
+	ticketsAmount: number;
+	totalPrice: number;
+	paymentInfo?: string;
+	issuedTicketRef?: string;
+	seatLabels?: string[];
+	purchaseDate?: string;
+};
+
 export type CompanySalesReportResponse = {
 	companyId: string;
 	ownerEmail: string;
 	eventIds: string[];
 	ticketIds: string[];
 	totalRevenue: number;
+	purchases?: CompanySalesReportPurchase[];
 };
 
 export type CompanyHierarchyResponse = {

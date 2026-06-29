@@ -27,7 +27,6 @@ import {
     type InviteOwnerRequest,
     type SubordinateEvent,
 } from "../../services/companyService";
-import { getEventById } from "../../services/eventSearchService";
 import { getCurrentUser, type CurrentUser } from "../../services/currentUserService";
 import { drawLotteryWinners, startRegularSale } from "../../services/lotteryService";
 import type { EventSummary } from "../../types/event";
@@ -77,12 +76,23 @@ type CompanyPoliciesViewModel = {
     discountRules: NonNullable<CompanyPoliciesSectionProps["discountRules"]>;
 };
 
+type CompanySalesReportPurchaseViewModel = {
+    userId: string;
+    eventId: string;
+    eventName: string;
+    ticketIds: string[];
+    ticketsAmount: number;
+    totalPrice: number;
+    purchaseDate?: string;
+    issuedTicketRef?: string;
+};
+
 type CompanySalesReportViewModel = {
     companyId: string;
     ownerEmail: string;
-    // per-event summary with human-readable name and sold-tickets count
     events: { id: string; name: string; soldTickets: number }[];
     totalRevenue: number;
+    purchases: CompanySalesReportPurchaseViewModel[];
 };
 
 type PurchasePolicyCreateRequest =
@@ -322,13 +332,58 @@ function mapCompanyPolicies(response: BackendCompanyPoliciesResponse): CompanyPo
 }
 
 function mapCompanySalesReport(response: BackendCompanySalesReportResponse): CompanySalesReportViewModel {
-    // Map backend sales report fields into the view model. Event names and sold counts
-    // are populated after fetching event details.
+    const purchases = response.purchases ?? [];
+
+    const eventMap = new Map<string, { id: string; name: string; soldTickets: number }>();
+
+    for (const purchase of purchases) {
+        const eventId = purchase.eventId;
+        const ticketsAmount =
+            purchase.ticketsAmount ??
+            purchase.ticketIds?.length ??
+            0;
+
+        const existing = eventMap.get(eventId);
+
+        if (existing) {
+            existing.soldTickets += ticketsAmount;
+        } else {
+            eventMap.set(eventId, {
+                id: eventId,
+                name: purchase.eventName || eventId.slice(0, 8),
+                soldTickets: ticketsAmount,
+            });
+        }
+    }
+
+    for (const eventId of response.eventIds ?? []) {
+        if (!eventMap.has(eventId)) {
+            eventMap.set(eventId, {
+                id: eventId,
+                name: eventId.slice(0, 8),
+                soldTickets: 0,
+            });
+        }
+    }
+
     return {
         companyId: response.companyId,
         ownerEmail: response.ownerEmail,
-        events: response.eventIds.map((id) => ({ id, name: id.slice(0, 8), soldTickets: 0 })),
+        events: Array.from(eventMap.values()),
         totalRevenue: response.totalRevenue,
+        purchases: purchases.map((purchase) => ({
+            userId: purchase.userId,
+            eventId: purchase.eventId,
+            eventName: purchase.eventName || purchase.eventId.slice(0, 8),
+            ticketIds: purchase.ticketIds ?? [],
+            ticketsAmount:
+                purchase.ticketsAmount ??
+                purchase.ticketIds?.length ??
+                0,
+            totalPrice: purchase.totalPrice ?? 0,
+            purchaseDate: purchase.purchaseDate,
+            issuedTicketRef: purchase.issuedTicketRef,
+        })),
     };
 }
 
@@ -812,48 +867,16 @@ export default function CompanyPage({
                     }
                 }
 
-                if (isHierarchyViewerRole(mappedCompany.role)) {
-                    try {
-                        const hierarchyResponse = await getCompanyHierarchy(company.id, user.email);
-
-                        if (isStale) {
-                            return;
-                        }
-
-                        hierarchySource = hierarchyResponse.mermaidChart;
-
                 if (isCompanyOwnerRole(mappedCompany.role)) {
                     try {
                         const salesReportResponse = await getCompanySalesReport(company.id, user.email);
+                        console.log("salesReportResponse", salesReportResponse);
+
                         if (isStale) {
                             return;
                         }
 
-                        // Base mapping
-                        const baseReport = mapCompanySalesReport(salesReportResponse);
-
-                        try {
-                            // Compute per-event human name and sold-ticket counts by fetching event details
-                            const ticketIdSet = new Set((salesReportResponse.ticketIds ?? []).map((t) => t.toString()));
-                            const events = await Promise.all(
-                                (salesReportResponse.eventIds ?? []).map(async (eventId) => {
-                                    try {
-                                        const evt = await getEventById(eventId);
-                                        const eventTicketIds = new Set((evt?.tickets ?? []).map((t) => t.id));
-                                        const soldCount = [...ticketIdSet].filter((tid) => eventTicketIds.has(tid)).length;
-                                        return { id: eventId, name: evt?.name ?? eventId.slice(0, 8), soldTickets: soldCount };
-                                    } catch (err) {
-                                        return { id: eventId, name: eventId.slice(0, 8), soldTickets: 0 };
-                                    }
-                                }),
-                            );
-
-                            baseReport.events = events;
-                        } catch (err) {
-                            // If event lookups fail, leave placeholder names and zero counts
-                        }
-
-                        salesReport = baseReport;
+                        salesReport = mapCompanySalesReport(salesReportResponse);
                     } catch (error) {
                         if (!isStale) {
                             salesReportErrorMessage = getErrorMessage(
@@ -863,6 +886,16 @@ export default function CompanyPage({
                         }
                     }
                 }
+
+                if (isHierarchyViewerRole(mappedCompany.role)) {
+                    try {
+                        const hierarchyResponse = await getCompanyHierarchy(company.id, user.email);
+
+                        if (isStale) {
+                            return;
+                        }
+
+                        hierarchySource = hierarchyResponse.mermaidChart;
                         hierarchyRoots = parseMermaidHierarchy(hierarchyResponse.mermaidChart);
                         managerPermissionsByNodeId = parseManagerPermissionsFromMermaid(
                             hierarchyResponse.mermaidChart,
@@ -939,8 +972,8 @@ export default function CompanyPage({
                     subordinateIds = [];
                 }
 
-                // fetch events managed by owner + subordinates when current user is owner
                 let subordinateEventsForOwner: SubordinateEvent[] = [];
+
                 try {
                     if (user && isCompanyOwnerRole(mappedCompany.role)) {
                         subordinateEventsForOwner = await getSubordinatesEvents(company.id, user.email);
@@ -964,6 +997,7 @@ export default function CompanyPage({
                     subordinateIds,
                     managerPermissionsByNodeId,
                 });
+
                 setManagedEvents(managedEventsForUser);
                 setSubordinateEvents(subordinateEventsForOwner);
             } catch (error) {

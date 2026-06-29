@@ -2,13 +2,7 @@ package org.example.DomainLayer;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Collectors;
@@ -1096,6 +1090,41 @@ public SalesReport getSalesReportForOwner(String ownerEmail, UUID companyId) {
             return false;
         }
         return lottery.isWinner(userId.toString());
+    }
+
+    public SalesReport getSalesReportForEvents(List<UUID> eventIds) {
+        if (eventIds == null || eventIds.isEmpty()) {
+            return new SalesReport(List.of(), List.of(), 0);
+        }
+
+        List<UUID> distinctEventIds = eventIds.stream()
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+
+        List<PurchaseHistory> relevantPurchases = new ArrayList<>();
+
+        for (UUID eventId : distinctEventIds) {
+            relevantPurchases.addAll(historyRepository.getByEventId(eventId));
+        }
+
+        double totalRevenue = relevantPurchases.stream()
+                .filter(purchase -> purchase.getPayment() != null)
+                .mapToDouble(purchase -> purchase.getPayment().getTotal())
+                .sum();
+
+        List<UUID> soldTicketIds = relevantPurchases.stream()
+                .filter(purchase -> purchase.getTicketIds() != null)
+                .flatMap(purchase -> purchase.getTicketIds().stream())
+                .collect(Collectors.toList());
+
+        List<UUID> eventsWithSales = relevantPurchases.stream()
+                .map(PurchaseHistory::getEventId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+
+        return new SalesReport(eventsWithSales, soldTicketIds, totalRevenue);
     }
 
     public ActivePurchase selectTickets(
