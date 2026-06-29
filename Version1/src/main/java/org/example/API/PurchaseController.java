@@ -64,6 +64,10 @@ public class PurchaseController {
         } catch (DomainException | IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to request selection access: system exception"));
         }
@@ -83,6 +87,10 @@ public class PurchaseController {
         } catch (DomainException | IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to fetch selection access status: system exception"));
         }
@@ -110,6 +118,11 @@ public class PurchaseController {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Unexpected failure in selectSittingTickets", e);
+
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to select sitting tickets: system exception"));
         }
@@ -137,6 +150,11 @@ public class PurchaseController {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Unexpected failure in selectTickets", e);
+
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to select tickets: system exception"));
         }
@@ -160,6 +178,10 @@ public class PurchaseController {
         } catch (DomainException | IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to update tickets: system exception"));
         }
@@ -178,6 +200,10 @@ public class PurchaseController {
         } catch (DomainException | IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to fetch active purchases: system exception"));
         }
@@ -204,6 +230,10 @@ public class PurchaseController {
         } catch (DomainException | IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to select standing tickets: system exception"));
         }
@@ -225,6 +255,10 @@ public class PurchaseController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to fetch active purchase: system exception"));
         }
@@ -253,6 +287,10 @@ public class PurchaseController {
         } catch (DomainException | IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to fetch active purchase: system exception"));
         }
@@ -271,6 +309,10 @@ public class PurchaseController {
         } catch (DomainException | IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to complete purchase: system exception"));
         }
@@ -284,6 +326,10 @@ public class PurchaseController {
         } catch (DomainException | IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to cancel purchase: system exception"));
         }
@@ -299,6 +345,10 @@ public class PurchaseController {
         } catch (DomainException | IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to update sitting tickets: system exception"));
         }
@@ -314,6 +364,10 @@ public class PurchaseController {
         } catch (DomainException | IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to update standing tickets: system exception"));
         }
@@ -334,6 +388,10 @@ public class PurchaseController {
         } catch (DomainException | IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to register to lottery: system exception"));
         }
@@ -350,6 +408,10 @@ public class PurchaseController {
         } catch (DomainException | IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to draw lottery: system exception"));
         }
@@ -366,6 +428,10 @@ public class PurchaseController {
         } catch (DomainException | IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to fetch lottery status: system exception"));
         }
@@ -388,6 +454,10 @@ public class PurchaseController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to fetch member history: system exception"));
         }
@@ -403,6 +473,10 @@ public class PurchaseController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to fetch event history: system exception"));
         }

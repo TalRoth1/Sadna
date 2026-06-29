@@ -147,6 +147,10 @@ public class NotificationController {
                     .body(ApiResponse.error(e.getMessage()));
 
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to fetch notifications: system exception"));
         }
@@ -178,6 +182,10 @@ public class NotificationController {
                     .body(ApiResponse.error(e.getMessage()));
 
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to mark notification as read: system exception"));
         }
@@ -204,6 +212,10 @@ public class NotificationController {
                     .body(ApiResponse.error(e.getMessage()));
 
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to mark notifications as read: system exception"));
         }
@@ -218,6 +230,10 @@ public class NotificationController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to send test notification"));
         }

@@ -89,6 +89,10 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.error("Session is no longer valid"));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to fetch user: " + e.getMessage()));
         }
@@ -112,6 +116,10 @@ public class UserController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Guest session failed: system exception\n" + e.getMessage()));
         }
@@ -133,6 +141,10 @@ public class UserController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Register failed: system exception\n" + e.getMessage()));
         }
@@ -160,7 +172,12 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Login failed: system exception\n" + e.getMessage()));
         }
     }
@@ -224,6 +241,10 @@ public class UserController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Logout failed: system exception\n" + e.getMessage()));
         }

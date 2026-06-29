@@ -90,6 +90,10 @@ public class EventController {
         } catch (IllegalArgumentException | IllegalStateException | DomainException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to create event: system exception"));
         }
@@ -109,6 +113,10 @@ public class EventController {
         } catch (IllegalArgumentException | IllegalStateException | DomainException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to update event: system exception"));
         }
@@ -124,6 +132,10 @@ public class EventController {
         } catch (IllegalArgumentException | IllegalStateException | DomainException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to delete event: system exception"));
         }
@@ -145,6 +157,10 @@ public class EventController {
         } catch (IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to add standing tickets: system exception"));
         }
@@ -162,6 +178,10 @@ public class EventController {
         } catch (IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to add sitting tickets: system exception"));
         }
@@ -179,6 +199,10 @@ public class EventController {
         } catch (IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to create sitting area: system exception"));
         }
@@ -196,6 +220,10 @@ public class EventController {
         } catch (IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             String msg = e.getMessage() == null ? "(no message)" : e.getMessage();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to create standing area: system exception - " + msg));
@@ -221,6 +249,10 @@ public class EventController {
         } catch (IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to update standing area: system exception"));
         }
@@ -246,6 +278,10 @@ public class EventController {
         } catch (IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to update sitting area: system exception"));
         }
@@ -268,6 +304,10 @@ public class EventController {
         } catch (IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to delete ticket area: system exception"));
         }
@@ -290,6 +330,10 @@ public class EventController {
         } catch (IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to add policy rule: system exception"));
         }
@@ -314,6 +358,10 @@ public class EventController {
         } catch (IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to update policy: system exception"));
         }
@@ -333,6 +381,10 @@ public class EventController {
         } catch (IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to delete policy rule: system exception"));
         }
@@ -355,6 +407,10 @@ public class EventController {
         } catch (IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to add discount: system exception"));
         }
@@ -374,6 +430,10 @@ public class EventController {
         } catch (IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to add discount: system exception"));
         }
@@ -392,6 +452,10 @@ public class EventController {
         } catch (IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to add coupon: system exception"));
         }
@@ -408,6 +472,10 @@ public class EventController {
         } catch (IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to remove discount: system exception"));
         }
@@ -427,6 +495,10 @@ public class EventController {
         } catch (IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to submit rating: system exception"));
         }
@@ -444,6 +516,10 @@ public class EventController {
         } catch (IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to fetch catalog: system exception"));
         }
@@ -462,6 +538,10 @@ public class EventController {
         } catch (IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to fetch event details: system exception"));
         }
@@ -477,6 +557,10 @@ public class EventController {
         } catch (IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Search failed: system exception"));
         }
@@ -493,6 +577,10 @@ public class EventController {
         } catch (IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Search failed: system exception"));
         }
@@ -508,6 +596,10 @@ public class EventController {
         } catch (IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to fetch managed events: system exception"));
         }
@@ -527,6 +619,10 @@ public class EventController {
         } catch (IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to fetch event history: system exception"));
         }
@@ -549,6 +645,10 @@ public class EventController {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
 
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             String msg = e.getMessage() == null ? "(no message)" : e.getMessage();
 
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -572,6 +672,10 @@ public class EventController {
         } catch (IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to create lottery: system exception"));
         }
@@ -589,6 +693,10 @@ public class EventController {
         } catch (IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to start regular sale: system exception"));
         }

@@ -52,6 +52,10 @@ public class AdminController {
             logger.severe("action=" + action + ", status=ERROR, message=" + e.getMessage());
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             logger.severe("action=" + action + ", status=ERROR, message=System exception, error=" + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to fetch admin dashboard: system exception"));
@@ -74,6 +78,10 @@ public class AdminController {
             logger.severe("action=" + action + ", status=ERROR, message=" + e.getMessage());
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             logger.severe("action=" + action + ", status=ERROR, message=System exception, error=" + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to fetch companies: system exception"));
@@ -103,6 +111,10 @@ public class AdminController {
             logger.severe("action=" + action + ", status=ERROR, companyId=" + companyId + ", message=" + e.getMessage());
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             logger.severe("action=" + action + ", status=ERROR, companyId=" + companyId + ", message=System exception, error=" + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to close company: system exception"));
@@ -125,6 +137,10 @@ public class AdminController {
             logger.severe("action=" + action + ", status=ERROR, message=" + e.getMessage());
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             logger.severe("action=" + action + ", status=ERROR, message=System exception, error=" + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to fetch subscribers: system exception"));
@@ -154,6 +170,10 @@ public class AdminController {
             logger.severe("action=" + action + ", status=ERROR, username=" + username + ", message=" + e.getMessage());
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             logger.severe("action=" + action + ", status=ERROR, username=" + username + ", message=System exception, error=" + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to remove subscriber: system exception"));
@@ -179,6 +199,10 @@ public class AdminController {
             logger.severe("action=" + action + ", status=ERROR, message=" + e.getMessage());
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             logger.severe("action=" + action + ", status=ERROR, message=System exception, error=" + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to send system message: system exception"));
@@ -201,6 +225,10 @@ public class AdminController {
             logger.severe("action=" + action + ", status=ERROR, message=" + e.getMessage());
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             logger.severe("action=" + action + ", status=ERROR, message=System exception, error=" + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to fetch purchase history: system exception"));
@@ -228,6 +256,10 @@ public class AdminController {
             logger.severe("action=" + action + ", status=ERROR, type=" + type + ", id=" + id + ", message=" + e.getMessage());
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             logger.severe("action=" + action + ", status=ERROR, type=" + type + ", id=" + id + ", message=System exception, error=" + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to fetch filtered purchase history: system exception"));
@@ -253,6 +285,10 @@ public class AdminController {
             logger.severe("action=" + action + ", status=ERROR, userId=" + userId + ", message=" + e.getMessage());
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             logger.severe("action=" + action + ", status=ERROR, userId=" + userId + ", message=System exception, error=" + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to fetch user purchase history: system exception"));
@@ -278,6 +314,10 @@ public class AdminController {
             logger.severe("action=" + action + ", status=ERROR, eventId=" + eventId + ", message=" + e.getMessage());
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             logger.severe("action=" + action + ", status=ERROR, eventId=" + eventId + ", message=System exception, error=" + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to fetch event purchase history: system exception"));
@@ -303,6 +343,10 @@ public class AdminController {
             logger.severe("action=" + action + ", status=ERROR, companyId=" + companyId + ", message=" + e.getMessage());
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             logger.severe("action=" + action + ", status=ERROR, companyId=" + companyId + ", message=System exception, error=" + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to fetch company purchase history: system exception"));
@@ -330,6 +374,10 @@ public class AdminController {
             logger.severe("action=" + action + ", status=ERROR, message=" + e.getMessage());
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             logger.severe("action=" + action + ", status=ERROR, message=System exception, error=" + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to create complaint: system exception"));
@@ -352,6 +400,10 @@ public class AdminController {
             logger.severe("action=" + action + ", status=ERROR, message=" + e.getMessage());
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             logger.severe("action=" + action + ", status=ERROR, message=System exception, error=" + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to fetch complaints: system exception"));
@@ -374,6 +426,10 @@ public class AdminController {
             logger.severe("action=" + action + ", status=ERROR, message=" + e.getMessage());
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             logger.severe("action=" + action + ", status=ERROR, message=System exception, error=" + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to fetch open complaints: system exception"));
@@ -401,6 +457,10 @@ public class AdminController {
             logger.severe("action=" + action + ", status=ERROR, complaintId=" + complaintId + ", message=" + e.getMessage());
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             logger.severe("action=" + action + ", status=ERROR, complaintId=" + complaintId + ", message=System exception, error=" + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to respond to complaint: system exception"));
@@ -426,6 +486,10 @@ public class AdminController {
             logger.severe("action=" + action + ", status=ERROR, complaintId=" + complaintId + ", message=" + e.getMessage());
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             logger.severe("action=" + action + ", status=ERROR, complaintId=" + complaintId + ", message=System exception, error=" + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to close complaint: system exception"));
@@ -448,6 +512,10 @@ public class AdminController {
             logger.severe("action=" + action + ", status=ERROR, message=" + e.getMessage());
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             logger.severe("action=" + action + ", status=ERROR, message=System exception, error=" + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to fetch analytics: system exception"));
@@ -470,6 +538,10 @@ public class AdminController {
             logger.severe("action=" + action + ", status=ERROR, message=" + e.getMessage());
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             logger.severe("action=" + action + ", status=ERROR, message=System exception, error=" + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to fetch queues: system exception"));
@@ -495,6 +567,10 @@ public class AdminController {
             logger.severe("action=" + action + ", status=ERROR, eventId=" + eventId + ", message=" + e.getMessage());
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             logger.severe("action=" + action + ", status=ERROR, eventId=" + eventId + ", message=System exception, error=" + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to fetch queue: system exception"));
@@ -522,6 +598,10 @@ public class AdminController {
             logger.severe("action=" + action + ", status=ERROR, eventId=" + eventId + ", message=" + e.getMessage());
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             logger.severe("action=" + action + ", status=ERROR, eventId=" + eventId + ", message=System exception, error=" + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to release queue batch: system exception"));
@@ -547,6 +627,10 @@ public class AdminController {
             logger.severe("action=" + action + ", status=ERROR, eventId=" + eventId + ", message=" + e.getMessage());
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             logger.severe("action=" + action + ", status=ERROR, eventId=" + eventId + ", message=System exception, error=" + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to clear queue: system exception"));
@@ -572,6 +656,10 @@ public class AdminController {
             logger.severe("action=" + action + ", status=ERROR, message=" + e.getMessage());
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
+                return GlobalExceptionHandler.databaseUnavailable();
+            }
+
             logger.severe("action=" + action + ", status=ERROR, message=System exception, error=" + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to update queue settings: system exception"));
