@@ -4,6 +4,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Query;
 import org.example.DomainLayer.ActivePurchaseAggregate.ActivePurchase;
+import org.example.DomainLayer.DomainException;
 import org.example.DomainLayer.IPurchaseRepository;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
@@ -279,9 +280,22 @@ public class JpaPurchaseRepository implements IPurchaseRepository {
                 .setParameter("eventId", activePurchase.getEventID())
                 .setParameter("ticketIds", ticketIds);
 
-        int updatedRows = reserveQuery.executeUpdate();
+        int updatedRows;
+        try {
+            updatedRows = reserveQuery.executeUpdate();
+        } catch (RuntimeException e) {
+            // Under a true race two transactions try to reserve the same seat;
+            // Postgres surfaces this as a lock/serialization error. We throw
+            // DomainException (NOT IllegalStateException) on purpose: this class is
+            // a @Repository, so Spring's PersistenceExceptionTranslationInterceptor
+            // would re-wrap an IllegalStateException into InvalidDataAccessApiUsageException
+            // (a DataAccessException), which the controller maps to a 500. A
+            // DomainException is left untouched by the translator and reaches the
+            // controller's DomainException handler as a clean 400 ("not available").
+            throw new DomainException("One or more selected tickets are not available");
+        }
         if (updatedRows != ticketIds.size()) {
-            throw new IllegalStateException("One or more selected tickets are not available");
+            throw new DomainException("One or more selected tickets are not available");
         }
     }
 

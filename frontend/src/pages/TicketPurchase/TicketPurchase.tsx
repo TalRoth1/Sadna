@@ -73,6 +73,37 @@ function validatePaymentForm(card: PaymentCardForm): string | null {
     return null;
 }
 
+// Maps raw backend exception text to a clear, user-facing message. The backend
+// stays the source of truth; this only improves wording for known cases and
+// falls back to a friendly default for anything unexpected.
+function toFriendlyPurchaseError(raw: string): string {
+    const message = (raw || "").trim();
+    const lower = message.toLowerCase();
+
+    if (lower.includes("no longer available") || lower.includes("not available")) {
+        return "One or more of your seats was just taken by someone else. Please choose a different seat and try again.";
+    }
+    if (lower.includes("selection access") || lower.includes("join the queue")) {
+        return "Your time to pick seats has ended. Please rejoin the queue to try again.";
+    }
+    if (lower.includes("waiting in queue")) {
+        return "You're still in the queue. Please wait for your turn to pick seats.";
+    }
+    if (lower.includes("lone seat") || lower.includes("single seat")) {
+        return "You can't leave a single empty seat between selections. Please adjust your choice.";
+    }
+    if (lower.includes("max") && lower.includes("ticket")) {
+        return "You've reached the maximum number of tickets allowed for this event.";
+    }
+    if (lower.includes("age")) {
+        return "This event has an age restriction that your selection doesn't meet.";
+    }
+    if (lower.includes("expired")) {
+        return "Your reservation time has expired and the seats were released. Please pick again.";
+    }
+    return message || "Could not continue to checkout. Please try again.";
+}
+
 type TicketPurchasePageProps = {
     eventId: string;
     selectionAccessExpiresAt?: string | null;
@@ -1761,10 +1792,9 @@ export default function TicketPurchasePage({
         } catch (error) {
             setActionMessage({
                 kind: "error",
-                text:
-                    error instanceof Error
-                        ? error.message
-                        : "Failed to reserve tickets.",
+                text: toFriendlyPurchaseError(
+                    error instanceof Error ? error.message : "Failed to reserve tickets.",
+                ),
             });
             return false;
         }
@@ -1814,7 +1844,7 @@ export default function TicketPurchasePage({
             }
             setActionMessage({
                 kind: "error",
-                text: message || "Could not continue to checkout.",
+                text: toFriendlyPurchaseError(message),
             });
                 } finally {
                     setIsPerformingAction(false);

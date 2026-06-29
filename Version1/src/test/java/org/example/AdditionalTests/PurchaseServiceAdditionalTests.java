@@ -251,7 +251,7 @@ public class PurchaseServiceAdditionalTests {
     }
 
     @Test
-    public void lotteryCodeSelection_validatesDomainAndAlwaysReleasesQueueInFinally() {
+    public void lotteryCodeSelection_validatesDomainAndKeepsQueueAccessOnFailure() {
         UUID eventId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
         UUID areaId = UUID.randomUUID();
@@ -282,8 +282,12 @@ public class PurchaseServiceAdditionalTests {
 
         assertThrows(IllegalStateException.class,
                 () -> service.selectSittingTicketsWithLotteryCode(eventId, List.of(ticketId), userId, true, "CODE"));
-        verify(queueManager).finishAccess(userId, eventId);
-        verify(queueManager).releaseBatch(eventId, 1);
+
+        // A failed selection must NOT release the user's selection slot, otherwise
+        // a retry (e.g. with a corrected code/seat) wrongly fails with
+        // "Selection access expired or was not granted".
+        verify(queueManager, never()).finishAccess(userId, eventId);
+        verify(queueManager, never()).releaseBatch(eventId, 1);
     }
 
     @Test

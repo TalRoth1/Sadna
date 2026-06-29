@@ -915,7 +915,7 @@ public class PurchaseServiceTest {
     }
 
     @Test
-    public void selectSittingTickets_failure_consumesQueueAccess() {
+    public void selectSittingTickets_failure_keepsQueueAccessForRetry() {
         TestSetup setup = createSetup();
 
         UUID eventId = UUID.randomUUID();
@@ -943,8 +943,8 @@ public class PurchaseServiceTest {
                 setup.purchaseService.selectSittingTickets(eventId, List.of(ticketId), userId, false)
         );
 
-        // בלוגיקה החדשה כל ניסיון בחירה מסיים את חלון הבחירה, גם אם הדומיין דחה את הבחירה.
-        assertFalse(setup.queueManager.hasSelectAccess(userId, eventId));
+        // בחירה שנכשלה לא מסיימת את חלון הבחירה, כדי שהמשתמש יוכל לנסות מושב אחר.
+        assertTrue(setup.queueManager.hasSelectAccess(userId, eventId));
     }
 
     @Test
@@ -971,10 +971,8 @@ public class PurchaseServiceTest {
         setup.innMemoryUserRepository.add(new User(user1, "u1", "u1", "u1", 20));
         setup.innMemoryUserRepository.add(new User(user2, "u2", "u2", "u2", 20));
 
-        // המשתמש הראשון מקבל חלון בחירה מיידי.
         setup.queueManager.requestSelectionAccess(user1, eventId);
 
-        // בלוגיקה החדשה קריאת select לא מכניסה לתור. הכניסה לתור נעשית מפורשות דרך requestSelectionAccess.
         QueueAccessResult waiting = setup.queueManager.requestSelectionAccess(user2, eventId);
         assertFalse(waiting.isAllowed());
         assertEquals(1, waiting.getUserPositionInQueue());
@@ -983,17 +981,13 @@ public class PurchaseServiceTest {
                 setup.purchaseService.selectSittingTickets(eventId, List.of(ticketId), user2, false)
         );
 
-        //זה גם אומר שלמשתמש השני מן הסתם לא נוצר active purchase
         assertNull(setup.inMemoryPurchaseRepository.findByUserID(user2));
 
-        //הכרטיס אמור להיות עדיין פנוי
         assertEquals(TicketStatus.AVAILABLE, event.getTicket(ticketId).getStatus());
-        //והמיקום של המשתמש השני הוא ב-1
         assertEquals(1, setup.queueManager.getPositionInQueue(user2, eventId));
     }
 
 
-    //בדיקות רגילות
 
     @Test
     public void selectStandingTickets_whenTicketsAreAvailable_createsActivePurchaseAndReservesTickets()
