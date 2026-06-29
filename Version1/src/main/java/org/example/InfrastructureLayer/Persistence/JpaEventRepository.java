@@ -35,11 +35,8 @@ import org.example.DomainLayer.PolicyManagment.PurchaseComposite;
 import org.example.DomainLayer.PolicyManagment.PurchasePolicy;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
-
 @Repository
 @Profile("localdb")
-@Transactional
 public class JpaEventRepository implements IEventRepository {
 
     private final SpringDataEventRepository eventJpa;
@@ -84,7 +81,6 @@ public class JpaEventRepository implements IEventRepository {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public List<Event> getAll() {
         return eventJpa.findAll().stream().map(this::toDomain).collect(Collectors.toList());
     }

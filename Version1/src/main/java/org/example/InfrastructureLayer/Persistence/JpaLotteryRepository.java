@@ -10,14 +10,11 @@ import org.example.DomainLayer.ILotteryRepository;
 import org.example.DomainLayer.LotteryAggregate.PuchaseLottery;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
-
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 
 @Repository
 @Profile("localdb")
-@Transactional
 public class JpaLotteryRepository implements ILotteryRepository {
 
 @PersistenceContext
@@ -104,7 +101,6 @@ private void saveWinners(PuchaseLottery lottery) {
 }
 
 @Override
-@Transactional(readOnly = true)
 public PuchaseLottery findByID(UUID lotteryId) {
     if (lotteryId == null) {
         return null;
@@ -127,7 +123,6 @@ public PuchaseLottery findByID(UUID lotteryId) {
 }
 
 @Override
-@Transactional(readOnly = true)
 public PuchaseLottery findByEventID(UUID eventId) {
     if (eventId == null) {
         return null;
@@ -150,7 +145,6 @@ public PuchaseLottery findByEventID(UUID eventId) {
 }
 
 @Override
-@Transactional(readOnly = true)
 public List<PuchaseLottery> findAll() {
     List<Object[]> rows = entityManager.createNativeQuery("""
             SELECT l.id,
@@ -297,7 +291,6 @@ private int toInt(Object value) {
 }
 
 @Override
-@Transactional(readOnly = true)
 public List<UUID> findEventIdsReadyForDraw(LocalDateTime now) {
     List<?> rows = entityManager.createNativeQuery("""
             SELECT e.id

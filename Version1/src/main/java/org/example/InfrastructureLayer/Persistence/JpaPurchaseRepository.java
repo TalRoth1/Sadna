@@ -8,8 +8,6 @@ import org.example.DomainLayer.DomainException;
 import org.example.DomainLayer.IPurchaseRepository;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.lang.reflect.Field;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
@@ -21,14 +19,12 @@ import java.util.UUID;
 
 @Repository
 @Profile("localdb")
-@Transactional
 public class JpaPurchaseRepository implements IPurchaseRepository {
 
     @PersistenceContext
     private EntityManager entityManager;
 
     @Override
-    @Transactional(readOnly = true)
     public ActivePurchase findByUserID(UUID userID) {
         if (userID == null) {
             return null;
@@ -56,7 +52,6 @@ public class JpaPurchaseRepository implements IPurchaseRepository {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public ActivePurchase findByUserAndEvent(UUID userID, UUID eventID) {
         if (userID == null || eventID == null) {
             return null;
@@ -86,7 +81,6 @@ public class JpaPurchaseRepository implements IPurchaseRepository {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public ActivePurchase findByID(UUID purchaseID) {
         if (purchaseID == null) {
             return null;
@@ -182,7 +176,6 @@ public class JpaPurchaseRepository implements IPurchaseRepository {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public List<ActivePurchase> findAll() {
         List<Object[]> rows = entityManager.createNativeQuery("""
                         SELECT id,
@@ -207,7 +200,6 @@ public class JpaPurchaseRepository implements IPurchaseRepository {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public List<ActivePurchase> findExpiringBefore(java.time.LocalDateTime threshold) {
         List<Object[]> rows = entityManager.createNativeQuery("""
                         SELECT id,

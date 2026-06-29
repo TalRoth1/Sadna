@@ -23,7 +23,6 @@ import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.example.DomainLayer.UserAggregate.ICompanyMember;
 import org.example.DomainLayer.UserAggregate.User;
 
-import jakarta.transaction.Transactional;
 
 public class EventManagementDomainService {
 
@@ -655,7 +654,6 @@ public class EventManagementDomainService {
         return out;
     }
 
-    @Transactional
     public void createLotteryForEvent(UUID eventId,
                                     LocalDateTime registrationOpen,
                                     LocalDateTime registrationClose) {

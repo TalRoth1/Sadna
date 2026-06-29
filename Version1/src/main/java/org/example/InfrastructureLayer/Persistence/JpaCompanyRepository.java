@@ -6,9 +6,6 @@ import org.example.DomainLayer.PolicyManagment.*;
 import org.example.DomainLayer.Rating;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -17,7 +14,6 @@ import java.util.stream.Collectors;
 
 @Repository
 @Profile("localdb")
-@Transactional
 public class JpaCompanyRepository implements ICompanyRepository {
 
     private final SpringDataCompanyRepository companyJpa;
@@ -42,7 +38,6 @@ public class JpaCompanyRepository implements ICompanyRepository {
     }
 
     @Override
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public UUID createCompany(String founderEmail, String companyName, DiscountType discountType) {
         UUID purchasePolicyId = UUID.randomUUID();
         UUID discountPolicyId = UUID.randomUUID();
@@ -125,7 +120,6 @@ public class JpaCompanyRepository implements ICompanyRepository {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public Optional<Company> findByID(UUID companyId) {
         if (companyId == null) {
             return Optional.empty();
@@ -136,13 +130,11 @@ public class JpaCompanyRepository implements ICompanyRepository {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public List<Company> getAll() {
         return toDomainBatch(companyJpa.findAll());
     }
 
     @Override
-    @Transactional(readOnly = true)
     public List<Company> getAllActive() {
         return toDomainBatch(companyJpa.findByStatus(Company.CompanyStatus.ACTIVE));
     }

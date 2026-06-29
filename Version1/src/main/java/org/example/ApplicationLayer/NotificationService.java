@@ -11,8 +11,10 @@ import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.NotificationAggregate.NotificationType;
 import org.example.InfrastructureLayer.Notifier;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional
 public class NotificationService {
 
     private static final Logger logger = Logger.getLogger(NotificationService.class.getName());
@@ -100,6 +102,7 @@ public class NotificationService {
         }
     }
 
+    @Transactional(readOnly = true)
     public List<NotificationDTO> getAllNotifications(String userId) {
         String action = "GET_ALL_NOTIFICATIONS";
         logInfo(userId, action, "Started.");
@@ -120,6 +123,7 @@ public class NotificationService {
         }
     }
 
+    @Transactional(readOnly = true)
     public List<NotificationDTO> getUnreadNotifications(String userId) {
         String action = "GET_UNREAD_NOTIFICATIONS";
         logInfo(userId, action, "Started.");

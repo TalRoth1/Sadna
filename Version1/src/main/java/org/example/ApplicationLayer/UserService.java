@@ -14,6 +14,7 @@ import org.example.DomainLayer.UserAggregate.User;
 import org.example.DomainLayer.UserAggregate.UserRole;
 import org.example.DomainLayer.UserAggregate.UserStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * UserService — Application-layer use-case handler for identity lifecycle.
@@ -61,6 +62,7 @@ import org.springframework.stereotype.Service;
  * </ul>
  */
 @Service
+@Transactional
 public class UserService {
 
     private static final Logger logger = Logger.getLogger(UserService.class.getName());
@@ -412,6 +414,7 @@ public class UserService {
      * @throws IllegalArgumentException if {@code userId} is {@code null}
      *                                  or no such user exists in the repository
      */
+    @Transactional(readOnly = true)
     public UserResponse getUserById(UUID userId) {
         if (userId == null) {
             throw new IllegalArgumentException("User ID is required");
