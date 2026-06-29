@@ -97,12 +97,15 @@ public class PurchaseService {
 
             eventPublisher.publish(new TicketReservedEvent(userID, eventID));
 
+            // Selection succeeded: release the selection slot and admit the next
+            // queued user. On FAILURE we keep the slot so the user can retry a
+            // different seat within their selection window (never do this in a finally).
+            queueManager.finishAccess(userID, eventID);
+            queueManager.releaseBatch(eventID, 1);
+
             return toActivePurchaseDTO(activePurchase);
         } catch (DomainException e) {
             throw new IllegalStateException("Couldn't select tickets: " + e.getMessage());
-        } finally {
-            queueManager.finishAccess(userID, eventID);
-            queueManager.releaseBatch(eventID, 1);
         }
     }
 
@@ -177,13 +180,14 @@ public class PurchaseService {
 
                 logger.info("action=selectSittingTicketsWithLotteryCode completed successfully, caller=" + userID + ", params={eventID=" + eventID + ", ticketCount=" + ticketIDs.size() + "}");
 
+                // Only release the selection slot on success; keep it on failure so the user can retry.
+                queueManager.finishAccess(userID, eventID);
+                queueManager.releaseBatch(eventID, 1);
+
                 return toActivePurchaseDTO(activePurchase);
         } catch (DomainException e) {
             logger.severe("action=selectSittingTicketsWithLotteryCode failed, caller=" + userID + ", params={eventID=" + eventID + ", ticketCount=" + (ticketIDs == null ? 0 : ticketIDs.size()) + "}, error=" + e.getMessage());
             throw new IllegalStateException("Couldn't select lottery sitting tickets: " + e.getMessage());
-        } finally {
-            queueManager.finishAccess(userID, eventID);
-            queueManager.releaseBatch(eventID, 1);
         }
     }
     public ActivePurchaseDTO selectStandingTicketsWithLotteryCode(UUID eventID,int amount,UUID areaID,UUID userID,boolean isConfirmedAge,String accessCode)
@@ -226,13 +230,14 @@ public class PurchaseService {
 
                 logger.info("action=selectStandingTicketsWithLotteryCode completed successfully, caller=" + userID + ", params={eventID=" + eventID + ", areaID=" + areaID + ", amount=" + amount + "}");
 
+                // Only release the selection slot on success; keep it on failure so the user can retry.
+                queueManager.finishAccess(userID, eventID);
+                queueManager.releaseBatch(eventID, 1);
+
                 return toActivePurchaseDTO(activePurchase);
         } catch (DomainException e) {
             logger.severe("action=selectStandingTicketsWithLotteryCode failed, caller=" + userID + ", params={eventID=" + eventID + ", areaID=" + areaID + ", amount=" + amount + "}, error=" + e.getMessage());
             throw new IllegalStateException("Couldn't select lottery standing tickets: " + e.getMessage());
-        } finally {
-            queueManager.finishAccess(userID, eventID);
-            queueManager.releaseBatch(eventID, 1);
         }
     }
 
@@ -319,12 +324,13 @@ public class PurchaseService {
 
         eventPublisher.publish(new TicketReservedEvent(userID, eventID));
 
+        // Only release the selection slot on success; keep it on failure so the user can retry.
+        queueManager.finishAccess(userID, eventID);
+        queueManager.releaseBatch(eventID, 1);
+
         return toActivePurchaseDTO(activePurchase);
     } catch (DomainException e) {
         throw new IllegalStateException("Couldn't select the sitting tickets: " + e.getMessage());
-    } finally {
-        queueManager.finishAccess(userID, eventID);
-        queueManager.releaseBatch(eventID, 1);
     }
 }
 
@@ -347,12 +353,13 @@ public class PurchaseService {
 
         eventPublisher.publish(new TicketReservedEvent(userID, eventID));
 
+        // Only release the selection slot on success; keep it on failure so the user can retry.
+        queueManager.finishAccess(userID, eventID);
+        queueManager.releaseBatch(eventID, 1);
+
         return toActivePurchaseDTO(activePurchase);
     } catch (DomainException e) {
         throw new IllegalStateException("Couldn't select the standing tickets: " + e.getMessage());
-    } finally {
-        queueManager.finishAccess(userID, eventID);
-        queueManager.releaseBatch(eventID, 1);
     }
 }
 

@@ -3,8 +3,11 @@ package org.example.API;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.example.ApplicationLayer.PurchaseService;
+import org.example.DomainLayer.DomainException;
 import org.example.ApplicationLayer.dto.ApiResponse;
 import org.example.ApplicationLayer.dto.PurchaseDTOs.*;
 import org.springframework.http.HttpStatus;
@@ -35,6 +38,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/purchases")
 public class PurchaseController {
 
+    private static final Logger logger = Logger.getLogger(PurchaseController.class.getName());
+
     private final PurchaseService purchaseService;
 
     public PurchaseController(PurchaseService purchaseService) {
@@ -56,7 +61,7 @@ public class PurchaseController {
             );
 
             return ResponseEntity.ok(ApiResponse.success(access.message, access));
-        } catch (IllegalArgumentException | IllegalStateException e) {
+        } catch (DomainException | IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -75,7 +80,7 @@ public class PurchaseController {
             );
 
             return ResponseEntity.ok(ApiResponse.success(access.message, access));
-        } catch (IllegalArgumentException | IllegalStateException e) {
+        } catch (DomainException | IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -101,9 +106,10 @@ public class PurchaseController {
 
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(ApiResponse.success("Sitting tickets selected successfully", activePurchase));
-        } catch (IllegalArgumentException | IllegalStateException e) {
+        } catch (DomainException | IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            logger.log(Level.SEVERE, "Unexpected failure in selectSittingTickets", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to select sitting tickets: system exception"));
         }
@@ -127,9 +133,10 @@ public class PurchaseController {
 
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(ApiResponse.success("Tickets selected successfully", activePurchase));
-        } catch (IllegalArgumentException | IllegalStateException e) {
+        } catch (DomainException | IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            logger.log(Level.SEVERE, "Unexpected failure in selectTickets", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to select tickets: system exception"));
         }
@@ -150,7 +157,7 @@ public class PurchaseController {
             return ResponseEntity.ok(
                     ApiResponse.success("Tickets updated", activePurchase)
             );
-        } catch (IllegalArgumentException | IllegalStateException e) {
+        } catch (DomainException | IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -168,7 +175,7 @@ public class PurchaseController {
             return ResponseEntity.ok(
                     ApiResponse.success("Active purchases fetched", activePurchases)
             );
-        } catch (IllegalArgumentException | IllegalStateException e) {
+        } catch (DomainException | IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -194,7 +201,7 @@ public class PurchaseController {
 
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(ApiResponse.success("Standing tickets selected successfully", activePurchase));
-        } catch (IllegalArgumentException | IllegalStateException e) {
+        } catch (DomainException | IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -243,7 +250,7 @@ public class PurchaseController {
                     ? "No active purchase for this event"
                     : "Active purchase fetched";
             return ResponseEntity.ok(ApiResponse.success(message, activePurchase));
-        } catch (IllegalArgumentException | IllegalStateException e) {
+        } catch (DomainException | IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -261,7 +268,7 @@ public class PurchaseController {
             return ResponseEntity.ok(ApiResponse.success(
                     "Purchase completed successfully",
                     new CompletePurchaseResponse(issuedTicketRefs)));
-        } catch (IllegalArgumentException | IllegalStateException e) {
+        } catch (DomainException | IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -274,7 +281,7 @@ public class PurchaseController {
         try {
             purchaseService.cancelActivePurchase(activePurchaseId);
             return ResponseEntity.ok(ApiResponse.success("Purchase cancelled successfully"));
-        } catch (IllegalArgumentException | IllegalStateException e) {
+        } catch (DomainException | IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -289,7 +296,7 @@ public class PurchaseController {
         try {
             purchaseService.updateActivePurchaseSittingTickets(activePurchaseId, request.newTicketIds);
             return ResponseEntity.ok(ApiResponse.success("Sitting tickets updated"));
-        } catch (IllegalArgumentException | IllegalStateException e) {
+        } catch (DomainException | IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -304,7 +311,7 @@ public class PurchaseController {
         try {
             purchaseService.updateActivePurchaseStandingTickets(activePurchaseId, request.newAmount, request.areaId);
             return ResponseEntity.ok(ApiResponse.success("Standing tickets updated"));
-        } catch (IllegalArgumentException | IllegalStateException e) {
+        } catch (DomainException | IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -324,7 +331,7 @@ public class PurchaseController {
             purchaseService.registerToLottery(eventId, request.memberId, request.ticketAmount);
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(ApiResponse.success("Registered to lottery successfully"));
-        } catch (IllegalArgumentException | IllegalStateException e) {
+        } catch (DomainException | IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -340,7 +347,7 @@ public class PurchaseController {
         try {
             java.util.Map<String, String> winnerCodes = purchaseService.drawLotteryForEvent(eventId, request.codeExpiry);
             return ResponseEntity.ok(ApiResponse.success("Lottery drawn successfully", winnerCodes));
-        } catch (IllegalArgumentException | IllegalStateException e) {
+        } catch (DomainException | IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -356,7 +363,7 @@ public class PurchaseController {
             org.example.ApplicationLayer.dto.PurchaseDTOs.LotteryStatusDTO status =
                     purchaseService.getLotteryStatus(eventId, userId);
             return ResponseEntity.ok(ApiResponse.success("Lottery status fetched", status));
-        } catch (IllegalArgumentException | IllegalStateException e) {
+        } catch (DomainException | IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
