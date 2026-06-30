@@ -51,9 +51,10 @@ import org.example.DomainLayer.PolicyManagment.PurchaseComposite;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.springframework.stereotype.Service;
 
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional
 public class EventService {
     private static final Logger logger = Logger.getLogger(EventService.class.getName());
     private final EventManagementDomainService eventManagementDomainService;
@@ -442,6 +443,7 @@ public class EventService {
             throw e;
         }
     }
+    @Transactional(readOnly = true)
     public List<PurchaseHistoryDTO> getEventPurchaseHistoryForOwner(String ownerUsername, UUID eventId) {
         if (ownerUsername == null || ownerUsername.isBlank()) {
             throw new IllegalArgumentException("Owner username is required");
@@ -608,6 +610,7 @@ public class EventService {
         }
     }
 
+    @Transactional(readOnly = true)
     public List<CompanyCatalogDto> browseCatalog() {
         logger.info("[Event Log] Method: browseCatalog called with parameters: (none)");
         try {
@@ -631,6 +634,7 @@ public class EventService {
         }
     }
 
+    @Transactional(readOnly = true)
     public EventDetailsDto getEventDetails(UUID eventId) {
         logger.info("[Event Log] Method: getEventDetails called with parameters: eventId=" + eventId);
         try {
@@ -648,6 +652,7 @@ public class EventService {
         }
     }
 
+    @Transactional(readOnly = true)
     public List<EventSummaryDto> searchEvents(EventSearchCriteria criteria) {
         logger.info("[Event Log] Method: searchEvents called with parameters: criteria=" + criteria);
         try {
@@ -669,6 +674,7 @@ public class EventService {
         }
     }
 
+    @Transactional(readOnly = true)
     public List<EventSummaryDto> searchEventsByCompany(UUID companyId, EventSearchCriteria criteria) {
         logger.info("[Event Log] Method: searchEventsByCompany called with parameters: companyId="
                 + companyId + ", criteria=" + criteria);
@@ -695,6 +701,7 @@ public class EventService {
         }
     }
 
+    @Transactional(readOnly = true)
     public List<EventSummaryDto> getEventsForUserInCompany(String userEmail, UUID companyId) {
         logger.info("[Event Log] Method: getEventsForUserInCompany called with parameters: userEmail="
                 + userEmail + ", companyId=" + companyId);

@@ -6,14 +6,11 @@ import org.example.DomainLayer.IUserRepository;
 import org.example.DomainLayer.UserAggregate.*;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.util.*;
 import java.util.stream.Collectors;
 
 @Repository
 @Profile("localdb")
-@Transactional
 public class JpaUserRepository implements IUserRepository {
 
     private final SpringDataUserRepository userJpa;
@@ -76,7 +73,6 @@ public class JpaUserRepository implements IUserRepository {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public Optional<User> getUser(UUID UID) {
         if (UID == null) {
             return Optional.empty();
@@ -87,7 +83,6 @@ public class JpaUserRepository implements IUserRepository {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public boolean exists(UUID userId) {
         return userId != null && userJpa.existsById(userId);
     }
@@ -98,21 +93,18 @@ public class JpaUserRepository implements IUserRepository {
      * Therefore, email lookups are mapped to username.
      */
     @Override
-    @Transactional(readOnly = true)
     public boolean existsByEmail(String email) {
         String identifier = normalizeIdentifier(email);
         return identifier != null && userJpa.existsByUsername(identifier);
     }
 
     @Override
-    @Transactional(readOnly = true)
     public boolean existsByUsername(String username) {
         String identifier = normalizeIdentifier(username);
         return identifier != null && userJpa.existsByUsername(identifier);
     }
 
     @Override
-    @Transactional(readOnly = true)
     public Optional<User> findByEmail(String email) {
         String identifier = normalizeIdentifier(email);
 
@@ -125,7 +117,6 @@ public class JpaUserRepository implements IUserRepository {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public Map<UUID, User> getAllUsers() {
         return userJpa.findAll()
                 .stream()
@@ -134,14 +125,12 @@ public class JpaUserRepository implements IUserRepository {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public boolean isSystemAdmin(String username) {
         String identifier = normalizeIdentifier(username);
         return identifier != null && adminJpa.existsByUsername(identifier);
     }
 
     @Override
-    @Transactional(readOnly = true)
     public boolean existsAdmin(UUID adminId) {
         return adminId != null && adminJpa.existsById(adminId);
     }
@@ -181,7 +170,6 @@ public class JpaUserRepository implements IUserRepository {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public List<UUID> getCompaniesIdsByMember(String username) {
         List<String> identifiers = identifiersForIdentifier(username);
 
@@ -193,7 +181,6 @@ public class JpaUserRepository implements IUserRepository {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public List<String> getOwnerAndSubordinatesUsernames(UUID companyId, String ownerUsername) {
         String owner = normalizeIdentifier(ownerUsername);
 
@@ -237,7 +224,6 @@ public class JpaUserRepository implements IUserRepository {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public boolean isCompanyOwner(String username, UUID companyId) {
         if (companyId == null) {
             return false;
@@ -255,7 +241,6 @@ public class JpaUserRepository implements IUserRepository {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public boolean hasPermission(String username,
                                  UUID companyId,
                                  CompanyPermission permission,
@@ -629,7 +614,6 @@ public class JpaUserRepository implements IUserRepository {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public Set<String> getAllAdminUsernames() {
         return adminJpa.findAll().stream()
                 .map(AdminEntity::getUsername)
@@ -637,7 +621,6 @@ public class JpaUserRepository implements IUserRepository {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public Map<String, Long> countCompanyMembersByRole(UUID companyId) {
         return companyMemberJpa.findByIdCompanyId(companyId).stream()
                 .collect(Collectors.groupingBy(

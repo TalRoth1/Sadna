@@ -31,8 +31,10 @@ import org.example.DomainLayer.UserAggregate.ICompanyMember;
 import org.example.DomainLayer.UserAggregate.User;
 import org.example.DomainLayer.UserAggregate.UserStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional
 public class AdminService {
     private static final Logger logger = Logger.getLogger(AdminService.class.getName());
 
@@ -182,6 +184,7 @@ public class AdminService {
         }
     }
 
+    @Transactional(readOnly = true)
     public List<AdminCompanyDTO> getCompanies(UUID adminId, String adminUsername) {
         String action = "GET_COMPANIES";
         logInfo(adminId, adminUsername, action, "Started.");
@@ -202,6 +205,7 @@ public class AdminService {
         }
     }
 
+    @Transactional(readOnly = true)
     public List<AdminSubscriberDTO> getSubscribers(UUID adminId, String adminUsername) {
         String action = "GET_SUBSCRIBERS";
         logInfo(adminId, adminUsername, action, "Started.");
@@ -225,6 +229,7 @@ public class AdminService {
             throw e;
         }
     }
+    @Transactional(readOnly = true)
     public List<PurchaseHistoryDTO> getAllPurchaseHistory(UUID adminId, String adminUsername) {
         String action = "GET_ALL_PURCHASE_HISTORY";
         logInfo(adminId, adminUsername, action, "Started.");
@@ -244,6 +249,7 @@ public class AdminService {
         }
     }
 
+    @Transactional(readOnly = true)
     public List<PurchaseHistoryDTO> getPurchaseHistoryByUser(
             UUID adminId,
             String adminUsername,
@@ -270,6 +276,7 @@ public class AdminService {
         }
     }
 
+    @Transactional(readOnly = true)
     public List<PurchaseHistoryDTO> getPurchaseHistoryByEvent(
             UUID adminId,
             String adminUsername,
@@ -296,6 +303,7 @@ public class AdminService {
         }
     }
 
+    @Transactional(readOnly = true)
     public List<PurchaseHistoryDTO> getPurchaseHistoryByCompany(
             UUID adminId,
             String adminUsername,
@@ -322,6 +330,7 @@ public class AdminService {
         }
     }
 
+    @Transactional(readOnly = true)
     public List<PurchaseHistoryDTO> getPurchaseHistoryByFilter(
             UUID adminId,
             String adminUsername,
@@ -389,6 +398,7 @@ public class AdminService {
         }
     }
 
+    @Transactional(readOnly = true)
     public List<AdminComplaintDTO> getAllComplaints(UUID adminId, String adminUsername) {
         String action = "GET_ALL_COMPLAINTS";
         logInfo(adminId, adminUsername, action, "Started.");
@@ -409,6 +419,7 @@ public class AdminService {
         }
     }
 
+    @Transactional(readOnly = true)
     public List<AdminComplaintDTO> getOpenComplaints(UUID adminId, String adminUsername) {
         String action = "GET_OPEN_COMPLAINTS";
         logInfo(adminId, adminUsername, action, "Started.");
@@ -499,6 +510,7 @@ public class AdminService {
         }
     }
 
+    @Transactional(readOnly = true)
     public List<AdminQueueSnapshotDTO> getAllQueues(UUID adminId, String adminUsername) {
         String action = "GET_ALL_QUEUES";
         logInfo(adminId, adminUsername, action, "Started.");
@@ -519,6 +531,7 @@ public class AdminService {
         }
     }
 
+    @Transactional(readOnly = true)
     public AdminQueueSnapshotDTO getQueue(UUID adminId, String adminUsername, UUID eventId) {
         String action = "GET_QUEUE";
         logInfo(adminId, adminUsername, action, "Started. eventId=" + eventId);

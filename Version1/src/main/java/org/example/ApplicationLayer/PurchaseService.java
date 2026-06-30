@@ -30,9 +30,11 @@ import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.PurchaseDomainService;
 import org.example.DomainLayer.PurchaseHistoryAggregate.PurchaseHistory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.Arrays;
 
 @Service
+@Transactional
 public class PurchaseService {
     private static final Logger logger = Logger.getLogger(PurchaseService.class.getName());
     private final PurchaseDomainService purchaseDomainService;
@@ -263,6 +265,7 @@ public class PurchaseService {
         }
     }
 
+    @Transactional(readOnly = true)
     public LotteryStatusDTO getLotteryStatus(UUID eventId, UUID userId) {
         boolean exists = purchaseDomainService.isLotteryEvent(eventId);
         boolean winnersDrawn = false;
@@ -292,6 +295,7 @@ public class PurchaseService {
      * Read-only status used by the waiting-room polling loop. It must not add
      * a user to the queue if they are not already waiting.
      */
+    @Transactional(readOnly = true)
     public SelectionAccessDTO getSelectionAccessStatus(UUID userId, UUID eventId) {
         QueueAccessResult result = queueManager.getSelectionAccessStatus(userId, eventId);
         return toSelectionAccessDTO(userId, eventId, result);
@@ -443,6 +447,7 @@ public class PurchaseService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public List<PurchaseHistoryDTO> getPurchaseHistoryForMember(UUID memberId) {
         logger.info("caller=" + memberId
                 + ", action=getPurchaseHistoryForMember"
@@ -485,6 +490,7 @@ public class PurchaseService {
         }
     }
 
+    @Transactional(readOnly = true)
     public ActivePurchaseDTO viewActivePurchase(UUID activePurchaseId) {
         if (activePurchaseId == null) {
             throw new IllegalArgumentException("Active purchase ID is required");
@@ -505,6 +511,7 @@ public class PurchaseService {
      * restore the cart + timer after the user navigated away and came
      * back within the 10-minute window.
      */
+    @Transactional(readOnly = true)
     public ActivePurchaseDTO viewActivePurchaseForEvent(UUID userId, UUID eventId) {
         if (userId == null) {
             throw new IllegalArgumentException("User ID is required");
@@ -521,6 +528,7 @@ public class PurchaseService {
         }
     }
 
+    @Transactional(readOnly = true)
     public List<ActivePurchaseDTO> viewActivePurchasesForUser(UUID userId) {
         if (userId == null) {
             throw new IllegalArgumentException("User ID is required");
@@ -605,6 +613,7 @@ public class PurchaseService {
         }
     }
 
+    @Transactional(readOnly = true)
     public List<PurchaseHistoryDTO> getEventPurchaseHistoryForOwner(String ownerName, UUID eventId) {
         logger.info("caller=" + ownerName
                 + ", action=getEventPurchaseHistoryForOwner"

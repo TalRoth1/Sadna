@@ -4,15 +4,12 @@ import org.example.DomainLayer.INotificationRepository;
 import org.example.DomainLayer.NotificationAggregate.Notification;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 @Repository
 @Profile("localdb")
-@Transactional
 public class JpaNotificationRepository implements INotificationRepository {
 
     private final SpringDataNotificationRepository notificationJpa;
@@ -30,7 +27,6 @@ public class JpaNotificationRepository implements INotificationRepository {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public Optional<Notification> findById(UUID notificationId) {
         if (notificationId == null) {
             throw new IllegalArgumentException("Notification ID is required");
@@ -39,7 +35,6 @@ public class JpaNotificationRepository implements INotificationRepository {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public List<Notification> findAllByRecipient(String recipientId) {
         if (recipientId == null || recipientId.isBlank()) {
             throw new IllegalArgumentException("Recipient ID is required");
@@ -52,7 +47,6 @@ public class JpaNotificationRepository implements INotificationRepository {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public List<Notification> findUnreadByRecipient(String recipientId) {
         if (recipientId == null || recipientId.isBlank()) {
             throw new IllegalArgumentException("Recipient ID is required");

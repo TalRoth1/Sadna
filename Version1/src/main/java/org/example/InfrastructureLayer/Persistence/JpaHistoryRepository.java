@@ -13,14 +13,11 @@ import org.example.InfrastructureLayer.Persistence.PurchaseHistoryEntity;
 import org.example.InfrastructureLayer.Persistence.TicketEntity;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Repository
 @Profile("localdb")
-@Transactional
 public class JpaHistoryRepository implements IHistoryRepository {
 
     private static final ObjectMapper PAYMENT_INFO_MAPPER = new ObjectMapper();
@@ -79,7 +76,6 @@ public class JpaHistoryRepository implements IHistoryRepository {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public List<PurchaseHistory> getAll() {
         return historyJpa.findAll()
             .stream()
@@ -88,7 +84,6 @@ public class JpaHistoryRepository implements IHistoryRepository {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public List<PurchaseHistory> getByUserId(UUID userId) {
         if (userId == null) {
             return List.of();
@@ -101,7 +96,6 @@ public class JpaHistoryRepository implements IHistoryRepository {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public List<PurchaseHistory> getByEventId(UUID eventId) {
         if (eventId == null) {
             return List.of();

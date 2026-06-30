@@ -42,8 +42,10 @@ import org.example.DomainLayer.PolicyManagment.OvertDiscount;
 import org.example.DomainLayer.PolicyManagment.PurchaseComposite;
 import org.example.DomainLayer.PolicyManagment.PurchasePolicy;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional
 public class CompanyService {
     private static final Logger logger = Logger.getLogger(CompanyService.class.getName());
 
@@ -202,6 +204,7 @@ public class CompanyService {
         rolesDomainService.rejectCompanyInvitation(invitationId, username, companyId);
     }
 
+    @Transactional(readOnly = true)
     public List<InvitationResponse> getUserInvitations(String userEmail) {
         if (userEmail == null || userEmail.isBlank()) {
             throw new IllegalArgumentException("User email is required");
@@ -359,6 +362,7 @@ public class CompanyService {
         }
     }
 
+    @Transactional(readOnly = true)
     public HierarchyResponse getCompanyHierarchyMermaid(UUID companyId, String requesterEmail) {
         if (requesterEmail == null || requesterEmail.isBlank()) {
             throw new IllegalArgumentException("Requester email is required");
@@ -368,6 +372,7 @@ public class CompanyService {
         return new HierarchyResponse(companyId, mermaid);
     }
 
+    @Transactional(readOnly = true)
     public SalesReportResponse getSalesReportForOwner(String ownerEmail, UUID companyId) {
         if (ownerEmail == null || ownerEmail.isBlank()) {
             throw new IllegalArgumentException("Owner email is required");
@@ -469,6 +474,7 @@ public class CompanyService {
                 .count();
     }
 
+    @Transactional(readOnly = true)
     public List<org.example.ApplicationLayer.dto.CompanyDTOs.SubordinateEventDto> getEventsManagedBySubordinates(String ownerEmail, UUID companyId) {
         if (ownerEmail == null || ownerEmail.isBlank()) {
             throw new IllegalArgumentException("Owner email is required");
@@ -511,6 +517,7 @@ public class CompanyService {
         return out;
     }
 
+    @Transactional(readOnly = true)
     public CompanyPoliciesResponse getCompanyPolicies(UUID companyId, String userEmail) {
         if (companyId == null) {
             throw new IllegalArgumentException("Company ID is required");
@@ -541,6 +548,7 @@ public class CompanyService {
         }
     }
 
+    @Transactional(readOnly = true)
     public List<CompanyMembershipResponse> getUserCompanies(String userEmail) {
         if (userEmail == null || userEmail.isBlank()) {
             throw new IllegalArgumentException("Email is required");
@@ -552,6 +560,7 @@ public class CompanyService {
         return rolesDomainService.getUserCompanies(userEmail);
     }
 
+    @Transactional(readOnly = true)
     public CompanyAccessResponse getCompanyAccess(UUID companyId, String userEmail) {
         if (companyId == null) {
             throw new IllegalArgumentException("Company ID is required");

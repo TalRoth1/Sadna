@@ -7,15 +7,12 @@ import org.example.DomainLayer.AdminAggregate.AdminComplaintStatus;
 import org.example.DomainLayer.AdminAggregate.SystemAnalyticsSnapshot;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 @Repository
 @Profile("localdb")
-@Transactional
 public class JpaAdminRepository implements IAdminRepository {
 
     private final SpringDataAdminComplaintRepository complaintJpa;
@@ -40,7 +37,6 @@ public class JpaAdminRepository implements IAdminRepository {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public Optional<AdminComplaint> findComplaintById(UUID complaintId) {
         if (complaintId == null) {
             return Optional.empty();
@@ -51,7 +47,6 @@ public class JpaAdminRepository implements IAdminRepository {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public List<AdminComplaint> getAllComplaints() {
         return complaintJpa.findAll()
                 .stream()
@@ -60,7 +55,6 @@ public class JpaAdminRepository implements IAdminRepository {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public List<AdminComplaint> getOpenComplaints() {
         return complaintJpa.findByStatus(AdminComplaintStatus.OPEN)
                 .stream()
@@ -78,7 +72,6 @@ public class JpaAdminRepository implements IAdminRepository {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public List<AdminActionLog> getActionLogs() {
         return actionLogJpa.findAllByOrderByCreatedAtDesc()
                 .stream()
@@ -96,7 +89,6 @@ public class JpaAdminRepository implements IAdminRepository {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public List<SystemAnalyticsSnapshot> getAnalyticsSnapshots() {
         return analyticsJpa.findAllByOrderByCreatedAtDesc()
                 .stream()
