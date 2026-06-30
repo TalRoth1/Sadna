@@ -23,6 +23,7 @@ import jakarta.validation.Valid;
 
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpServletRequest;
+import org.example.ApplicationLayer.RegistrationConflictException;
 
 /**
  * UserController
@@ -139,6 +140,8 @@ public class UserController {
             AuthResponse body = new AuthResponse(true, "Registered successfully", token, user);
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(ApiResponse.success("Registered successfully", body));
+        } catch (RegistrationConflictException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponse.error(e.getMessage()));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {

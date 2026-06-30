@@ -9,6 +9,7 @@ import org.example.ApplicationLayer.dto.UserDTOs.RegisterRequest;
 import org.example.ApplicationLayer.dto.UserDTOs.UserResponse;
 import org.example.DomainLayer.Events.UserRegisteredEvent;
 import org.example.DomainLayer.IUserRepository;
+import org.example.ApplicationLayer.RegistrationConflictException;
 import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.UserAggregate.User;
 import org.example.DomainLayer.UserAggregate.UserRole;
@@ -200,11 +201,10 @@ public class UserService {
         // both email and username inside its own internal lock before
         // committing the insert.
         UserResponse response = keyedLock.withLock(emailKey, () -> {
-            if (userRepository.existsByEmail(request.email)) {
-                throw new IllegalArgumentException("User email already exists.");
-            }
-            if (userRepository.existsByUsername(request.username)) {
-                throw new IllegalArgumentException("Username already exists.");
+            if (userRepository.existsByEmail(request.email)
+                    || userRepository.existsByUsername(request.username)) {
+                throw new RegistrationConflictException(
+                        "An account with these details already exists.");
             }
 
             String hashedPassword = authGateway.hashPassword(request.plainPassword);

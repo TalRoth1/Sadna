@@ -24,7 +24,7 @@ public class JjwtTokenServiceTest {
     public void setUp() {
         blacklist = new InMemoryTokenBlacklist();
         tokens = new JjwtTokenService(SECRET, ISSUER, 3600, 600, blacklist);
-        member = new User(UUID.randomUUID(), "alice", "alice@example.com", "hash", 30f);
+        member = new User(UUID.randomUUID(), "alice", "alice@example.com", "hash", 30);
     }
 
     @Test

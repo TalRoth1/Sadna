@@ -5,6 +5,6 @@ public interface IAuthenticationGateway {
     boolean verifyPassword(String plainPassword, String hashedPassword); // מיוז קייס 3
     boolean verifyEmail(String email);
     boolean verifyPassword(String pass);
-    boolean verifyUserDetails(String email, String password, float age, String username);
+    boolean verifyUserDetails(String email, String password, int age, String username);
 
 }

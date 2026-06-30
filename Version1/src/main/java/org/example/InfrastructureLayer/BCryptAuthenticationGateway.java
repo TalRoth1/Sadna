@@ -49,7 +49,7 @@ public class BCryptAuthenticationGateway implements IAuthenticationGateway {
     }
 
     @Override
-    public boolean verifyUserDetails(String email, String password, float age, String username) {
+    public boolean verifyUserDetails(String email, String password, int age, String username) {
         return verifyEmail(email)
                 && verifyPassword(password)
                 && age >= 0
