@@ -820,7 +820,7 @@ private void seedIndieLottery() {
         // =================================================================
 
         /** Register a member user via direct repository insertion. */
-        private User registerMember(String email, String username, int age) {
+        private User registerMember(String email, String username, float age) {
                 UUID id = UUID.randomUUID();
                 User user = new User(id, username, email, backendConfigProperties.getDevSeed().getDefaultPassword(), age);
                 userRepository.add(user);

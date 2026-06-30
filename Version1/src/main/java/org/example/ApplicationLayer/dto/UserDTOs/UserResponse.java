@@ -19,7 +19,7 @@ public class UserResponse {
     public final String email;
     public final String status;   // "LOGGED_IN" / "NOT_LOGGED_IN"
     public final String role;     // "MEMBER" / "GUEST" / etc.
-    public final int age;
+    public final float age;
     /**
      * Orthogonal capability flag.
      *
@@ -33,7 +33,7 @@ public class UserResponse {
     public final boolean isAdmin;
 
     public UserResponse(UUID userId, String username, String email,
-                        String status, String role, int age, boolean isAdmin) {
+                        String status, String role, float age, boolean isAdmin) {
         this.userId = userId;
         this.username = username;
         this.email = email;

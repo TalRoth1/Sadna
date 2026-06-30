@@ -34,9 +34,12 @@ public class JpaUserRepository implements IUserRepository {
             throw new IllegalArgumentException("User is required");
         }
 
-        Optional<UserEntity> existing = user.getEmail() != null
-                ? userJpa.findByEmail(normalizeIdentifier(user.getEmail()))
-                : userJpa.findById(user.getId());
+        String identifier = extractUserIdentifier(user);
+        if (identifier == null) {
+            identifier = user.getId().toString();
+        }
+
+        Optional<UserEntity> existing = userJpa.findByUsername(identifier);
 
         UserEntity entityToSave;
 
@@ -45,13 +48,11 @@ public class JpaUserRepository implements IUserRepository {
 
             entityToSave = new UserEntity(
                     existingEntity.getId(),
-                    user.getUsername(),
-                    user.getEmail(),
+                    identifier,
                     user.getPasswordHash(),
                     user.getStatus(),
                     existingEntity.getCreatedAt(),
-                    existingEntity.getUpdatedAt(),
-                    user.getAge()
+                    existingEntity.getUpdatedAt()
             );
         } else {
             entityToSave = toEntity(user);
@@ -60,6 +61,10 @@ public class JpaUserRepository implements IUserRepository {
         userJpa.save(entityToSave);
 
         List<String> identifiers = identifiersForUser(user);
+        if (!identifiers.contains(identifier)) {
+            identifiers = new ArrayList<>(identifiers);
+            identifiers.add(identifier);
+        }
 
         invitationJpa.deleteByApointeeUsernameIn(identifiers);
 
@@ -82,10 +87,15 @@ public class JpaUserRepository implements IUserRepository {
         return userId != null && userJpa.existsById(userId);
     }
 
+    /*
+     * ERD has no email column.
+     * In the DB schema, users.username is the persistent login identifier.
+     * Therefore, email lookups are mapped to username.
+     */
     @Override
     public boolean existsByEmail(String email) {
         String identifier = normalizeIdentifier(email);
-        return identifier != null && userJpa.existsByEmail(identifier);
+        return identifier != null && userJpa.existsByUsername(identifier);
     }
 
     @Override
@@ -102,7 +112,7 @@ public class JpaUserRepository implements IUserRepository {
             return Optional.empty();
         }
 
-        return userJpa.findByEmail(identifier)
+        return userJpa.findByUsername(identifier)
                 .map(entity -> toDomain(entity, true));
     }
 
@@ -264,13 +274,17 @@ public class JpaUserRepository implements IUserRepository {
     }
 
     private UserEntity toEntity(User user) {
+        String identifier = extractUserIdentifier(user);
+
+        if (identifier == null) {
+            identifier = user.getId().toString();
+        }
+
         return new UserEntity(
                 user.getId(),
-                user.getUsername(),
-                user.getEmail(),
+                identifier,
                 user.getPasswordHash(),
-                user.getStatus(),
-                user.getAge()
+                user.getStatus()
         );
     }
 
@@ -282,11 +296,11 @@ public class JpaUserRepository implements IUserRepository {
         User user = new User(
                 entity.getId(),
                 entity.getUsername(),
-                entity.getEmail(),
+                entity.getUsername(),
                 entity.getPasswordHash(),
                 UserRole.MEMBER,
                 entity.getStatus(),
-                entity.getAge()
+                0
         );
 
         restoreCompanyRoles(user);

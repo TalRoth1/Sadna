@@ -32,15 +32,14 @@ public class PlainTextAuthenticationGateway implements IAuthenticationGateway {
 
     @Override
     public boolean verifyPassword(String pass) {
-        return pass != null && pass.length() >= 4 && pass.length() <= 72;
+        return pass != null && pass.length() >= 4;
     }
 
     @Override
-    public boolean verifyUserDetails(String email, String password, int age, String username) {
+    public boolean verifyUserDetails(String email, String password, float age, String username) {
         return verifyEmail(email)
                 && verifyPassword(password)
                 && age >= 0
-                && age <= 120
                 && username != null
                 && !username.isBlank();
     }

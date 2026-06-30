@@ -24,8 +24,7 @@ import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.jupiter.api.Disabled;
 
-import org.example.ApplicationLayer.RegistrationConflictException;
-import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyFloat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -78,7 +77,7 @@ public class UserServiceConcurrencyTest {
         // Default gateway behavior: everything valid, password hashed
         // trivially, every plaintext matches every hash. Tests that need
         // different behaviour override these.
-        when(gatewayMock.verifyUserDetails(anyString(), anyString(), anyInt(), anyString()))
+        when(gatewayMock.verifyUserDetails(anyString(), anyString(), anyFloat(), anyString()))
                 .thenReturn(true);
         when(gatewayMock.hashPassword(anyString()))
                 .thenAnswer(inv -> "hash::" + inv.getArgument(0));
@@ -267,7 +266,7 @@ public class UserServiceConcurrencyTest {
                     );
                     userService.register(req);
                     successCount.incrementAndGet();
-                } catch (RegistrationConflictException | IllegalArgumentException expected) {
+                } catch (IllegalArgumentException expected) {
                     duplicateRejectCount.incrementAndGet();
                 } catch (Throwable t) {
                     unexpectedFailures.incrementAndGet();
@@ -320,7 +319,7 @@ public class UserServiceConcurrencyTest {
                     );
                     userService.register(req);
                     successCount.incrementAndGet();
-                } catch (RegistrationConflictException | IllegalArgumentException expected) {
+                } catch (IllegalArgumentException expected) {
                     duplicateRejectCount.incrementAndGet();
                 } catch (Throwable t) {
                     unexpectedFailures.incrementAndGet();

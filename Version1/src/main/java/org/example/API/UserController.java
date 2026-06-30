@@ -19,11 +19,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import jakarta.validation.Valid;
 
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpServletRequest;
-import org.example.ApplicationLayer.RegistrationConflictException;
 
 /**
  * UserController
@@ -133,15 +131,13 @@ public class UserController {
      * Creates a new member account and immediately issues a member-level JWT.
      */
     @PostMapping("/register")
-    public ResponseEntity<ApiResponse<AuthResponse>> register(@Valid @RequestBody RegisterRequest request) {
+    public ResponseEntity<ApiResponse<AuthResponse>> register(@RequestBody RegisterRequest request) {
         try {
             UserResponse user = userService.register(request);
             String token = jwtService.mintSession(user.userId, user.username, user.role).token();
             AuthResponse body = new AuthResponse(true, "Registered successfully", token, user);
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(ApiResponse.success("Registered successfully", body));
-        } catch (RegistrationConflictException e) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponse.error(e.getMessage()));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
