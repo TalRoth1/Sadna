@@ -404,7 +404,7 @@ class AdminServiceTest {
         void getSubscribers_FiltersOutRemovedUsers() {
             UUID removedId   = UUID.randomUUID();
             // Real User object so we can actually call removeFromPlatformAsAdmin().
-            User removedUser = new User(removedId, "removed", "r@test.com", "hash", 25f);
+            User removedUser = new User(removedId, "removed", "r@test.com", "hash", 25);
             removedUser.removeFromPlatformAsAdmin();
 
             when(userRepository.getAllAdminUsernames()).thenReturn(Set.of());
@@ -418,7 +418,7 @@ class AdminServiceTest {
         @Test
         void getSubscribers_HappyPath_ReturnsCorrectDTOFieldsForEligibleUser() {
             UUID userId = UUID.randomUUID();
-            User user   = new User(userId, "john", "john@test.com", "hash", 30f);
+            User user   = new User(userId, "john", "john@test.com", "hash", 30);
 
             when(userRepository.getAllAdminUsernames()).thenReturn(Set.of());
             when(userRepository.getAllUsers()).thenReturn(Map.of(userId, user));
@@ -923,8 +923,8 @@ class AdminServiceTest {
             // Two users: one logged-in, one not logged-in.
             UUID loggedInId  = UUID.randomUUID();
             UUID loggedOutId = UUID.randomUUID();
-            User loggedIn  = new User(loggedInId,  "alice", "a@t.com", "h", 25f);
-            User loggedOut = new User(loggedOutId, "bob",   "b@t.com", "h", 30f);
+            User loggedIn  = new User(loggedInId,  "alice", "a@t.com", "h", 25);
+            User loggedOut = new User(loggedOutId, "bob",   "b@t.com", "h", 30);
             loggedIn.login();
 
             when(userRepository.getAllUsers())
@@ -952,9 +952,9 @@ class AdminServiceTest {
             UUID u1 = UUID.randomUUID();
             UUID u2 = UUID.randomUUID();
             UUID u3 = UUID.randomUUID();
-            User loggedIn    = new User(u1, "a", "a@t.com", "h", 20f);
-            User notLoggedIn = new User(u2, "b", "b@t.com", "h", 20f);
-            User removed     = new User(u3, "c", "c@t.com", "h", 20f);
+            User loggedIn    = new User(u1, "a", "a@t.com", "h", 20);
+            User notLoggedIn = new User(u2, "b", "b@t.com", "h", 20);
+            User removed     = new User(u3, "c", "c@t.com", "h", 20);
             loggedIn.login();
             removed.removeFromPlatformAsAdmin();
 

@@ -16,11 +16,11 @@ public class User {
     private String passwordHash;
     private UserRole role;
     private UserStatus status;
-    private float age;
+    private int age;
     private HashMap<UUID, ICompanyMember> companyRoles;
     private final Map<UUID, Invitation> CompanyInvitations;
 
-    public User(UUID id, String username, String email, String passwordHash, float age) {
+    public User(UUID id, String username, String email, String passwordHash, int age) {
         this.id = id;
         this.username = username;
         this.email = email;
@@ -58,7 +58,7 @@ public class User {
                 String passwordHash,
                 UserRole role,
                 UserStatus status,
-                float age) {
+                int age) {
         this.id = id;
         this.username = username;
         this.email = email;
@@ -392,7 +392,7 @@ public class User {
         return status;
     }
 
-    public float getAge() {
+    public int getAge() {
         return age;
     }
 

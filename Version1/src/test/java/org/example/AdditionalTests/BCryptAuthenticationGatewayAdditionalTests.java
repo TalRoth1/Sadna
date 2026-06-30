@@ -56,4 +56,21 @@ public class BCryptAuthenticationGatewayAdditionalTests {
         assertFalse(gateway.verifyUserDetails("user@example.com", "12345678", 30, null));
         assertFalse(gateway.verifyUserDetails("user@example.com", "12345678", 30, "   "));
     }
+
+    @Test
+    public void verifyPassword_singleArg_rejectsPasswordsOver72Characters() {
+        BCryptAuthenticationGateway gateway = new BCryptAuthenticationGateway();
+        String exactly72 = "a".repeat(72);
+        String exactly73 = "a".repeat(73);
+
+        assertTrue("72-char password should be accepted", gateway.verifyPassword(exactly72));
+        assertFalse("73-char password must be rejected to prevent silent BCrypt truncation",
+                gateway.verifyPassword(exactly73));
+    }
+
+    @Test
+    public void verifyUserDetails_rejectsPasswordOver72Characters() {
+        BCryptAuthenticationGateway gateway = new BCryptAuthenticationGateway();
+        assertFalse(gateway.verifyUserDetails("user@example.com", "a".repeat(73), 25, "alice"));
+    }
 }
