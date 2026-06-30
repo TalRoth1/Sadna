@@ -58,9 +58,28 @@ function validatePaymentForm(card: PaymentCardForm): string | null {
     if (digits(card.cardNumber).length < 8) {
         return "Please enter a valid card number.";
     }
-    if (!/^(0[1-9]|1[0-2])\s*\/\s*\d{2}$/.test(card.expiry.trim())) {
+
+    const expiry = card.expiry.trim();
+    const expiryMatch = expiry.match(/^(0[1-9]|1[0-2])\s*\/\s*(\d{2})$/);
+
+    if (!expiryMatch) {
         return "Please enter the card expiry as MM/YY.";
     }
+
+    const expiryMonth = Number(expiryMatch[1]);
+    const expiryYear = 2000 + Number(expiryMatch[2]);
+
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1;
+    const currentYear = now.getFullYear();
+
+    if (
+        expiryYear < currentYear ||
+        (expiryYear === currentYear && expiryMonth < currentMonth)
+    ) {
+        return "Card expiry date has already passed.";
+    }
+    
     if (digits(card.cvv).length < 3) {
         return "Please enter a valid CVV.";
     }
