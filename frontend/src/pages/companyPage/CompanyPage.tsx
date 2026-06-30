@@ -471,6 +471,14 @@ function formatCurrency(value: number) {
 }
 
 function getManagedEventStatus(event: ManagedEvent) {
+    if (event.status === "CANCELED") {
+        return "Canceled";
+    }
+
+    if (event.status === "ENDED") {
+        return "Ended";
+    }
+
     if (event.totalTickets === 0) {
         return "Draft";
     }

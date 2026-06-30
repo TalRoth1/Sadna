@@ -181,11 +181,11 @@ public class EventService {
             if (age != null && age < 0) {
                 throw new IllegalArgumentException("Age must be a non negative number");
             }
-            if (minTicket != null && minTicket < 0) {
-                throw new IllegalArgumentException("Minimum ticket amount must be a non negative integer");
+            if (minTicket != null && minTicket < 1) {
+                throw new IllegalArgumentException("Minimum ticket amount must be a positive integer");
             }
-            if (maxTicket != null && maxTicket < 0) {
-                throw new IllegalArgumentException("Maximum ticket amount must be a non negative integer");
+            if (maxTicket != null && maxTicket < 1) {
+                throw new IllegalArgumentException("Maximum ticket amount must be a positive integer");
             }
             if (minTicket != null && maxTicket != null && minTicket > maxTicket) {
                 throw new IllegalArgumentException("Minimum ticket amount cannot be greater than maximum ticket amount");
@@ -468,13 +468,36 @@ public class EventService {
                 + ", companyId=" + companyId + ", eventId=" + eventId + ", age=" + age
                 + ", minTicket=" + minTicket + ", maxTicket=" + maxTicket + ", allowLoneSeat=" + allowLoneSeat + ", andOr=" + andOr);
         try {
-            if (age.isPresent() && age.get() < 0)
+            if (age.isPresent() && age.get() < 0) {
                 throw new IllegalArgumentException("Age must be a non negative number");
-            if (minTicket.isPresent() && minTicket.get() < 0)
-                throw new IllegalArgumentException("Minimum ticket amount must be a non negative integer");
-            if (maxTicket.isPresent() && maxTicket.get() < 0)
-                throw new IllegalArgumentException("maximum ticket amount must be a non negative integer");
-            eventManagementDomainService.addPurchasePolicy(username, companyId, eventId, age, minTicket, maxTicket, allowLoneSeat, andOr);
+            }
+
+            if (minTicket.isPresent() && minTicket.get() < 1) {
+                throw new IllegalArgumentException("Minimum ticket amount must be a positive integer");
+            }
+
+            if (maxTicket.isPresent() && maxTicket.get() < 1) {
+                throw new IllegalArgumentException("Maximum ticket amount must be a positive integer");
+            }
+
+            if (minTicket.isPresent()
+                    && maxTicket.isPresent()
+                    && minTicket.get() > maxTicket.get()) {
+                throw new IllegalArgumentException(
+                        "Minimum ticket amount cannot be greater than maximum ticket amount"
+                );
+            }
+
+            eventManagementDomainService.addPurchasePolicy(
+                    username,
+                    companyId,
+                    eventId,
+                    age,
+                    minTicket,
+                    maxTicket,
+                    allowLoneSeat,
+                    andOr
+            );
         } catch (IllegalArgumentException | DomainException e) {
             logger.info("[Event Log] Business rejection in addPolicyRule: " + e.getMessage());
             throw e;
@@ -826,6 +849,7 @@ public class EventService {
                 e.getDate(),
                 e.getLocation(),
                 e.getRating(),
+                e.getStatus(),
                 snap.priceMin(),
                 snap.priceMax(),
                 snap.availableTickets(),

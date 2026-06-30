@@ -746,6 +746,16 @@
     background: rgba(34, 197, 94, 0.14);
 }
 
+.company-event-status--canceled {
+    color: #7f1d1d;
+    background: rgba(220, 38, 38, 0.12);
+}
+
+.company-event-status--ended {
+    color: #374151;
+    background: rgba(107, 114, 128, 0.16);
+}
+
 .company-event-status--draft {
     color: #92400e;
     background: rgba(251, 191, 36, 0.18);

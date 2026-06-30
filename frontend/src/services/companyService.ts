@@ -1,6 +1,5 @@
 import api from "./api";
-import type { EventSummary } from "../types/event";
-
+import type { EventStatus, EventSummary } from "../types/event";
 export type CompanyDiscountType = "MAX" | "ALL";
 export type EventDiscountType = CompanyDiscountType;
 
@@ -193,20 +192,21 @@ export type RemoveMemberOwnerRequest = {
 };
 
 type EventSummaryResponse = {
-	eventId: string;
-	companyId: string;
-	companyName: string;
-	companyRating: number;
-	name: string;
-	artist: string;
-	eventType: string;
-	date: string;
-	location: string;
-	rating: number;
-	priceMin: number;
-	priceMax: number;
-	availableTickets: number;
-	totalTickets: number;
+    eventId: string;
+    companyId: string;
+    companyName: string;
+    companyRating: number;
+    name: string;
+    artist: string;
+    eventType: string;
+    date: string;
+    location: string;
+    rating: number;
+    status: EventStatus;
+    priceMin: number;
+    priceMax: number;
+    availableTickets: number;
+    totalTickets: number;
 };
 
 type SubordinateEventResponse = EventSummaryResponse & { managerEmail: string };
@@ -214,22 +214,23 @@ type SubordinateEventResponse = EventSummaryResponse & { managerEmail: string };
 export type SubordinateEvent = EventSummary & { managerEmail: string };
 
 function toEventSummary(response: EventSummaryResponse): EventSummary {
-	return {
-		id: response.eventId,
-		companyId: response.companyId,
-		companyName: response.companyName,
-		companyRating: response.companyRating,
-		name: response.name,
-		artist: response.artist,
-		type: response.eventType,
-		date: response.date,
-		location: response.location,
-		rating: response.rating,
-		priceMin: response.priceMin,
-		priceMax: response.priceMax,
-		availableTickets: response.availableTickets,
-		totalTickets: response.totalTickets,
-	};
+    return {
+        id: response.eventId,
+        companyId: response.companyId,
+        companyName: response.companyName,
+        companyRating: response.companyRating,
+        name: response.name,
+        artist: response.artist,
+        type: response.eventType,
+        date: response.date,
+        location: response.location,
+        rating: response.rating,
+        status: response.status,
+        priceMin: response.priceMin,
+        priceMax: response.priceMax,
+        availableTickets: response.availableTickets,
+        totalTickets: response.totalTickets,
+    };
 }
 
 export async function createCompany(

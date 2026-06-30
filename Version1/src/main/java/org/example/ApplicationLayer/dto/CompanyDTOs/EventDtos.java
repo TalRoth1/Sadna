@@ -85,6 +85,7 @@ public final class EventDtos {
             LocalDateTime date,
             String location,
             double rating,
+            EventStatus status,
             double priceMin,
             double priceMax,
             int availableTickets,

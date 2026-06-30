@@ -111,6 +111,7 @@ export type EventSummary = {
     date: string;
     location: string;
     rating: number;
+    status: EventStatus;
     priceMin: number;
     priceMax: number;
     availableTickets: number;
