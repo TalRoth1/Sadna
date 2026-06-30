@@ -45,7 +45,7 @@ public class BCryptAuthenticationGateway implements IAuthenticationGateway {
 
     @Override
     public boolean verifyPassword(String pass) {
-        return pass != null && pass.length() >= 8;
+        return pass != null && pass.length() >= 8 && pass.length() <= 72;
     }
 
     @Override
@@ -53,6 +53,7 @@ public class BCryptAuthenticationGateway implements IAuthenticationGateway {
         return verifyEmail(email)
                 && verifyPassword(password)
                 && age >= 0
+                && age <= 120
                 && username != null
                 && !username.isBlank();
     }
