@@ -1,3 +1,11 @@
+.event-filter-errors {
+    margin: 8px 0 0;
+    padding-left: 20px;
+    color: #b91c1c;
+    text-align: left;
+    line-height: 1.6;
+}
+
 .event-filters {
     max-width: 900px;
     margin: 0 auto 32px;

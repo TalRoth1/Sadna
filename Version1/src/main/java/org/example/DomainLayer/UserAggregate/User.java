@@ -133,6 +133,7 @@ public class User {
             throw new IllegalStateException("Invalid invitation ID.");
         }
         Invitation invitation = CompanyInvitations.get(invitationId);
+        UUID companyId = invitation.getCompanyId();
         if (invitation instanceof OwnerInvitation OwnerInvitation) {
             becomeOwner(OwnerInvitation.getCompanyId(), OwnerInvitation.getAppointerUser()); // appointerUser is not
             // needed for becoming
@@ -144,6 +145,9 @@ public class User {
             throw new IllegalStateException("Unknown invitation type.");
         }
         CompanyInvitations.remove(invitationId);
+        // Once the user has joined the company, any other pending invitation to the
+        // same company is moot, so cancel the siblings to avoid dangling invitations.
+        CompanyInvitations.values().removeIf(inv -> companyId.equals(inv.getCompanyId()));
     }
 
 

@@ -68,6 +68,15 @@ type EventSearchCriteriaRequest = {
 const UUID_PATTERN =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/**
+ * A company id is only usable as a search scope if it's a valid UUID — the
+ * backend keys companies by UUID. Exposed so the search UI can warn the user
+ * instead of silently dropping an invalid id and returning the whole catalog.
+ */
+export function isValidCompanyId(raw: string): boolean {
+    return UUID_PATTERN.test(raw.trim());
+}
+
 function parseOptionalNumber(raw: string): number | null {
     if (raw.trim() === "") {
         return null;

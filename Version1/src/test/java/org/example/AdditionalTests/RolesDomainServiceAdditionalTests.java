@@ -160,6 +160,34 @@ public class RolesDomainServiceAdditionalTests {
     }
 
     @Test
+    public void acceptCompanyInvitation_cancelsOtherPendingInvitationsToSameCompany() {
+        UUID companyId = UUID.randomUUID();
+        Company company = company("owner@example.com");
+        User owner = founder(companyId, "owner@example.com");
+        User candidate = new User(UUID.randomUUID(), "candidate", "candidate@example.com", "hash", 28);
+
+        when(companyRepository.findByID(companyId)).thenReturn(Optional.of(company));
+        when(userRepository.findByEmail("owner@example.com")).thenReturn(Optional.of(owner));
+        when(userRepository.findByEmail("candidate@example.com")).thenReturn(Optional.of(candidate));
+
+        // The same user receives two pending invitations to the same company
+        // (e.g. invited by two different owners).
+        UUID firstInvitationId = service.inviteCompanyManager(
+                "owner@example.com", companyId, "candidate@example.com", Set.of());
+        service.inviteCompanyManager(
+                "owner@example.com", companyId, "candidate@example.com", Set.of());
+
+        assertEquals(2, candidate.getCompanyInvitations().size());
+
+        // Accepting one invitation must cancel the dangling sibling.
+        service.acceptCompanyInvitation(firstInvitationId, "candidate@example.com", companyId);
+
+        assertTrue(candidate.isCompanyMember(companyId));
+        assertTrue(candidate.getCompanyInvitations().isEmpty());
+        assertTrue(service.getUserInvitations("candidate@example.com").isEmpty());
+    }
+
+    @Test
     public void inviteCompanyManager_rejectsNonOwnerBeforeLookingUpInvitee() {
         UUID companyId = UUID.randomUUID();
         Company company = company("founder@example.com");

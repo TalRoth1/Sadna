@@ -1074,6 +1074,12 @@ export default function CompanyPage({
             return;
         }
 
+        if (!isValidEmail(email)) {
+            setInviteErrorMessage("Please enter a valid email address.");
+            setInviteSuccessMessage("");
+            return;
+        }
+
         if (!currentUser || currentUser.role === "GUEST") {
             setInviteErrorMessage("Please log in again before sending an invitation.");
             setInviteSuccessMessage("");
@@ -2033,6 +2039,10 @@ function HierarchyBranch({
 function extractEmailFromHierarchyLabel(label: string) {
     const emailMatch = label.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/);
     return emailMatch ? emailMatch[0] : null;
+}
+
+function isValidEmail(email: string) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 }
 
 function toLocalDateTimeString(date: Date) {

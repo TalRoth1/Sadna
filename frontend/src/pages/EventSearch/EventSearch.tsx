@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { ChangeEvent } from "react";
-import { searchEvents } from "../../services/eventSearchService";
+import { isValidCompanyId, searchEvents } from "../../services/eventSearchService";
 import {
     EMPTY_EVENT_SEARCH_FILTERS,
     formatSummaryPriceRange,
@@ -25,6 +25,61 @@ type EventSearchPageProps = {
 // Debounce window for live filtering. Short enough to feel responsive,
 // long enough to avoid hammering the backend on every keystroke.
 const SEARCH_DEBOUNCE_MS = 300;
+
+// Catch nonsensical filter combinations on the client so the user gets a clear
+// message instead of a misleading empty result (or, for an invalid company id,
+// the silently-unfiltered full catalog). Returns one message per problem; an
+// empty array means the filters are safe to send to the backend.
+function validateFilters(filters: EventSearchFilters): string[] {
+    const messages: string[] = [];
+
+    const priceMin = filters.priceMin.trim();
+    const priceMax = filters.priceMax.trim();
+    const priceMinValue = priceMin === "" ? null : Number(priceMin);
+    const priceMaxValue = priceMax === "" ? null : Number(priceMax);
+
+    if (
+        (priceMinValue !== null && priceMinValue < 0) ||
+        (priceMaxValue !== null && priceMaxValue < 0)
+    ) {
+        messages.push("Prices can't be negative.");
+    }
+
+    if (
+        priceMinValue !== null &&
+        priceMaxValue !== null &&
+        priceMinValue > priceMaxValue
+    ) {
+        messages.push("Min price can't be greater than max price.");
+    }
+
+    if (
+        filters.dateFrom !== "" &&
+        filters.dateTo !== "" &&
+        filters.dateFrom > filters.dateTo
+    ) {
+        messages.push("From date can't be after to date.");
+    }
+
+    const ratings = [filters.minEventRating, filters.minCompanyRating];
+    const hasInvalidRating = ratings.some((rating) => {
+        if (rating.trim() === "") {
+            return false;
+        }
+        const value = Number(rating);
+        return !Number.isFinite(value) || value < 0 || value > 5;
+    });
+
+    if (hasInvalidRating) {
+        messages.push("Ratings must be between 0 and 5.");
+    }
+
+    if (filters.companyId.trim() !== "" && !isValidCompanyId(filters.companyId)) {
+        messages.push("Enter a valid company id (UUID), or clear the field.");
+    }
+
+    return messages;
+}
 
 function formatEventDate(date: string) {
     const eventDate = new Date(date);
@@ -240,11 +295,23 @@ export default function EventSearchPage({
     const [isLoading, setIsLoading] = useState(true);
     const [errorMessage, setErrorMessage] = useState("");
 
+    const filterErrors = validateFilters(filters);
+    const hasFilterErrors = filterErrors.length > 0;
+
     // Re-run the search whenever the filters change. We debounce so the
     // backend isn't called on every keystroke, and we use an "isStale" flag
     // to ignore responses for filter sets that the user has since changed.
     useEffect(() => {
         let isStale = false;
+
+        // Don't fire a request for nonsensical filters — show the validation
+        // messages instead of a misleading empty/full result set.
+        if (validateFilters(filters).length > 0) {
+            setEvents([]);
+            setErrorMessage("");
+            setIsLoading(false);
+            return;
+        }
 
         const timer = window.setTimeout(async () => {
             try {
@@ -301,21 +368,32 @@ export default function EventSearchPage({
                 onReset={handleResetFilters}
             />
 
-            {isLoading && (
+            {hasFilterErrors && (
+                <section className="empty-state" role="alert">
+                    <h2>Please fix the search filters</h2>
+                    <ul className="event-filter-errors">
+                        {filterErrors.map((message) => (
+                            <li key={message}>{message}</li>
+                        ))}
+                    </ul>
+                </section>
+            )}
+
+            {!hasFilterErrors && isLoading && (
                 <section className="empty-state">
                     <h2>Loading events…</h2>
                     <p>Please wait while we load the event catalog.</p>
                 </section>
             )}
 
-            {!isLoading && errorMessage && (
+            {!hasFilterErrors && !isLoading && errorMessage && (
                 <section className="empty-state">
                     <h2>Something went wrong</h2>
                     <p>{errorMessage}</p>
                 </section>
             )}
 
-            {!isLoading && !errorMessage && events.length === 0 && (
+            {!hasFilterErrors && !isLoading && !errorMessage && events.length === 0 && (
                 <section className="empty-state">
                     <h2>No matching events found</h2>
                     <p>
@@ -334,7 +412,7 @@ export default function EventSearchPage({
                 </section>
             )}
 
-            {!isLoading && !errorMessage && events.length > 0 && (
+            {!hasFilterErrors && !isLoading && !errorMessage && events.length > 0 && (
                 <section className="event-results">
                     <header className="event-results-header">
                         <h2>Results</h2>
