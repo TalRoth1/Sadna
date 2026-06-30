@@ -9,12 +9,10 @@ import org.example.ApplicationLayer.dto.UserDTOs.RegisterRequest;
 import org.example.ApplicationLayer.dto.UserDTOs.UserResponse;
 import org.example.DomainLayer.Events.UserRegisteredEvent;
 import org.example.DomainLayer.IUserRepository;
-import org.example.ApplicationLayer.RegistrationConflictException;
 import org.example.DomainLayer.NotificationAggregate.INotifier;
 import org.example.DomainLayer.UserAggregate.User;
 import org.example.DomainLayer.UserAggregate.UserRole;
 import org.example.DomainLayer.UserAggregate.UserStatus;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -202,10 +200,11 @@ public class UserService {
         // both email and username inside its own internal lock before
         // committing the insert.
         UserResponse response = keyedLock.withLock(emailKey, () -> {
-            if (userRepository.existsByEmail(request.email)
-                    || userRepository.existsByUsername(request.username)) {
-                throw new RegistrationConflictException(
-                        "An account with these details already exists.");
+            if (userRepository.existsByEmail(request.email)) {
+                throw new IllegalArgumentException("User email already exists.");
+            }
+            if (userRepository.existsByUsername(request.username)) {
+                throw new IllegalArgumentException("Username already exists.");
             }
 
             String hashedPassword = authGateway.hashPassword(request.plainPassword);
@@ -222,15 +221,7 @@ public class UserService {
             // Repository.add() is the definitive uniqueness gate; it will
             // re-check under its own lock and throw IllegalArgumentException
             // if a concurrent thread has already claimed the username or email.
-            // DataIntegrityViolationException can still arrive from the DB when
-            // two nodes race past the app-level lock (multi-node deployment);
-            // convert it to RegistrationConflictException so the caller gets 409.
-            try {
-                userRepository.add(newUser);
-            } catch (DataIntegrityViolationException e) {
-                throw new RegistrationConflictException(
-                        "An account with these details already exists.");
-            }
+            userRepository.add(newUser);
 
             // Log only the UUID — no PII (no email, no username) in logs.
             logger.info("Registered new user id=" + newUser.getId());

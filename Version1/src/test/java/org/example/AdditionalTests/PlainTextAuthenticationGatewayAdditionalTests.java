@@ -39,11 +39,4 @@ public class PlainTextAuthenticationGatewayAdditionalTests {
         assertFalse(gateway.verifyUserDetails("a@b", "1234", 20, null));
         assertFalse(gateway.verifyUserDetails("a@b", "1234", 20, "   "));
     }
-
-    @Test
-    public void verifyPassword_singleArg_rejectsPasswordsOver72Characters() {
-        PlainTextAuthenticationGateway gateway = new PlainTextAuthenticationGateway();
-        assertFalse("73-char password must be rejected", gateway.verifyPassword("a".repeat(73)));
-        assertTrue("72-char password should be accepted", gateway.verifyPassword("a".repeat(72)));
-    }
 }

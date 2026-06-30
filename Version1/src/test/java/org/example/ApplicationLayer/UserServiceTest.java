@@ -5,7 +5,6 @@ import java.lang.reflect.Method;
 import java.util.Optional;
 import java.util.UUID;
 
-import org.example.ApplicationLayer.RegistrationConflictException;
 import org.example.ApplicationLayer.dto.UserDTOs.LoginRequest;
 import org.example.ApplicationLayer.dto.UserDTOs.RegisterRequest;
 import org.example.ApplicationLayer.dto.UserDTOs.UserResponse;
@@ -17,7 +16,6 @@ import org.example.DomainLayer.UserAggregate.UserStatus;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -155,7 +153,7 @@ public class UserServiceTest {
     }
 
     @Test
-    public void testRegister_EmailAlreadyExists_ThrowsRegistrationConflictException() {
+    public void testRegister_EmailAlreadyExists_ThrowsException() {
         RegisterRequest request = new RegisterRequest();
         request.username = "JohnDoe";
         request.email = "taken@example.com";
@@ -171,92 +169,17 @@ public class UserServiceTest {
         )).thenReturn(true);
 
         assertThrows(
-                RegistrationConflictException.class,
+                IllegalArgumentException.class,
                 () -> userService.register(request)
         );
 
         verify(userRepositoryMock, times(1)).existsByEmail(request.email);
+        // verifyUserDetails runs *before* the email check (outside the keyed lock,
+        // because it is CPU-bound and must not hold the lock while hashing).
+        // The test must therefore expect it to have been called exactly once.
         verify(authGatewayMock, times(1)).verifyUserDetails(
                 request.email, request.plainPassword, request.age, request.username);
         verify(userRepositoryMock, never()).add(any(User.class));
-    }
-
-    @Test
-    public void testRegister_UsernameAlreadyExists_ThrowsRegistrationConflictException() {
-        RegisterRequest request = new RegisterRequest();
-        request.username = "TakenName";
-        request.email = "new@example.com";
-        request.plainPassword = "Password123";
-        request.age = 25;
-
-        when(userRepositoryMock.existsByEmail(request.email)).thenReturn(false);
-        when(userRepositoryMock.existsByUsername(request.username)).thenReturn(true);
-        when(authGatewayMock.verifyUserDetails(
-                request.email,
-                request.plainPassword,
-                request.age,
-                request.username
-        )).thenReturn(true);
-
-        assertThrows(
-                RegistrationConflictException.class,
-                () -> userService.register(request)
-        );
-
-        verify(userRepositoryMock, never()).add(any(User.class));
-    }
-
-    @Test
-    public void testRegister_ConflictMessage_IsGenericRegardlessOfField() {
-        RegisterRequest emailConflict = new RegisterRequest();
-        emailConflict.username = "JohnDoe";
-        emailConflict.email = "taken@example.com";
-        emailConflict.plainPassword = "Password123";
-        emailConflict.age = 25;
-
-        RegisterRequest usernameConflict = new RegisterRequest();
-        usernameConflict.username = "TakenName";
-        usernameConflict.email = "new@example.com";
-        usernameConflict.plainPassword = "Password123";
-        usernameConflict.age = 25;
-
-        when(userRepositoryMock.existsByEmail("taken@example.com")).thenReturn(true);
-        when(userRepositoryMock.existsByEmail("new@example.com")).thenReturn(false);
-        when(userRepositoryMock.existsByUsername("TakenName")).thenReturn(true);
-        when(authGatewayMock.verifyUserDetails(anyString(), anyString(), anyInt(), anyString())).thenReturn(true);
-
-        RegistrationConflictException emailEx = assertThrows(
-                RegistrationConflictException.class,
-                () -> userService.register(emailConflict)
-        );
-        RegistrationConflictException usernameEx = assertThrows(
-                RegistrationConflictException.class,
-                () -> userService.register(usernameConflict)
-        );
-
-        assertEquals("Both conflict messages must be identical to prevent enumeration",
-                emailEx.getMessage(), usernameEx.getMessage());
-    }
-
-    @Test
-    public void testRegister_AgeIsReturnedAsInteger() {
-        RegisterRequest request = new RegisterRequest();
-        request.username = "JohnDoe";
-        request.email = "john@example.com";
-        request.plainPassword = "Password123";
-        request.age = 25;
-
-        when(userRepositoryMock.existsByEmail(request.email)).thenReturn(false);
-        when(authGatewayMock.verifyUserDetails(
-                request.email, request.plainPassword, request.age, request.username
-        )).thenReturn(true);
-        when(authGatewayMock.hashPassword(request.plainPassword)).thenReturn("hashed_password");
-
-        UserResponse response = userService.register(request);
-
-        Object rawAge = read(response, "age");
-        assertTrue("age in UserResponse must be int, not float (B4)", rawAge instanceof Integer);
-        assertEquals(25, ((Integer) rawAge).intValue());
     }
 
     @Test

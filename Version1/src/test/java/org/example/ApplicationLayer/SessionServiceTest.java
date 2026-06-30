@@ -73,7 +73,7 @@ public class SessionServiceTest {
     private static final String EMAIL = "alice@example.com";
     private static final String EMAIL_NORM = "alice@example.com"; // normalised key
     private static final UserResponse USER_RESPONSE = new UserResponse(
-            USER_ID, "alice", EMAIL, "LOGGED_IN", "MEMBER", 30, false);
+            USER_ID, "alice", EMAIL, "LOGGED_IN", "MEMBER", 30f, false);
 
     @Before
     public void setUp() {

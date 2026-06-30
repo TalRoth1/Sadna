@@ -92,7 +92,7 @@ public class UserRepositoryConcurrencyTest {
                             "user-" + tid,   // unique username
                             sharedEmail,
                             "hash",
-                            25);
+                            25f);
                     repo.add(u);
                     successCount.incrementAndGet();
                 } catch (IllegalArgumentException expected) {
@@ -152,7 +152,7 @@ public class UserRepositoryConcurrencyTest {
                             sharedUsername,
                             "user-" + tid + "@example.com", // unique email
                             "hash",
-                            25);
+                            25f);
                     repo.add(u);
                     successCount.incrementAndGet();
                 } catch (IllegalArgumentException expected) {
@@ -203,7 +203,7 @@ public class UserRepositoryConcurrencyTest {
                             "user-" + tid,
                             "user-" + tid + "@example.com",
                             "hash",
-                            25);
+                            25f);
                     repo.add(u);
                 } catch (Throwable t) {
                     synchronized (errors) { errors.add(t); }
@@ -255,7 +255,7 @@ public class UserRepositoryConcurrencyTest {
                                 "writer-" + wid + "-" + i,
                                 "writer-" + wid + "-" + i + "@example.com",
                                 "hash",
-                                25);
+                                25f);
                         try { repo.add(u); } catch (IllegalArgumentException ignored) { }
                     }
                 } catch (Throwable t) {
