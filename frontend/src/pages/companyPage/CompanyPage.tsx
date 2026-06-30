@@ -463,9 +463,9 @@ function formatEventDate(date: string) {
 }
 
 function formatCurrency(value: number) {
-    return new Intl.NumberFormat("en-US", {
+    return new Intl.NumberFormat("he-IL", {
         style: "currency",
-        currency: "USD",
+        currency: "ILS",
         maximumFractionDigits: 2,
     }).format(value);
 }
