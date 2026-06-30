@@ -745,6 +745,35 @@ export default function EditEventPage({
         }
     }
 
+    function hasPolicyChanged(eventToCompare: Event) {
+        const originalMinAge =
+            eventToCompare.purchasePolicy.minAge !== undefined
+                ? String(eventToCompare.purchasePolicy.minAge)
+                : "";
+
+        const originalMinTickets =
+            eventToCompare.purchasePolicy.minTicketsPerPurchase !== undefined
+                ? String(eventToCompare.purchasePolicy.minTicketsPerPurchase)
+                : "";
+
+        const originalMaxTickets =
+            eventToCompare.purchasePolicy.maxTicketsPerPurchase !== undefined
+                ? String(eventToCompare.purchasePolicy.maxTicketsPerPurchase)
+                : "";
+
+        const originalAllowLoneSeat =
+            eventToCompare.purchasePolicy.allowLoneSeat === undefined
+                ? ""
+                : String(eventToCompare.purchasePolicy.allowLoneSeat);
+
+        return (
+            minAge.trim() !== originalMinAge ||
+            minTickets.trim() !== originalMinTickets ||
+            maxTickets.trim() !== originalMaxTickets ||
+            allowLoneSeat !== originalAllowLoneSeat
+        );
+    }
+
     async function handleSubmit(submitEvent: FormEvent<HTMLFormElement>) {
         submitEvent.preventDefault();
 
@@ -843,19 +872,42 @@ export default function EditEventPage({
                 });
             }
 
-            await editEventPolicy(event.id, {
-                username: currentUser.email,
-                companyId: event.companyId,
-                age: minAge.trim() ? Number(minAge) : null,
-                minTicket: minTickets.trim() ? Number(minTickets) : null,
-                maxTicket: maxTickets.trim() ? Number(maxTickets) : null,
-                allowLoneSeat:
-                    allowLoneSeat === ""
-                        ? null
-                        : allowLoneSeat === "true",
-            });
+            if (hasPolicyChanged(event)) {
+                await editEventPolicy(event.id, {
+                    username: currentUser.email,
+                    companyId: event.companyId,
+                    age: minAge.trim() ? Number(minAge) : null,
+                    minTicket: minTickets.trim() ? Number(minTickets) : null,
+                    maxTicket: maxTickets.trim() ? Number(maxTickets) : null,
+                    allowLoneSeat:
+                        allowLoneSeat === ""
+                            ? null
+                            : allowLoneSeat === "true",
+                });
+            }
 
-            await saveDiscountChanges(event, currentUser.email);
+        function normalizeDiscountsForCompare(discountsToCompare: DiscountDraft[]) {
+            return JSON.stringify(
+                discountsToCompare.map((discount) => ({
+                    discountType: discount.discountType,
+                    discountPercent: discount.discountPercent.trim(),
+                    discountFromDate: discount.discountFromDate,
+                    discountToDate: discount.discountToDate,
+                    couponCode: discount.couponCode.trim(),
+                    requiredTickets: discount.requiredTickets.trim(),
+                    appliedTickets: discount.appliedTickets.trim(),
+                })),
+            );
+        }
+
+        function hasDiscountsChanged(eventToCompare: Event) {
+            return normalizeDiscountsForCompare(discounts) !==
+                normalizeDiscountsForCompare(buildDiscountDrafts(eventToCompare));
+        }
+
+            if (hasDiscountsChanged(event)) {
+                await saveDiscountChanges(event, currentUser.email);
+            }
 
             setSuccessMessage("Event updated successfully.");
 
