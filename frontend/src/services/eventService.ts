@@ -6,6 +6,8 @@ type ApiResponse<T> = {
     data: T | null;
 };
 
+export type EventStatusValue = "ACTIVE" | "CANCELED" | "ENDED";
+
 export type CreateEventRequest = {
     companyId: string;
     eventManagerEmail: string;
@@ -14,7 +16,7 @@ export type CreateEventRequest = {
     location: string;
     artist: string;
     type: string;
-    status: string;
+    status: EventStatusValue;
     description?: string;
     discountType: EventDiscountType;
 };
@@ -25,7 +27,7 @@ export type EditEventRequest = {
     location: string;
     artist: string;
     type: string;
-    status: string;
+    status: EventStatusValue;
     description?: string;
     requesterEmail: string;
 };

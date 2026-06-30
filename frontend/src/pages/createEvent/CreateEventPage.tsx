@@ -1,7 +1,11 @@
 ﻿import { useEffect, useState, type FormEvent } from "react";
 import { getCurrentUser, type CurrentUser } from "../../services/currentUserService";
 import { getMyCompanies, type CompanyMembership, type EventDiscountType } from "../../services/companyService";
-import { createEvent, type CreateEventRequest } from "../../services/eventService";
+import {
+    createEvent,
+    type CreateEventRequest,
+    type EventStatusValue,
+} from "../../services/eventService";
 
 import "./CreateEventPage.css";
 import { createLotteryEvent } from "../../services/lotteryService";
@@ -49,10 +53,10 @@ type FormErrors = {
     discount?: string;
 };
 
-const statusOptions = [
+const statusOptions: Array<{ value: EventStatusValue; label: string }> = [
     { value: "ACTIVE", label: "Active" },
-    { value: "SUSPENDED", label: "Suspended" },
-    { value: "CLOSED", label: "Closed" },
+    { value: "CANCELED", label: "Canceled" },
+    { value: "ENDED", label: "Ended" },
 ];
 
 function createLocalId() {
@@ -131,7 +135,7 @@ export default function CreateEventPage({
     const [location, setLocation] = useState("");
     const [artist, setArtist] = useState("");
     const [type, setType] = useState("");
-    const [status, setStatus] = useState("ACTIVE");
+    const [status, setStatus] = useState<EventStatusValue>("ACTIVE");
 
     const [isLotteryEvent, setIsLotteryEvent] = useState(false);
     const [lotteryRegistrationOpen, setLotteryRegistrationOpen] = useState("");
@@ -208,6 +212,40 @@ export default function CreateEventPage({
         if (!location.trim()) validation.location = "Location is required.";
         if (!type.trim()) validation.type = "Category or event type is required.";
 
+        const parsedMinAge = minAge.trim() ? Number(minAge) : null;
+        const parsedMinTickets = minTickets.trim() ? Number(minTickets) : null;
+        const parsedMaxTickets = maxTickets.trim() ? Number(maxTickets) : null;
+
+        if (
+            parsedMinAge !== null &&
+            (Number.isNaN(parsedMinAge) || parsedMinAge < 0 || !Number.isInteger(parsedMinAge))
+        ) {
+            validation.ticketAreas = "Minimum age must be a non-negative whole number.";
+        }
+
+        if (
+            parsedMinTickets !== null &&
+            (Number.isNaN(parsedMinTickets) || parsedMinTickets < 1 || !Number.isInteger(parsedMinTickets))
+        ) {
+            validation.ticketAreas = "Minimum tickets per purchase must be a positive whole number.";
+        }
+
+        if (
+            parsedMaxTickets !== null &&
+            (Number.isNaN(parsedMaxTickets) || parsedMaxTickets < 1 || !Number.isInteger(parsedMaxTickets))
+        ) {
+            validation.ticketAreas = "Maximum tickets per purchase must be a positive whole number.";
+        }
+
+        if (
+            parsedMinTickets !== null &&
+            parsedMaxTickets !== null &&
+            parsedMinTickets > parsedMaxTickets
+        ) {
+            validation.ticketAreas =
+                "Minimum tickets per purchase cannot be greater than maximum tickets per purchase.";
+        }
+
         if (ticketAreas.length === 0) {
             validation.ticketAreas = "Add at least one ticket area.";
         } else {
@@ -278,10 +316,10 @@ export default function CreateEventPage({
             if (
                 !discount.discountPercent.trim() ||
                 Number.isNaN(percent) ||
-                percent < 0 ||
+                percent <= 0 ||
                 percent > 100
             ) {
-                validation.discount = "Each discount percent must be between 0 and 100.";
+                validation.discount = "Each discount percent must be between 1 and 100.";
                 break;
             }
 
@@ -743,7 +781,10 @@ export default function CreateEventPage({
 
                                 <label className="form-field">
                                     <span>Event status</span>
-                                    <select value={status} onChange={(e) => setStatus(e.target.value)}>
+                                    <select
+                                        value={status}
+                                        onChange={(e) => setStatus(e.target.value as EventStatusValue)}
+                                    >
                                         {statusOptions.map((option) => (
                                             <option key={option.value} value={option.value}>
                                                 {option.label}
