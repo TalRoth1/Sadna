@@ -248,7 +248,15 @@ public class CompanyService {
         rolesDomainService.changeManagerPermissions(
                 ownerUsername, companyId, managerUsername, newPermissions);
 
-        notifier.notifyUser(managerUsername, "Your manager permissions have changed.");
+        // The notification is a non-critical side effect. It must never fail (or,
+        // since this method is @Transactional, roll back) the permission change
+        // itself, so swallow and log any failure instead of propagating it.
+        try {
+            notifier.notifyUser(managerUsername, "Your manager permissions have changed.");
+        } catch (RuntimeException e) {
+            logger.warning("Failed to notify manager " + managerUsername
+                    + " about permission change: " + e.getMessage());
+        }
     }
 
     public void addPolicyRule(String username,

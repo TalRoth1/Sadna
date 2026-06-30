@@ -238,8 +238,7 @@ public class User {
             throw new IllegalArgumentException(
                     "The user changing the permissions is not a company owner and therefore cannot change manager permissions");
         }
-        if (!OwnerUser.isCompanyMember(companyId)
-                || !(OwnerUser.isOwnerInCompany(companyId))) {
+        if (!(this.getCompanyRole(companyId) instanceof CompanyManager)) {
             throw new IllegalArgumentException(
                     "The user whose permissions are being changed is not a company manager and therefore cannot have his/her permissions changed");
         }

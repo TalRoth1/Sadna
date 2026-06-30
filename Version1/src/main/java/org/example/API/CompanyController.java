@@ -143,13 +143,6 @@ public class CompanyController {
             return ResponseEntity.ok(ApiResponse.success("Company policies loaded successfully", policies));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
-        } catch (Exception e) {
-            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
-                return GlobalExceptionHandler.databaseUnavailable();
-            }
-
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(ApiResponse.error("Not authorized to view company policies"));
         }
     }
 
@@ -162,13 +155,6 @@ public class CompanyController {
             return ResponseEntity.ok(ApiResponse.success("Subordinate events loaded successfully", events));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
-        } catch (Exception e) {
-            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
-                return GlobalExceptionHandler.databaseUnavailable();
-            }
-
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(ApiResponse.error("Not authorized to view subordinate events"));
         }
     }
 
@@ -202,13 +188,6 @@ public class CompanyController {
             return ResponseEntity.ok(ApiResponse.success("Company closed successfully"));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
-        } catch (Exception e) {
-            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
-                return GlobalExceptionHandler.databaseUnavailable();
-            }
-
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(ApiResponse.error("Not authorized to close this company"));
         }
     }
 
@@ -228,13 +207,6 @@ public class CompanyController {
                     .body(ApiResponse.success("Manager invited successfully", invitation));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
-        } catch (Exception e) {
-            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
-                return GlobalExceptionHandler.databaseUnavailable();
-            }
-
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(ApiResponse.error("Not authorized to invite managers"));
         }
     }
 
@@ -249,13 +221,6 @@ public class CompanyController {
                     .body(ApiResponse.success("Owner invited successfully", invitation));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
-        } catch (Exception e) {
-            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
-                return GlobalExceptionHandler.databaseUnavailable();
-            }
-
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(ApiResponse.error("Not authorized to invite owners"));
         }
     }
 
@@ -313,14 +278,10 @@ public class CompanyController {
             return ResponseEntity.ok(ApiResponse.success("Member removed successfully"));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
-        } catch (Exception e) {
-            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
-                return GlobalExceptionHandler.databaseUnavailable();
-            }
-
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(ApiResponse.error("Not authorized to remove this member"));
         }
+        // Any other (unexpected) exception propagates to GlobalExceptionHandler
+        // instead of being masked as a permission denial. Real authorization
+        // failures are thrown as IllegalArgumentException (handled above).
     }
 
 
@@ -335,14 +296,12 @@ public class CompanyController {
             return ResponseEntity.ok(ApiResponse.success("Permissions updated successfully"));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
-        } catch (Exception e) {
-            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
-                return GlobalExceptionHandler.databaseUnavailable();
-            }
-
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(ApiResponse.error("Not authorized to change permissions"));
         }
+        // Any other (unexpected) exception propagates to GlobalExceptionHandler,
+        // which maps DB-unavailable to 503 and other runtime errors to 500 with a
+        // logged stack trace. We must NOT mask arbitrary failures as a permission
+        // denial here: the real authorization checks already throw
+        // IllegalArgumentException with specific messages (handled above).
     }
 
     // ================================================================
@@ -365,13 +324,6 @@ public class CompanyController {
                     .body(ApiResponse.success("Policy rule added successfully"));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
-        } catch (Exception e) {
-            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
-                return GlobalExceptionHandler.databaseUnavailable();
-            }
-
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(ApiResponse.error("Not authorized to modify purchase policy"));
         }
     }
 
@@ -385,13 +337,6 @@ public class CompanyController {
             return ResponseEntity.ok(ApiResponse.success("Policy rule deleted successfully"));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
-        } catch (Exception e) {
-            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
-                return GlobalExceptionHandler.databaseUnavailable();
-            }
-
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(ApiResponse.error("Not authorized to modify purchase policy"));
         }
     }
 
@@ -411,13 +356,6 @@ public class CompanyController {
                     .body(ApiResponse.success("Overt discount added successfully"));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
-        } catch (Exception e) {
-            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
-                return GlobalExceptionHandler.databaseUnavailable();
-            }
-
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(ApiResponse.error("Not authorized to add discounts"));
         }
     }
 
@@ -434,13 +372,6 @@ public class CompanyController {
                     .body(ApiResponse.success("Conditional discount added successfully"));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
-        } catch (Exception e) {
-            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
-                return GlobalExceptionHandler.databaseUnavailable();
-            }
-
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(ApiResponse.error("Not authorized to add discounts"));
         }
     }
 
@@ -457,13 +388,6 @@ public class CompanyController {
                     .body(ApiResponse.success("Coupon added successfully"));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
-        } catch (Exception e) {
-            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
-                return GlobalExceptionHandler.databaseUnavailable();
-            }
-
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(ApiResponse.error("Not authorized to add coupons"));
         }
     }
 
@@ -477,13 +401,6 @@ public class CompanyController {
             return ResponseEntity.ok(ApiResponse.success("Discount removed successfully"));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
-        } catch (Exception e) {
-            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
-                return GlobalExceptionHandler.databaseUnavailable();
-            }
-
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(ApiResponse.error("Not authorized to remove discounts"));
         }
     }
 
@@ -513,13 +430,6 @@ public class CompanyController {
             return ResponseEntity.ok(ApiResponse.success(hierarchy));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
-        } catch (Exception e) {
-            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
-                return GlobalExceptionHandler.databaseUnavailable();
-            }
-
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(ApiResponse.error("Not authorized to view company hierarchy"));
         }
     }
 
@@ -533,13 +443,6 @@ public class CompanyController {
             return ResponseEntity.ok(ApiResponse.success(report));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
-        } catch (Exception e) {
-            if (GlobalExceptionHandler.isDatabaseUnavailable(e)) {
-                return GlobalExceptionHandler.databaseUnavailable();
-            }
-
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(ApiResponse.error("Not authorized to view sales report"));
         }
     }
 }

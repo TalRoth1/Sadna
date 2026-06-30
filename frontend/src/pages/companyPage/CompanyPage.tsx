@@ -780,6 +780,7 @@ export default function CompanyPage({
         useState<string | null>(null);
     const [selectedManagerNode, setSelectedManagerNode] = useState<HierarchyNode | null>(null);
     const [permissionDraft, setPermissionDraft] = useState<BackendCompanyPermissionName[]>([]);
+    const [isSavingPermissions, setIsSavingPermissions] = useState(false);
 
     const [state, setState] = useState<CompanyPageState>({
         company,
@@ -1366,7 +1367,7 @@ export default function CompanyPage({
     }
 
     async function savePermissionDraft() {
-        if (!currentUser || !selectedManagerNode) {
+        if (!currentUser || !selectedManagerNode || isSavingPermissions) {
             return;
         }
 
@@ -1382,6 +1383,8 @@ export default function CompanyPage({
             managerUsername: managerEmail,
             newPermissions: permissionDraft,
         };
+
+        setIsSavingPermissions(true);
 
         try {
             await changeManagerPermissions(state.company.id, request);
@@ -1445,6 +1448,8 @@ export default function CompanyPage({
             closePermissionsModal();
         } catch (error) {
             window.alert(getErrorMessage(error, "Failed to save manager permissions."));
+        } finally {
+            setIsSavingPermissions(false);
         }
     }
 
@@ -1883,6 +1888,7 @@ export default function CompanyPage({
                                         className="company-permissions-modal-close"
                                         onClick={closePermissionsModal}
                                         aria-label="Close permissions modal"
+                                        disabled={isSavingPermissions}
                                     >
                                         ×
                                     </button>
@@ -1907,6 +1913,7 @@ export default function CompanyPage({
                                                             : "company-permissions-modal-chip"
                                                     }
                                                     onClick={() => togglePermissionDraft(permission)}
+                                                    disabled={isSavingPermissions}
                                                 >
                                                     {getPermissionLabel(permission)}
                                                 </button>
@@ -1920,6 +1927,7 @@ export default function CompanyPage({
                                         type="button"
                                         className="company-permissions-modal-secondary"
                                         onClick={closePermissionsModal}
+                                        disabled={isSavingPermissions}
                                     >
                                         Cancel
                                     </button>
@@ -1928,8 +1936,9 @@ export default function CompanyPage({
                                         type="button"
                                         className="company-permissions-modal-primary"
                                         onClick={savePermissionDraft}
+                                        disabled={isSavingPermissions}
                                     >
-                                        Save
+                                        {isSavingPermissions ? "Saving…" : "Save"}
                                     </button>
                                 </div>
                             </div>

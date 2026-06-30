@@ -58,6 +58,11 @@ public class GlobalExceptionHandler {
             return databaseUnavailable();
         }
 
+        // Log the real cause with its stack trace. Without this, unexpected runtime
+        // failures surface to the client only as a generic 500 with no server-side
+        // record, making them impossible to diagnose.
+        logger.log(Level.SEVERE, "[GlobalExceptionHandler] Unexpected error", error);
+
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.error("A system error occurred. Please try again later."));

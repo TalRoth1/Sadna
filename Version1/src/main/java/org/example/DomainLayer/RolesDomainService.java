@@ -437,9 +437,8 @@ public class RolesDomainService {
         if (managerUsername == null || managerUsername.isBlank()) {
             throw new IllegalArgumentException("Manager username is required");
         }
-        Company company = companyRepository.findByID(companyId).get();
-        if (company == null)
-            throw new IllegalArgumentException("Company not found");
+        Company company = companyRepository.findByID(companyId)
+                .orElseThrow(() -> new IllegalArgumentException("Company not found"));
         User managerUser = userRepository.findByEmail(managerUsername)
                 .orElseThrow(() -> new IllegalArgumentException("Manager user not found"));
         User ownerUser = userRepository.findByEmail(ownerUsername)
